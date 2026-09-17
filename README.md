@@ -1,12 +1,18 @@
 # OpenRevo (开源机械革命/同方笔记本控制中心)
 
-## Project Status: Public Preview
+<div align="center">
 
-OpenRevo is a community-driven project focused on the Mechrevo / TongFang laptop ecosystem. This repository currently contains the public-safe portion of the project, including project overview, architecture notes, public documentation, and community-facing materials.
+简体中文 | [English](README_en.md)
 
-We are actively organizing and curating the open-source-safe subset before broader release. Device-specific reverse-engineering data, vendor-private mappings, hardware probes, and other sensitive platform assets are intentionally not included here.
+</div>
 
-This repo is intended to serve as a transparent foundation for the project, and more public materials will be added progressively as the open-source boundary is refined.
+
+
+> OpenRevo 是一个社区驱动的项目，专注于 Mechrevo / TongFang 笔记本生态系统。本仓库目前包含项目中可公开的部分，包括项目概览、架构说明、公共文档以及面向社区的资料。
+
+> 我们正在积极整理和策划开源可公开的子集，以便在更广泛发布前做好准备。针对特定设备的逆向工程数据、厂商专有映射、硬件探测及其他敏感平台资产均未包含在此。
+
+> 本仓库旨在为项目提供一个透明的基础，并将在开源边界明确的过程中逐步增加更多公开资料。
 
 <div align="center">
 
@@ -22,6 +28,7 @@ This repo is intended to serve as a transparent foundation for the project, and 
 替代臃肿卡顿、内存泄漏且保守受限的官方后台服务，无需安装官方控制中心任何组件，功能只多不少，带来纯净流畅、即开即用的硬件极速掌控体验。
 
 </div>
+
 
 ---
 
