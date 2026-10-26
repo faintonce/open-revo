@@ -702,64 +702,24 @@ impl GpuBridge {
                 return;
             }
 
-            let mut consecutive_failures: u32 = 0;
-            loop {
-                // 自适应休眠避让：若连续查询失败或独显休眠，自适应拉长休眠时间至 4000ms，避免冲击 D3Cold 驱动
-                let sleep_ms = if consecutive_failures > 1 { 4000 } else { 1500 };
-                thread::sleep(Duration::from_millis(sleep_ms));
-
-                // Execute nvidia-smi with CREATE_NO_WINDOW for real-time telemetry
-                let output = Command::new("nvidia-smi")
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .args([
-                        "--query-gpu=name,clocks.current.graphics,clocks.current.memory,temperature.gpu,utilization.gpu,memory.total,memory.used,power.draw",
-                        "--format=csv,noheader,nounits",
-                    ])
-                    .output();
-
-                if let Ok(out) = output {
-                    if out.status.success() {
-                        consecutive_failures = 0;
-                        let text = String::from_utf8_lossy(&out.stdout);
-                        let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
-                        if parts.len() >= 7 {
-                            let name = parts[0];
-                            if !name.is_empty() {
-                                let mut n = gpu_name.lock();
-                                if *n != name {
-                                    *n = name.to_string();
-                                }
-                            }
-                            if let Ok(c) = parts[1].parse::<u32>() {
-                                inner.core_freq.store(c, Ordering::SeqCst);
-                            }
-                            if let Ok(m) = parts[2].parse::<u32>() {
-                                inner.mem_freq.store(m, Ordering::SeqCst);
-                            }
-                            if let Ok(t) = parts[3].parse::<u32>() {
-                                inner.temp.store(t, Ordering::SeqCst);
-                            }
-                            if let Ok(u) = parts[4].parse::<u32>() {
-                                inner.usage.store(u, Ordering::SeqCst);
-                            }
-                            if let Ok(v_tot) = parts[5].parse::<u64>() {
-                                inner.vram_mb.store(v_tot, Ordering::SeqCst);
-                            }
-                            if let Ok(v_use) = parts[6].parse::<u64>() {
-                                inner.vram_used_mb.store(v_use, Ordering::SeqCst);
-                            }
-                            if parts.len() >= 8 {
-                                if let Ok(p) = parts[7].parse::<f32>() {
-                                    let dw = (p * 10.0).round() as u32;
-                                    inner.power_dw.store(dw, Ordering::SeqCst);
-                                }
-                            }
-                        }
-                    } else {
-                        consecutive_failures = consecutive_failures.saturating_add(1);
-                    }
-                } else {
-                    consecutive_failures = consecutive_failures.saturating_add(1);
+            // Preferred path: NVML in-process sampling (no child process per tick).
+            // Falls back to the legacy nvidia-smi subprocess loop only if NVML cannot
+            // be loaded/initialised (missing or too-old driver).
+            match crate::driver::nvml::NvmlContext::open() {
+                Ok(ctx) => {
+                    crate::log_info!(
+                        "GPU_BRIDGE",
+                        "GPU telemetry: NVML in-process sampling engaged (0 child processes per tick)"
+                    );
+                    run_nvml_poller(inner, gpu_name, ctx);
+                }
+                Err(e) => {
+                    crate::log_warn!(
+                        "GPU_BRIDGE",
+                        "NVML unavailable ({}); falling back to nvidia-smi subprocess polling",
+                        e
+                    );
+                    run_legacy_smi_poller(inner, gpu_name);
                 }
             }
         });
@@ -851,6 +811,197 @@ impl GpuBridge {
     pub fn get_power_w(&self, _index: u32) -> f32 {
         let dw = self.inner.power_dw.load(Ordering::SeqCst);
         dw as f32 / 10.0
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GPU telemetry pollers
+// ---------------------------------------------------------------------------
+
+/// 活跃态采样间隔（毫秒）。与原实现保持一致，不改变 UI 刷新手感。
+const NVML_ACTIVE_INTERVAL_MS: u64 = 1_500;
+/// GPU 空闲（P8 且利用率为 0）时的采样间隔。
+///
+/// NVML 单次采样约 8μs，拉长间隔的目的不是省 CPU，而是**减少对驱动的访问频次**，
+/// 避免长期维持设备活跃引用而影响 RTD3 / D3Cold 进入。
+const NVML_IDLE_INTERVAL_MS: u64 = 5_000;
+/// 设备不可达（被固件切电 / D3Cold）后的重试间隔。
+const NVML_UNREACHABLE_RETRY_MS: u64 = 30_000;
+/// 连续多少次空闲采样后切换到低频模式。
+const IDLE_STREAK_THRESHOLD: u32 = 2;
+
+/// NVML 直读轮询：进程内采样，每次约 8μs，不创建任何子进程。
+fn run_nvml_poller(
+    inner: Arc<GpuTelemetryInner>,
+    gpu_name: Arc<Mutex<String>>,
+    first_ctx: crate::driver::nvml::NvmlContext,
+) {
+    use crate::driver::nvml::{NvmlContext, SampleError};
+
+    let mut ctx: Option<NvmlContext> = Some(first_ctx);
+    let mut idle_streak: u32 = 0;
+    let mut unreachable_logged = false;
+
+    loop {
+        let sleep_ms = if ctx.is_some() {
+            if idle_streak >= IDLE_STREAK_THRESHOLD {
+                NVML_IDLE_INTERVAL_MS
+            } else {
+                NVML_ACTIVE_INTERVAL_MS
+            }
+        } else {
+            NVML_UNREACHABLE_RETRY_MS
+        };
+        thread::sleep(Duration::from_millis(sleep_ms));
+
+        // 设备不可达时上下文已被释放，这里按低频节奏尝试重建
+        if ctx.is_none() {
+            match NvmlContext::open() {
+                Ok(c) => {
+                    if let Some(n) = c.name() {
+                        let mut guard = gpu_name.lock();
+                        if *guard != n {
+                            *guard = n;
+                        }
+                    }
+                    crate::log_info!("GPU_BRIDGE", "NVML context rebuilt after device became reachable");
+                    ctx = Some(c);
+                    idle_streak = 0;
+                    unreachable_logged = false;
+                }
+                Err(e) => {
+                    if !unreachable_logged {
+                        crate::log_warn!(
+                            "GPU_BRIDGE",
+                            "NVML still unavailable ({}); next retry in {}ms",
+                            e,
+                            NVML_UNREACHABLE_RETRY_MS
+                        );
+                        unreachable_logged = true;
+                    }
+                    continue;
+                }
+            }
+        }
+
+        // 先取出 owned 结果，避免后续 `ctx = None` 与不可变借用冲突
+        let sampled = match ctx.as_ref() {
+            Some(c) => c.sample(),
+            None => continue,
+        };
+
+        match sampled {
+            Ok(s) => {
+                inner.core_freq.store(s.core_clock_mhz, Ordering::SeqCst);
+                inner.mem_freq.store(s.mem_clock_mhz, Ordering::SeqCst);
+                inner.temp.store(s.temp_c, Ordering::SeqCst);
+                inner.usage.store(s.usage_pct, Ordering::SeqCst);
+                if s.vram_total_mb > 0 {
+                    inner.vram_mb.store(s.vram_total_mb, Ordering::SeqCst);
+                }
+                inner.vram_used_mb.store(s.vram_used_mb, Ordering::SeqCst);
+                // 功耗为 0 通常表示该型号不提供功耗传感器，保留上一次读数而不是清零
+                if s.power_w > 0.0 {
+                    inner
+                        .power_dw
+                        .store((s.power_w * 10.0).round() as u32, Ordering::SeqCst);
+                }
+
+                idle_streak = if s.is_idle() {
+                    idle_streak.saturating_add(1)
+                } else {
+                    0
+                };
+            }
+            Err(SampleError::Unreachable(code)) => {
+                if !unreachable_logged {
+                    crate::log_info!(
+                        "GPU_BRIDGE",
+                        "NVML device unreachable (code {}): releasing handle to allow RTD3, retry in {}ms",
+                        code,
+                        NVML_UNREACHABLE_RETRY_MS
+                    );
+                    unreachable_logged = true;
+                }
+                // 主动释放：Drop 会调用 nvmlShutdown，解除驱动侧的活动引用
+                ctx = None;
+                idle_streak = 0;
+            }
+            Err(SampleError::Transient(code)) => {
+                // 瞬时错误：保留上一次读数，下个周期再试，不重置空闲计数
+                crate::log_debug!(
+                    "GPU_BRIDGE",
+                    "NVML transient sampling error (code {}), keeping last values",
+                    code
+                );
+            }
+        }
+    }
+}
+
+/// 兼容性回退：`nvidia-smi` 子进程轮询（NVML 不可用时使用）。
+///
+/// 每次调用都会创建一个子进程（实测 450~550ms），因此仅在 NVML 加载失败时启用。
+fn run_legacy_smi_poller(inner: Arc<GpuTelemetryInner>, gpu_name: Arc<Mutex<String>>) {
+    let mut consecutive_failures: u32 = 0;
+    loop {
+        // 自适应休眠避让：若连续查询失败或独显休眠，自适应拉长休眠时间至 4000ms，避免冲击 D3Cold 驱动
+        let sleep_ms = if consecutive_failures > 1 { 4000 } else { 1500 };
+        thread::sleep(Duration::from_millis(sleep_ms));
+
+        // Execute nvidia-smi with CREATE_NO_WINDOW for real-time telemetry
+        let output = Command::new("nvidia-smi")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args([
+                "--query-gpu=name,clocks.current.graphics,clocks.current.memory,temperature.gpu,utilization.gpu,memory.total,memory.used,power.draw",
+                "--format=csv,noheader,nounits",
+            ])
+            .output();
+
+        if let Ok(out) = output {
+            if out.status.success() {
+                consecutive_failures = 0;
+                let text = String::from_utf8_lossy(&out.stdout);
+                let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
+                if parts.len() >= 7 {
+                    let name = parts[0];
+                    if !name.is_empty() {
+                        let mut n = gpu_name.lock();
+                        if *n != name {
+                            *n = name.to_string();
+                        }
+                    }
+                    if let Ok(c) = parts[1].parse::<u32>() {
+                        inner.core_freq.store(c, Ordering::SeqCst);
+                    }
+                    if let Ok(m) = parts[2].parse::<u32>() {
+                        inner.mem_freq.store(m, Ordering::SeqCst);
+                    }
+                    if let Ok(t) = parts[3].parse::<u32>() {
+                        inner.temp.store(t, Ordering::SeqCst);
+                    }
+                    if let Ok(u) = parts[4].parse::<u32>() {
+                        inner.usage.store(u, Ordering::SeqCst);
+                    }
+                    if let Ok(v_tot) = parts[5].parse::<u64>() {
+                        inner.vram_mb.store(v_tot, Ordering::SeqCst);
+                    }
+                    if let Ok(v_use) = parts[6].parse::<u64>() {
+                        inner.vram_used_mb.store(v_use, Ordering::SeqCst);
+                    }
+                    if parts.len() >= 8 {
+                        if let Ok(p) = parts[7].parse::<f32>() {
+                            let dw = (p * 10.0).round() as u32;
+                            inner.power_dw.store(dw, Ordering::SeqCst);
+                        }
+                    }
+                }
+            } else {
+                consecutive_failures = consecutive_failures.saturating_add(1);
+            }
+        } else {
+            consecutive_failures = consecutive_failures.saturating_add(1);
+        }
     }
 }
 
