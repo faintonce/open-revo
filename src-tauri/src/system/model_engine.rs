@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
+use parking_lot::RwLock;
 
 pub use crate::system::power_mode::{FanTableData, ModelFanTables};
 
@@ -61,6 +63,16 @@ pub struct LightingContract {
     #[serde(default)]
     pub has_air_vent: bool,
 }
+
+/// Cached active Lighting contract (see `get_active_lighting_contract`).
+/// Populated on first call from the live HID topology, dropped by
+/// `invalidate_lighting_contract_cache` whenever devices are re-enumerated.
+/// Entries also expire after `LIGHTING_CONTRACT_TTL` so a device that appears
+/// without a lifecycle event (hot-plug without sleep/wake) is still picked up.
+static LIGHTING_CONTRACT_CACHE: LazyLock<RwLock<Option<(std::time::Instant, LightingContract)>>> =
+    LazyLock::new(|| RwLock::new(None));
+
+const LIGHTING_CONTRACT_TTL: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// Level 0 Sovereign Contract: Motherboard Communication Bus
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -134,18 +146,25 @@ pub struct ModelProfile {
 }
 
 /// Built-in model profile definitions deserialized from embedded builtin_models.json
+///
+/// The embedded JSON is ~168 KB and is parsed on every call, so the parse result is
+/// cached once and cloned per caller. Cloning the parsed list is orders of magnitude
+/// cheaper than re-running serde_json over the whole document.
 pub fn get_builtin_profiles() -> Vec<ModelProfile> {
-    match serde_json::from_str::<Vec<ModelProfile>>(BUILTIN_MODELS_JSON) {
-        Ok(profiles) => profiles,
-        Err(e) => {
-            crate::log_error!(
-                "MODEL_ENGINE",
-                "Fatal: Failed to deserialize embedded builtin_models.json: {}",
-                e
-            );
-            Vec::new()
+    static BUILTIN_CACHE: LazyLock<Vec<ModelProfile>> = LazyLock::new(|| {
+        match serde_json::from_str::<Vec<ModelProfile>>(BUILTIN_MODELS_JSON) {
+            Ok(profiles) => profiles,
+            Err(e) => {
+                crate::log_error!(
+                    "MODEL_ENGINE",
+                    "Fatal: Failed to deserialize embedded builtin_models.json: {}",
+                    e
+                );
+                Vec::new()
+            }
         }
-    }
+    });
+    BUILTIN_CACHE.clone()
 }
 
 
@@ -574,9 +593,52 @@ pub fn get_active_alias() -> String {
     full_name
 }
 
+/// In-memory cache of the fully synchronized profile list.
+/// Every load re-reads and re-parses the ~174 KB models.json plus the embedded builtin
+/// document, then re-probes EC registers for factory specs. Background pollers call this
+/// several times per second, so the synchronized result is cached until the file changes.
+static PROFILES_CACHE: LazyLock<RwLock<Option<(std::time::SystemTime, Vec<ModelProfile>)>>> =
+    LazyLock::new(|| RwLock::new(None));
+
+/// Drop the cached profile list so the next access re-reads models.json from disk.
+pub fn invalidate_model_profiles_cache() {
+    *PROFILES_CACHE.write() = None;
+    // The active lighting contract is derived from the active profile's keyboard hint,
+    // so it must be re-probed together with the profile list.
+    invalidate_lighting_contract_cache();
+}
+
 /// Load model profiles from %APPDATA%\OpenRevo\models.json (creates file if missing, keeps mine: true at index 0)
 pub fn load_model_profiles() -> Vec<ModelProfile> {
     let path = get_models_file_path();
+
+    // Cache hit: reuse the synchronized list as long as models.json has not been touched.
+    // A missing file is never cached, so an externally created file is still picked up.
+    // The lock is never held across the disk load below, so a slow read cannot block the
+    // background pollers that share this cache.
+    if let Ok(meta) = std::fs::metadata(&path) {
+        if let Ok(modified) = meta.modified() {
+            if let Some((cached_mtime, cached)) = PROFILES_CACHE.read().as_ref() {
+                if *cached_mtime == modified {
+                    return cached.clone();
+                }
+            }
+
+            let profiles = load_model_profiles_from_disk(&path);
+            // The load itself may have rewritten models.json (first run / hardware re-sync),
+            // so capture the post-write timestamp instead of the one read before the load.
+            let cached_mtime = std::fs::metadata(&path)
+                .and_then(|m| m.modified())
+                .unwrap_or(modified);
+            *PROFILES_CACHE.write() = Some((cached_mtime, profiles.clone()));
+            return profiles;
+        }
+    }
+
+    load_model_profiles_from_disk(&path)
+}
+
+fn load_model_profiles_from_disk(path: &std::path::Path) -> Vec<ModelProfile> {
     let mut profiles = if !path.exists() {
         get_builtin_profiles()
     } else {
@@ -630,6 +692,7 @@ pub fn save_model_profiles(profiles: &[ModelProfile]) -> Result<(), String> {
     let path = get_models_file_path();
     let json = serde_json::to_string_pretty(profiles).map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| e.to_string())?;
+    invalidate_model_profiles_cache();
     Ok(())
 }
 
@@ -976,12 +1039,38 @@ pub fn get_active_gpu_mux_contract() -> GpuMuxContract {
 }
 
 /// Retrieve the active Lighting contract
+///
+/// Profiling the idle background loop showed this being reached twice per 500 ms tick,
+/// and each call previously re-loaded models.json and ran five full SetupAPI/HID
+/// enumerations. The probe result is stable for a given machine, so it is cached and
+/// invalidated whenever the profile list or the HID topology is invalidated.
 pub fn get_active_lighting_contract() -> LightingContract {
-    if let Some(prof) = get_active_profile() {
+    // The guard must be dropped before probing: probe_lighting -> get_active_profile ->
+    // load_model_profiles takes the PROFILES_CACHE lock, and invalidate_model_profiles_cache
+    // takes these two locks in the opposite order, so holding this one here would deadlock.
+    let cached = {
+        let guard = LIGHTING_CONTRACT_CACHE.read();
+        guard.as_ref()
+            .filter(|(stamped, _)| stamped.elapsed() < LIGHTING_CONTRACT_TTL)
+            .map(|(_, contract)| contract.clone())
+    };
+    if let Some(contract) = cached {
+        return contract;
+    }
+
+    let contract = if let Some(prof) = get_active_profile() {
         TruthReconstructor::probe_lighting(&prof.keyboard_type)
     } else {
         TruthReconstructor::probe_lighting("TypeA")
-    }
+    };
+    *LIGHTING_CONTRACT_CACHE.write() = Some((std::time::Instant::now(), contract.clone()));
+    contract
+}
+
+/// Drop the cached active Lighting contract so the next call re-probes the HID topology.
+/// Must be invoked whenever devices are re-enumerated or the hardware override changes.
+pub fn invalidate_lighting_contract_cache() {
+    *LIGHTING_CONTRACT_CACHE.write() = None;
 }
 
 /// Retrieve the active Takeover contract

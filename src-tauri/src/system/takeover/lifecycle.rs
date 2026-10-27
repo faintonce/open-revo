@@ -123,6 +123,9 @@ pub fn pause_oem_services() -> Result<(), String> {
         refresh_tray_notification_area();
 
         crate::log_info!("TAKEOVER", "=== OEM Service Takeover Sequence Completed Successfully ===");
+        // OEM processes were just terminated; drop the cached detection results so the
+        // UI reflects the takeover on the very next heartbeat instead of after the TTL.
+        crate::system::process::invalidate_oem_detection_cache();
         Ok(())
     }
     #[cfg(not(target_os = "windows"))]
@@ -260,6 +263,9 @@ pub fn resume_oem_services() -> Result<(), String> {
         // 13. Refresh notification area
         refresh_tray_notification_area();
 
+        // OEM services and processes were just restarted; drop cached detection results
+        // so the UI reflects the restoration on the very next heartbeat.
+        crate::system::process::invalidate_oem_detection_cache();
         crate::log_info!(
             "TAKEOVER",
             "=== OEM Restoration Completed in {}ms: GCUBridge={}, GCUService={} ===",

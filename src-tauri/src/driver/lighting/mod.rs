@@ -214,6 +214,7 @@ impl IteLightingManager {
     /// Invalidate and drop cached HID device handles (e.g. before sleep or upon error)
     pub fn invalidate_devices(&self) {
         crate::driver::ite_streamer::IteStreamerController::invalidate_probe_cache();
+        crate::system::model_engine::invalidate_lighting_contract_cache();
         *self.kb_dev.lock() = None;
         *self.lb_dev.lock() = None;
         *self.hinge_dev.lock() = None;

@@ -3,6 +3,7 @@ pub mod config;
 pub mod display;
 pub mod hooks;
 pub mod process;
+pub mod query_cache;
 pub mod service_mgr;
 pub mod device_switches;
 pub mod switches;

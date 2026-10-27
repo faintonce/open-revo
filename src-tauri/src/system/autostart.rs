@@ -1,15 +1,33 @@
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::LazyLock;
+use std::time::Duration;
 use windows::core::{w, PCWSTR};
 use windows::Win32::System::Registry::{
     RegCloseKey, RegDeleteValueW, RegOpenKeyExW, HKEY_CURRENT_USER, KEY_SET_VALUE, HKEY,
 };
 
+use crate::system::query_cache::ExpiringCache;
+
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const TASK_NAME: &str = "OpenRevo";
 const LEGACY_SUB_KEY: PCWSTR = w!(r"Software\Microsoft\Windows\CurrentVersion\Run");
 const LEGACY_VALUE_NAME: PCWSTR = w!("OpenRevo");
+
+/// Each call spawns a `schtasks.exe`; the telemetry heartbeat asks for this every
+/// 1.5 s. The task itself only changes when this app (or the user) creates or deletes
+/// it, and those paths invalidate the cache explicitly, so the TTL only bounds how
+/// long an *external* change (manual edit in Task Scheduler) takes to show up.
+/// Kept deliberately short: `schtasks /query` costs ~50 ms, so a 5 s window still
+/// removes >99% of the spawns without a noticeable staleness window.
+static AUTOSTART_CACHE: LazyLock<ExpiringCache<bool>> =
+    LazyLock::new(|| ExpiringCache::new(Duration::from_secs(5)));
+
+/// Drop the cached autostart state so the next query re-runs `schtasks`.
+pub fn invalidate_autostart_cache() {
+    AUTOSTART_CACHE.invalidate();
+}
 
 /// Checks whether the OpenRevo scheduled task exists in Windows Task Scheduler.
 pub fn is_autostart_enabled() -> bool {
@@ -24,6 +42,13 @@ pub fn is_autostart_enabled() -> bool {
         }
     }
     false
+}
+
+/// TTL-cached variant of [`is_autostart_enabled`] for hot polling paths.
+/// The underlying task state is refreshed at most once per cache TTL, and always
+/// immediately after this app creates or deletes the task.
+pub fn is_autostart_enabled_cached() -> bool {
+    AUTOSTART_CACHE.get_or_compute(is_autostart_enabled)
 }
 
 /// Extracts the registered executable path from the OpenRevo scheduled task XML, if it exists.
@@ -239,6 +264,9 @@ r#"<?xml version="1.0" encoding="UTF-16"?>
             }
         };
 
+        // Task state changed by us; keep the cached answer in sync instead of
+        // waiting for the TTL to expire.
+        invalidate_autostart_cache();
         if success {
             Ok(true)
         } else {
@@ -249,6 +277,7 @@ r#"<?xml version="1.0" encoding="UTF-16"?>
             .creation_flags(CREATE_NO_WINDOW)
             .args(["/delete", "/f", "/tn", TASK_NAME])
             .status();
+        invalidate_autostart_cache();
         Ok(false)
     }
 }
