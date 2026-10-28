@@ -577,6 +577,11 @@ pub fn get_active_alias() -> String {
 /// Load model profiles from %APPDATA%\OpenRevo\models.json (creates file if missing, keeps mine: true at index 0)
 pub fn load_model_profiles() -> Vec<ModelProfile> {
     let path = get_models_file_path();
+    // Tracks whether any synthesized placeholder was replaced by a builtin profile.
+    // If so the file must be persisted, otherwise models.json keeps showing the stale
+    // placeholder (is_inferred=true, presets=null) even though the running app already
+    // uses the upgraded profile — which makes the profile look like it never applied.
+    let mut upgraded_from_placeholder = false;
     let mut profiles = if !path.exists() {
         get_builtin_profiles()
     } else {
@@ -590,6 +595,28 @@ pub fn load_model_profiles() -> Vec<ModelProfile> {
                         let builtin = get_builtin_profiles();
                         for b in &builtin {
                             if let Some(loaded_p) = loaded.iter_mut().find(|p| p.model_id.eq_ignore_ascii_case(&b.model_id)) {
+                                // A synthesized placeholder (is_inferred) must yield to a
+                                // newly added factory/community profile carrying the same
+                                // model_id — otherwise the placeholder would permanently
+                                // shadow the real profile and its calibrated presets/fan
+                                // tables would never take effect.
+                                if loaded_p.is_inferred && !b.is_inferred {
+                                    let keep_alias = loaded_p.alias.trim().to_string();
+                                    let was_mine = loaded_p.mine;
+                                    crate::log_info!(
+                                        "MODEL_ENGINE",
+                                        "Upgrading synthesized placeholder {} to builtin profile (mine={})",
+                                        b.model_id,
+                                        was_mine
+                                    );
+                                    *loaded_p = b.clone();
+                                    loaded_p.mine = was_mine;
+                                    upgraded_from_placeholder = true;
+                                    if !keep_alias.is_empty() {
+                                        loaded_p.alias = keep_alias;
+                                    }
+                                    continue;
+                                }
                                 if loaded_p.fan_tables.is_none() && b.fan_tables.is_some() {
                                     loaded_p.fan_tables = b.fan_tables.clone();
                                 }
@@ -616,7 +643,7 @@ pub fn load_model_profiles() -> Vec<ModelProfile> {
     };
 
     let changed = sync_active_machine_profile(&mut profiles);
-    if !path.exists() || changed {
+    if !path.exists() || changed || upgraded_from_placeholder {
         if let Ok(json) = serde_json::to_string_pretty(&profiles) {
             let _ = std::fs::write(&path, json);
         }
@@ -1263,7 +1290,7 @@ mod tests {
     #[test]
     fn test_fan_tables_loaded() {
         let profiles = get_builtin_profiles();
-        assert_eq!(profiles.len(), 29);
+        assert_eq!(profiles.len(), 30);
 
         // Verify GM6IX9B has valid fan tables
         let gm6 = profiles.iter().find(|p| p.model_id == "GM6IX9B").expect("GM6IX9B exists");
@@ -1276,8 +1303,20 @@ mod tests {
         assert_eq!(ft.balanced.as_ref().unwrap().max_duty, 160);
         assert_eq!(ft.turbo.as_ref().unwrap().max_duty, 180);
 
-        // Verify all 29 models have fan_tables populated
+        // Verify all factory-validated models have fan_tables populated.
+        // GM5HG7A (Yilong 15 Pro) is a community-submitted profile whose OEM fan curve has not
+        // been captured yet. It intentionally ships without fan_tables so that the generic
+        // fallback table is used — fabricating duty values here would cause fan hunting.
+        const PENDING_FAN_TABLE: &[&str] = &["GM5HG7A"];
         for p in &profiles {
+            if PENDING_FAN_TABLE.contains(&p.model_id.as_str()) {
+                assert!(
+                    p.fan_tables.is_none(),
+                    "Model {} must not ship fabricated fan_tables",
+                    p.model_id
+                );
+                continue;
+            }
             assert!(
                 p.fan_tables.is_some(),
                 "Model {} ({}) should have fan_tables populated",
