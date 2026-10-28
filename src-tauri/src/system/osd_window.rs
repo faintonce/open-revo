@@ -1,182 +1,170 @@
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use std::io::Write;
+use std::process::{ChildStdin, Command, Stdio};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter};
 
-/// Update the OSD window screen position based on user configuration
-pub fn update_osd_position(app: &AppHandle, position_str: &str) {
-    if let Some(win) = app.get_webview_window("osd") {
-        let monitor_opt = win
-            .current_monitor()
-            .ok()
-            .flatten()
-            .or_else(|| win.primary_monitor().ok().flatten());
+static OSD_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
 
-        if let Some(monitor) = monitor_opt {
-            let scale_factor = monitor.scale_factor();
-            let screen_w = monitor.size().width as f64 / scale_factor;
-            let screen_h = monitor.size().height as f64 / scale_factor;
-            let win_w = 520.0;
-            let win_h = 96.0;
+/// Ensure the native companion OSD process is spawned and acquire direct stdin handle
+pub fn ensure_companion_process() {
+    let mut lock = match OSD_STDIN.lock() {
+        Ok(l) => l,
+        Err(poisoned) => poisoned.into_inner(),
+    };
 
-            let mon_pos = monitor.position().to_logical::<f64>(scale_factor);
+    if lock.is_some() {
+        return;
+    }
 
-            let (rel_x, rel_y) = match position_str {
-                "bottom-center" | "bottom" => {
-                    ((screen_w - win_w) / 2.0, screen_h - win_h - 70.0)
+    if let Ok(exe_path) = std::env::current_exe() {
+        crate::log_info!("OSD", "Spawning native OSD companion with direct piped stdin: {:?}", exe_path);
+        let mut cmd = Command::new(exe_path);
+        cmd.arg("--osd-companion");
+        cmd.stdin(Stdio::piped());
+        cmd.stdout(Stdio::null());
+        cmd.stderr(Stdio::null());
+
+
+        match cmd.spawn() {
+            Ok(mut child) => {
+                if let Some(mut stdin) = child.stdin.take() {
+                    let cfg = crate::system::config::load_config();
+                    let line = format!("{}\n", serde_json::json!({
+                        "action": "config",
+                        "theme": cfg.osd_theme,
+                        "scale": cfg.osd_scale,
+                        "position": cfg.osd_position,
+                    }));
+                    let _ = stdin.write_all(line.as_bytes());
+                    let _ = stdin.flush();
+                    *lock = Some(stdin);
+                    crate::log_info!("OSD", "Native OSD companion stdin pipe established & initial config synced: theme={}, scale={}, pos={}", cfg.osd_theme, cfg.osd_scale, cfg.osd_position);
                 }
-                "center" => {
-                    ((screen_w - win_w) / 2.0, (screen_h - win_h) / 2.0)
-                }
-                _ => (36.0, 36.0), // Default: "top-left"
-            };
-
-            let final_x = mon_pos.x + rel_x;
-            let final_y = mon_pos.y + rel_y;
-
-            let _ = win.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(final_x, final_y)));
-
-            crate::log_info!(
-                "OSD",
-                "OSD window repositioned to '{}' at logical ({:.1}, {:.1})",
-                position_str,
-                final_x,
-                final_y
-            );
+            }
+            Err(e) => {
+                crate::log_error!("OSD", "Failed to spawn native OSD companion: {}", e);
+            }
         }
     }
 }
 
-/// Initialize the transparent, non-activating, click-through OSD window via orchestrator queue.
+static LAST_MESSAGE: Mutex<Option<(String, std::time::Instant)>> = Mutex::new(None);
+
+/// Send a JSON instruction directly to the companion child process via anonymous stdin pipe
+pub fn send_osd_ipc_message(payload: serde_json::Value) {
+    let cfg = crate::system::config::load_config();
+    if !cfg.osd_enabled {
+        return;
+    }
+
+    let line = format!("{}\n", payload);
+    {
+        let mut last = match LAST_MESSAGE.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        if let Some((ref prev_msg, prev_time)) = *last {
+            if prev_msg == &line && prev_time.elapsed() < std::time::Duration::from_millis(250) {
+                return;
+            }
+        }
+        *last = Some((line.clone(), std::time::Instant::now()));
+    }
+
+    ensure_companion_process();
+
+    let mut lock = match OSD_STDIN.lock() {
+        Ok(l) => l,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    if let Some(ref mut stdin) = *lock {
+        if let Err(e) = stdin.write_all(line.as_bytes()) {
+            crate::log_error!("OSD", "Failed writing to companion stdin: {}", e);
+            *lock = None; // Invalidate broken pipe
+        } else {
+            let _ = stdin.flush();
+        }
+    }
+}
+
+
+/// Initialize the native Slint OSD companion process
 pub fn init_osd_window(_app: &AppHandle) {
     let cfg = crate::system::config::load_config();
     if cfg.osd_enabled {
-        crate::system::webview_orchestrator::WebviewOrchestrator::global().enqueue_osd();
+        ensure_companion_process();
     }
 }
 
-/// Asynchronously build the OSD WebviewWindow without blocking main message pump.
-/// Invoked exclusively by WebviewOrchestrator worker loop.
-pub async fn build_osd_window_async(app: &AppHandle) -> Result<String, String> {
-    if app.get_webview_window("osd").is_some() {
-        return Ok("osd".into());
-    }
+pub async fn build_osd_window_async(_app: &AppHandle) -> Result<String, String> {
+    Ok("osd".into())
+}
 
+pub fn update_osd_position(_app: &AppHandle, position_str: &str) {
     let cfg = crate::system::config::load_config();
-
-    // Windows 11 / WebView2 Release Guard:
-    // Pure "index.html" with hash routing prevents 404 query-string resource lookup failures in embedded asset packs.
-    let target_url = WebviewUrl::App("index.html".into());
-    let init_script = "window.__OPENREVO_OSD_WINDOW__ = true; if (!window.location.hash.startsWith('#/osd')) { window.location.hash = '#/osd'; }";
-
-    let builder = WebviewWindowBuilder::new(
-        app,
-        "osd",
-        target_url,
-    )
-    .title("OpenRevo OSD")
-    .inner_size(520.0, 96.0)
-    .position(36.0, 36.0)
-    .resizable(false)
-    .decorations(false)
-    .transparent(true)
-    .shadow(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .initialization_script(init_script)
-    .visible(false); // Stays hidden until triggered by actual hotkey / mode switch events
-
-    match builder.build() {
-        Ok(win) => {
-            // Cross-platform click-through
-            let _ = win.set_ignore_cursor_events(true);
-
-            #[cfg(windows)]
-            unsafe {
-                use windows::Win32::Foundation::HWND;
-                use windows::Win32::UI::WindowsAndMessaging::{
-                    GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE,
-                    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-                };
-
-                if let Ok(hwnd) = win.hwnd() {
-                    let win_hwnd = HWND(hwnd.0 as _);
-                    let cur_ex = GetWindowLongPtrW(win_hwnd, GWL_EXSTYLE);
-                    // Do NOT set WS_EX_LAYERED on WebView2 top-level windows (prevents DirectX composition hangs)
-                    let target_ex = cur_ex
-                        | (WS_EX_NOACTIVATE.0 as isize)
-                        | (WS_EX_TOOLWINDOW.0 as isize)
-                        | (WS_EX_TOPMOST.0 as isize);
-
-                    let _ = SetWindowLongPtrW(win_hwnd, GWL_EXSTYLE, target_ex);
-
-                    // Position window according to persistent config without showing it
-                    update_osd_position(app, &cfg.osd_position);
-
-                    crate::log_info!(
-                        "OSD",
-                        "OSD window initialized in background (HWND 0x{:X}), WS_EX styles applied",
-                        hwnd.0 as usize
-                    );
-                }
-            }
-
-            Ok("osd".into())
-        }
-        Err(e) => {
-            crate::log_error!("OSD", "Failed to build OSD WebviewWindow: {}", e);
-            Err(format!("Failed to build OSD window: {}", e))
-        }
-    }
+    send_osd_ipc_message(serde_json::json!({
+        "action": "config",
+        "theme": cfg.osd_theme,
+        "scale": cfg.osd_scale,
+        "position": position_str,
+    }));
 }
 
-/// Presents the OSD window immediately in the topmost Z-order layer without stealing focus.
-pub fn present_osd_window(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window("osd") {
-        #[cfg(windows)]
-        unsafe {
-            use windows::Win32::Foundation::HWND;
-            use windows::Win32::UI::WindowsAndMessaging::{
-                SetWindowPos, HWND_TOPMOST,
-                SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE, SWP_SHOWWINDOW,
-            };
-            if let Ok(hwnd) = win.hwnd() {
-                let win_hwnd = HWND(hwnd.0 as _);
-                let _ = SetWindowPos(
-                    win_hwnd,
-                    HWND_TOPMOST,
-                    0,
-                    0,
-                    0,
-                    0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
-                );
-            }
-        }
-        let _ = win.set_ignore_cursor_events(true);
-    } else {
-        crate::system::webview_orchestrator::WebviewOrchestrator::global().enqueue_osd();
-    }
+pub fn wake_osd_if_enabled(_app: &AppHandle) {
+    // Zero latency: triggered instantly via direct stdin message
 }
 
-/// Dismisses the OSD window cleanly by hiding it via Win32.
-pub fn dismiss_osd_window(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window("osd") {
-        #[cfg(windows)]
-        unsafe {
-            use windows::Win32::Foundation::HWND;
-            use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
-            if let Ok(hwnd) = win.hwnd() {
-                let _ = ShowWindow(HWND(hwnd.0 as _), SW_HIDE);
-            }
-        }
-    }
+pub fn present_osd_window(_app: &AppHandle) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "preview",
+    }));
 }
 
-/// Pre-wakes and presents the OSD window natively in the topmost Z-order layer if OSD is enabled.
-/// This completely bypasses Chromium background tab/renderer throttling and guarantees 0ms display.
-pub fn wake_osd_if_enabled(app: &AppHandle) {
-    let cfg = crate::system::config::load_config();
-    if cfg.osd_enabled {
-        present_osd_window(app);
-    }
+pub fn dismiss_osd_window(_app: &AppHandle) {}
+
+pub fn show_power_mode(mode: u8) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "mode",
+        "value": mode,
+    }));
+}
+
+pub fn show_fan_boost(enabled: bool) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "fan",
+        "value": enabled,
+    }));
+}
+
+pub fn show_key_lock_toast(name: &str, locked: bool) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "key_lock",
+        "name": name,
+        "locked": locked,
+    }));
+}
+
+pub fn show_device_switch(name: &str, enabled: bool) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "device_switch",
+        "name": name,
+        "enabled": enabled,
+    }));
+}
+
+pub fn show_keyboard_brightness(level: u8) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "kb_brightness",
+        "level": level,
+    }));
+}
+
+pub fn show_keyboard_sleep_timeout(seconds: u32) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "kb_sleep",
+        "seconds": seconds,
+    }));
 }
 
 #[tauri::command]
@@ -248,7 +236,18 @@ fn handle_set_osd(
     cfg.osd_position = new_position.clone();
     crate::system::config::save_config(&cfg);
 
-    update_osd_position(app, &new_position);
+    send_osd_ipc_message(serde_json::json!({
+        "action": "config",
+        "theme": new_theme.clone(),
+        "scale": new_scale.clone(),
+        "position": new_position.clone(),
+    }));
+
+    if new_enabled {
+        send_osd_ipc_message(serde_json::json!({
+            "action": "preview",
+        }));
+    }
 
     let payload = serde_json::json!({
         "enabled": new_enabled,
@@ -257,11 +256,10 @@ fn handle_set_osd(
         "position": new_position,
     });
     let _ = app.emit("osd-config-changed", &payload);
-    let _ = app.emit_to("osd", "osd-config-changed", &payload);
 
     crate::log_info!(
         "OSD",
-        "OSD config saved: enabled={}, theme={}, scale={}, position={}",
+        "Native OSD config saved: enabled={}, theme={}, scale={}, position={}",
         new_enabled,
         new_theme,
         new_scale,
@@ -297,14 +295,21 @@ pub fn save_osd_config(
 #[tauri::command]
 pub fn trigger_osd_preview(app: AppHandle) -> Result<(), String> {
     let cfg = crate::system::config::load_config();
-    update_osd_position(&app, &cfg.osd_position);
-    present_osd_window(&app);
+    send_osd_ipc_message(serde_json::json!({
+        "action": "config",
+        "theme": cfg.osd_theme,
+        "scale": cfg.osd_scale,
+        "position": cfg.osd_position,
+    }));
+    send_osd_ipc_message(serde_json::json!({
+        "action": "preview",
+    }));
+
     let payload = serde_json::json!({
         "theme": cfg.osd_theme,
         "scale": cfg.osd_scale,
         "position": cfg.osd_position,
     });
     let _ = app.emit("trigger-osd-preview", &payload);
-    let _ = app.emit_to("osd", "trigger-osd-preview", &payload);
     Ok(())
 }

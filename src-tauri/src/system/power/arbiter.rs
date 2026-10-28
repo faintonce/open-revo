@@ -192,6 +192,9 @@ impl PowerArbiter {
         // 6. Synchronize Tray status
         crate::system::tray::update_tray_power_mode(target_mode);
 
+        // 7. Trigger OSD overlay
+        crate::system::osd_window::show_power_mode(target_mode);
+
         Some(target_mode)
     }
 }

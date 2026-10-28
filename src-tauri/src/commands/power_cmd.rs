@@ -302,6 +302,7 @@ pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBrid
     }
     crate::system::config::save_config(&cfg);
     crate::update_tray_power_mode(mode);
+    crate::system::osd_window::show_power_mode(mode);
     crate::system::osd_window::wake_osd_if_enabled(&app);
     let _ = app.emit("physical-mode-switched", mode);
     let _ = app.emit_to("main", "physical-mode-switched", mode);
@@ -326,6 +327,7 @@ pub fn set_fan_boost(
     crate::system::config::save_config(&cfg);
     crate::update_tray_fan_boost(enable);
 
+    crate::system::osd_window::show_fan_boost(enable);
     crate::system::osd_window::wake_osd_if_enabled(&app);
     let _ = app.emit("fan-boost-changed", enable);
     let _ = app.emit_to("main", "fan-boost-changed", enable);

@@ -108,6 +108,7 @@ pub fn start_hardware_state_watcher(
                     cfg.win_key_locked = current_win;
                     crate::system::config::save_config(&cfg);
                     use tauri::Emitter;
+                    crate::system::osd_window::show_key_lock_toast("win", current_win);
                     crate::system::osd_window::wake_osd_if_enabled(&app);
                     let _ = app.emit("win-lock-state-changed", current_win);
                     let _ = app.emit_to("main", "win-lock-state-changed", current_win);
@@ -130,6 +131,7 @@ pub fn start_hardware_state_watcher(
                             cfg.fn_lock_enabled = current_fn;
                             crate::system::config::save_config(&cfg);
                             use tauri::Emitter;
+                            crate::system::osd_window::show_key_lock_toast("fn", current_fn);
                             crate::system::osd_window::wake_osd_if_enabled(&app);
                             let _ = app.emit("fn-lock-state-changed", current_fn);
                             let _ = app.emit_to("main", "fn-lock-state-changed", current_fn);
@@ -207,6 +209,7 @@ pub fn start_hardware_state_watcher(
                     cfg.bluetooth_enabled = current_bt;
                     crate::system::config::save_config(&cfg);
                     use tauri::Emitter;
+                    crate::system::osd_window::show_device_switch("bluetooth", current_bt);
                     crate::system::osd_window::wake_osd_if_enabled(&app);
                     let _ = app.emit("bluetooth-state-changed", current_bt);
                     let _ = app.emit_to("main", "bluetooth-state-changed", current_bt);
@@ -223,6 +226,7 @@ pub fn start_hardware_state_watcher(
                     cfg.wifi_enabled = current_wifi;
                     crate::system::config::save_config(&cfg);
                     use tauri::Emitter;
+                    crate::system::osd_window::show_device_switch("wifi", current_wifi);
                     crate::system::osd_window::wake_osd_if_enabled(&app);
                     let _ = app.emit("wifi-state-changed", current_wifi);
                     let _ = app.emit_to("main", "wifi-state-changed", current_wifi);
@@ -239,6 +243,7 @@ pub fn start_hardware_state_watcher(
                 cfg.camera_enabled = current_cam;
                 crate::system::config::save_config(&cfg);
                 use tauri::Emitter;
+                crate::system::osd_window::show_device_switch("camera", current_cam);
                 crate::system::osd_window::wake_osd_if_enabled(&app);
                 let _ = app.emit("camera-state-changed", current_cam);
                 let _ = app.emit_to("main", "camera-state-changed", current_cam);
@@ -254,6 +259,7 @@ pub fn start_hardware_state_watcher(
                     cfg.mic_enabled = current_mic;
                     crate::system::config::save_config(&cfg);
                     use tauri::Emitter;
+                    crate::system::osd_window::show_device_switch("mic", current_mic);
                     crate::system::osd_window::wake_osd_if_enabled(&app);
                     let _ = app.emit("mic-state-changed", current_mic);
                     let _ = app.emit_to("main", "mic-state-changed", current_mic);

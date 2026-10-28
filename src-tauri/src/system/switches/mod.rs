@@ -385,6 +385,7 @@ pub fn set_switch(switch_name: &str, enable: bool) -> Result<bool, String> {
 
             crate::log_info!("DEVICE_SWITCH", "Touchpad set to enable={} (Hardware, AdminFlows, Win32 PTP Registry synced)", enable);
             cfg.touchpad_enabled = enable;
+            crate::system::osd_window::show_key_lock_toast("touchpad", !enable);
         }
         "camera" => {
             // 1. Hardware device disable/enable via Windows PnP utility (Universal across all Windows laptops)
@@ -415,6 +416,7 @@ pub fn set_switch(switch_name: &str, enable: bool) -> Result<bool, String> {
             }
             crate::log_info!("DEVICE_SWITCH", "Camera toggled to {} (PnP, Policy, ConsentStore + EC synced)", enable);
             cfg.camera_enabled = enable;
+            crate::system::osd_window::show_device_switch("camera", enable);
         }
         "win_key" => {
             // 1. Software Low-Level Keyboard Hook
@@ -431,16 +433,19 @@ pub fn set_switch(switch_name: &str, enable: bool) -> Result<bool, String> {
             }
 
             cfg.win_key_locked = enable;
+            crate::system::osd_window::show_key_lock_toast("win", enable);
             crate::log_info!("DEVICE_SWITCH", "WinKey lock set to {} (legacy_ec: {})", enable, supports_legacy_ec);
         }
         "mic" => {
             let res = audio::set_microphone_state(enable)?;
             cfg.mic_enabled = res;
+            crate::system::osd_window::show_device_switch("mic", res);
             crate::log_info!("DEVICE_SWITCH", "Microphone state set to {}", res);
         }
         "keep_awake" => {
             set_keep_awake(enable);
             cfg.keep_awake_enabled = enable;
+            crate::system::osd_window::show_device_switch("keep_awake", enable);
             crate::log_info!("DEVICE_SWITCH", "Keep awake state set to {}", enable);
         }
         "fn_lock" => {
@@ -455,6 +460,7 @@ pub fn set_switch(switch_name: &str, enable: bool) -> Result<bool, String> {
                 crate::log_info!("DEVICE_SWITCH", "FnLock toggled to {}: mode=0x{:02X}", enable, new_val);
             }
             cfg.fn_lock_enabled = enable;
+            crate::system::osd_window::show_key_lock_toast("fn", enable);
         }
         "osd" => {
             cfg.osd_enabled = enable;

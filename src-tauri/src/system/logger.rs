@@ -218,6 +218,11 @@ pub fn expand_filter_patterns(raw: &str) -> Vec<String> {
                     patterns.push(s.to_string());
                 }
             }
+            "hook" | "hooks" => {
+                for s in &["HOOKS", "KEYBOARD", "DEVICE_SWITCH"] {
+                    patterns.push(s.to_string());
+                }
+            }
             other => {
                 patterns.push(other.to_uppercase());
             }

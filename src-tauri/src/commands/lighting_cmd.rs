@@ -769,6 +769,7 @@ pub fn set_keyboard_sleep_timeout(seconds: u32, app: tauri::AppHandle) -> Result
         let _ = crate::hal::declarative::invoke_raw_mailbox(&cmd);
     }
 
+    crate::system::osd_window::show_keyboard_sleep_timeout(seconds);
     let _ = app.emit("keyboard-sleep-timeout-changed", seconds);
     let _ = app.emit_to("osd", "keyboard-sleep-timeout-changed", seconds);
     Ok(())

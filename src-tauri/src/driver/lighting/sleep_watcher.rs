@@ -283,6 +283,7 @@ pub fn set_keyboard_brightness_level(level: u8, app_handle: Option<&AppHandle>) 
 
     // 3. Emit Tauri event to frontend
     if let Some(handle) = app_handle {
+        crate::system::osd_window::show_keyboard_brightness(target_level);
         crate::system::osd_window::wake_osd_if_enabled(handle);
         let _ = handle.emit("keyboard-brightness-changed", target_level);
         let _ = handle.emit_to("main", "keyboard-brightness-changed", target_level);

@@ -1,0 +1,100 @@
+export component OsdWindow inherits Window {
+    width: 640px;
+    height: 130px;
+    no-frame: true;
+    background: transparent;
+    always-on-top: true;
+
+    in-out property <bool> is_active: false;
+    in-out property <string> mode_title: "狂暴模式";
+    in-out property <string> mode_subtitle: "BEAST MODE · 极致性能与功耗全开";
+    in-out property <color> accent_color: #ef4444;
+    in-out property <color> accent_bg: #ef444425;
+    in-out property <string> icon_symbol: "⚡";
+    in-out property <string> osd_theme: "pill"; // "cinema" | "fade" | "pill"
+    in-out property <float> osd_scale: 1.0;     // 0.8 | 1.0 | 1.2 | 1.4
+
+    // Theme detection
+    property <bool> is_cinema: osd_theme == "cinema" || osd_theme == "subtitle";
+    property <bool> is_fade: osd_theme == "fade";
+    property <bool> is_pill: !is_cinema && !is_fade;
+
+    card := Rectangle {
+        width: (is_cinema ? 380px : (is_fade ? 410px : 430px)) * osd_scale;
+        height: (is_cinema ? 68px : (is_fade ? 74px : 76px)) * osd_scale;
+        x: (parent.width - self.width) / 2;
+        y: is_active ? ((parent.height - self.height) / 2) : -100px;
+        opacity: is_active ? 1.0 : 0.0;
+
+        border-radius: is_pill ? (38px * osd_scale) : (is_fade ? (4px * osd_scale) : (6px * osd_scale));
+        background: is_cinema ? #000000c8 : (is_fade ? @linear-gradient(90deg, #0d121cf2 0%, #0d121c70 68%, #00000000 100%) : #0d121cf2);
+        border-width: is_pill ? (1.5px * osd_scale) : 0px;
+        border-color: accent_color;
+        clip: true;
+
+        animate y, opacity {
+            duration: 220ms;
+            easing: ease-out;
+        }
+
+        // 左侧霓虹装饰条 (向右羽化专属)
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: is_fade ? (4.5px * osd_scale) : 0px;
+            height: parent.height;
+            background: accent_color;
+            visible: is_fade;
+        }
+
+        HorizontalLayout {
+            padding-left: is_pill ? (16px * osd_scale) : (is_fade ? (18px * osd_scale) : (14px * osd_scale));
+            padding-right: 20px * osd_scale;
+            spacing: 14px * osd_scale;
+            alignment: start;
+
+            // 模式徽章垂直居中容器
+            VerticalLayout {
+                alignment: center;
+
+                badge := Rectangle {
+                    width: 44px * osd_scale;
+                    height: 44px * osd_scale;
+                    border-radius: is_pill ? (22px * osd_scale) : (is_fade ? (8px * osd_scale) : (22px * osd_scale));
+                    background: is_cinema ? transparent : accent_bg;
+                    border-width: is_pill ? (1.5px * osd_scale) : (is_fade ? (1px * osd_scale) : 0px);
+                    border-color: accent_color;
+
+                    Text {
+                        text: icon_symbol;
+                        font-size: 21px * osd_scale;
+                        color: accent_color;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 标题与副标题描述垂直居中
+            VerticalLayout {
+                alignment: center;
+                spacing: 3px * osd_scale;
+
+                Text {
+                    text: mode_title;
+                    font-size: (is_cinema ? 18px : 16px) * osd_scale;
+                    font-weight: 800;
+                    color: #ffffff;
+                }
+
+                Text {
+                    text: mode_subtitle;
+                    font-size: 11.5px * osd_scale;
+                    font-weight: 500;
+                    color: #94a3b8;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}

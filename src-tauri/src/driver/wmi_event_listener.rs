@@ -121,6 +121,7 @@ fn dispatch_acpi_event(
                 crate::system::config::save_config(&cfg);
 
                 crate::update_tray_power_mode(next_mode);
+                crate::system::osd_window::show_power_mode(next_mode);
 
                 // Broadcast to UI so frontend badges, charts, and colors update immediately
                 crate::system::osd_window::wake_osd_if_enabled(app_handle);
@@ -207,6 +208,7 @@ fn dispatch_acpi_event(
                         next_state
                     );
                     ec_bridge.lock().set_fan_boost(next_state);
+                    crate::system::osd_window::show_fan_boost(next_state);
 
                     crate::system::osd_window::wake_osd_if_enabled(app_handle);
                     let _ = app_handle.emit("fan-boost-changed", next_state);

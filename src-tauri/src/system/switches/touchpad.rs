@@ -160,6 +160,7 @@ pub fn start_touchpad_listener(app: tauri::AppHandle) {
 
                         // 3. Emit event to frontend
                         use tauri::Emitter;
+                        crate::system::osd_window::show_key_lock_toast("touchpad", !new_state);
                         crate::system::osd_window::wake_osd_if_enabled(&app);
                         let _ = app.emit("touchpad-state-changed", new_state);
                         let _ = app.emit_to("main", "touchpad-state-changed", new_state);
