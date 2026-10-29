@@ -627,7 +627,7 @@
     /* Presets Section */
     .preset-pack-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
       gap: 12px;
     }
 
@@ -1037,6 +1037,28 @@
       </div>
 
       <div class="preset-pack-grid">
+        <!-- Pack 0: Recommended -->
+        <div class="preset-pack-card" style="border-color: rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.06);">
+          <div class="pack-header">
+            <span class="pack-title" style="color: #a5b4fc;">⭐ 官方推荐核心</span>
+            <button class="btn btn-sm btn-primary" onclick="applyPresetPack('recommended')">载入方案</button>
+          </div>
+          <div class="pack-items-list">
+            <div class="pack-item-row">
+              <span>全速强冷暴走</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">F</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>循环性能模式</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">M</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>刷新率瞬切 (高刷)</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">R</span></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Pack 1 -->
         <div class="preset-pack-card">
           <div class="pack-header">
@@ -1119,7 +1141,7 @@
         <table class="shortcut-table">
           <thead>
             <tr>
-              <th style="width: 170px;">快捷键组合</th>
+              <th style="width: 210px;">快捷键组合</th>
               <th>功能名称与动作</th>
               <th style="width: 140px;">来源归属</th>
               <th style="width: 110px;">OSD 提醒</th>
@@ -1517,19 +1539,30 @@
     // --- 业务：载入方案套件 ---
     async function applyPresetPack(packType) {
       let pack = [];
-      if (packType === 'gamer') {
+      let packName = '';
+      if (packType === 'recommended') {
+        packName = '官方推荐核心套件';
+        pack = [
+          { name: '一键全速强冷切换', combo: 'Ctrl+Alt+F', action: { type: 'ToggleFanBoost' }, osd: true },
+          { name: '循环切换性能模式', combo: 'Ctrl+Alt+M', action: { type: 'CyclePowerMode' }, osd: true },
+          { name: '屏幕刷新率瞬切 (高刷/省电)', combo: 'Ctrl+Alt+R', action: { type: 'ToggleRefreshRate' }, osd: true },
+        ];
+      } else if (packType === 'gamer') {
+        packName = '狂暴电竞套件';
         pack = [
           { name: '全速强冷暴走', combo: 'Ctrl+Alt+F', action: { type: 'ToggleFanBoost' }, osd: true },
           { name: '循环性能模式', combo: 'Ctrl+Alt+M', action: { type: 'CyclePowerMode' }, osd: true },
           { name: '锁定 Win 键', combo: 'Ctrl+Alt+W', action: { type: 'ToggleWinLock' }, osd: true },
         ];
       } else if (packType === 'office') {
+        packName = '移动办公与续航';
         pack = [
           { name: '刷新率瞬切 (60Hz/高刷)', combo: 'Ctrl+Alt+R', action: { type: 'ToggleRefreshRate' }, osd: true },
           { name: '触控板硬件开关', combo: 'Ctrl+Alt+T', action: { type: 'ToggleTouchpad' }, osd: true },
           { name: '锁定办公模式', combo: 'Ctrl+Alt+1', action: { type: 'SetPowerMode', payload: 1 }, osd: true },
         ];
       } else if (packType === 'boss') {
+        packName = '工位摸鱼与防窥';
         pack = [
           { name: '快速锁屏工作台', combo: 'Ctrl+Alt+B', action: { type: 'LockScreen' }, osd: false },
           { name: '一键黑屏挂机', combo: 'Ctrl+Alt+L', action: { type: 'MonitorOff' }, osd: false },
@@ -1537,7 +1570,7 @@
         ];
       }
 
-      if (!confirm(`确定一键注册 [${packType === 'gamer' ? '狂暴电竞套件' : packType === 'office' ? '移动办公与续航' : '工位摸鱼与防窥'}] 中的 ${pack.length} 组快捷键吗？`)) {
+      if (!confirm(`确定一键注册 [${packName}] 中的 ${pack.length} 组快捷键吗？`)) {
         return;
       }
 
@@ -1592,8 +1625,18 @@
       if (list.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 32px 0;">
-              暂无已生效快捷键，请在上方配置并保存！
+            <td colspan="5" style="text-align: center; padding: 36px 16px;">
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">
+                  💡 当前系统未挂载任何全局热键 (纯净状态)
+                </div>
+                <div style="font-size: 12px; color: var(--text-dim); max-width: 480px; margin-bottom: 4px;">
+                  微内核默认快捷键已全部解耦移出，零背景抢键。您可以自主在上方案板录制，也可以一键载入官方推荐套件：
+                </div>
+                <button class="btn btn-primary" onclick="applyPresetPack('recommended')">
+                  ⚡ 一键载入官方推荐核心套件 (强冷 / 切模 / 刷新率)
+                </button>
+              </div>
             </td>
           </tr>
         `;
@@ -1608,7 +1651,7 @@
 
         // Source badge
         let srcBadge = '<span class="badge badge-dim">系统核心</span>';
-        if (item.plugin_id === STATE.pluginId) {
+        if (item.plugin_id === STATE.pluginId || item.id?.startsWith('pack_') || item.id?.startsWith('custom_')) {
           srcBadge = '<span class="badge badge-primary">工坊自定义</span>';
         } else if (item.plugin_id) {
           srcBadge = `<span class="badge badge-cyan" title="来自插件: ${item.plugin_id}">🧩 ${item.plugin_id}</span>`;
@@ -1628,7 +1671,7 @@
         html += `
           <tr>
             <td>
-              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 3px;">
+              <div style="display: flex; align-items: center; flex-wrap: nowrap; white-space: nowrap; gap: 3px;">
                 ${comboHtml}
               </div>
             </td>
