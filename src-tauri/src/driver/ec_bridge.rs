@@ -183,26 +183,9 @@ impl EcBridge {
                             c.gpu_fan_rpm = gpu_rpm;
                         }
 
-                        // 5. Battery Gate Watchdog: Protect platform override from accidental drop (Tongfang platforms only)
-                        if now >= c.battery_limit_cooldown_until {
-                            let cfg_snap = crate::system::config::load_config();
-                            if crate::hal::declarative::load_matched_manifest().is_none() && cfg_snap.battery_hardware_limit_enabled && c.battery_limit < 95 {
-                                if let Some(cur_plat_id) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID) {
-                                    if cur_plat_id != 0x04 {
-                                        crate::log_warn!(
-                                            "EC_WATCHDOG",
-                                            "Battery hardware gate dropped (platform code 0x{:02X})! Auto-healing platform override...",
-                                            cur_plat_id
-                                        );
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_UP, c.battery_limit);
-                                        let down = if c.battery_limit > 5 { c.battery_limit - 5 } else { c.battery_limit };
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_DOWN, down);
-                                    }
-                                }
-                            }
-                        }
+                        // 5. Battery Gate Watchdog: Deprecated legacy spoofing loop.
+                        // Advanced charge gating is now fully decoupled into the official demonstration plugin
+                        // using non-invasive pulse-trigger storage (zero persistent platform tampering, zero keyboard matrix conflict).
                     }
                 }
 
@@ -393,17 +376,12 @@ impl EcBridge {
 
             let down_limit = if limit > 5 { limit - 5 } else { limit };
 
-            // 0. Platform4 Gate method (for legacy gaming chassis without manifest):
-            //    Only apply platform spoofing on non-declarative gaming platforms
+            // 0. Auto-restore platform ID: ensure platform identity is clean and restored (prevents keyboard mapping issues)
             let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
             if !is_declarative {
-                if hardware_override && limit < 95 {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
-                } else {
-                    let cur_id = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID).unwrap_or(0x07);
-                    let restore_id = if cur_id == 0x04 || cur_id == 0x05 { 0x07 } else { cur_id };
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restore_id);
-                }
+                let cur_id = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID).unwrap_or(0x07);
+                let restore_id = if cur_id == 0x04 || cur_id == 0x05 { 0x07 } else { cur_id };
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restore_id);
                 wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
             }
 

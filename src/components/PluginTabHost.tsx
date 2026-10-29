@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, emit } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { getCurrentWindow, currentMonitor, LogicalSize, LogicalPosition } from '@tauri-apps/api/window';
 import { HardwareState, PowerMode } from '../types/hardware';
 import { CustomPluginItem } from './PluginsView';
 import { AlertCircle, FolderOpen, RotateCcw, Loader2, ExternalLink, Play, Square } from 'lucide-react';
@@ -26,6 +29,21 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
   const [serviceStatus, setServiceStatus] = useState<PluginServiceStatus | null>(null);
   const [serviceActionLoading, setServiceActionLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Expose OpenRevo Bridge to iframe parent context
+  useEffect(() => {
+    (window as any).__OPENREVO_BRIDGE__ = {
+      invoke,
+      listen: (event: string, handler: any) => listen(event, handler),
+      emit: (event: string, payload: any) => emit(event, payload),
+      getCurrentWebviewWindow: () => getCurrentWebviewWindow(),
+      getCurrentWindow: () => getCurrentWindow(),
+      currentMonitor: () => currentMonitor(),
+      LogicalSize,
+      LogicalPosition,
+      pluginId: plugin.id,
+    };
+  }, [plugin.id]);
 
   const fetchHtml = async () => {
     setLoading(true);
@@ -201,30 +219,30 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
           case 'RAW_EC_READ':
             if (payload) {
               try {
-                const val = await invoke('raw_ec_read', { request: payload });
-                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_READ_RESULT', success: true, payload: val }, '*');
+                const val = await invoke('raw_ec_read', { request: payload.request || payload });
+                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_READ_RESULT', success: true, payload: val, reqId: payload.reqId }, '*');
               } catch (e: any) {
-                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_READ_RESULT', success: false, error: String(e) }, '*');
+                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_READ_RESULT', success: false, error: String(e), reqId: payload.reqId }, '*');
               }
             }
             break;
           case 'RAW_EC_WRITE':
             if (payload) {
               try {
-                const ok = await invoke('raw_ec_write', { request: payload });
-                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_WRITE_RESULT', success: true, payload: ok }, '*');
+                const ok = await invoke('raw_ec_write', { request: payload.request || payload });
+                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_WRITE_RESULT', success: true, payload: ok, reqId: payload.reqId }, '*');
               } catch (e: any) {
-                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_WRITE_RESULT', success: false, error: String(e) }, '*');
+                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_EC_WRITE_RESULT', success: false, error: String(e), reqId: payload.reqId }, '*');
               }
             }
             break;
           case 'RAW_MAILBOX_INVOKE':
             if (payload) {
               try {
-                const out = await invoke('raw_mailbox_invoke', { request: payload });
-                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_MAILBOX_RESULT', success: true, payload: out }, '*');
+                const out = await invoke('raw_mailbox_invoke', { request: payload.request || payload });
+                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_MAILBOX_RESULT', success: true, payload: out, reqId: payload.reqId }, '*');
               } catch (e: any) {
-                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_MAILBOX_RESULT', success: false, error: String(e) }, '*');
+                iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_RAW_MAILBOX_RESULT', success: false, error: String(e), reqId: payload.reqId }, '*');
               }
             }
             break;

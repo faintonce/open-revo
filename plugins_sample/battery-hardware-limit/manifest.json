@@ -1,10 +1,40 @@
 {
   "id": "battery-hardware-limit",
-  "name": "锁定充电上限 (实验)",
-  "version": "1.0.0",
-  "author": "OpenRevo Team",
-  "description": "激活底层 EC 平台门控以真实生效 60%/80% 硬件限电",
-  "type": "slot",
-  "target_slot": "power.hardware_limit",
-  "slot_height": "36px"
+  "name": "电池充电上限守护者",
+  "version": "2.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "官方演示插件：基于微内核硬件网关的多协议底层限充调控中心，支持同方脉冲存储法与宝龙达双阈值协议，自由设定 1~100% 充电阈值，参数全开可调。",
+  "type": "tab",
+  "min_host_version": "0.9.4",
+  "config": {
+    "default_strategy": "tongfang_pulse",
+    "strategies": {
+      "tongfang_pulse": {
+        "name": "同方系脉冲触发存储法 (耀世/无界/蛟龙/旷世)",
+        "protocol": "TongfangDirectEc",
+        "limit_reg": 1977,
+        "gate_reg": 1987,
+        "pulse_val_gaming": 5,
+        "pulse_val_thin": 4,
+        "pulse_hold_ms": 2500,
+        "gate_settle_ms": 7000,
+        "status_reg": 1858,
+        "status_bit": 2
+      },
+      "generic_wmi": {
+        "name": "通用 ACPI-WMI MULONG 邮箱通道",
+        "protocol": "GenericAcpiWmi",
+        "limit_reg": 1977,
+        "gate_reg": 1987,
+        "storage_reg": 2175
+      },
+      "bld_mailbox": {
+        "name": "宝龙达 WMI Mailbox 协议",
+        "protocol": "BldWmiMailbox",
+        "cmd_battery": 16,
+        "subcmd_limit": 13,
+        "subcmd_restore": 15
+      }
+    }
+  }
 }
