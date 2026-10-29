@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: dark;
   /* ==========================================================================
      OPENREVO DESIGN SYSTEM TOKENS (V1 STANDARD ARCHITECTURE)
      ========================================================================== */

@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
   <title>电池充电上限守护者</title>
   <style>
     :root {
+      color-scheme: dark;
       --surface-base: #0b0f17;
       --surface-card: rgba(255, 255, 255, 0.035);
       --surface-overlay: rgba(255, 255, 255, 0.06);
@@ -36,8 +38,14 @@
       user-select: none;
     }
 
+    html {
+      color-scheme: dark;
+      background: #0b0f17;
+    }
+
     body {
-      background: transparent;
+      color-scheme: dark;
+      background: #0b0f17;
       color: var(--text-primary);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       padding: 16px;
@@ -532,18 +540,44 @@
       color: var(--text-dim);
     }
 
+    select, option, input {
+      color-scheme: dark;
+    }
+
     .lab-input, .lab-select {
-      background: var(--surface-card);
+      background-color: #121826 !important;
       border: 1px solid var(--border-medium);
       border-radius: var(--radius-sm);
-      color: var(--text-primary);
+      color: #f8fafc !important;
       font-size: 11px;
-      padding: 5px 8px;
+      padding: 6px 10px;
       outline: none;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
     }
 
     .lab-input:focus, .lab-select:focus {
       border-color: var(--status-ok);
+    }
+
+    .lab-select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 28px;
+    }
+
+    .lab-select option {
+      background-color: #121826 !important;
+      color: #f8fafc !important;
+      padding: 8px 10px;
+    }
+
+    .lab-select option:checked {
+      background-color: #1e293b !important;
+      color: #10b981 !important;
     }
 
     .console-box {
@@ -798,11 +832,14 @@
           </div>
           <div class="lab-field">
             <label class="lab-label">门控脉冲值 (Pulse Value)</label>
-            <select id="paramPulseVal" class="lab-select" onchange="updateLabConfig()">
-              <option value="5" selected>0x05 (游戏本推荐 - 绝不破坏全键盘)</option>
-              <option value="4">0x04 (轻薄本 / 无界推荐)</option>
-              <option value="custom">自定义输入...</option>
-            </select>
+            <div style="display: flex; gap: 6px;">
+              <select id="paramPulseVal" class="lab-select" style="flex: 1;" onchange="onPulseSelectChange()">
+                <option value="5" selected>0x05 (游戏本推荐 - 绝不破坏全键盘)</option>
+                <option value="4">0x04 (轻薄本 / 无界推荐)</option>
+                <option value="custom">自定义数值...</option>
+              </select>
+              <input id="paramPulseCustomInput" class="lab-input" type="text" placeholder="0x05" style="width: 65px; display: none;" onchange="updateLabConfig()" />
+            </div>
           </div>
           <div class="lab-field">
             <label class="lab-label">脉冲保持时间 (Pulse Hold Ms)</label>
@@ -949,12 +986,30 @@
       icon.textContent = isHidden ? '▲' : '▼';
     }
 
+    function onPulseSelectChange() {
+      const pVal = document.getElementById('paramPulseVal').value;
+      const customInput = document.getElementById('paramPulseCustomInput');
+      if (pVal === 'custom') {
+        customInput.style.display = 'block';
+        customInput.focus();
+      } else {
+        customInput.style.display = 'none';
+      }
+      updateLabConfig();
+    }
+
     function updateLabConfig() {
       STATE.protocol = document.getElementById('paramProtocol').value;
       const pVal = document.getElementById('paramPulseVal').value;
-      STATE.pulseVal = pVal === 'custom' ? 5 : parseInt(pVal, 10);
+      if (pVal === 'custom') {
+        const raw = document.getElementById('paramPulseCustomInput').value.trim();
+        const parsed = raw.startsWith('0x') || raw.startsWith('0X') ? parseInt(raw, 16) : parseInt(raw, 10);
+        STATE.pulseVal = isNaN(parsed) ? 5 : parsed;
+      } else {
+        STATE.pulseVal = parseInt(pVal, 10);
+      }
       STATE.pulseHoldMs = parseInt(document.getElementById('paramPulseHold').value, 10) || 2500;
-      logConsole(`配置更新: 协议=${STATE.protocol}, 脉冲值=0x0${STATE.pulseVal}, 脉冲保持=${STATE.pulseHoldMs}ms`);
+      logConsole(`配置更新: 协议=${STATE.protocol}, 脉冲值=0x0${STATE.pulseVal.toString(16).toUpperCase()}, 脉冲保持=${STATE.pulseHoldMs}ms`);
     }
 
     // --- 核心业务：脉冲触发存储法 ---
