@@ -1316,7 +1316,7 @@ async function copyLink(text) {
     {
       "id": "gamer_hz_switch",
       "name": "刷新率瞬切 (高刷/省电)",
-      "combo": "Ctrl+Shift+R",
+      "combo": "Ctrl+Alt+R",
       "action": { "type": "ToggleRefreshRate" },
       "osd": true
     },

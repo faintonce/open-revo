@@ -1,0 +1,24 @@
+{
+  "id": "shortcut-workshop",
+  "name": "全局快捷键工坊",
+  "version": "1.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "官方演示插件：全功能全局快捷键调谐工坊，支持键盘按键实时捕获、修饰键自定义组合、硬件强冷/性能模式/刷新率/外设开关/系统挂机动作绑定，以及按键动作实时测试与注销。",
+  "type": "tab",
+  "entry": "index.html",
+  "min_host_version": "0.9.4",
+  "window": {
+    "width": 960,
+    "height": 720,
+    "resizable": true,
+    "decorations": true,
+    "transparent": false,
+    "always_on_top": false
+  },
+  "permissions": [
+    "shortcuts:manage",
+    "power:control",
+    "fan:control"
+  ]
+}
+

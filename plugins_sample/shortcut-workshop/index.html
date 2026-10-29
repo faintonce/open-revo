@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>全局快捷键工坊 - OpenRevo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --surface-base: #0b0f17;
+      --surface-card: rgba(255, 255, 255, 0.035);
+      --surface-overlay: rgba(255, 255, 255, 0.06);
+      --surface-hover: rgba(255, 255, 255, 0.09);
+      --surface-pill: rgba(255, 255, 255, 0.05);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-accent: rgba(99, 102, 241, 0.45);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-dim: #94a3b8;
+      --status-ok: #10b981;
+      --status-ok-dim: rgba(16, 185, 129, 0.15);
+      --status-warn: #f59e0b;
+      --status-warn-dim: rgba(245, 158, 11, 0.15);
+      --status-error: #ef4444;
+      --status-error-dim: rgba(239, 68, 68, 0.15);
+      --accent-cyan: #06b6d4;
+      --accent-cyan-dim: rgba(6, 182, 212, 0.15);
+      --accent-indigo: #6366f1;
+      --accent-indigo-dim: rgba(99, 102, 241, 0.15);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      background: #0b0f17;
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+    }
+
+    body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 40px;
+    }
+
+    /* Header */
+    .header-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(12px);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.2));
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.15);
+    }
+
+    .header-title-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .header-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.3px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .badge-primary {
+      background: var(--accent-indigo-dim);
+      color: #a5b4fc;
+      border: 1px solid rgba(165, 180, 252, 0.3);
+    }
+
+    .badge-cyan {
+      background: var(--accent-cyan-dim);
+      color: #67e8f9;
+      border: 1px solid rgba(103, 232, 249, 0.3);
+    }
+
+    .badge-ok {
+      background: var(--status-ok-dim);
+      color: #6ee7b7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+    }
+
+    .badge-warn {
+      background: var(--status-warn-dim);
+      color: #fcd34d;
+      border: 1px solid rgba(252, 211, 77, 0.3);
+    }
+
+    .badge-dim {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-dim);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .header-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 13px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--border-medium);
+      background: var(--surface-pill);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent-indigo);
+      border-color: #818cf8;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #4f46e5;
+      border-color: #a5b4fc;
+      box-shadow: 0 3px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-cyan {
+      background: #0891b2;
+      border-color: #22d3ee;
+      color: #fff;
+    }
+
+    .btn-cyan:hover:not(:disabled) {
+      background: #0e7490;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.28);
+      color: #fff;
+      border-color: #ef4444;
+    }
+
+    .btn-sm {
+      height: 26px;
+      padding: 0 9px;
+      font-size: 11px;
+    }
+
+    /* Stats strip */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .stat-card {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 14px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+    }
+
+    .stat-title {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    /* Main Section Card */
+    .glass-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .card-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Keycap styling */
+    .keycap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      padding: 0 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: 0.2px;
+    }
+
+    .keycap-lg {
+      min-width: 38px;
+      height: 38px;
+      padding: 0 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-bottom: 3px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45);
+    }
+
+    .keycap-plus {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin: 0 2px;
+    }
+
+    .keycap-combo-display {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      min-height: 60px;
+    }
+
+    /* Form Layout */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: span 2;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: normal;
+    }
+
+    .input-text, .select-box {
+      width: 100%;
+      height: 34px;
+      padding: 0 10px;
+      border-radius: var(--radius-sm);
+      background: #111827;
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .input-text:focus, .select-box:focus {
+      border-color: var(--accent-indigo);
+      background: #172033;
+    }
+
+    /* Quick Tags */
+    .quick-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .quick-tag {
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .quick-tag:hover {
+      background: rgba(99, 102, 241, 0.15);
+      color: #c7d2fe;
+      border-color: rgba(99, 102, 241, 0.35);
+    }
+
+    /* Modifier Picker */
+    .mod-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mod-btn {
+      flex: 1;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-medium);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .mod-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+    }
+
+    .mod-btn.active {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(6, 182, 212, 0.25));
+      border-color: #818cf8;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.35);
+    }
+
+    /* Recorder Box */
+    .recorder-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px dashed var(--border-medium);
+      transition: all 0.25s ease;
+    }
+
+    .recorder-container.recording {
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.08);
+      box-shadow: 0 0 18px rgba(6, 182, 212, 0.25);
+      animation: pulseRecord 1.5s infinite;
+    }
+
+    @keyframes pulseRecord {
+      0%, 100% { border-color: rgba(6, 182, 212, 0.8); }
+      50% { border-color: rgba(99, 102, 241, 0.9); }
+    }
+
+    .recorder-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .recorder-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .recorder-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* Action Picker Options */
+    .action-category-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .action-option-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .action-option-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .action-option-card.active {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Switch toggle */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .switch-label-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .switch-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .switch-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .toggle-checkbox {
+      width: 36px;
+      height: 20px;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+      position: relative;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.2s ease;
+    }
+
+    .toggle-checkbox::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      background: #fff;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .toggle-checkbox:checked {
+      background: var(--status-ok);
+    }
+
+    .toggle-checkbox:checked::before {
+      transform: translateX(16px);
+    }
+
+    /* Presets Section */
+    .preset-pack-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .preset-pack-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s ease;
+    }
+
+    .preset-pack-card:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateY(-2px);
+    }
+
+    .pack-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pack-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pack-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pack-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: rgba(0, 0, 0, 0.25);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    /* Shortcuts Table */
+    .shortcut-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .shortcut-table th {
+      text-align: left;
+      padding: 9px 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 11px;
+      letter-spacing: 0.3px;
+    }
+
+    .shortcut-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    .shortcut-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .shortcut-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Toast */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 9999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+
+    .toast-box.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header-card">
+      <div class="header-left">
+        <div class="header-icon-box">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+            <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M6 12h.001M10 12h.001M14 12h.001M18 12h.001M7 16h10"></path>
+          </svg>
+        </div>
+        <div class="header-title-wrap">
+          <div class="header-title-row">
+            <span class="header-title">全局快捷键工坊 (Universal Shortcut Studio)</span>
+            <span class="badge badge-primary">v1.0.0</span>
+            <span class="badge badge-cyan">Ring3 WH_KEYBOARD_LL</span>
+          </div>
+          <div class="header-desc">
+            全功能微内核全局热键调谐中心：支持键盘按键实时捕获、修饰键组合、强冷/模式/刷新率/挂机动作绑定与 OSD 弹窗联动
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnRefreshList" class="btn" title="刷新所有已生效快捷键">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+          <span>刷新</span>
+        </button>
+        <button id="btnOpenPluginsDir" class="btn" title="打开插件目录">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <span>插件目录</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-title">⚡ 已生效全局热键</span>
+        <span id="statTotalCount" class="stat-value">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-title">🌪️ 散热与性能动作</span>
+        <span id="statHardwareCount" class="stat-value">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-title">🖥️ 系统与挂机便捷</span>
+        <span id="statSystemCount" class="stat-value">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-title">🔔 战术 OSD 屏幕通知</span>
+        <span id="statOsdCount" class="stat-value">0</span>
+      </div>
+    </div>
+
+    <!-- Section 1: Shortcut Customizer -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--accent-indigo)"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          <span class="card-title">快捷键绑定定制器</span>
+        </div>
+        <span class="card-desc">配置自定义按键组合，关联硬件调谐或系统操作</span>
+      </div>
+
+      <div class="form-grid">
+        <!-- 1. Name & Presets -->
+        <div class="form-group full">
+          <label class="form-label">
+            <span>快捷键名称与描述</span>
+            <span class="form-hint">在 OSD 屏幕通知与列表中显示的名称</span>
+          </label>
+          <input id="inputShortcutName" type="text" class="input-text" placeholder="例如：一键全速强冷切换" value="极速切换全速强冷" />
+          <div class="quick-tags">
+            <span class="quick-tag" onclick="setNameQuick('一键全速强冷切换', 'ToggleFanBoost')">🌪️ 一键强冷</span>
+            <span class="quick-tag" onclick="setNameQuick('循环性能模式 (办公/均衡/狂暴)', 'CyclePowerMode')">⚡ 循环性能</span>
+            <span class="quick-tag" onclick="setNameQuick('锁定狂暴模式', 'SetPowerMode_3')">🔥 锁定狂暴</span>
+            <span class="quick-tag" onclick="setNameQuick('刷新率瞬切 (高刷/省电)', 'ToggleRefreshRate')">🖥️ 刷新率瞬切</span>
+            <span class="quick-tag" onclick="setNameQuick('触控板硬件开关', 'ToggleTouchpad')">🖱️ 触控板开关</span>
+            <span class="quick-tag" onclick="setNameQuick('游戏屏蔽 Win 键', 'ToggleWinLock')">🎮 屏蔽Win键</span>
+            <span class="quick-tag" onclick="setNameQuick('一键息屏挂机 (节能黑屏)', 'MonitorOff')">🌙 一键息屏</span>
+            <span class="quick-tag" onclick="setNameQuick('快速锁屏工作台', 'LockScreen')">🔒 快速锁屏</span>
+            <span class="quick-tag" onclick="setNameQuick('系统一键静音 (老板键)', 'VolumeMute')">🤫 一键静音</span>
+          </div>
+        </div>
+
+        <!-- 2. Live Key Combo Display & Recorder -->
+        <div class="form-group full">
+          <label class="form-label">
+            <span>按键组合预览与实时录制</span>
+            <span id="recordHint" class="form-hint">点击右侧按钮按下键盘，或手动点选修饰键</span>
+          </label>
+
+          <div class="recorder-container" id="recorderContainer">
+            <div class="recorder-text">
+              <span id="recorderStatus" class="recorder-label">🎯 当前组合键</span>
+              <span class="recorder-sub">支持键盘物理直录或手动组合</span>
+            </div>
+            <button id="btnStartRecord" class="btn btn-cyan" onclick="toggleRecording()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+              <span id="recordBtnText">按下键盘录制 (Record)</span>
+            </button>
+          </div>
+
+          <div class="keycap-combo-display" id="keyComboPreview">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- 3. Modifiers and Primary Key Selectors -->
+        <div class="form-group">
+          <label class="form-label">
+            <span>修饰键组合 (Modifiers)</span>
+            <span class="form-hint">可多选</span>
+          </label>
+          <div class="mod-btn-group">
+            <button type="button" class="mod-btn active" id="modCtrl" onclick="toggleModifier('ctrl')">Ctrl</button>
+            <button type="button" class="mod-btn active" id="modAlt" onclick="toggleModifier('alt')">Alt</button>
+            <button type="button" class="mod-btn" id="modShift" onclick="toggleModifier('shift')">Shift</button>
+            <button type="button" class="mod-btn" id="modWin" onclick="toggleModifier('win')">Win</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>触发主键 (Primary Key)</span>
+            <span class="form-hint">支持 F1~F12, 字母, 数字, 导航键</span>
+          </label>
+          <select id="selectPrimaryKey" class="select-box" onchange="onPrimaryKeyChange(this.value)">
+            <optgroup label="功能键 (F1 - F12)">
+              <option value="F1">F1</option>
+              <option value="F2">F2</option>
+              <option value="F3">F3</option>
+              <option value="F4">F4</option>
+              <option value="F5">F5</option>
+              <option value="F6">F6</option>
+              <option value="F7">F7</option>
+              <option value="F8">F8</option>
+              <option value="F9">F9</option>
+              <option value="F10">F10</option>
+              <option value="F11">F11</option>
+              <option value="F12">F12</option>
+            </optgroup>
+            <optgroup label="常用字母键 (A - Z)">
+              <option value="F" selected>F (Fan / Freeze)</option>
+              <option value="M">M (Mode)</option>
+              <option value="R">R (Refresh Rate)</option>
+              <option value="B">B (Boss Key)</option>
+              <option value="L">L (Lock / Low Power)</option>
+              <option value="T">T (Touchpad)</option>
+              <option value="W">W (Win Lock)</option>
+              <option value="A">A</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+              <option value="G">G</option>
+              <option value="H">H</option>
+              <option value="I">I</option>
+              <option value="J">J</option>
+              <option value="K">K</option>
+              <option value="O">O</option>
+              <option value="P">P</option>
+              <option value="Q">Q</option>
+              <option value="S">S</option>
+              <option value="U">U</option>
+              <option value="V">V</option>
+              <option value="X">X</option>
+              <option value="Y">Y</option>
+              <option value="Z">Z</option>
+            </optgroup>
+            <optgroup label="数字键 (0 - 9)">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="0">0</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+            </optgroup>
+            <optgroup label="导航与常用按键">
+              <option value="SPACE">SPACE (空格键)</option>
+              <option value="TAB">TAB (制表键)</option>
+              <option value="RETURN">ENTER / RETURN (回车键)</option>
+              <option value="ESC">ESC (退出键)</option>
+              <option value="BACKSPACE">BACKSPACE (退格键)</option>
+              <option value="DELETE">DELETE (删除键)</option>
+              <option value="HOME">HOME</option>
+              <option value="END">END</option>
+              <option value="PAGEUP">PAGEUP (上翻页)</option>
+              <option value="PAGEDOWN">PAGEDOWN (下翻页)</option>
+            </optgroup>
+            <optgroup label="媒体与音量">
+              <option value="MUTE">MUTE (系统静音)</option>
+              <option value="VOLUMEUP">VOLUMEUP (音量增加)</option>
+              <option value="VOLUMEDOWN">VOLUMEDOWN (音量减小)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- 4. Target Action Selector -->
+        <div class="form-group full">
+          <label class="form-label">
+            <span>对应触发功能 (Target Action)</span>
+            <span class="form-hint">选择执行的硬件控制或系统指令</span>
+          </label>
+
+          <select id="selectActionType" class="select-box" onchange="onActionTypeChange(this.value)">
+            <optgroup label="🌪️ 散热调谐与功耗释放">
+              <option value="ToggleFanBoost" selected>一键全速强冷切换 (ToggleFanBoost - 5400+ RPM 暴走)</option>
+              <option value="CyclePowerMode">循环切换性能模式 (CyclePowerMode - 办公 ➔ 均衡 ➔ 狂暴)</option>
+              <option value="SetPowerMode_1">锁定办公模式 (SetPowerMode: 1 - 离电/静音省电)</option>
+              <option value="SetPowerMode_2">锁定均衡模式 (SetPowerMode: 2 - 日常平稳平衡)</option>
+              <option value="SetPowerMode_3">锁定狂暴模式 (SetPowerMode: 3 - 极致性能功耗释放)</option>
+              <option value="SetPowerMode_4">锁定自定义模式 (SetPowerMode: 4 - 极客深度自定义)</option>
+              <option value="ToggleRefreshRate">屏幕刷新率瞬切 (ToggleRefreshRate - 高刷 ↔ 60Hz 快速切换)</option>
+            </optgroup>
+            <optgroup label="🎮 电竞外设与键盘锁">
+              <option value="ToggleTouchpad">触控板硬件开关 (ToggleTouchpad - 防打字/电竞误触)</option>
+              <option value="ToggleWinLock">屏蔽/解锁 Win 键 (ToggleWinLock - 游戏防误触弹窗)</option>
+              <option value="ToggleFnLock">切换 Fn 键锁定状态 (ToggleFnLock - 切换多媒体/F区行为)</option>
+              <option value="CycleKeyboardBrightness">循环调节键盘背光亮度 (CycleKeyboardBrightness - 4档循环)</option>
+            </optgroup>
+            <optgroup label="💻 极客系统与挂机便捷">
+              <option value="MonitorOff">一键黑屏息屏 (MonitorOff - 挂机下载省电，系统不休眠)</option>
+              <option value="LockScreen">快速锁屏工作台 (LockScreen - 离开工位瞬间锁定)</option>
+              <option value="VolumeMute">系统一键静音 (VolumeMute - 摸鱼老板静音键)</option>
+              <option value="VolumeUp">系统音量增加 (VolumeUp)</option>
+              <option value="VolumeDown">系统音量减小 (VolumeDown)</option>
+              <option value="TriggerOsdPreview">唤起 OSD 屏幕弹窗预览 (TriggerOsdPreview)</option>
+            </optgroup>
+            <optgroup label="🚀 外部程序与脚本拉起">
+              <option value="LaunchApp">快速启动外部程序 (LaunchApp - 运行指定 exe 或脚本)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Optional LaunchApp Config -->
+        <div id="launchAppConfigBox" class="form-group full" style="display: none;">
+          <label class="form-label">
+            <span>可执行程序路径与参数</span>
+            <span class="form-hint">输入绝对路径 (如 C:\Windows\notepad.exe)</span>
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input id="inputAppPath" type="text" class="input-text" placeholder="程序路径 (如 notepad.exe 或 D:\tool.exe)" />
+            <input id="inputAppArgs" type="text" class="input-text" placeholder="可选参数 (空格分隔)" style="width: 200px;" />
+          </div>
+        </div>
+
+        <!-- 5. Options -->
+        <div class="form-group">
+          <div class="switch-row">
+            <div class="switch-label-wrap">
+              <span class="switch-title">🔔 屏幕机甲 OSD 弹窗</span>
+              <span class="switch-desc">按键触发时，在屏幕中央弹出战术 HUD 提示</span>
+            </div>
+            <input id="checkOsd" type="checkbox" class="toggle-checkbox" checked />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="switch-row">
+            <div class="switch-label-wrap">
+              <span class="switch-title">🚫 吞噬按键 (Swallow)</span>
+              <span class="switch-desc">微内核拦截按键，不透传给前台其他窗口</span>
+            </div>
+            <input id="checkSwallow" type="checkbox" class="toggle-checkbox" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+        <button id="btnTestAction" class="btn" onclick="testCurrentAction()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          <span>立即测试动作 (Test Action)</span>
+        </button>
+        <button id="btnRegisterShortcut" class="btn btn-primary" onclick="saveAndRegisterShortcut()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          <span>保存并注册热键 (Register)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 2: Quick Preset Packs -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--accent-cyan)"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span class="card-title">一键极速预设方案套件</span>
+        </div>
+        <span class="card-desc">为不同场景量身定制的按键方案，一键批量加载</span>
+      </div>
+
+      <div class="preset-pack-grid">
+        <!-- Pack 1 -->
+        <div class="preset-pack-card">
+          <div class="pack-header">
+            <span class="pack-title">🎮 狂暴电竞套件</span>
+            <button class="btn btn-sm btn-cyan" onclick="applyPresetPack('gamer')">载入方案</button>
+          </div>
+          <div class="pack-items-list">
+            <div class="pack-item-row">
+              <span>全速强冷暴走</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">F</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>循环性能模式</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">M</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>锁定 Win 键</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">W</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pack 2 -->
+        <div class="preset-pack-card">
+          <div class="pack-header">
+            <span class="pack-title">💼 移动办公与续航</span>
+            <button class="btn btn-sm btn-cyan" onclick="applyPresetPack('office')">载入方案</button>
+          </div>
+          <div class="pack-items-list">
+            <div class="pack-item-row">
+              <span>刷新率瞬切 (60Hz)</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">R</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>触控板硬件开关</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">T</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>锁定办公静音模式</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">1</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pack 3 -->
+        <div class="preset-pack-card">
+          <div class="pack-header">
+            <span class="pack-title">🤫 工位摸鱼与防窥</span>
+            <button class="btn btn-sm btn-cyan" onclick="applyPresetPack('boss')">载入方案</button>
+          </div>
+          <div class="pack-items-list">
+            <div class="pack-item-row">
+              <span>快速锁屏工作台</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">B</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>一键黑屏挂机</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">L</span></div>
+            </div>
+            <div class="pack-item-row">
+              <span>系统一键静音</span>
+              <div><span class="keycap">Ctrl</span>+<span class="keycap">Alt</span>+<span class="keycap">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Registered Shortcuts List -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--status-ok)"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <span class="card-title">当前已生效全局快捷键清单</span>
+        </div>
+        <span id="registeredCountBadge" class="badge badge-dim">共 0 项</span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="shortcut-table">
+          <thead>
+            <tr>
+              <th style="width: 170px;">快捷键组合</th>
+              <th>功能名称与动作</th>
+              <th style="width: 140px;">来源归属</th>
+              <th style="width: 110px;">OSD 提醒</th>
+              <th style="width: 160px; text-align: right;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="shortcutsTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 24px 0;">
+                正在查询微内核快捷键总线...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast-box">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastMsg">提示消息</span>
+  </div>
+
+  <script>
+    // --- 状态与常量 ---
+    const STATE = {
+      isRecording: false,
+      ctrl: true,
+      alt: true,
+      shift: false,
+      win: false,
+      primaryKey: 'F',
+      shortcuts: [],
+      pluginId: 'shortcut-workshop',
+    };
+
+    // --- 统一通讯网关 (兼容 OpenRevo 沙盒 Bridge 与 Tauri Direct Invoke) ---
+    async function rpc(command, args = {}) {
+      // 1. 父级注入的 OpenRevo Bridge
+      if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.invoke === 'function') {
+        try {
+          return await window.parent.__OPENREVO_BRIDGE__.invoke(command, args);
+        } catch (e) {
+          console.warn(`Bridge RPC [${command}] 抛出异常:`, e);
+          throw e;
+        }
+      }
+      // 2. 原生 Tauri Direct Invoke
+      if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+        try {
+          return await window.__TAURI__.core.invoke(command, args);
+        } catch (e) {
+          console.warn(`Tauri RPC [${command}] 抛出异常:`, e);
+          throw e;
+        }
+      }
+      // 3. postMessage 回退
+      return new Promise((resolve, reject) => {
+        let action = '';
+        if (command === 'get_registered_shortcuts') action = 'GET_SHORTCUTS';
+        else if (command === 'register_custom_shortcut') action = 'REGISTER_SHORTCUT';
+        else if (command === 'unregister_custom_shortcut') action = 'UNREGISTER_SHORTCUT';
+        else if (command === 'trigger_shortcut_action') action = 'TRIGGER_SHORTCUT_ACTION';
+        else action = command.toUpperCase();
+
+        const timeout = setTimeout(() => {
+          window.removeEventListener('message', onMsg);
+          reject(new Error(`RPC [${command}] 超时未收到宿主响应`));
+        }, 5000);
+
+        function onMsg(e) {
+          if (!e.data) return;
+          if (action === 'GET_SHORTCUTS' && e.data.type === 'OPENREVO_SHORTCUTS') {
+            clearTimeout(timeout);
+            window.removeEventListener('message', onMsg);
+            resolve(e.data.payload);
+          } else if (action === 'REGISTER_SHORTCUT' && e.data.type === 'OPENREVO_SHORTCUT_REGISTERED') {
+            clearTimeout(timeout);
+            window.removeEventListener('message', onMsg);
+            resolve(e.data.success);
+          } else if (action === 'UNREGISTER_SHORTCUT' && e.data.type === 'OPENREVO_SHORTCUT_UNREGISTERED') {
+            clearTimeout(timeout);
+            window.removeEventListener('message', onMsg);
+            resolve(e.data.success);
+          }
+        }
+
+        window.addEventListener('message', onMsg);
+        window.parent.postMessage({ action, payload: args.binding || args }, '*');
+      });
+    }
+
+    // --- UI 渲染与按键录制引擎 ---
+    function renderKeyPreview() {
+      const container = document.getElementById('keyComboPreview');
+      const parts = [];
+      if (STATE.ctrl) parts.push('Ctrl');
+      if (STATE.alt) parts.push('Alt');
+      if (STATE.shift) parts.push('Shift');
+      if (STATE.win) parts.push('Win');
+      if (STATE.primaryKey) parts.push(STATE.primaryKey);
+
+      if (parts.length === 0) {
+        container.innerHTML = '<span style="color: var(--text-dim); font-size: 13px;">请选择修饰键或主键...</span>';
+        return;
+      }
+
+      let html = '';
+      parts.forEach((p, idx) => {
+        if (idx > 0) html += '<span class="keycap-plus">+</span>';
+        html += `<span class="keycap keycap-lg">${p}</span>`;
+      });
+      container.innerHTML = html;
+
+      // 同步修饰键按钮态
+      document.getElementById('modCtrl').classList.toggle('active', STATE.ctrl);
+      document.getElementById('modAlt').classList.toggle('active', STATE.alt);
+      document.getElementById('modShift').classList.toggle('active', STATE.shift);
+      document.getElementById('modWin').classList.toggle('active', STATE.win);
+      document.getElementById('selectPrimaryKey').value = STATE.primaryKey;
+    }
+
+    function toggleModifier(mod) {
+      if (mod === 'ctrl') STATE.ctrl = !STATE.ctrl;
+      if (mod === 'alt') STATE.alt = !STATE.alt;
+      if (mod === 'shift') STATE.shift = !STATE.shift;
+      if (mod === 'win') STATE.win = !STATE.win;
+      renderKeyPreview();
+    }
+
+    function onPrimaryKeyChange(val) {
+      STATE.primaryKey = val;
+      renderKeyPreview();
+    }
+
+    function getCurrentComboString() {
+      const parts = [];
+      if (STATE.ctrl) parts.push('Ctrl');
+      if (STATE.alt) parts.push('Alt');
+      if (STATE.shift) parts.push('Shift');
+      if (STATE.win) parts.push('Win');
+      if (STATE.primaryKey) parts.push(STATE.primaryKey);
+      return parts.join('+');
+    }
+
+    // --- 键盘按键实时捕获录制引擎 ---
+    function toggleRecording() {
+      if (STATE.isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    }
+
+    function startRecording() {
+      STATE.isRecording = true;
+      const box = document.getElementById('recorderContainer');
+      box.classList.add('recording');
+      document.getElementById('recorderStatus').textContent = '⚡ 正在录制按键... (请同时按下目标快捷键)';
+      document.getElementById('recordHint').textContent = '按 ESC 取消录制';
+      document.getElementById('recordBtnText').textContent = '取消录制 (ESC)';
+      window.addEventListener('keydown', handleKeyCapture, true);
+    }
+
+    function stopRecording() {
+      STATE.isRecording = false;
+      const box = document.getElementById('recorderContainer');
+      box.classList.remove('recording');
+      document.getElementById('recorderStatus').textContent = '🎯 当前组合键';
+      document.getElementById('recordHint').textContent = '点击右侧按钮按下键盘，或手动点选修饰键';
+      document.getElementById('recordBtnText').textContent = '按下键盘录制 (Record)';
+      window.removeEventListener('keydown', handleKeyCapture, true);
+    }
+
+    function handleKeyCapture(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+        stopRecording();
+        showToast('已取消按键录制');
+        return;
+      }
+
+      // 更新修饰键
+      STATE.ctrl = e.ctrlKey;
+      STATE.alt = e.altKey;
+      STATE.shift = e.shiftKey;
+      STATE.win = e.metaKey;
+
+      // 提取主键 code
+      const code = e.code;
+      let primary = null;
+
+      if (code.startsWith('Key')) {
+        primary = code.replace('Key', '').toUpperCase();
+      } else if (code.startsWith('Digit')) {
+        primary = code.replace('Digit', '');
+      } else if (code.startsWith('Numpad') && code.length === 7) {
+        primary = code.replace('Numpad', '');
+      } else if (code.startsWith('F') && /^F\d+$/.test(code)) {
+        primary = code;
+      } else {
+        const specialMap = {
+          'Space': 'SPACE',
+          'Tab': 'TAB',
+          'Enter': 'RETURN',
+          'NumpadEnter': 'RETURN',
+          'Backspace': 'BACKSPACE',
+          'Delete': 'DELETE',
+          'Insert': 'INSERT',
+          'Home': 'HOME',
+          'End': 'END',
+          'PageUp': 'PAGEUP',
+          'PageDown': 'PAGEDOWN',
+          'ArrowUp': 'UP',
+          'ArrowDown': 'DOWN',
+          'ArrowLeft': 'LEFT',
+          'ArrowRight': 'RIGHT',
+          'AudioVolumeMute': 'MUTE',
+          'AudioVolumeUp': 'VOLUMEUP',
+          'AudioVolumeDown': 'VOLUMEDOWN',
+        };
+        if (specialMap[code]) {
+          primary = specialMap[code];
+        }
+      }
+
+      // 检查是否只是按下了修饰键本身
+      const isModifierOnly = ['ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'ShiftLeft', 'ShiftRight', 'MetaLeft', 'MetaRight'].includes(code);
+
+      if (primary && !isModifierOnly) {
+        STATE.primaryKey = primary;
+        renderKeyPreview();
+        stopRecording();
+        showToast(`🎉 成功捕获按键: ${getCurrentComboString()}`);
+      } else {
+        renderKeyPreview();
+      }
+    }
+
+    function setNameQuick(name, actionKey) {
+      document.getElementById('inputShortcutName').value = name;
+      if (actionKey) {
+        document.getElementById('selectActionType').value = actionKey;
+        onActionTypeChange(actionKey);
+      }
+    }
+
+    function onActionTypeChange(val) {
+      const isLaunch = val === 'LaunchApp';
+      document.getElementById('launchAppConfigBox').style.display = isLaunch ? 'flex' : 'none';
+    }
+
+    // --- 解析前端选择为强类型 ShortcutAction ---
+    function parseShortcutAction(typeVal) {
+      if (typeVal === 'ToggleFanBoost') return { type: 'ToggleFanBoost' };
+      if (typeVal === 'CyclePowerMode') return { type: 'CyclePowerMode' };
+      if (typeVal === 'SetPowerMode_1') return { type: 'SetPowerMode', payload: 1 };
+      if (typeVal === 'SetPowerMode_2') return { type: 'SetPowerMode', payload: 2 };
+      if (typeVal === 'SetPowerMode_3') return { type: 'SetPowerMode', payload: 3 };
+      if (typeVal === 'SetPowerMode_4') return { type: 'SetPowerMode', payload: 4 };
+      if (typeVal === 'ToggleRefreshRate') return { type: 'ToggleRefreshRate' };
+      if (typeVal === 'ToggleTouchpad') return { type: 'ToggleTouchpad' };
+      if (typeVal === 'ToggleWinLock') return { type: 'ToggleWinLock' };
+      if (typeVal === 'ToggleFnLock') return { type: 'ToggleFnLock' };
+      if (typeVal === 'CycleKeyboardBrightness') return { type: 'CycleKeyboardBrightness' };
+      if (typeVal === 'MonitorOff') return { type: 'MonitorOff' };
+      if (typeVal === 'LockScreen') return { type: 'LockScreen' };
+      if (typeVal === 'VolumeMute') return { type: 'VolumeMute' };
+      if (typeVal === 'VolumeUp') return { type: 'VolumeUp' };
+      if (typeVal === 'VolumeDown') return { type: 'VolumeDown' };
+      if (typeVal === 'TriggerOsdPreview') return { type: 'TriggerOsdPreview' };
+      if (typeVal === 'LaunchApp') {
+        const path = document.getElementById('inputAppPath').value.trim();
+        const rawArgs = document.getElementById('inputAppArgs').value.trim();
+        const args = rawArgs ? rawArgs.split(' ').filter(Boolean) : [];
+        return { type: 'LaunchApp', payload: { path, args } };
+      }
+      return { type: typeVal };
+    }
+
+    function getActionLabel(action) {
+      if (!action) return '未知动作';
+      const actType = action.type;
+      if (actType === 'ToggleFanBoost') return '🌪️ 切换全速强冷 (5400+ RPM)';
+      if (actType === 'CyclePowerMode') return '⚡ 循环性能模式 (办公/均衡/狂暴)';
+      if (actType === 'SetPowerMode') {
+        const m = action.payload;
+        const name = m === 1 ? '办公模式' : m === 2 ? '均衡模式' : m === 3 ? '狂暴模式' : '自定义模式';
+        return `🎯 锁定${name} (${m})`;
+      }
+      if (actType === 'ToggleRefreshRate') return '🖥️ 刷新率瞬切 (高刷/60Hz)';
+      if (actType === 'ToggleTouchpad') return '🖱️ 触控板硬件开关';
+      if (actType === 'ToggleWinLock') return '🎮 锁定/解锁 Win 键';
+      if (actType === 'ToggleFnLock') return '⌨️ 切换 Fn 功能键锁定';
+      if (actType === 'CycleKeyboardBrightness') return '💡 循环键盘背光亮度';
+      if (actType === 'MonitorOff') return '🌙 一键黑屏息屏挂机';
+      if (actType === 'LockScreen') return '🔒 快速锁屏工作台';
+      if (actType === 'VolumeMute') return '🤫 系统一键静音 (老板键)';
+      if (actType === 'VolumeUp') return '🔊 系统音量增加';
+      if (actType === 'VolumeDown') return '🔉 系统音量减小';
+      if (actType === 'TriggerOsdPreview') return '🔔 OSD 弹窗预览';
+      if (actType === 'LaunchApp') return `🚀 拉起程序: ${action.payload?.path || '未指定'}`;
+      if (actType === 'PluginEvent') return `📡 跨插件总线: ${action.payload?.event_name}`;
+      return actType;
+    }
+
+    // --- 业务：保存并注册快捷键 ---
+    async function saveAndRegisterShortcut() {
+      const name = document.getElementById('inputShortcutName').value.trim();
+      if (!name) {
+        showToast('⚠️ 请填写快捷键名称');
+        return;
+      }
+
+      const combo = getCurrentComboString();
+      if (!combo || !STATE.primaryKey) {
+        showToast('⚠️ 请先配置有效的主键与修饰键');
+        return;
+      }
+
+      // 如果没有任何修饰键，给出防误触警告
+      if (!STATE.ctrl && !STATE.alt && !STATE.shift && !STATE.win) {
+        if (!confirm(`⚠️ 您配置了无修饰键的单键 '${combo}'，这可能导致在正常打字时意外触发硬件动作。确定继续吗？`)) {
+          return;
+        }
+      }
+
+      const actionType = document.getElementById('selectActionType').value;
+      const action = parseShortcutAction(actionType);
+      const osd = document.getElementById('checkOsd').checked;
+      const swallow = document.getElementById('checkSwallow').checked;
+
+      const shortcutId = 'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+
+      const binding = {
+        id: shortcutId,
+        name,
+        combo,
+        action,
+        osd,
+        enabled: true,
+        swallow,
+        plugin_id: STATE.pluginId,
+      };
+
+      try {
+        await rpc('register_custom_shortcut', { binding });
+        showToast(`✅ 成功注册快捷键: [${combo}] ${name}`);
+        await refreshShortcutsList();
+      } catch (err) {
+        alert(`注册快捷键失败: ${err.message || err}`);
+      }
+    }
+
+    // --- 业务：测试触发当前动作 ---
+    async function testCurrentAction() {
+      const actionType = document.getElementById('selectActionType').value;
+      const action = parseShortcutAction(actionType);
+      const osd = document.getElementById('checkOsd').checked;
+
+      try {
+        await rpc('trigger_shortcut_action', { action, osd });
+        showToast('⚡ 动作已立即下发微内核执行！');
+      } catch (err) {
+        showToast(`[-] 测试执行失败: ${err.message || err}`);
+      }
+    }
+
+    // --- 业务：注销指定快捷键 ---
+    async function deleteShortcut(id, name) {
+      if (!confirm(`确定要注销并移除快捷键 [${name}] 吗？`)) return;
+
+      try {
+        await rpc('unregister_custom_shortcut', { id });
+        showToast(`🗑️ 已注销快捷键: ${name}`);
+        await refreshShortcutsList();
+      } catch (err) {
+        alert(`注销快捷键失败: ${err.message || err}`);
+      }
+    }
+
+    // --- 业务：测试触发列表项动作 ---
+    async function triggerListItem(binding) {
+      try {
+        await rpc('trigger_shortcut_action', { action: binding.action, osd: binding.osd });
+        showToast(`⚡ 已触发动作: ${binding.name}`);
+      } catch (err) {
+        showToast(`[-] 触发失败: ${err.message || err}`);
+      }
+    }
+
+    // --- 业务：载入方案套件 ---
+    async function applyPresetPack(packType) {
+      let pack = [];
+      if (packType === 'gamer') {
+        pack = [
+          { name: '全速强冷暴走', combo: 'Ctrl+Alt+F', action: { type: 'ToggleFanBoost' }, osd: true },
+          { name: '循环性能模式', combo: 'Ctrl+Alt+M', action: { type: 'CyclePowerMode' }, osd: true },
+          { name: '锁定 Win 键', combo: 'Ctrl+Alt+W', action: { type: 'ToggleWinLock' }, osd: true },
+        ];
+      } else if (packType === 'office') {
+        pack = [
+          { name: '刷新率瞬切 (60Hz/高刷)', combo: 'Ctrl+Alt+R', action: { type: 'ToggleRefreshRate' }, osd: true },
+          { name: '触控板硬件开关', combo: 'Ctrl+Alt+T', action: { type: 'ToggleTouchpad' }, osd: true },
+          { name: '锁定办公模式', combo: 'Ctrl+Alt+1', action: { type: 'SetPowerMode', payload: 1 }, osd: true },
+        ];
+      } else if (packType === 'boss') {
+        pack = [
+          { name: '快速锁屏工作台', combo: 'Ctrl+Alt+B', action: { type: 'LockScreen' }, osd: false },
+          { name: '一键黑屏挂机', combo: 'Ctrl+Alt+L', action: { type: 'MonitorOff' }, osd: false },
+          { name: '系统一键静音', combo: 'Ctrl+Alt+0', action: { type: 'VolumeMute' }, osd: false },
+        ];
+      }
+
+      if (!confirm(`确定一键注册 [${packType === 'gamer' ? '狂暴电竞套件' : packType === 'office' ? '移动办公与续航' : '工位摸鱼与防窥'}] 中的 ${pack.length} 组快捷键吗？`)) {
+        return;
+      }
+
+      let successCount = 0;
+      for (const item of pack) {
+        try {
+          const binding = {
+            id: `pack_${packType}_` + item.combo.replace(/\+/g, '_'),
+            name: item.name,
+            combo: item.combo,
+            action: item.action,
+            osd: item.osd,
+            enabled: true,
+            swallow: false,
+            plugin_id: STATE.pluginId,
+          };
+          await rpc('register_custom_shortcut', { binding });
+          successCount++;
+        } catch (e) {
+          console.warn('注册预设项失败:', item, e);
+        }
+      }
+
+      showToast(`🎉 成功载入预设套件！已注册 ${successCount}/${pack.length} 项`);
+      await refreshShortcutsList();
+    }
+
+    // --- 刷新快捷键清单 ---
+    async function refreshShortcutsList() {
+      try {
+        const list = await rpc('get_registered_shortcuts');
+        STATE.shortcuts = list || [];
+        renderTable(STATE.shortcuts);
+        updateStats(STATE.shortcuts);
+      } catch (err) {
+        console.error('获取快捷键列表失败:', err);
+        document.getElementById('shortcutsTableBody').innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--status-error); padding: 24px 0;">
+              ❌ 获取快捷键清单失败: ${err.message || err}
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function renderTable(list) {
+      const tbody = document.getElementById('shortcutsTableBody');
+      const badge = document.getElementById('registeredCountBadge');
+      badge.textContent = `共 ${list.length} 项`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 32px 0;">
+              暂无已生效快捷键，请在上方配置并保存！
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      list.forEach((item) => {
+        // Combo keycaps
+        const comboParts = item.combo.split('+').map(s => s.trim()).filter(Boolean);
+        const comboHtml = comboParts.map(p => `<span class="keycap">${p}</span>`).join('<span class="keycap-plus">+</span>');
+
+        // Source badge
+        let srcBadge = '<span class="badge badge-dim">系统核心</span>';
+        if (item.plugin_id === STATE.pluginId) {
+          srcBadge = '<span class="badge badge-primary">工坊自定义</span>';
+        } else if (item.plugin_id) {
+          srcBadge = `<span class="badge badge-cyan" title="来自插件: ${item.plugin_id}">🧩 ${item.plugin_id}</span>`;
+        }
+
+        // Action Label
+        const actLabel = getActionLabel(item.action);
+
+        // OSD badge
+        const osdBadge = item.osd
+          ? '<span class="badge badge-ok">● 开启</span>'
+          : '<span class="badge badge-dim">○ 关闭</span>';
+
+        // Escaped JSON for testing
+        const bindingJson = JSON.stringify(item).replace(/"/g, '&quot;');
+
+        html += `
+          <tr>
+            <td>
+              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 3px;">
+                ${comboHtml}
+              </div>
+            </td>
+            <td>
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">${item.name}</span>
+                <span style="font-size: 11px; color: var(--text-dim);">${actLabel}</span>
+              </div>
+            </td>
+            <td>${srcBadge}</td>
+            <td>${osdBadge}</td>
+            <td style="text-align: right;">
+              <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                <button class="btn btn-sm" onclick='triggerListItem(${bindingJson})' title="立即下发动作测试">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  <span>测试</span>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteShortcut('${item.id}', '${item.name}')" title="注销此快捷键">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <span>注销</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function updateStats(list) {
+      document.getElementById('statTotalCount').textContent = list.length;
+      let hwCount = 0;
+      let sysCount = 0;
+      let osdCount = 0;
+
+      list.forEach((item) => {
+        if (item.osd) osdCount++;
+        const t = item.action?.type;
+        if (['ToggleFanBoost', 'CyclePowerMode', 'SetPowerMode', 'ToggleRefreshRate', 'ToggleTouchpad', 'ToggleWinLock', 'ToggleFnLock', 'CycleKeyboardBrightness'].includes(t)) {
+          hwCount++;
+        } else {
+          sysCount++;
+        }
+      });
+
+      document.getElementById('statHardwareCount').textContent = hwCount;
+      document.getElementById('statSystemCount').textContent = sysCount;
+      document.getElementById('statOsdCount').textContent = osdCount;
+    }
+
+    // --- Toast 消息弹窗 ---
+    let toastTimer = null;
+    function showToast(msg, icon = '✨') {
+      const el = document.getElementById('toast');
+      document.getElementById('toastIcon').textContent = icon;
+      document.getElementById('toastMsg').textContent = msg;
+      el.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.remove('show');
+      }, 3000);
+    }
+
+    // --- 页面初始化 ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderKeyPreview();
+      refreshShortcutsList();
+
+      document.getElementById('btnRefreshList').addEventListener('click', () => {
+        refreshShortcutsList();
+        showToast('已刷新快捷键清单');
+      });
+
+      document.getElementById('btnOpenPluginsDir').addEventListener('click', async () => {
+        try {
+          await rpc('open_plugins_dir');
+        } catch (_) {}
+      });
+    });
+  </script>
+</body>
+
+</html>
+

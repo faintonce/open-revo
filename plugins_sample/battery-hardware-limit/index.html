@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -59,13 +60,16 @@
       width: 6px;
       height: 6px;
     }
+
     ::-webkit-scrollbar-track {
       background: transparent;
     }
+
     ::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.15);
       border-radius: 9999px;
     }
+
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.25);
     }
@@ -540,11 +544,14 @@
       color: var(--text-dim);
     }
 
-    select, option, input {
+    select,
+    option,
+    input {
       color-scheme: dark;
     }
 
-    .lab-input, .lab-select {
+    .lab-input,
+    .lab-select {
       background-color: #121826 !important;
       border: 1px solid var(--border-medium);
       border-radius: var(--radius-sm);
@@ -555,7 +562,8 @@
       transition: border-color 0.15s ease, background-color 0.15s ease;
     }
 
-    .lab-input:focus, .lab-select:focus {
+    .lab-input:focus,
+    .lab-select:focus {
       border-color: var(--status-ok);
     }
 
@@ -618,13 +626,15 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <!-- Header -->
     <div class="header-card">
       <div class="header-left">
         <div class="header-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 7h2a2 2 0 0 1 2 2v6c0 1-1 2-2 2h-2"></path>
             <path d="M6 7H4a2 2 0 0 0-2 2v6c0 1 1 2 2 2h2"></path>
             <line x1="22" y1="11" x2="22" y2="13"></line>
@@ -746,15 +756,8 @@
         </div>
         <div class="slider-input-wrapper">
           <button class="step-btn" onclick="adjustStep(-1)" title="-1%">-</button>
-          <input
-            type="range"
-            id="targetSlider"
-            class="range-slider"
-            min="1"
-            max="100"
-            value="80"
-            oninput="onSliderInput(this.value)"
-          />
+          <input type="range" id="targetSlider" class="range-slider" min="1" max="100" value="80"
+            oninput="onSliderInput(this.value)" />
           <button class="step-btn" onclick="adjustStep(1)" title="+1%">+</button>
         </div>
       </div>
@@ -838,16 +841,19 @@
                 <option value="4">0x04 (轻薄本 / 无界推荐)</option>
                 <option value="custom">自定义数值...</option>
               </select>
-              <input id="paramPulseCustomInput" class="lab-input" type="text" placeholder="0x05" style="width: 65px; display: none;" onchange="updateLabConfig()" />
+              <input id="paramPulseCustomInput" class="lab-input" type="text" placeholder="0x05"
+                style="width: 65px; display: none;" onchange="updateLabConfig()" />
             </div>
           </div>
           <div class="lab-field">
             <label class="lab-label">脉冲保持时间 (Pulse Hold Ms)</label>
-            <input id="paramPulseHold" class="lab-input" type="number" value="2500" step="100" min="1000" max="8000" onchange="updateLabConfig()" />
+            <input id="paramPulseHold" class="lab-input" type="number" value="2500" step="100" min="1000" max="8000"
+              onchange="updateLabConfig()" />
           </div>
           <div class="lab-field">
             <label class="lab-label">限充寄存器 (Limit Reg)</label>
-            <input id="paramLimitReg" class="lab-input" type="text" value="0x07B9 (1977)" onchange="updateLabConfig()" />
+            <input id="paramLimitReg" class="lab-input" type="text" value="0x07B9 (1977)"
+              onchange="updateLabConfig()" />
           </div>
           <div class="lab-field">
             <label class="lab-label">门控寄存器 (Gate Reg)</label>
@@ -855,7 +861,8 @@
           </div>
           <div class="lab-field">
             <label class="lab-label">状态判定寄存器 (Status Reg)</label>
-            <input id="paramStatusReg" class="lab-input" type="text" value="0x0742 (1858)" onchange="updateLabConfig()" />
+            <input id="paramStatusReg" class="lab-input" type="text" value="0x0742 (1858)"
+              onchange="updateLabConfig()" />
           </div>
         </div>
 
@@ -1100,7 +1107,7 @@
         let origPlat = 0x07;
         try {
           origPlat = await ecRead(STATE.gateReg);
-        } catch (_) {}
+        } catch (_) { }
 
         // 清零 0x07B9
         await ecWrite(STATE.limitReg, 0);
@@ -1275,4 +1282,5 @@
     });
   </script>
 </body>
+
 </html>

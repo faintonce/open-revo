@@ -1,0 +1,23 @@
+{
+  "id": "shortcut-fan-boost",
+  "name": "一键强冷极速热键",
+  "version": "1.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "官方演示插件：纯声明式无头全局热键（零 Webview、零额外内存占用），使用快捷键（默认 Ctrl+Alt+F）随时极速开关全速强冷模式，联动原生机甲 OSD 弹窗。",
+  "plugin_type": "service",
+  "min_host_version": "0.9.3",
+  "shortcuts": [
+    {
+      "id": "quick_fan_boost_toggle",
+      "name": "极速开关全速强冷",
+      "combo": "Ctrl+Alt+F",
+      "action": {
+        "type": "ToggleFanBoost"
+      },
+      "osd": true,
+      "enabled": true,
+      "swallow": false
+    }
+  ]
+}
+

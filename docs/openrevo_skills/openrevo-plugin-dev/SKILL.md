@@ -146,7 +146,7 @@ description: Official OpenRevo expert agent skill for developing third-party plu
     {
       "id": "hz_toggle",
       "name": "刷新率瞬切 (高刷/省电)",
-      "combo": "Ctrl+Shift+R",
+      "combo": "Ctrl+Alt+R",
       "action": { "type": "ToggleRefreshRate" },
       "osd": true
     }
@@ -695,7 +695,7 @@ await invoke('write_clipboard', { text: 'https://openrevo.top' });
     {
       "id": "hz_toggle",
       "name": "刷新率瞬切 (高刷/省电)",
-      "combo": "Ctrl+Shift+R",
+      "combo": "Ctrl+Alt+R",
       "action": { "type": "ToggleRefreshRate" },
       "osd": true
     },

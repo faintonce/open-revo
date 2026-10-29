@@ -10,6 +10,8 @@ extern "system" {
     fn LockWorkStation() -> windows::Win32::Foundation::BOOL;
 }
 
+static LAST_REFRESH_SWITCH: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
 pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
     std::thread::spawn(move || {
         let osd = binding.osd;
@@ -91,6 +93,17 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
 
             // 3. Toggle Refresh Rate (e.g. 60Hz <-> High Hz)
             ShortcutAction::ToggleRefreshRate => {
+                {
+                    let mut last = LAST_REFRESH_SWITCH.lock().unwrap();
+                    if let Some(t) = *last {
+                        if t.elapsed() < std::time::Duration::from_millis(1200) {
+                            crate::log_warn!("SHORTCUTS", "Suppressed rapid ToggleRefreshRate call (< 1200ms cooldown)");
+                            return;
+                        }
+                    }
+                    *last = Some(std::time::Instant::now());
+                }
+
                 let current_hz = crate::system::display::get_refresh_rate();
                 let available = crate::system::display::get_available_refresh_rates();
                 if available.len() >= 2 {

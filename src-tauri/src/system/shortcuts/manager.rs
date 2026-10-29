@@ -10,6 +10,7 @@ use super::dispatcher::dispatch_action;
 struct RegistryEntry {
     binding: ShortcutBinding,
     parsed: ParsedKeyCombo,
+    last_triggered: Option<std::time::Instant>,
 }
 
 static REGISTRY: RwLock<Option<HashMap<String, RegistryEntry>>> = RwLock::new(None);
@@ -51,7 +52,11 @@ pub fn register_shortcut(binding: ShortcutBinding) -> bool {
         }
 
         look.entry(vk).or_default().push(id.clone());
-        reg.insert(id, RegistryEntry { binding, parsed });
+        reg.insert(id, RegistryEntry {
+            binding,
+            parsed,
+            last_triggered: None,
+        });
     });
 
     true
@@ -129,15 +134,28 @@ pub fn check_match_and_trigger(
             return false;
         };
 
-        let reg_guard = REGISTRY.read().unwrap();
-        let Some(ref reg) = *reg_guard else {
+        let mut reg_guard = REGISTRY.write().unwrap();
+        let Some(ref mut reg) = *reg_guard else {
             return false;
         };
 
+        let now = std::time::Instant::now();
         let mut found = None;
         for id in candidate_ids {
-            if let Some(entry) = reg.get(id) {
+            if let Some(entry) = reg.get_mut(id) {
                 if entry.binding.enabled && entry.parsed.matches(vk, is_ctrl, is_alt, is_shift, is_win) {
+                    // Filter typematic auto-repeat and rapid re-triggers
+                    let debounce_ms = match entry.binding.action {
+                        super::types::ShortcutAction::ToggleRefreshRate => 1200, // Display mode switches need at least 1.2s to settle
+                        _ => 400, // Standard shortcuts debounce 400ms to ignore Windows key repeat
+                    };
+                    if let Some(last) = entry.last_triggered {
+                        if now.duration_since(last) < std::time::Duration::from_millis(debounce_ms) {
+                            // Still within cooldown period, ignore repeat but still respect swallow
+                            return entry.binding.swallow;
+                        }
+                    }
+                    entry.last_triggered = Some(now);
                     found = Some((entry.binding.clone(), entry.binding.swallow));
                     break;
                 }
