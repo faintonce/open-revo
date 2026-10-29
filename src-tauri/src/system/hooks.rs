@@ -7,7 +7,8 @@ use tauri::{AppHandle, Emitter};
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     keybd_event, GetAsyncKeyState, GetKeyState, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_CAPITAL,
-    VK_CONTROL, VK_LWIN, VK_MENU, VK_NUMLOCK, VK_RWIN, VK_SCROLL, VK_SHIFT,
+    VK_CONTROL, VK_LCONTROL, VK_RCONTROL, VK_LWIN, VK_MENU, VK_LMENU, VK_RMENU, VK_NUMLOCK,
+    VK_RWIN, VK_SCROLL, VK_SHIFT, VK_LSHIFT, VK_RSHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW,
@@ -87,9 +88,16 @@ unsafe extern "system" fn low_level_keyboard_proc(
 
             // 0.1 Universal Shortcut Bus (Route 2: Hardware & System Shortcut Dispatch)
             if let Some(app) = APP_HANDLE.get() {
-                let is_ctrl = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
-                let is_alt = (GetAsyncKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0;
-                let is_shift = (GetAsyncKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0;
+                let is_alt = (kbd_struct.flags.0 & 0x20) != 0
+                    || (GetAsyncKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0
+                    || (GetAsyncKeyState(VK_LMENU.0 as i32) as u16 & 0x8000) != 0
+                    || (GetAsyncKeyState(VK_RMENU.0 as i32) as u16 & 0x8000) != 0;
+                let is_ctrl = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0
+                    || (GetAsyncKeyState(VK_LCONTROL.0 as i32) as u16 & 0x8000) != 0
+                    || (GetAsyncKeyState(VK_RCONTROL.0 as i32) as u16 & 0x8000) != 0;
+                let is_shift = (GetAsyncKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0
+                    || (GetAsyncKeyState(VK_LSHIFT.0 as i32) as u16 & 0x8000) != 0
+                    || (GetAsyncKeyState(VK_RSHIFT.0 as i32) as u16 & 0x8000) != 0;
                 let is_win = (GetAsyncKeyState(VK_LWIN.0 as i32) as u16 & 0x8000) != 0
                     || (GetAsyncKeyState(VK_RWIN.0 as i32) as u16 & 0x8000) != 0;
 

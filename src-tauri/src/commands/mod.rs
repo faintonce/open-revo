@@ -15,6 +15,7 @@ pub mod market_cmd;
 pub mod shortcut_cmd;
 pub mod raw_ec_cmd;
 pub mod watcher_cmd;
+pub mod plugin_storage_cmd;
 
 pub use cooler_cmd::*;
 pub use display_cmd::*;
@@ -28,3 +29,4 @@ pub use market_cmd::*;
 pub use shortcut_cmd::*;
 pub use raw_ec_cmd::*;
 pub use watcher_cmd::*;
+pub use plugin_storage_cmd::*;

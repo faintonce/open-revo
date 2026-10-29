@@ -12,10 +12,10 @@ use windows::Win32::System::Threading::GetCurrentThreadId;
 
 use windows::Win32::UI::Controls::MARGINS;
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumThreadWindows, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW,
-    SetWindowPos, ShowWindow, GWL_EXSTYLE, GWL_STYLE, HWND_TOPMOST, SM_CXSCREEN, SM_CYSCREEN,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WS_EX_NOACTIVATE,
-    WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
+    EnumThreadWindows, GetParent, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW,
+    SetWindowPos, SetWindowTextW, ShowWindow, GWL_EXSTYLE, GWL_STYLE, HWND_TOPMOST, SM_CXSCREEN, SM_CYSCREEN,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WS_EX_NOACTIVATE,
+    WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
 pub mod ipc;
@@ -76,6 +76,12 @@ impl SafeHwnd {
 }
 
 unsafe extern "system" fn enum_thread_wnd_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    if let Ok(parent) = GetParent(hwnd) {
+        if !parent.0.is_null() {
+            return BOOL(1);
+        }
+    }
+
     let mut rect = RECT::default();
     let _ = GetWindowRect(hwnd, &mut rect);
     let w = rect.right - rect.left;
@@ -83,9 +89,8 @@ unsafe extern "system" fn enum_thread_wnd_proc(hwnd: HWND, lparam: LPARAM) -> BO
 
     osd_log(&format!("enum_thread_wnd: hwnd={:?}, w={}, h={}", hwnd.0, w, h));
 
-    // Real Slint OsdWindow is 440x100 (or scaled by DPI > 100x40).
-    // Ignore internal message-only / helper windows with 0x0 or tiny dimensions.
-    if w >= 100 && h >= 40 {
+    // Top-level Slint OsdWindow has non-zero dimensions
+    if w >= 100 && h >= 10 {
         let target = lparam.0 as *mut HWND;
         *target = hwnd;
         return BOOL(0); // Found target window, stop enumeration
@@ -126,7 +131,12 @@ fn calculate_osd_position(position_str: &str, win_width: i32, win_height: i32) -
 
 pub fn apply_osd_window_styles(hwnd: HWND, position_str: &str) {
     unsafe {
-        SetWindowLongPtrW(hwnd, GWL_STYLE, (WS_POPUP.0 | WS_VISIBLE.0) as isize);
+        // Clear title string so Windows DWM titlebar renderer has nothing to display
+        let empty_title: [u16; 1] = [0];
+        let _ = SetWindowTextW(hwnd, windows::core::PCWSTR(empty_title.as_ptr()));
+
+        // Remove caption/border decorations without WS_VISIBLE to prevent flash
+        SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP.0 as isize);
 
         let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         let new_ex_style = (ex_style
@@ -157,6 +167,7 @@ pub fn apply_osd_window_styles(hwnd: HWND, position_str: &str) {
 
         let (x, y) = calculate_osd_position(position_str, win_width, win_height);
 
+        // Crucial: SWP_FRAMECHANGED forces Windows DWM to discard and recalculate non-client caption bar!
         let _ = SetWindowPos(
             hwnd,
             HWND_TOPMOST,
@@ -164,8 +175,9 @@ pub fn apply_osd_window_styles(hwnd: HWND, position_str: &str) {
             y,
             0,
             0,
-            SWP_NOSIZE | SWP_NOACTIVATE,
+            SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
         );
+        let _ = ShowWindow(hwnd, SW_HIDE);
         osd_log(&format!("apply_osd_window_styles applied at ({}, {}) for hwnd={:?}", x, y, hwnd.0));
     }
 }

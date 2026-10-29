@@ -1,16 +1,19 @@
 {
   "id": "eva01-core",
   "name": "EVA-01 初号机 S2 能量核心",
-  "version": "1.0.0",
-  "author": "OpenRevo Official",
-  "description": "官方标杆级异形拟态机甲桌宠挂件，支持结温脉冲呼吸、风扇转速联动与一键强冷暴走切换。",
-  "type": "widget",
+  "version": "2.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "官方标杆级异形拟态机甲桌宠挂件，支持结温脉冲呼吸、风扇转速联动、离电倒计时、双态极简折叠与一键强冷暴走切换。",
+  "plugin_type": "widget",
+  "entry": "index.html",
+  "min_host_version": "0.9.3",
   "window": {
     "width": 260,
-    "height": 180,
+    "height": 190,
     "transparent": true,
-    "alwaysOnTop": true,
-    "resizable": false
+    "always_on_top": true,
+    "resizable": false,
+    "skip_taskbar": true
   },
   "telemetry": {
     "enabled": true,
@@ -20,7 +23,14 @@
       "cpu_fan_rpm",
       "cpu_power_w",
       "power_mode",
-      "fan_boost"
+      "fan_boost",
+      "battery_level",
+      "is_charging"
     ]
-  }
+  },
+  "permissions": [
+    "telemetry:read",
+    "fan:control",
+    "power:control"
+  ]
 }

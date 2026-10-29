@@ -27,7 +27,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                     crate::system::config::save_config(&cfg);
                     crate::log_info!("SHORTCUTS", "Toggled Fan Boost: {} -> {}", current_boost, next_boost);
                     if osd {
-                        crate::system::osd_window::wake_osd_if_enabled(&app);
+                        crate::system::osd_window::show_fan_boost(next_boost);
                     }
                     let _ = app.emit("fan-boost-changed", next_boost);
                     let _ = app.emit_to("osd", "fan-boost-changed", next_boost);
@@ -58,7 +58,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                     crate::update_tray_power_mode(next_mode);
                     crate::log_info!("SHORTCUTS", "Cycled Power Mode: {} -> {}", current_mode, next_mode);
                     if osd {
-                        crate::system::osd_window::wake_osd_if_enabled(&app);
+                        crate::system::osd_window::show_power_mode(next_mode);
                     }
                     let _ = app.emit("physical-mode-switched", next_mode);
                     let _ = app.emit_to("osd", "physical-mode-switched", next_mode);
@@ -83,7 +83,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                     crate::update_tray_power_mode(target_mode);
                     crate::log_info!("SHORTCUTS", "Set Power Mode: {}", target_mode);
                     if osd {
-                        crate::system::osd_window::wake_osd_if_enabled(&app);
+                        crate::system::osd_window::show_power_mode(target_mode);
                     }
                     let _ = app.emit("physical-mode-switched", target_mode);
                     let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
@@ -116,7 +116,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                     if ok.is_ok() {
                         crate::log_info!("SHORTCUTS", "Toggled Refresh Rate: {}Hz -> {}Hz", current_hz, target_hz);
                         if osd {
-                            crate::system::osd_window::wake_osd_if_enabled(&app);
+                            crate::system::osd_window::show_device_switch("refresh", true);
                         }
                         let _ = app.emit("refresh-rate-changed", target_hz);
                         let _ = app.emit_to("osd", "refresh-rate-changed", target_hz);
@@ -131,7 +131,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                 let next = !current;
                 let _ = crate::system::device_switches::set_switch("touchpad", next);
                 if osd {
-                    crate::system::osd_window::wake_osd_if_enabled(&app);
+                    crate::system::osd_window::show_device_switch("touchpad", next);
                 }
                 let _ = app.emit("touchpad-state-changed", next);
                 let _ = app.emit_to("osd", "touchpad-state-changed", next);
@@ -143,7 +143,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                 let next = !current;
                 crate::system::hooks::set_win_key_locked(next);
                 if osd {
-                    crate::system::osd_window::wake_osd_if_enabled(&app);
+                    crate::system::osd_window::show_device_switch("winlock", next);
                 }
                 let _ = app.emit("win-lock-state-changed", next);
                 let _ = app.emit_to("osd", "win-lock-state-changed", next);
@@ -155,7 +155,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                 let next = !current;
                 let _ = crate::system::device_switches::set_switch("fnlock", next);
                 if osd {
-                    crate::system::osd_window::wake_osd_if_enabled(&app);
+                    crate::system::osd_window::show_device_switch("fnlock", next);
                 }
                 let _ = app.emit("fn-lock-state-changed", next);
                 let _ = app.emit_to("osd", "fn-lock-state-changed", next);

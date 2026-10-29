@@ -89,6 +89,23 @@ export const ExtensionSlot: React.FC<ExtensionSlotProps> = ({
       unregisterWatcher: (watcherId: string) =>
         invoke('unregister_custom_watcher', { id: watcherId }),
       getRegisteredWatchers: () => invoke('get_registered_watchers'),
+      storage: {
+        get: () => invoke('get_plugin_storage', { pluginId: matchingPlugin.id }),
+        set: (data: any) => invoke('set_plugin_storage', { pluginId: matchingPlugin.id, data }),
+        getItem: async (key: string) => {
+          const all: any = await invoke('get_plugin_storage', { pluginId: matchingPlugin.id });
+          return all ? all[key] : undefined;
+        },
+        setItem: async (key: string, val: any) => {
+          const all: any = (await invoke('get_plugin_storage', { pluginId: matchingPlugin.id })) || {};
+          all[key] = val;
+          return invoke('set_plugin_storage', { pluginId: matchingPlugin.id, data: all });
+        },
+        readFile: (path: string) => invoke('read_plugin_file', { pluginId: matchingPlugin.id, path }),
+        writeFile: (path: string, content: string) => invoke('write_plugin_file', { pluginId: matchingPlugin.id, path, content }),
+        deleteFile: (path: string) => invoke('delete_plugin_file', { pluginId: matchingPlugin.id, path }),
+        listFiles: (subDir?: string) => invoke('list_plugin_files', { pluginId: matchingPlugin.id, subDir }),
+      },
     };
   }, [matchingPlugin, name]);
 

@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVA-01 S² Core Widget</title>
+  <style>
+    :root {
+      --eva-purple: #702963;
+      --eva-purple-deep: #2e1065;
+      --eva-green: #00ff66;
+      --eva-green-glow: rgba(0, 255, 102, 0.45);
+      --eva-orange: #f59e0b;
+      --eva-orange-glow: rgba(245, 158, 11, 0.45);
+      --eva-red: #ef4444;
+      --eva-red-glow: rgba(239, 68, 68, 0.65);
+      --eva-bg: rgba(14, 11, 24, 0.88);
+      --eva-border: rgba(139, 92, 246, 0.3);
+      --active-glow: var(--eva-green);
+      --active-glow-box: var(--eva-green-glow);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: transparent;
+      font-family: 'Consolas', 'JetBrains Mono', 'Segoe UI', monospace;
+      color: #f1f5f9;
+      font-size: 11px;
+    }
+
+    [data-no-drag] {
+      -webkit-app-region: no-drag;
+      cursor: pointer;
+    }
+
+    /* ========================================================
+       FULL HUD CONTAINER (260px x 190px)
+       ======================================================== */
+    #hud-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--eva-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--eva-border);
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), 0 0 16px var(--active-glow-box);
+      position: relative;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    /* EVA Danger Hazard Stripes on Top / Bottom Borders */
+    #hud-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 20px;
+      right: 20px;
+      height: 2px;
+      background: repeating-linear-gradient(
+        -45deg,
+        var(--eva-orange),
+        var(--eva-orange) 4px,
+        #000 4px,
+        #000 8px
+      );
+      opacity: 0.6;
+      border-radius: 1px;
+    }
+
+    /* Subdued AT-Field Hexagonal Background Texture */
+    .at-field-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 50% 50%, rgba(112, 41, 99, 0.15) 0%, transparent 75%);
+      pointer-events: none;
+      border-radius: 14px;
+    }
+
+    /* Header Strip - Dedicated Drag Handle */
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 2;
+      cursor: grab;
+      padding: 2px 0;
+    }
+
+    .hud-header:active {
+      cursor: grabbing;
+    }
+
+    .hud-title-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--active-glow);
+      box-shadow: 0 0 8px var(--active-glow);
+      animation: pulse-light 1.6s infinite ease-in-out;
+    }
+
+    .hud-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tool-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      color: #94a3b8;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 9px;
+      padding: 0;
+      transition: all 0.15s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .tool-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .tool-btn.active {
+      color: var(--active-glow);
+      border-color: var(--active-glow);
+      box-shadow: 0 0 6px var(--active-glow-box);
+    }
+
+    /* Middle Section: S² Core */
+    .core-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin: 4px 0;
+      z-index: 2;
+    }
+
+    .core-disc {
+      position: relative;
+      width: 104px;
+      height: 104px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 50%;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      -webkit-app-region: no-drag;
+    }
+
+    .core-disc:hover {
+      transform: scale(1.05);
+    }
+
+    .core-disc:active {
+      transform: scale(0.95);
+    }
+
+    .core-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .core-rotator {
+      transform-origin: 52px 52px;
+      animation: rotate-stator 6s linear infinite;
+    }
+
+    .core-disc.berserk .core-rotator {
+      animation: rotate-stator 0.6s linear infinite;
+    }
+
+    .core-text-center {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .temp-number {
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: #ffffff;
+      text-shadow: 0 0 12px var(--active-glow);
+    }
+
+    .temp-unit {
+      font-size: 13px;
+      font-weight: 700;
+      margin-left: 1px;
+      color: var(--active-glow);
+    }
+
+    .core-sub-label {
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--active-glow);
+      margin-top: 2px;
+    }
+
+    /* Core Flank Gauges */
+    .core-flank {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 9px;
+      pointer-events: none;
+    }
+
+    .flank-left {
+      left: 2px;
+      align-items: flex-start;
+    }
+
+    .flank-right {
+      right: 2px;
+      align-items: flex-end;
+    }
+
+    .flank-title {
+      font-size: 7px;
+      color: #64748b;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .flank-val {
+      font-weight: 800;
+      color: #e2e8f0;
+      font-size: 10px;
+    }
+
+    /* Bottom Status Grid */
+    .hud-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      z-index: 2;
+    }
+
+    .status-card {
+      background: rgba(30, 27, 46, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 4px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .status-card:hover {
+      background: rgba(45, 39, 70, 0.85);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .status-card:active {
+      transform: translateY(0);
+    }
+
+    .card-label {
+      font-size: 7px;
+      font-weight: 800;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .card-val {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--active-glow);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      pointer-events: none;
+    }
+
+    .card-val.danger {
+      color: var(--eva-red);
+      animation: alert-blink 1s infinite alternate;
+    }
+
+    /* Shockwave Waveform on Berserk */
+    .shockwave {
+      position: absolute;
+      inset: -6px;
+      border: 2px solid var(--eva-red);
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .berserk .shockwave {
+      animation: shockwave-pulse 1.2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+    }
+
+    /* ========================================================
+       MINI CAPSULE MODE (130px x 42px)
+       ======================================================== */
+    #capsule-container {
+      display: none;
+      width: 100%;
+      height: 100%;
+      background: var(--eva-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--eva-border);
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px var(--active-glow-box);
+      padding: 0 10px;
+      align-items: center;
+      justify-content: space-between;
+      cursor: grab;
+    }
+
+    #capsule-container:active {
+      cursor: grabbing;
+    }
+
+    body.mini-mode #hud-container {
+      display: none;
+    }
+
+    body.mini-mode #capsule-container {
+      display: flex;
+    }
+
+    .capsule-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .capsule-temp {
+      font-size: 15px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .capsule-rpm {
+      font-size: 8px;
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    .capsule-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .capsule-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      transition: all 0.15s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .capsule-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: #fff;
+    }
+
+    .capsule-btn.boost-active {
+      background: var(--eva-red);
+      border-color: var(--eva-red);
+      box-shadow: 0 0 8px var(--eva-red);
+      animation: alert-blink 0.8s infinite alternate;
+    }
+
+    /* Keyframes */
+    @keyframes rotate-stator {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse-light {
+      0%, 100% { opacity: 0.85; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.85); }
+    }
+
+    @keyframes alert-blink {
+      from { opacity: 1; }
+      to { opacity: 0.45; }
+    }
+
+    @keyframes shockwave-pulse {
+      0% { transform: scale(0.9); opacity: 0.9; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================
+       1. FULL HUD VIEWPORT (260 x 190)
+       ======================================================== -->
+  <div id="hud-container">
+    <div class="at-field-overlay"></div>
+
+    <!-- Top Header: Designated Window Drag Area -->
+    <div class="hud-header" data-tauri-drag-region>
+      <div class="hud-title-badge">
+        <span class="pulse-dot" id="core-status-dot"></span>
+        <span id="title-text">EVA-01 // S² CORE</span>
+      </div>
+      <div class="hud-actions" data-no-drag="true">
+        <button class="tool-btn" id="btn-sound" data-no-drag="true" title="音效开关">🔊</button>
+        <button class="tool-btn" id="btn-lock" data-no-drag="true" title="锁定拖拽位置">🔓</button>
+        <button class="tool-btn" id="btn-mini" data-no-drag="true" title="切换极简胶囊态">➖</button>
+        <button class="tool-btn" id="btn-close" data-no-drag="true" title="关闭悬浮窗">✕</button>
+      </div>
+    </div>
+
+    <!-- Central S² Engine Disc -->
+    <div class="core-stage">
+      <!-- Left Flank: Sync Rate / CPU Power -->
+      <div class="core-flank flank-left">
+        <span class="flank-title">SYNC RATE</span>
+        <span class="flank-val" id="flank-sync">92.4%</span>
+        <span class="flank-title" style="margin-top: 4px;">CPU POWER</span>
+        <span class="flank-val" id="flank-power">45 W</span>
+      </div>
+
+      <!-- Core SVG Rotator & Energy Disc -->
+      <div class="core-disc" id="core-disc" data-no-drag="true" role="button" tabindex="0" title="点击立即进入暴走强冷 / 解除强冷">
+        <div class="shockwave"></div>
+        <svg class="core-svg" viewBox="0 0 104 104">
+          <!-- Outer Stator Hexagon Ring -->
+          <polygon
+            points="52,4 93.5,28 93.5,76 52,100 10.5,76 10.5,28"
+            fill="none"
+            stroke="var(--eva-purple)"
+            stroke-width="1.5"
+            stroke-dasharray="8 4"
+            opacity="0.75"
+          />
+
+          <!-- Rotating Segmented Blades / Ring -->
+          <g class="core-rotator">
+            <circle
+              cx="52" cy="52" r="42"
+              fill="none"
+              stroke="var(--active-glow)"
+              stroke-width="2.5"
+              stroke-dasharray="24 16 8 16"
+              opacity="0.85"
+            />
+            <line x1="52" y1="10" x2="52" y2="18" stroke="var(--active-glow)" stroke-width="2" />
+            <line x1="52" y1="86" x2="52" y2="94" stroke="var(--active-glow)" stroke-width="2" />
+            <line x1="10" y1="52" x2="18" y2="52" stroke="var(--active-glow)" stroke-width="2" />
+            <line x1="86" y1="52" x2="94" y2="52" stroke="var(--active-glow)" stroke-width="2" />
+          </g>
+
+          <!-- Inner Core Energy Field -->
+          <circle
+            cx="52" cy="52" r="32"
+            fill="rgba(15, 11, 26, 0.9)"
+            stroke="var(--active-glow)"
+            stroke-width="1.5"
+          />
+        </svg>
+
+        <!-- Digital Center Display -->
+        <div class="core-text-center">
+          <div style="display: flex; align-items: baseline;">
+            <span class="temp-number" id="val-temp">--</span>
+            <span class="temp-unit">°C</span>
+          </div>
+          <span class="core-sub-label" id="val-sublabel">S² ACTIVE</span>
+        </div>
+      </div>
+
+      <!-- Right Flank: Fan Speed -->
+      <div class="core-flank flank-right">
+        <span class="flank-title">FAN SPEED</span>
+        <span class="flank-val" id="flank-rpm">-- RPM</span>
+        <span class="flank-title" style="margin-top: 4px;">STATUS</span>
+        <span class="flank-val" id="flank-status" style="color: var(--active-glow)">NORMAL</span>
+      </div>
+    </div>
+
+    <!-- Bottom Matrix: Power Mode & Power Source -->
+    <div class="hud-bottom">
+      <!-- Mode Switcher -->
+      <div class="status-card" id="card-mode" data-no-drag="true" role="button" tabindex="0" title="点击循环切换性能模式">
+        <div class="card-label">
+          <span>POWER MODE</span>
+          <span style="font-size: 8px;">⟳</span>
+        </div>
+        <div class="card-val" id="val-mode">
+          <span>●</span>
+          <span id="text-mode">均衡 BALANCE</span>
+        </div>
+      </div>
+
+      <!-- Power Source / Battery Countdown -->
+      <div class="status-card" id="card-battery" data-no-drag="true" title="电源供电与电池状态">
+        <div class="card-label">
+          <span>POWER SOURCE</span>
+          <span id="badge-bat-level">--%</span>
+        </div>
+        <div class="card-val" id="val-power-source">
+          <span id="icon-bat">⚡</span>
+          <span id="text-power-source">EXTERNAL AC</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       2. MINI CAPSULE VIEWPORT (130 x 42)
+       ======================================================== -->
+  <div id="capsule-container" data-tauri-drag-region title="双击恢复完整面板">
+    <div class="capsule-left">
+      <span class="pulse-dot" id="capsule-dot"></span>
+      <span class="capsule-temp" id="capsule-temp">--°</span>
+      <span class="capsule-rpm" id="capsule-rpm">--k</span>
+    </div>
+    <div class="capsule-actions" data-no-drag="true">
+      <button class="capsule-btn" id="capsule-boost" data-no-drag="true" title="暴走强冷切换">⚡</button>
+      <button class="capsule-btn" id="capsule-expand" data-no-drag="true" title="展开为完整看板">⛶</button>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       3. LOGIC & RUNTIME BRIDGE SCRIPT
+       ======================================================== -->
+  <script>
+    // --------------------------------------------------------
+    // A. Web Audio API Synthesizer (Zero-dependency Sound FX)
+    // --------------------------------------------------------
+    const SoundFx = {
+      ctx: null,
+      muted: localStorage.getItem('eva01_sound_muted') === 'true',
+
+      init() {
+        if (!this.ctx && typeof AudioContext !== 'undefined') {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      },
+
+      toggleMute() {
+        this.muted = !this.muted;
+        localStorage.setItem('eva01_sound_muted', this.muted);
+        return this.muted;
+      },
+
+      play(type) {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          const now = this.ctx.currentTime;
+          if (type === 'click') {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1200, now);
+            osc.frequency.exponentialRampToValueAtTime(700, now + 0.03);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.03);
+          } else if (type === 'berserk') {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(320, now);
+            osc.frequency.linearRampToValueAtTime(780, now + 0.12);
+            osc.frequency.linearRampToValueAtTime(420, now + 0.25);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.28);
+          } else if (type === 'cooling') {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(440, now + 0.15);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.15);
+          } else if (type === 'switch') {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.setValueAtTime(1320, now + 0.04);
+            gain.gain.setValueAtTime(0.09, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.09);
+          }
+        } catch (_) {}
+      }
+    };
+
+    // --------------------------------------------------------
+    // B. State & References
+    // --------------------------------------------------------
+    let hardware = {
+      cpu_temp: 45,
+      cpu_fan_rpm: 2400,
+      cpu_power_w: 35,
+      power_mode: 2,
+      fan_boost: false,
+      battery_level: 100,
+      is_charging: true
+    };
+
+    let isLocked = localStorage.getItem('eva01_drag_locked') === 'true';
+    let isMini = localStorage.getItem('eva01_is_mini') === 'true';
+
+    const dom = {
+      hudContainer: document.getElementById('hud-container'),
+      capsuleContainer: document.getElementById('capsule-container'),
+      valTemp: document.getElementById('val-temp'),
+      valSublabel: document.getElementById('val-sublabel'),
+      flankSync: document.getElementById('flank-sync'),
+      flankPower: document.getElementById('flank-power'),
+      flankRpm: document.getElementById('flank-rpm'),
+      flankStatus: document.getElementById('flank-status'),
+      textMode: document.getElementById('text-mode'),
+      badgeBatLevel: document.getElementById('badge-bat-level'),
+      valPowerSource: document.getElementById('val-power-source'),
+      textPowerSource: document.getElementById('text-power-source'),
+      iconBat: document.getElementById('icon-bat'),
+      coreDisc: document.getElementById('core-disc'),
+      btnSound: document.getElementById('btn-sound'),
+      btnLock: document.getElementById('btn-lock'),
+      btnMini: document.getElementById('btn-mini'),
+      btnClose: document.getElementById('btn-close'),
+      cardMode: document.getElementById('card-mode'),
+      capsuleTemp: document.getElementById('capsule-temp'),
+      capsuleRpm: document.getElementById('capsule-rpm'),
+      capsuleBoost: document.getElementById('capsule-boost'),
+      capsuleExpand: document.getElementById('capsule-expand'),
+    };
+
+    // --------------------------------------------------------
+    // C. Dual IPC & Message Gateway
+    // --------------------------------------------------------
+    const invokeCmd = async (cmd, args = {}) => {
+      try {
+        if (window.OpenRevo?.invoke) {
+          return await window.OpenRevo.invoke(cmd, args);
+        }
+        if (window.__TAURI__?.core?.invoke) {
+          return await window.__TAURI__.core.invoke(cmd, args);
+        }
+        if (window.parent?.__OPENREVO_BRIDGE__?.invoke) {
+          return await window.parent.__OPENREVO_BRIDGE__.invoke(cmd, args);
+        }
+      } catch (err) {
+        console.warn(`[EVA-01] IPC command '${cmd}' failed:`, err);
+      }
+      return null;
+    };
+
+    // Dynamic Geometry Resizing
+    const resizeWindow = async (mini) => {
+      try {
+        const bridge = window.OpenRevo || window.parent?.__OPENREVO_BRIDGE__ || {};
+        const tauri = window.__TAURI__ || {};
+        const getWin = tauri.webviewWindow?.getCurrentWebviewWindow || bridge.getCurrentWebviewWindow;
+        const LogicalSize = tauri.dpi?.LogicalSize || bridge.LogicalSize;
+
+        if (getWin && LogicalSize) {
+          const win = getWin();
+          if (win && win.setSize) {
+            const sz = mini ? new LogicalSize(130, 42) : new LogicalSize(260, 190);
+            await win.setSize(sz);
+          }
+        }
+      } catch (e) {
+        console.warn('[EVA-01] Window resize failed:', e);
+      }
+    };
+
+    const applyViewMode = async (mini) => {
+      isMini = mini;
+      localStorage.setItem('eva01_is_mini', isMini);
+      if (isMini) {
+        document.body.classList.add('mini-mode');
+      } else {
+        document.body.classList.remove('mini-mode');
+      }
+      await resizeWindow(isMini);
+    };
+
+    // --------------------------------------------------------
+    // D. UI Render Engine & Temperature Color State Machine
+    // --------------------------------------------------------
+    const updateUI = () => {
+      const temp = hardware.cpu_temp ?? 45;
+      const rpm = hardware.cpu_fan_rpm ?? 0;
+      const power = hardware.cpu_power_w ?? 35;
+      const boost = !!hardware.fan_boost;
+      const mode = hardware.power_mode ?? 2;
+      const bat = hardware.battery_level ?? 100;
+      const isCharging = hardware.is_charging !== false;
+
+      // 1. Color State Machine
+      const root = document.documentElement;
+      let glowColor = 'var(--eva-green)';
+      let glowBox = 'var(--eva-green-glow)';
+      let statusText = 'NORMAL';
+
+      if (boost) {
+        glowColor = 'var(--eva-red)';
+        glowBox = 'var(--eva-red-glow)';
+        statusText = 'BERSERK';
+      } else if (temp >= 82) {
+        glowColor = 'var(--eva-red)';
+        glowBox = 'var(--eva-red-glow)';
+        statusText = 'EMERGENCY';
+      } else if (temp >= 68) {
+        glowColor = 'var(--eva-orange)';
+        glowBox = 'var(--eva-orange-glow)';
+        statusText = 'CAUTION';
+      }
+
+      root.style.setProperty('--active-glow', glowColor);
+      root.style.setProperty('--active-glow-box', glowBox);
+
+      // 2. HUD Elements
+      dom.valTemp.innerText = `${temp}`;
+      dom.valSublabel.innerText = boost ? 'BERSERK // 暴走' : (temp >= 82 ? 'OVERHEAT' : 'S² ACTIVE');
+      dom.flankRpm.innerText = `${rpm} RPM`;
+      dom.flankPower.innerText = `${power} W`;
+      dom.flankStatus.innerText = statusText;
+
+      // Calculate dynamic Sync Rate based on power & load
+      const syncRate = Math.min(100, Math.max(38, Math.round(30 + (power * 0.9) + (temp * 0.3))));
+      dom.flankSync.innerText = `${syncRate}.0%`;
+
+      // Berserk State on Disc
+      if (boost) {
+        dom.coreDisc.classList.add('berserk');
+        dom.capsuleBoost.classList.add('boost-active');
+      } else {
+        dom.coreDisc.classList.remove('berserk');
+        dom.capsuleBoost.classList.remove('boost-active');
+      }
+
+      // Mode Label
+      const modeMap = { 1: '办公 OFFICE', 2: '均衡 BALANCE', 3: '狂暴 TURBO', 4: '自定义 CUSTOM' };
+      dom.textMode.innerText = modeMap[mode] || '均衡 BALANCE';
+
+      // Power Source / Battery Status
+      dom.badgeBatLevel.innerText = `${bat}%`;
+      if (isCharging) {
+        dom.valPowerSource.classList.remove('danger');
+        dom.iconBat.innerText = '⚡';
+        dom.textPowerSource.innerText = 'EXTERNAL AC';
+      } else {
+        // Unplugged: Eva Internal Battery countdown effect
+        dom.valPowerSource.classList.add('danger');
+        dom.iconBat.innerText = '⚠';
+        const minsLeft = Math.max(5, Math.round((bat / 100) * 180));
+        const hh = String(Math.floor(minsLeft / 60)).padStart(2, '0');
+        const mm = String(minsLeft % 60).padStart(2, '0');
+        dom.textPowerSource.innerText = `INT-BAT ${hh}:${mm}`;
+      }
+
+      // 3. Mini Capsule Elements
+      dom.capsuleTemp.innerText = `${temp}°`;
+      dom.capsuleRpm.innerText = `${(rpm / 1000).toFixed(1)}k`;
+    };
+
+    // --------------------------------------------------------
+    // E. Event Listeners & Interaction Handlers
+    // --------------------------------------------------------
+
+    // Selective Drag Handler (Only header or unassigned background)
+    const handlePointerDown = (e) => {
+      if (isLocked) return;
+      if (e.target.closest('button, .clickable, .status-card, .core-disc, [data-no-drag], [role="button"]')) return;
+      if (e.button !== 0) return;
+
+      try {
+        if (window.OpenRevo?.startDragging) {
+          window.OpenRevo.startDragging();
+        } else if (window.__TAURI__?.webviewWindow?.getCurrentWebviewWindow) {
+          window.__TAURI__.webviewWindow.getCurrentWebviewWindow().startDragging();
+        } else if (window.parent?.__OPENREVO_BRIDGE__?.startDragging) {
+          window.parent.__OPENREVO_BRIDGE__.startDragging();
+        } else if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ action: 'START_DRAGGING' }, '*');
+        }
+      } catch (_) {}
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    // Toggle Fan Boost (Berserk Mode)
+    const toggleFanBoost = async (e) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      const next = !hardware.fan_boost;
+      hardware.fan_boost = next;
+      updateUI();
+
+      if (next) {
+        SoundFx.play('berserk');
+      } else {
+        SoundFx.play('cooling');
+      }
+
+      // 1. PostMessage to host shell (WidgetHost handleMessage)
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ action: 'SET_FAN_BOOST', payload: { enable: next } }, '*');
+        }
+      } catch (_) {}
+
+      // 2. Direct Tauri / OpenRevo IPC
+      await invokeCmd('set_fan_boost', { enable: next });
+    };
+
+    dom.coreDisc.addEventListener('click', toggleFanBoost);
+    dom.capsuleBoost.addEventListener('click', toggleFanBoost);
+
+    // Cycle Power Mode
+    const cyclePowerMode = async (e) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      SoundFx.play('switch');
+      const cur = hardware.power_mode ?? 2;
+      const next = cur === 1 ? 2 : cur === 2 ? 3 : 1;
+      hardware.power_mode = next;
+      updateUI();
+
+      // 1. PostMessage to host shell (WidgetHost handleMessage)
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ action: 'SET_POWER_MODE', payload: { mode: Number(next) } }, '*');
+        }
+      } catch (_) {}
+
+      // 2. Direct Tauri / OpenRevo IPC
+      await invokeCmd('set_power_mode', { mode: Number(next) });
+    };
+
+    dom.cardMode.addEventListener('click', cyclePowerMode);
+
+    // Sound FX Mute Toggle
+    const updateSoundBtn = () => {
+      dom.btnSound.innerText = SoundFx.muted ? '🔇' : '🔊';
+      if (SoundFx.muted) {
+        dom.btnSound.classList.remove('active');
+      } else {
+        dom.btnSound.classList.add('active');
+      }
+    };
+
+    dom.btnSound.addEventListener('click', (e) => {
+      e.stopPropagation();
+      SoundFx.toggleMute();
+      updateSoundBtn();
+      if (!SoundFx.muted) SoundFx.play('click');
+    });
+
+    // Drag Lock Toggle
+    const updateLockBtn = () => {
+      dom.btnLock.innerText = isLocked ? '🔒' : '🔓';
+      if (isLocked) {
+        dom.btnLock.classList.add('active');
+        document.body.setAttribute('data-no-drag', 'true');
+      } else {
+        dom.btnLock.classList.remove('active');
+        document.body.removeAttribute('data-no-drag');
+      }
+    };
+
+    dom.btnLock.addEventListener('click', (e) => {
+      e.stopPropagation();
+      SoundFx.play('click');
+      isLocked = !isLocked;
+      localStorage.setItem('eva01_drag_locked', isLocked);
+      updateLockBtn();
+    });
+
+    // Toggle Mini Mode
+    dom.btnMini.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      SoundFx.play('click');
+      await applyViewMode(true);
+    });
+
+    dom.capsuleExpand.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      SoundFx.play('click');
+      await applyViewMode(false);
+    });
+
+    dom.capsuleContainer.addEventListener('dblclick', async (e) => {
+      e.stopPropagation();
+      SoundFx.play('click');
+      await applyViewMode(false);
+    });
+
+    // Close Window
+    dom.btnClose.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      SoundFx.play('click');
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ action: 'CLOSE_WIDGET' }, '*');
+        }
+      } catch (_) {}
+      if (window.OpenRevo?.close) {
+        window.OpenRevo.close();
+      } else {
+        await invokeCmd('close_custom_widget', { pluginId: 'eva01-core' });
+      }
+    });
+
+    // --------------------------------------------------------
+    // F. Telemetry Ingestion & Listeners
+    // --------------------------------------------------------
+    const syncState = (data) => {
+      if (!data || typeof data !== 'object') return;
+      Object.assign(hardware, data);
+      updateUI();
+    };
+
+    // 1. Initial Snapshot & Widget Presentation Signal
+    (async () => {
+      updateSoundBtn();
+      updateLockBtn();
+      if (isMini) applyViewMode(true);
+
+      // Signal host that DOM is ready immediately
+      await invokeCmd('widget_ready', { pluginId: 'eva01-core' });
+
+      const snap = await invokeCmd('get_hardware_status');
+      if (snap) syncState(snap);
+    })();
+
+    // 2. Tauri Event Broadcast
+    try {
+      const listenEvent = window.__TAURI__?.event?.listen || window.parent?.__OPENREVO_BRIDGE__?.listen;
+      if (listenEvent) {
+        listenEvent('hardware-state-updated', (e) => syncState(e.payload));
+        listenEvent('fan-boost-changed', (e) => {
+          hardware.fan_boost = !!e.payload;
+          updateUI();
+        });
+        listenEvent('physical-mode-switched', (e) => {
+          if (typeof e.payload === 'number') {
+            hardware.power_mode = e.payload;
+            updateUI();
+          }
+        });
+      }
+    } catch (_) {}
+
+    // 3. Fallback PostMessage Telemetry
+    window.addEventListener('openrevo-telemetry', (e) => {
+      syncState(e.detail);
+    });
+  </script>
+</body>
+</html>

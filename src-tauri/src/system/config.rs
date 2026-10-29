@@ -132,6 +132,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub saved_power_mode_on_battery: Option<u8>,
 
+    // Custom Global Shortcuts
+    #[serde(default)]
+    pub custom_shortcuts: Vec<crate::system::shortcuts::ShortcutBinding>,
+
     // Modern Standby & Sleep Guard (Windows S0ix Anti-Overheat)
     #[serde(default)]
     pub sleep_guard_enabled: bool,
@@ -450,6 +454,7 @@ impl Default for AppConfig {
             high_perf_scheme: true,
             preferred_power_scheme: None,
             saved_power_mode_on_battery: None,
+            custom_shortcuts: Vec::new(),
 
             sleep_guard_enabled: false,
             sleep_disconnect_net: false,

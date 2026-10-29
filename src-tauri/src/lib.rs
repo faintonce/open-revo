@@ -361,6 +361,7 @@ pub fn run() {
             crate::system::widget_manager::get_running_widgets,
             crate::system::widget_manager::widget_ready,
             commands::shortcut_cmd::get_registered_shortcuts,
+            commands::shortcut_cmd::check_hotkey_conflict,
             commands::shortcut_cmd::register_custom_shortcut,
             commands::shortcut_cmd::unregister_custom_shortcut,
             commands::shortcut_cmd::trigger_shortcut_action,
@@ -372,6 +373,12 @@ pub fn run() {
             commands::watcher_cmd::register_custom_watcher,
             commands::watcher_cmd::unregister_custom_watcher,
             commands::watcher_cmd::trigger_watcher_manual,
+            commands::plugin_storage_cmd::get_plugin_storage,
+            commands::plugin_storage_cmd::set_plugin_storage,
+            commands::plugin_storage_cmd::read_plugin_file,
+            commands::plugin_storage_cmd::write_plugin_file,
+            commands::plugin_storage_cmd::delete_plugin_file,
+            commands::plugin_storage_cmd::list_plugin_files,
         ])
         .setup(move |app| {
             openrevo_core::set_global_event_sink(Arc::new(TauriEventSink::new(app.handle().clone())));

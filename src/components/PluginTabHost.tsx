@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
@@ -42,8 +42,68 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
       LogicalSize,
       LogicalPosition,
       pluginId: plugin.id,
+      storage: {
+        get: () => invoke('get_plugin_storage', { pluginId: plugin.id }),
+        set: (data: any) => invoke('set_plugin_storage', { pluginId: plugin.id, data }),
+        getItem: async (key: string) => {
+          const all: any = await invoke('get_plugin_storage', { pluginId: plugin.id });
+          return all ? all[key] : undefined;
+        },
+        setItem: async (key: string, val: any) => {
+          const all: any = (await invoke('get_plugin_storage', { pluginId: plugin.id })) || {};
+          all[key] = val;
+          return invoke('set_plugin_storage', { pluginId: plugin.id, data: all });
+        },
+        readFile: (path: string) => invoke('read_plugin_file', { pluginId: plugin.id, path }),
+        writeFile: (path: string, content: string) => invoke('write_plugin_file', { pluginId: plugin.id, path, content }),
+        deleteFile: (path: string) => invoke('delete_plugin_file', { pluginId: plugin.id, path }),
+        listFiles: (subDir?: string) => invoke('list_plugin_files', { pluginId: plugin.id, subDir }),
+      },
     };
   }, [plugin.id]);
+
+  // Injected runtime bridge scripts for sandboxed iframe
+  const preparedHtml = useMemo(() => {
+    if (!htmlContent) return '';
+    const bridgeScript = `
+<script>
+(function() {
+  var b = window.parent.__OPENREVO_BRIDGE__ || {};
+  window.__OPENREVO_PLUGIN_ID__ = "${plugin.id}";
+  window.OpenRevo = {
+    invoke: b.invoke || function() { return Promise.reject("Bridge unavailable"); },
+    listen: b.listen || function() { return Promise.resolve(function() {}); },
+    emit: b.emit || function() { return Promise.resolve(); },
+    pluginId: "${plugin.id}",
+    storage: b.storage || {
+      get: function() { return b.invoke('get_plugin_storage', { pluginId: "${plugin.id}" }); },
+      set: function(data) { return b.invoke('set_plugin_storage', { pluginId: "${plugin.id}", data: data }); },
+      getItem: async function(k) { var all = await b.invoke('get_plugin_storage', { pluginId: "${plugin.id}" }); return all ? all[k] : undefined; },
+      setItem: async function(k, v) { var all = (await b.invoke('get_plugin_storage', { pluginId: "${plugin.id}" })) || {}; all[k] = v; return b.invoke('set_plugin_storage', { pluginId: "${plugin.id}", data: all }); },
+      readFile: function(p) { return b.invoke('read_plugin_file', { pluginId: "${plugin.id}", path: p }); },
+      writeFile: function(p, c) { return b.invoke('write_plugin_file', { pluginId: "${plugin.id}", path: p, content: c }); },
+      deleteFile: function(p) { return b.invoke('delete_plugin_file', { pluginId: "${plugin.id}", path: p }); },
+      listFiles: function(d) { return b.invoke('list_plugin_files', { pluginId: "${plugin.id}", subDir: d }); }
+    }
+  };
+  window.__TAURI__ = {
+    core: { invoke: b.invoke },
+    event: { listen: b.listen, emit: b.emit },
+    webviewWindow: { getCurrentWebviewWindow: b.getCurrentWebviewWindow },
+    window: { getCurrentWindow: b.getCurrentWindow, currentMonitor: b.currentMonitor },
+    dpi: { LogicalSize: b.LogicalSize, LogicalPosition: b.LogicalPosition }
+  };
+})();
+</script>
+`;
+    if (htmlContent.includes('<head>')) {
+      return htmlContent.replace('<head>', `<head>${bridgeScript}`);
+    } else if (htmlContent.includes('<html>')) {
+      return htmlContent.replace('<html>', `<html><head>${bridgeScript}</head>`);
+    } else {
+      return `${bridgeScript}${htmlContent}`;
+    }
+  }, [htmlContent, plugin.id]);
 
   const fetchHtml = async () => {
     setLoading(true);
@@ -246,6 +306,54 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
               }
             }
             break;
+          case 'GET_PLUGIN_STORAGE':
+            try {
+              const res = await invoke('get_plugin_storage', { pluginId: plugin.id });
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_STORAGE_RESULT', success: true, payload: res, reqId: payload?.reqId }, '*');
+            } catch (e: any) {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_STORAGE_RESULT', success: false, error: String(e), reqId: payload?.reqId }, '*');
+            }
+            break;
+          case 'SET_PLUGIN_STORAGE':
+            try {
+              await invoke('set_plugin_storage', { pluginId: plugin.id, data: payload?.data ?? payload });
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_STORAGE_SAVED', success: true, reqId: payload?.reqId }, '*');
+            } catch (e: any) {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_STORAGE_SAVED', success: false, error: String(e), reqId: payload?.reqId }, '*');
+            }
+            break;
+          case 'READ_PLUGIN_FILE':
+            try {
+              const content = await invoke('read_plugin_file', { pluginId: plugin.id, path: payload?.path || payload });
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILE_READ', success: true, payload: content, reqId: payload?.reqId }, '*');
+            } catch (e: any) {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILE_READ', success: false, error: String(e), reqId: payload?.reqId }, '*');
+            }
+            break;
+          case 'WRITE_PLUGIN_FILE':
+            try {
+              await invoke('write_plugin_file', { pluginId: plugin.id, path: payload?.path, content: payload?.content });
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILE_WRITTEN', success: true, reqId: payload?.reqId }, '*');
+            } catch (e: any) {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILE_WRITTEN', success: false, error: String(e), reqId: payload?.reqId }, '*');
+            }
+            break;
+          case 'DELETE_PLUGIN_FILE':
+            try {
+              const deleted = await invoke('delete_plugin_file', { pluginId: plugin.id, path: payload?.path || payload });
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILE_DELETED', success: true, payload: deleted, reqId: payload?.reqId }, '*');
+            } catch (e: any) {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILE_DELETED', success: false, error: String(e), reqId: payload?.reqId }, '*');
+            }
+            break;
+          case 'LIST_PLUGIN_FILES':
+            try {
+              const files = await invoke('list_plugin_files', { pluginId: plugin.id, subDir: payload?.subDir });
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILES_LIST', success: true, payload: files, reqId: payload?.reqId }, '*');
+            } catch (e: any) {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILES_LIST', success: false, error: String(e), reqId: payload?.reqId }, '*');
+            }
+            break;
           default:
             break;
         }
@@ -424,7 +532,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
 
       <iframe
         ref={iframeRef}
-        srcDoc={htmlContent}
+        srcDoc={preparedHtml}
         title={plugin.name}
         sandbox="allow-scripts allow-forms allow-same-origin"
         style={{

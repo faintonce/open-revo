@@ -847,6 +847,7 @@
           <div class="keycap-combo-display" id="keyComboPreview">
             <!-- Rendered by JS -->
           </div>
+          <div id="hotkeyConflictBanner" style="display: none; margin-top: 10px; font-size: 12px; line-height: 1.5; padding: 8px 12px; border-radius: 6px; align-items: center; gap: 8px;"></div>
         </div>
 
         <!-- 3. Modifiers and Primary Key Selectors -->
@@ -1263,6 +1264,40 @@
       document.getElementById('modShift').classList.toggle('active', STATE.shift);
       document.getElementById('modWin').classList.toggle('active', STATE.win);
       document.getElementById('selectPrimaryKey').value = STATE.primaryKey;
+      debounceCheckConflict();
+    }
+
+    let conflictTimer = null;
+    function debounceCheckConflict() {
+      if (conflictTimer) clearTimeout(conflictTimer);
+      conflictTimer = setTimeout(async () => {
+        const combo = getCurrentComboString();
+        const banner = document.getElementById('hotkeyConflictBanner');
+        if (!banner || !combo) return;
+        try {
+          const res = await rpc('check_hotkey_conflict', { combo });
+          if (!res) return;
+          if (res.is_third_party_occupied) {
+            banner.style.display = 'flex';
+            banner.style.background = 'rgba(245, 158, 11, 0.12)';
+            banner.style.border = '1px solid rgba(245, 158, 11, 0.35)';
+            banner.style.color = '#fbbf24';
+            banner.innerHTML = '⚠️ <strong>系统冲突提醒</strong>：检测到该快捷键已被 Windows 中的第三方程序 (如 QQ、微信或剪贴板工具) 注册占用。若仍要使用，请勾选下方的【🚫 吞噬按键 (Swallow)】以阻止外部软件并发展开。';
+          } else if (res.openrevo_occupant) {
+            banner.style.display = 'flex';
+            banner.style.background = 'rgba(99, 102, 241, 0.12)';
+            banner.style.border = '1px solid rgba(99, 102, 241, 0.35)';
+            banner.style.color = '#a5b4fc';
+            banner.innerHTML = `💡 <strong>工坊绑定提醒</strong>：该快捷键当前已绑定到【${res.openrevo_occupant}】。保存时将会自动置换覆盖。`;
+          } else {
+            banner.style.display = 'flex';
+            banner.style.background = 'rgba(16, 185, 129, 0.08)';
+            banner.style.border = '1px solid rgba(16, 185, 129, 0.25)';
+            banner.style.color = '#34d399';
+            banner.innerHTML = '🟢 <strong>按键通畅</strong>：该组合键在 Windows 全局空闲，未被其他软件占用，可安全注册。';
+          }
+        } catch (_) {}
+      }, 250);
     }
 
     function toggleModifier(mod) {
@@ -1477,6 +1512,32 @@
       const osd = document.getElementById('checkOsd').checked;
       const swallow = document.getElementById('checkSwallow').checked;
 
+      // 1. 按键冲突检查：同一按键组合已被其他功能占用
+      const existingByCombo = STATE.shortcuts.find(s => s.combo.toUpperCase() === combo.toUpperCase());
+      if (existingByCombo) {
+        if (!confirm(`⚠️ 快捷键 [${combo}] 已被【${existingByCombo.name}】使用。\n\n是否覆盖并用新功能替换它？`)) {
+          return;
+        }
+        try {
+          await rpc('unregister_custom_shortcut', { id: existingByCombo.id });
+        } catch (_) {}
+      }
+
+      // 2. 动作重复检查：同一硬件功能已被其他快捷键绑定 (避免同一动作绑定多重按键导致系统冲突)
+      const existingByAction = STATE.shortcuts.find(s => {
+        if (s.combo.toUpperCase() === combo.toUpperCase()) return false;
+        return JSON.stringify(s.action) === JSON.stringify(action);
+      });
+      if (existingByAction) {
+        const actLabel = getActionLabel(action);
+        if (!confirm(`💡 功能【${actLabel}】当前已绑定快捷键 [${existingByAction.combo}]。\n\n是否改换为新按键 [${combo}] 并注销旧绑定？`)) {
+          return;
+        }
+        try {
+          await rpc('unregister_custom_shortcut', { id: existingByAction.id });
+        } catch (_) {}
+      }
+
       const shortcutId = 'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
 
       const binding = {
@@ -1503,11 +1564,10 @@
     async function testCurrentAction() {
       const actionType = document.getElementById('selectActionType').value;
       const action = parseShortcutAction(actionType);
-      const osd = document.getElementById('checkOsd').checked;
 
       try {
-        await rpc('trigger_shortcut_action', { action, osd });
-        showToast('⚡ 动作已立即下发微内核执行！');
+        await rpc('trigger_shortcut_action', { action, osd: true });
+        showToast('⚡ 动作已立即下发微内核执行！(已呼出 OSD 提示)');
       } catch (err) {
         showToast(`[-] 测试执行失败: ${err.message || err}`);
       }
@@ -1529,7 +1589,7 @@
     // --- 业务：测试触发列表项动作 ---
     async function triggerListItem(binding) {
       try {
-        await rpc('trigger_shortcut_action', { action: binding.action, osd: binding.osd });
+        await rpc('trigger_shortcut_action', { action: binding.action, osd: true });
         showToast(`⚡ 已触发动作: ${binding.name}`);
       } catch (err) {
         showToast(`[-] 触发失败: ${err.message || err}`);
@@ -1577,6 +1637,15 @@
       let successCount = 0;
       for (const item of pack) {
         try {
+          // 清理已有相同按键或相同动作的冲突项
+          const conflict = STATE.shortcuts.find(s => 
+            s.combo.toUpperCase() === item.combo.toUpperCase() || 
+            JSON.stringify(s.action) === JSON.stringify(item.action)
+          );
+          if (conflict) {
+            try { await rpc('unregister_custom_shortcut', { id: conflict.id }); } catch (_) {}
+          }
+
           const binding = {
             id: `pack_${packType}_` + item.combo.replace(/\+/g, '_'),
             name: item.name,
