@@ -1,0 +1,35 @@
+{
+  "id": "cpu-guardian",
+  "name": "13/14代 CPU 防缩卫士",
+  "version": "1.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "专为 13/14 代 HX 处理器（如 i9-14900HX/13900HX）打造的原生防缩缸硬件调控中心。通过 Intel 官方 7.14 内核通道实现全核睿频削峰、稳态核心降压、瞬变电流压制与 UVP 状态自动回检，彻底杜绝 1.50V+ 峰值电压击穿风险。",
+  "type": "tab",
+  "entry": "index.html",
+  "min_host_version": "0.9.4",
+  "window": {
+    "width": 1024,
+    "height": 720,
+    "resizable": true,
+    "decorations": true,
+    "transparent": false,
+    "always_on_top": false
+  },
+  "service": {
+    "executable": "sidecar/revo-xtu-bridge/bin/Release/net48/revo-xtu-bridge.exe",
+    "args": [
+      "--serve",
+      "--port",
+      "18980"
+    ],
+    "elevated": true,
+    "auto_start": true,
+    "auto_stop": true,
+    "port": 18980,
+    "health_url": "http://127.0.0.1:18980/api/health"
+  },
+  "permissions": [
+    "power:control",
+    "hardware:tuning"
+  ]
+}

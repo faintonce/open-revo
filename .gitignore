@@ -20,6 +20,8 @@ out/
 node_modules/
 target/
 src-tauri/target/
+**/[Oo]bj/
+**/[Bb]in/Debug/
 
 # Local env & logs
 .env
@@ -33,6 +35,7 @@ src-tauri/target/
 *.swp
 *.pdb
 *.exe
+!plugins_sample/**/*.exe
 *.7z
 *.zip
 *.reg

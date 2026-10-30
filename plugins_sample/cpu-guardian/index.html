@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>13/14代 CPU 防缩卫士 - OpenRevo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --surface-base: #0b0f17;
+      --surface-card: rgba(255, 255, 255, 0.035);
+      --surface-overlay: rgba(255, 255, 255, 0.06);
+      --surface-hover: rgba(255, 255, 255, 0.09);
+      --surface-pill: rgba(255, 255, 255, 0.05);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-accent: rgba(99, 102, 241, 0.45);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-dim: #94a3b8;
+      --status-ok: #10b981;
+      --status-ok-dim: rgba(16, 185, 129, 0.15);
+      --status-warn: #f59e0b;
+      --status-warn-dim: rgba(245, 158, 11, 0.15);
+      --status-error: #ef4444;
+      --status-error-dim: rgba(239, 68, 68, 0.15);
+      --accent-cyan: #06b6d4;
+      --accent-cyan-dim: rgba(6, 182, 212, 0.15);
+      --accent-indigo: #6366f1;
+      --accent-indigo-dim: rgba(99, 102, 241, 0.15);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html,
+    body {
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+    }
+
+    body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 40px;
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast-pill {
+      background: #182234;
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      animation: slideIn 0.25s ease;
+      min-width: 240px;
+      max-width: 400px;
+    }
+
+    .toast-pill.ok {
+      border-color: rgba(16, 185, 129, 0.5);
+    }
+
+    .toast-pill.warn {
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+
+    .toast-pill.error {
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* Header */
+    .header-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #6366f1, #06b6d4, #10b981);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: var(--accent-indigo-dim);
+      border: 1px solid var(--border-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .header-title-box h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-title-box p {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .badge-chip {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge-chip.ok {
+      background: var(--status-ok-dim);
+      color: var(--status-ok);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-chip.warn {
+      background: var(--status-warn-dim);
+      color: var(--status-warn);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-chip.error {
+      background: var(--status-error-dim);
+      color: var(--status-error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-medium);
+      background: var(--surface-overlay);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: var(--surface-hover);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn.disabled-active {
+      background: rgba(6, 182, 212, 0.1) !important;
+      color: var(--accent-cyan) !important;
+      border-color: rgba(6, 182, 212, 0.4) !important;
+      opacity: 0.9 !important;
+      font-weight: 600;
+      cursor: default !important;
+    }
+
+    .btn.primary {
+      background: var(--accent-indigo);
+      border-color: var(--accent-indigo);
+      color: #fff;
+    }
+
+    .btn.primary:hover:not(:disabled) {
+      background: #4f46e5;
+    }
+
+    .btn.success {
+      background: var(--status-ok);
+      border-color: var(--status-ok);
+      color: #fff;
+    }
+
+    .btn.danger {
+      background: var(--status-error-dim);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
+    .btn.danger:hover:not(:disabled) {
+      background: var(--status-error);
+      color: #fff;
+    }
+
+    /* Warning / Status Banners */
+    .banner-card {
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border: 1px solid transparent;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .banner-card.warn {
+      background: var(--status-warn-dim);
+      border-color: rgba(245, 158, 11, 0.3);
+      color: #fef3c7;
+    }
+
+    .banner-card.error {
+      background: var(--status-error-dim);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #fee2e2;
+    }
+
+    .banner-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .banner-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    /* Section Cards */
+    .panel-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Presets Grid */
+    .presets-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .preset-card {
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .preset-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-medium);
+      transform: translateY(-2px);
+    }
+
+    .preset-card.highlight {
+      border-color: var(--border-accent);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .preset-card.active-preset-ring {
+      border-color: var(--accent-cyan) !important;
+      background: rgba(6, 182, 212, 0.08) !important;
+      box-shadow: 0 0 14px rgba(6, 182, 212, 0.22);
+    }
+
+    .badge-active-tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--status-ok);
+      color: #fff;
+      font-weight: 600;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .preset-badge-rec {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--accent-indigo);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .preset-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .preset-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.4;
+      min-height: 32px;
+    }
+
+    .preset-specs {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .spec-label {
+      color: var(--text-dim);
+    }
+
+    .spec-val {
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    /* Custom Tuning Sliders */
+    .sliders-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .slider-box {
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .slider-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-label-box h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .slider-label-box p {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .slider-val-badge {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--accent-cyan);
+      border: 1px solid var(--border-medium);
+    }
+
+    .slider-input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type=range] {
+      flex: 1;
+      height: 6px;
+      border-radius: 9999px;
+      background: var(--surface-overlay);
+      outline: none;
+      accent-color: var(--accent-indigo);
+      cursor: pointer;
+    }
+
+    .slider-limits {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* Modal Backdrop */
+    .sys-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .sys-modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sys-modal-card {
+      width: 440px;
+      background: #131926;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sys-modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sys-modal-body {
+      padding: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .countdown-circle {
+      align-self: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 3px solid var(--status-warn);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--status-warn);
+      margin: 6px 0;
+    }
+
+    .sys-modal-actions {
+      padding: 14px 20px;
+      background: var(--surface-overlay);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Toast Container -->
+  <div id="toast-box" class="toast-container"></div>
+
+  <div class="container">
+
+    <!-- Header Card -->
+    <div class="header-card">
+      <div class="header-left">
+        <div class="header-icon">🛡️</div>
+        <div class="header-title-box">
+          <h1>
+            13/14代 CPU 防缩卫士
+            <span id="service-badge" class="badge-chip warn">嗅探中...</span>
+            <span id="uvp-badge" class="badge-chip ok" style="display:none;">UVP: 已解锁</span>
+          </h1>
+          <p>基于 Intel 原厂 7.14 内核通道 · 削峰定频断绝 1.50V+ 死亡脉冲 · 稳态降压 · 瞬变电涌压制</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-reset-default" class="btn danger" title="一键将所有参数恢复至出厂安全设置">⚠️ 恢复出厂</button>
+      </div>
+    </div>
+
+    <!-- Alert Banner: Service Stopped -->
+    <div id="service-alert-banner" class="banner-card warn" style="display: none;">
+      <div class="banner-content">
+        <div class="banner-icon">⚙️</div>
+        <div>
+          <strong id="banner-service-title">XTU 守护服务已安装但当前处于停止状态</strong>
+          <div id="banner-service-desc" style="font-size: 12px; color: var(--text-dim); margin-top: 2px;">
+            检测到底层驱动已安装。点击右侧按钮启动底层服务引擎。
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
+        <button id="btn-smart-service" class="btn primary">▶️ 立即启动服务</button>
+      </div>
+    </div>
+
+    <!-- Environment Missing Guide Card (Shown when XTU3SERVICE is Not Installed) -->
+    <div id="xtu-install-guide-card" class="panel-card"
+      style="display: none; border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.04);">
+      <div class="panel-header">
+        <div class="panel-title" style="color: var(--status-warn);">⚠️ 硬件调控前置环境未就绪：需要 Intel XTU 7.x 官方驱动底座</div>
+        <div class="panel-subtitle">为杜绝 0x50 内核空指针蓝屏，本插件严格依附 Intel 官方通过微软 WHQL 认证的现代 ACPI 扩展驱动栈运行，绝不执行违规危险的第三方内核裸注入。
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px; padding: 6px 0; font-size: 13px; line-height: 1.6;">
+        <div
+          style="background: rgba(0,0,0,0.25); padding: 12px 16px; border-radius: var(--radius-md); border-left: 3px solid var(--status-warn);">
+          <strong>📌 1. 官方正规下载指引（切勿下错版本）：</strong><br>
+          针对 <strong>13代 / 14代酷睿（如 13900HX / 14900HX）</strong>，请务必下载 <strong>7.x.x 稳定版本</strong>（如 7.14.x）。<br>
+          <span style="color: var(--status-error); font-weight: 600;">⚠️ 严禁下载 10.x.x 版本！</span> 官方 10.x 版本仅适用于 Core
+          Ultra 处理器，无法在 13/14 代机器上工作。
+        </div>
+
+        <div
+          style="background: rgba(0,0,0,0.25); padding: 12px 16px; border-radius: var(--radius-md); border-left: 3px solid var(--accent-cyan);">
+          <strong>🚀 2. 纯净机制说明（无需打开 XTU，零窗口打扰）：</strong><br>
+          官方 XTU 7.x 安装后，开机<strong>默认仅注册系统后台服务 (XTU3SERVICE)，绝不会自启任何前台窗口或托盘</strong>。<br>
+          因此您平时<strong>完全不需要打开庞大冗余的 XTU 客户端</strong>！OpenRevo 插件会自动在后台与底层服务握手并执行硬件调谐与守护，享受 100% 纯净、极简的无感体验。
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap;">
+          <a href="https://www.intel.com/content/www/us/en/download/17881/intel-extreme-tuning-utility-intel-xtu.html"
+            target="_blank" rel="noopener noreferrer" class="btn primary"
+            style="text-decoration: none; padding: 10px 20px;">
+            🌐 打开 Intel 官方下载中心 (选择 7.x.x 版本)
+          </a>
+          <button id="btn-guide-refresh" class="btn" style="padding: 10px 20px;">
+            🔄 安装完成并重启后，点击此处立即连接
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Banner: UVP Protection Active -->
+    <div id="uvp-alert-banner" class="banner-card error" style="display: none;">
+      <div class="banner-content">
+        <div class="banner-icon">🔒</div>
+        <div>
+          <strong>检测到电压调校通道受限（Windows VBS 虚拟化安全拦截）</strong>
+          <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px; line-height: 1.6;">
+            🔒 <strong>底层拦截原因</strong>：Intel 原厂机制规定，当 Windows 开启了 <strong>基于虚拟化的安全性 (VBS / 核心隔离)</strong> 时，若 BIOS 未开启
+            Undervolt Protection (UVP)，系统将完全封锁 CPU 调压通道。<br>
+            🔓 <strong>推荐解除锁定步骤</strong>：<br>
+            1. 在 Windows 开始菜单搜索并打开【核心隔离】；<br>
+            2. 将【内存完整性】关闭（或以管理员运行 <code>bcdedit /set hypervisorlaunchtype off</code>）后重启电脑；<br>
+            3. 重启后即可完全解锁 MSR 调压控制权（同时消除虚拟机开销，通常可额外提升约 3%~5% 游戏性能）。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tuning-sections-container">
+      <!-- One-Click Presets Section -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">⚡ 一键防缩缸安全预设档位</div>
+          <div class="panel-subtitle">针对 13900HX / 14900HX 极端调校场景预先验证的甜点方案</div>
+        </div>
+
+        <div class="presets-grid">
+          <!-- Preset 1: Recommended -->
+          <div class="preset-card highlight" id="card-preset-stable">
+            <div class="preset-badge-rec">极力推荐</div>
+            <div>
+              <div class="preset-name">
+                稳态长寿档 (5.3G 削峰)
+                <span id="badge-preset-stable" class="badge-active-tag" style="display:none;">已激活</span>
+              </div>
+              <div class="preset-desc">限制最大睿频至 5.3GHz 避开非线性功耗断崖，大核稳降 60mV，斩断瞬变电涌。</div>
+            </div>
+            <div class="preset-specs">
+              <div class="spec-row"><span class="spec-label">最大睿频</span><span class="spec-val">53x (5.3 GHz)</span>
+              </div>
+              <div class="spec-row"><span class="spec-label">核心电压偏移</span><span class="spec-val">-60 mV</span></div>
+              <div class="spec-row"><span class="spec-label">Ring 缓存偏移</span><span class="spec-val">0 mV (保持 BIOS
+                  基准)</span></div>
+              <div class="spec-row"><span class="spec-label">峰值电流上限</span><span class="spec-val">280 A (Baseline)</span>
+              </div>
+            </div>
+            <button id="btn-preset-stable" class="btn primary"
+              onclick="applyPreset('stable', 53, -60, 0, 280)">一键应用稳态档</button>
+          </div>
+
+          <!-- Preset 2: Moderate -->
+          <div class="preset-card" id="card-preset-moderate">
+            <div>
+              <div class="preset-name">
+                轻度防浪涌档 (5.5G)
+                <span id="badge-preset-moderate" class="badge-active-tag" style="display:none;">已激活</span>
+              </div>
+              <div class="preset-desc">保留 5.5GHz 高频响应，轻微降压拉低 VID 曲线，IccMax 限制在 307A 安全线。</div>
+            </div>
+            <div class="preset-specs">
+              <div class="spec-row"><span class="spec-label">最大睿频</span><span class="spec-val">55x (5.5 GHz)</span>
+              </div>
+              <div class="spec-row"><span class="spec-label">核心电压偏移</span><span class="spec-val">-40 mV</span></div>
+              <div class="spec-row"><span class="spec-label">Ring 缓存偏移</span><span class="spec-val">0 mV (保持 BIOS
+                  基准)</span></div>
+              <div class="spec-row"><span class="spec-label">峰值电流上限</span><span class="spec-val">307 A</span></div>
+            </div>
+            <button id="btn-preset-moderate" class="btn"
+              onclick="applyPreset('moderate', 55, -40, 0, 307)">一键应用轻度档</button>
+          </div>
+
+          <!-- Preset 3: Factory Defaults -->
+          <div class="preset-card" id="card-preset-factory">
+            <div>
+              <div class="preset-name">
+                原厂默认基线档
+                <span id="badge-preset-factory" class="badge-active-tag" style="display:none;">已激活</span>
+              </div>
+              <div class="preset-desc">清除所有电压偏移与倍频截断，完全恢复至 BIOS 初始未调谐的工厂状态。</div>
+            </div>
+            <div class="preset-specs">
+              <div class="spec-row"><span class="spec-label">最大睿频</span><span class="spec-val">原厂出厂倍频</span></div>
+              <div class="spec-row"><span class="spec-label">核心电压偏移</span><span class="spec-val">0 mV</span></div>
+              <div class="spec-row"><span class="spec-label">Ring 缓存偏移</span><span class="spec-val">0 mV</span></div>
+              <div class="spec-row"><span class="spec-label">峰值电流上限</span><span class="spec-val">出厂不受限</span></div>
+            </div>
+            <button id="btn-preset-factory" class="btn danger" onclick="resetToDefaults()">恢复出厂默认</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Fine-Tuning Sliders Section -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">🎛️ 极客高阶硬件微调</div>
+          <div class="panel-subtitle">免重启动态下发 MSR 寄存器 · 实机回读校验</div>
+        </div>
+
+        <div class="sliders-grid">
+          <!-- Slider 1: Core Voltage Offset -->
+          <div class="slider-box">
+            <div class="slider-top">
+              <div class="slider-label-box">
+                <h4>核心电压偏移 (Core Voltage Offset)</h4>
+                <p>整体拉低 VID 曲线，核心降温与防击穿防线</p>
+              </div>
+              <div id="val-core-offset" class="slider-val-badge">0 mV</div>
+            </div>
+            <div class="slider-input-row">
+              <input type="range" id="input-core-offset" min="-120" max="0" step="5" value="0">
+            </div>
+            <div class="slider-limits">
+              <span id="limit-core-min">激进 -120 mV</span>
+              <span>出厂 0 mV</span>
+            </div>
+          </div>
+
+          <!-- Slider 2: Ring Voltage Offset -->
+          <div class="slider-box">
+            <div class="slider-top">
+              <div class="slider-label-box">
+                <h4>缓存电压偏移 (Ring Voltage Offset)</h4>
+                <p>14代 HX 架构负值受底层微码保护仅在 BIOS 生效（当前跟随 BIOS 预设）</p>
+              </div>
+              <div id="val-ring-offset" class="slider-val-badge">0 mV</div>
+            </div>
+            <div class="slider-input-row">
+              <input type="range" id="input-ring-offset" min="-80" max="0" step="5" value="0">
+            </div>
+            <div class="slider-limits">
+              <span id="limit-ring-min">激进 -80 mV</span>
+              <span>出厂 0 mV</span>
+            </div>
+          </div>
+
+          <!-- Slider 3: Max Turbo Ratio -->
+          <div class="slider-box">
+            <div class="slider-top">
+              <div class="slider-label-box">
+                <h4>最大睿频倍频 (Max Turbo Ratio)</h4>
+                <p>削峰截断高频死区（建议锁 53x = 5.3GHz）</p>
+              </div>
+              <div id="val-max-ratio" class="slider-val-badge">58x (5.8 GHz)</div>
+            </div>
+            <div class="slider-input-row">
+              <input type="range" id="input-max-ratio" min="45" max="58" step="1" value="58">
+            </div>
+            <div class="slider-limits">
+              <span>节能 45x (4.5 GHz)</span>
+              <span>出厂上限 58x</span>
+            </div>
+          </div>
+
+          <!-- Slider 4: IccMax -->
+          <div class="slider-box">
+            <div class="slider-top">
+              <div class="slider-label-box">
+                <h4>供电瞬变电流上限 (Core IccMax)</h4>
+                <p>压制低阻抗电涌（Intel Baseline 建议 280A）</p>
+              </div>
+              <div id="val-iccmax" class="slider-val-badge">280 A</div>
+            </div>
+            <div class="slider-input-row">
+              <input type="range" id="input-iccmax" min="180" max="400" step="5" value="280">
+            </div>
+            <div class="slider-limits">
+              <span>保守 180 A</span>
+              <span>极限 400 A</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+          <button id="btn-apply-custom" class="btn primary" style="padding: 9px 24px;">🚀 应用自定义微调参数</button>
+        </div>
+      </div>
+    </div> <!-- end #tuning-sections-container -->
+
+  </div>
+
+  <!-- Safety Watchdog Modal -->
+  <div id="watchdog-modal" class="sys-modal-backdrop">
+    <div class="sys-modal-card">
+      <div class="sys-modal-header">
+        <span>⏱️ 防蓝屏安全看门狗保护中</span>
+      </div>
+      <div class="sys-modal-body">
+        <p>新的调压参数已下发至硬件！请观察系统运行状态。如果设置过激导致不稳定，可等待倒计时结束后自动安全回滚至出厂设置。</p>
+        <div id="watchdog-countdown" class="countdown-circle">30</div>
+        <p style="font-size: 11px; color: var(--text-dim); text-align: center;">若系统在倒计时内蓝屏或重启，守护程序下次启动将无条件重置电压。</p>
+      </div>
+      <div class="sys-modal-actions">
+        <button id="btn-watchdog-rollback" class="btn danger">立即回滚出厂</button>
+        <button id="btn-watchdog-confirm" class="btn success">确认稳定并保持</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BRIDGE_API = 'http://127.0.0.1:18980/api';
+    let watchdogTimer = null;
+    let countdownSec = 30;
+    let currentServiceStatus = 'NotInstalled';
+    let probeRetryCount = 0;
+    let currentSavedConfig = null;
+
+    // Toast Notification helper (No window.alert)
+    function showToast(message, type = 'ok') {
+      const box = document.getElementById('toast-box');
+      const pill = document.createElement('div');
+      pill.className = `toast-pill ${type}`;
+      const icon = type === 'ok' ? '✅' : (type === 'warn' ? '⚠️' : '❌');
+      pill.innerHTML = `<span>${icon}</span><span style="flex:1;">${message}</span>`;
+      box.appendChild(pill);
+      setTimeout(() => {
+        pill.style.opacity = '0';
+        pill.style.transform = 'translateY(-10px)';
+        pill.style.transition = 'all 0.3s ease';
+        setTimeout(() => pill.remove(), 300);
+      }, 3500);
+    }
+
+    // Elements
+    const serviceBadge = document.getElementById('service-badge');
+    const uvpBadge = document.getElementById('uvp-badge');
+    const serviceBanner = document.getElementById('service-alert-banner');
+    const uvpBanner = document.getElementById('uvp-alert-banner');
+    const btnSmartService = document.getElementById('btn-smart-service');
+    const bannerServiceTitle = document.getElementById('banner-service-title');
+    const bannerServiceDesc = document.getElementById('banner-service-desc');
+    const xtuGuideCard = document.getElementById('xtu-install-guide-card');
+    const tuningContainer = document.getElementById('tuning-sections-container');
+    const btnGuideRefresh = document.getElementById('btn-guide-refresh');
+
+    const inputCoreOffset = document.getElementById('input-core-offset');
+    const valCoreOffset = document.getElementById('val-core-offset');
+    const inputRingOffset = document.getElementById('input-ring-offset');
+    const valRingOffset = document.getElementById('val-ring-offset');
+    const inputMaxRatio = document.getElementById('input-max-ratio');
+    const valMaxRatio = document.getElementById('val-max-ratio');
+    const inputIccMax = document.getElementById('input-iccmax');
+    const valIccMax = document.getElementById('val-iccmax');
+
+    const watchdogModal = document.getElementById('watchdog-modal');
+    const watchdogCountdown = document.getElementById('watchdog-countdown');
+
+    if (btnGuideRefresh) {
+      btnGuideRefresh.onclick = () => {
+        showToast('正在重新探测系统 XTU 底层驱动状态...', 'ok');
+        refreshStatus();
+      };
+    }
+
+    let currentActivePreset = null;
+
+    // Slider Listeners
+    function onSliderChange() {
+      if (!currentActivePreset) return;
+      const core = Number(inputCoreOffset.value);
+      const ratio = Number(inputMaxRatio.value);
+      const icc = Number(inputIccMax.value);
+
+      let diverged = false;
+      if (currentActivePreset === 'stable') {
+        diverged = (core !== -60 || ratio !== 53 || icc !== 280);
+      } else if (currentActivePreset === 'moderate') {
+        diverged = (core !== -40 || ratio !== 55 || icc !== 307);
+      } else if (currentActivePreset === 'factory') {
+        diverged = (core !== 0);
+      }
+      if (diverged) {
+        updateActivePresetUI(null);
+      }
+    }
+
+    inputCoreOffset.addEventListener('input', (e) => {
+      valCoreOffset.textContent = `${e.target.value} mV`;
+      onSliderChange();
+    });
+    inputRingOffset.addEventListener('input', (e) => {
+      valRingOffset.textContent = `${e.target.value} mV`;
+      onSliderChange();
+    });
+    inputMaxRatio.addEventListener('input', (e) => {
+      valMaxRatio.textContent = `${e.target.value}x (${(e.target.value * 0.1).toFixed(1)} GHz)`;
+      onSliderChange();
+    });
+    inputIccMax.addEventListener('input', (e) => {
+      valIccMax.textContent = `${e.target.value} A`;
+      onSliderChange();
+    });
+
+    // Fetch helper
+    async function apiCall(endpoint, method = 'GET') {
+      try {
+        const resp = await fetch(`${BRIDGE_API}/${endpoint}`, { method, mode: 'cors' });
+        return await resp.json();
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+
+    // ==========================================
+    // Plugin Storage Engine Integration
+    // ==========================================
+    function requestPluginStorage() {
+      // 1. Request sandboxed persistent storage from OpenRevo Host framework
+      window.parent.postMessage({ action: 'GET_PLUGIN_STORAGE' }, '*');
+      // 2. Read local fallback
+      try {
+        const raw = localStorage.getItem('openrevo_cpu_guardian_storage');
+        if (raw) {
+          currentSavedConfig = JSON.parse(raw);
+          applyLoadedConfig(currentSavedConfig);
+        }
+      } catch (e) { }
+    }
+
+    function savePluginStorage(config) {
+      currentSavedConfig = config;
+      // Send to OpenRevo host for persistent write in plugin_storage/cpu-guardian/config.json
+      window.parent.postMessage({
+        action: 'SET_PLUGIN_STORAGE',
+        payload: { data: config }
+      }, '*');
+      try {
+        localStorage.setItem('openrevo_cpu_guardian_storage', JSON.stringify(config));
+      } catch (e) { }
+    }
+
+    function applyLoadedConfig(config) {
+      if (!config || typeof config !== 'object') return;
+      currentSavedConfig = config;
+      updateActivePresetUI(config.active_preset);
+    }
+
+    function updateActivePresetUI(presetName) {
+      currentActivePreset = presetName;
+      const cards = {
+        stable: document.getElementById('card-preset-stable'),
+        moderate: document.getElementById('card-preset-moderate'),
+        factory: document.getElementById('card-preset-factory')
+      };
+      const badges = {
+        stable: document.getElementById('badge-preset-stable'),
+        moderate: document.getElementById('badge-preset-moderate'),
+        factory: document.getElementById('badge-preset-factory')
+      };
+      const buttons = {
+        stable: document.getElementById('btn-preset-stable'),
+        moderate: document.getElementById('btn-preset-moderate'),
+        factory: document.getElementById('btn-preset-factory')
+      };
+      const defaultTexts = {
+        stable: '一键应用稳态档',
+        moderate: '一键应用轻度档',
+        factory: '恢复出厂默认'
+      };
+      const activeTexts = {
+        stable: '✓ 当前运行中',
+        moderate: '✓ 当前运行中',
+        factory: '✓ 已是原厂默认'
+      };
+
+      Object.keys(cards).forEach(key => {
+        const isCurrent = key === presetName;
+        if (cards[key]) {
+          if (isCurrent) {
+            cards[key].classList.add('active-preset-ring');
+          } else {
+            cards[key].classList.remove('active-preset-ring');
+          }
+        }
+        if (badges[key]) {
+          badges[key].style.display = isCurrent ? 'inline-block' : 'none';
+        }
+        if (buttons[key]) {
+          buttons[key].disabled = isCurrent;
+          buttons[key].textContent = isCurrent ? activeTexts[key] : defaultTexts[key];
+          if (isCurrent) {
+            buttons[key].classList.add('disabled-active');
+          } else {
+            buttons[key].classList.remove('disabled-active');
+          }
+        }
+      });
+    }
+
+    function detectAndMarkActivePreset(k) {
+      const coreV = k?.core_voltage_offset?.current;
+      const ratio = k?.max_turbo_ratio?.current;
+      const icc = k?.core_icc_max?.current;
+
+      if (coreV === -60 && ratio <= 53 && icc === 280) {
+        updateActivePresetUI('stable');
+      } else if (coreV === -40 && ratio <= 55 && icc === 307) {
+        updateActivePresetUI('moderate');
+      } else if (coreV === 0 && (ratio === 58 || ratio === k?.max_turbo_ratio?.default) && (icc === 350 || icc === k?.core_icc_max?.default)) {
+        updateActivePresetUI('factory');
+      } else if (currentSavedConfig?.active_preset) {
+        updateActivePresetUI(currentSavedConfig.active_preset);
+      } else {
+        updateActivePresetUI(null);
+      }
+    }
+
+    // Refresh Status
+    async function refreshStatus() {
+      serviceBadge.textContent = '嗅探中...';
+      serviceBadge.className = 'badge-chip warn';
+
+      const data = await apiCall('probe');
+
+      if (!data.connected) {
+        currentServiceStatus = data.service_status || 'NotInstalled';
+        uvpBanner.style.display = 'none';
+
+        if (currentServiceStatus === 'Stopped') {
+          serviceBadge.textContent = '服务已停止';
+          serviceBadge.className = 'badge-chip warn';
+          serviceBanner.style.display = 'flex';
+          xtuGuideCard.style.display = 'none';
+          tuningContainer.style.display = 'block';
+          tuningContainer.style.opacity = '0.35';
+          tuningContainer.style.pointerEvents = 'none';
+
+          bannerServiceTitle.textContent = 'XTU 守护服务已安装但当前处于停止状态';
+          bannerServiceDesc.textContent = '检测到底层驱动底座已就绪。点击右侧按钮启动服务引擎。';
+          btnSmartService.textContent = '▶️ 立即启动服务';
+        } else if (currentServiceStatus === 'Running') {
+          serviceBadge.textContent = '管道连接中...';
+          serviceBadge.className = 'badge-chip warn';
+          serviceBanner.style.display = 'flex';
+          xtuGuideCard.style.display = 'none';
+          tuningContainer.style.display = 'block';
+          tuningContainer.style.opacity = '0.35';
+          tuningContainer.style.pointerEvents = 'none';
+
+          bannerServiceTitle.textContent = 'XTU 驱动服务已在后台运行 (XTU3SERVICE)';
+          bannerServiceDesc.textContent = '底层驱动已就绪，伴生桥接正在建立 WCF 命名管道连接...';
+          btnSmartService.textContent = '🔄 刷新重试管道';
+          if (probeRetryCount < 6) {
+            probeRetryCount++;
+            setTimeout(refreshStatus, 1000);
+          }
+        } else {
+          // XTU is Not Installed: Show clean official setup guide and block operations
+          serviceBadge.textContent = '未安装 XTU 7.x 底座';
+          serviceBadge.className = 'badge-chip error';
+          serviceBanner.style.display = 'none';
+          xtuGuideCard.style.display = 'block';
+          tuningContainer.style.display = 'none';
+        }
+        return;
+      }
+
+      // Connected!
+      probeRetryCount = 0;
+      currentServiceStatus = 'Running';
+      serviceBadge.textContent = '硬件引擎就绪 (7.14)';
+      serviceBadge.className = 'badge-chip ok';
+      serviceBanner.style.display = 'none';
+      xtuGuideCard.style.display = 'none';
+      tuningContainer.style.display = 'block';
+      tuningContainer.style.opacity = '1';
+      tuningContainer.style.pointerEvents = 'auto';
+
+      // UVP check
+      if (data.uvp_active) {
+        uvpBadge.style.display = 'inline-flex';
+        uvpBadge.textContent = 'UVP 锁定中';
+        uvpBadge.className = 'badge-chip error';
+        uvpBanner.style.display = 'flex';
+      } else {
+        uvpBadge.style.display = 'inline-flex';
+        uvpBadge.textContent = 'UVP: 已解锁';
+        uvpBadge.className = 'badge-chip ok';
+        uvpBanner.style.display = 'none';
+      }
+
+      // Read current knobs
+      const knobsData = await apiCall('get');
+      if (knobsData.success && knobsData.knobs) {
+        const k = knobsData.knobs;
+        if (k.core_voltage_offset && k.core_voltage_offset.supported) {
+          inputCoreOffset.value = k.core_voltage_offset.current;
+          valCoreOffset.textContent = `${k.core_voltage_offset.current} mV`;
+          if (k.core_voltage_offset.min !== undefined) {
+            inputCoreOffset.min = k.core_voltage_offset.min;
+            const minElem = document.getElementById('limit-core-min');
+            if (minElem) minElem.textContent = `极限 ${k.core_voltage_offset.min} mV`;
+          }
+        }
+        if (k.ring_voltage_offset && k.ring_voltage_offset.supported) {
+          inputRingOffset.value = k.ring_voltage_offset.current;
+          valRingOffset.textContent = `${k.ring_voltage_offset.current} mV`;
+          if (k.ring_voltage_offset.min >= 0) {
+            inputRingOffset.min = 0;
+            const minElem = document.getElementById('limit-ring-min');
+            if (minElem) minElem.textContent = `基线 0 mV (BIOS锁)`;
+          }
+        }
+        if (k.max_turbo_ratio && k.max_turbo_ratio.supported) {
+          inputMaxRatio.value = k.max_turbo_ratio.current;
+          valMaxRatio.textContent = `${k.max_turbo_ratio.current}x (${(k.max_turbo_ratio.current * 0.1).toFixed(1)} GHz)`;
+        }
+        if (k.core_icc_max && k.core_icc_max.supported) {
+          inputIccMax.value = k.core_icc_max.current;
+          valIccMax.textContent = `${k.core_icc_max.current} A`;
+        }
+
+        detectAndMarkActivePreset(k);
+      }
+    }
+
+    // Smart Service Activation
+    btnSmartService.onclick = async () => {
+      btnSmartService.disabled = true;
+      btnSmartService.textContent = '正在启动...';
+
+      let res;
+      if (currentServiceStatus === 'Stopped') {
+        res = await apiCall('service/start');
+      } else {
+        res = await apiCall('probe');
+      }
+
+      btnSmartService.disabled = false;
+      btnSmartService.textContent = '▶️ 立即启动服务';
+
+      if (res.success || res.connected) {
+        showToast('守护引擎服务已就绪！', 'ok');
+        setTimeout(refreshStatus, 1000);
+      } else {
+        showToast(res.error || res.output || '服务启动失败，正在刷新状态', 'warn');
+        refreshStatus();
+      }
+    };
+
+    // Apply Tuning
+    async function applyTuning(coreOffset, ringOffset, maxRatio, iccmax) {
+      const allActionBtns = [
+        document.getElementById('btn-preset-stable'),
+        document.getElementById('btn-preset-moderate'),
+        document.getElementById('btn-preset-factory'),
+        document.getElementById('btn-apply-custom')
+      ].filter(Boolean);
+
+      allActionBtns.forEach(b => { b.disabled = true; });
+
+      const q = new URLSearchParams({
+        core_offset: coreOffset,
+        ring_offset: ringOffset,
+        max_ratio: maxRatio,
+        iccmax: iccmax
+      });
+
+      const res = await apiCall(`apply?${q.toString()}`);
+
+      allActionBtns.forEach(b => { b.disabled = false; });
+
+      if (res.success) {
+        showToast('调压参数已下发至 CPU 寄存器！', 'ok');
+        startWatchdog();
+        return true;
+      } else {
+        showToast(`应用失败: ${res.error || 'XTU 拒绝了设置'}`, 'error');
+        return false;
+      }
+    }
+
+    async function applyPreset(presetName, ratio, coreMv, ringMv, icc) {
+      inputMaxRatio.value = ratio; valMaxRatio.textContent = `${ratio}x (${(ratio * 0.1).toFixed(1)} GHz)`;
+      inputCoreOffset.value = coreMv; valCoreOffset.textContent = `${coreMv} mV`;
+      inputRingOffset.value = ringMv; valRingOffset.textContent = `${ringMv} mV`;
+      inputIccMax.value = icc; valIccMax.textContent = `${icc} A`;
+      const ok = await applyTuning(coreMv, ringMv, ratio, icc);
+      if (ok) {
+        savePluginStorage({
+          active_preset: presetName,
+          max_turbo_ratio: ratio,
+          core_voltage_offset: coreMv,
+          ring_voltage_offset: ringMv,
+          core_icc_max: icc,
+          updated_at: new Date().toISOString()
+        });
+        updateActivePresetUI(presetName);
+      } else {
+        updateActivePresetUI(currentActivePreset);
+      }
+    }
+
+    async function resetToDefaults() {
+      const btnFactory = document.getElementById('btn-preset-factory');
+      if (btnFactory) btnFactory.disabled = true;
+
+      const res = await apiCall('reset');
+      if (res.success) {
+        showToast('已成功恢复出厂默认设置！', 'ok');
+        savePluginStorage({
+          active_preset: 'factory',
+          max_turbo_ratio: 58,
+          core_voltage_offset: 0,
+          ring_voltage_offset: 0,
+          core_icc_max: 350,
+          updated_at: new Date().toISOString()
+        });
+        updateActivePresetUI('factory');
+        refreshStatus();
+      } else {
+        if (btnFactory) btnFactory.disabled = false;
+        showToast(`恢复失败: ${res.error || '服务未响应'}`, 'error');
+      }
+    }
+
+    // Safety Watchdog
+    function startWatchdog() {
+      if (watchdogTimer) clearInterval(watchdogTimer);
+      countdownSec = 30;
+      watchdogCountdown.textContent = countdownSec;
+      watchdogModal.classList.add('active');
+
+      watchdogTimer = setInterval(() => {
+        countdownSec--;
+        watchdogCountdown.textContent = countdownSec;
+        if (countdownSec <= 0) {
+          clearInterval(watchdogTimer);
+          watchdogModal.classList.remove('active');
+          showToast('倒计时超时，正在自动安全回滚至出厂设置...', 'warn');
+          resetToDefaults();
+        }
+      }, 1000);
+    }
+
+    document.getElementById('btn-watchdog-confirm').onclick = () => {
+      if (watchdogTimer) clearInterval(watchdogTimer);
+      watchdogModal.classList.remove('active');
+      showToast('设置已确认，保持当前调控状态', 'ok');
+    };
+
+    document.getElementById('btn-watchdog-rollback').onclick = () => {
+      if (watchdogTimer) clearInterval(watchdogTimer);
+      watchdogModal.classList.remove('active');
+      resetToDefaults();
+    };
+
+    const btnRefreshElem = document.getElementById('btn-refresh');
+    if (btnRefreshElem) {
+      btnRefreshElem.onclick = () => {
+        showToast('正在刷新硬件通道状态...', 'ok');
+        refreshStatus();
+      };
+    }
+
+    document.getElementById('btn-reset-default').onclick = () => {
+      if (confirm('确定要将所有电压偏移与倍频恢复为出厂默认设置吗？')) {
+        resetToDefaults();
+      }
+    };
+
+    document.getElementById('btn-apply-custom').onclick = async () => {
+      const ok = await applyTuning(inputCoreOffset.value, inputRingOffset.value, inputMaxRatio.value, inputIccMax.value);
+      if (ok) {
+        savePluginStorage({
+          active_preset: 'custom',
+          max_turbo_ratio: Number(inputMaxRatio.value),
+          core_voltage_offset: Number(inputCoreOffset.value),
+          ring_voltage_offset: Number(inputRingOffset.value),
+          core_icc_max: Number(inputIccMax.value),
+          updated_at: new Date().toISOString()
+        });
+        updateActivePresetUI('custom');
+      }
+    };
+
+    // Listen to Host Framework postMessages
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'OPENREVO_PLUGIN_STORAGE_RESULT') {
+        if (event.data.success && event.data.payload) {
+          applyLoadedConfig(event.data.payload);
+        }
+      } else if (event.data?.type === 'OPENREVO_PLUGIN_SERVICE_STATUS') {
+        const payload = event.data.payload;
+        if (payload?.status === 'running') {
+          setTimeout(refreshStatus, 800);
+        } else if (payload?.status === 'stopped' || payload?.status === 'error') {
+          refreshStatus();
+        }
+      }
+    });
+
+    // Initial load
+    window.addEventListener('DOMContentLoaded', () => {
+      requestPluginStorage();
+      refreshStatus();
+    });
+  </script>
+</body>
+
+</html>

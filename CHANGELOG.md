@@ -22,6 +22,13 @@
 
 ## [Unreleased] - 待发布
 
+### 🛡️ 13/14代 CPU 寿元卫士官方插件 (CPU Guardian Plugin)
+- **专为 13900HX / 14900HX 打造的防缩缸调谐中心 (`cpu-guardian`)**：
+  - **合规依附 Intel 官方 7.14 内核通道**：通过极简伴生桥接 `revo-xtu-bridge` 与官方 `XTU3SERVICE` 建立 RPC 通信，严禁任何可能引发 `0x50` 蓝屏的第三方脱机裸起，100% 保留微软 WHQL 认证设备树安全性。
+  - **大核睿频削峰与稳态降压**：提供预先验证的“稳态长寿档（5.3G 削峰 + 稳降 60mV + 280A IccMax）”与“轻度防浪涌档（5.5G + 稳降 40mV）”，遍历所有 Active Performance Cores 实施单调性削峰，斩断 1.50V+ 死亡瞬变电涌。
+  - **OpenRevo 沙箱持久化与防蓝屏看门狗**：接入 `plugin_storage` 沙箱存储引擎独立持久化配置，档位激活自动防呆置灰，内置 30 秒不稳定自动安全回滚机制。
+  - **极简瘦身与纯净环境指引**：彻底清退旧版无用驱动散包（体积暴降至 ~1MB），前台智能检测 XTU 底座就绪状态，配备官方 7.x 避坑下载指引并支持无需常驻 XTU 客户端的纯净运行模式。
+
 ### 🎮 游戏 OSD 原生化 (Phase 2: Native Slint OSD Integration)
 - **Multi-call 单二进制伴生架构 (Zero Secondary Exe Distribution)**：
   - 采用业界成熟的 Multi-call 架构（类似 busybox/git），主程序 `open-revo.exe` 启动时自调用 `--osd-companion` 拉起专属 Slint 独立进程，**对外分发严格保持单个 `open-revo.exe` 便携文件**。
