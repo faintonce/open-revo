@@ -15,6 +15,7 @@ pub enum LightbarBackendType {
     Usb7001,
     Usb7000,
     EcDirect,
+    Ite8291Strip,
     None,
 }
 
@@ -358,6 +359,125 @@ impl LightbarStrategy for EcDirectLightbarStrategy {
 
 // --- Null Strategy (Fallback when no lightbar is detected) ---
 
+// --- ITE 8291 Ambient Strip Implementation (Companion 048D:6008, e.g. Titan PLUS GM7TG0M) ---
+
+pub struct Ite8291StripLightbarStrategy {
+    device: Arc<Mutex<Option<IteLightingDevice>>>,
+}
+
+impl Ite8291StripLightbarStrategy {
+    pub fn new(device: Arc<Mutex<Option<IteLightingDevice>>>) -> Self {
+        Self { device }
+    }
+}
+
+impl LightbarStrategy for Ite8291StripLightbarStrategy {
+    fn apply_lightbar(
+        &self,
+        enabled: bool,
+        effect: u8,
+        brightness_idx: u8,
+        speed_idx: u8,
+        color_hex: &str,
+    ) -> bool {
+        let dev_guard = self.device.lock();
+        let dev = match dev_guard.as_ref() {
+            Some(d) => d,
+            None => return false,
+        };
+
+        if !enabled || brightness_idx == 0 {
+            // Save = 0 strictly to avoid brown-out eFlash corruption
+            let off_pkt: [u8; 9] = [0, 8, CONTROL_KEYBOARD, 255, 1, 50, 0, 0, 0];
+            return dev.write_feature(&off_pkt);
+        }
+
+        let speed = SPEED_MAP.get(speed_idx as usize).copied().unwrap_or(5);
+        let light = LIGHTBAR_BRIGHTNESS_MAP
+            .get(brightness_idx as usize)
+            .copied()
+            .unwrap_or(75);
+
+        let actual_effect = match effect {
+            20 => 2,          // Rainbow Breathing
+            13 | 4 => 4,      // Conflict / Collision
+            12 | 6 => 6,      // Meteor
+            10 => 6,          // Raindrop
+            9 => 3,           // Marquee -> Wave
+            14 => 3,          // Water Flow -> Wave
+            e => e,
+        };
+
+        let is_circular = effect == 20
+            || actual_effect == 3
+            || actual_effect == 4
+            || actual_effect == 14
+            || (actual_effect == 2 && color_hex.eq_ignore_ascii_case("rainbow"));
+        let color_index = if is_circular { 8 } else { 1 };
+        let (r, g, b) = parse_hex_color(color_hex);
+        let direction: u8 = match actual_effect {
+            3 => 1,
+            _ => 0,
+        };
+
+        if !is_circular {
+            for slot in 1..=4 {
+                let color_pkt: [u8; 9] = [0, 20, BLANK_KEYBOARD, slot, r, g, b, 0, 0];
+                dev.write_feature(&color_pkt);
+            }
+            sleep(Duration::from_millis(15));
+        } else {
+            let palette: [(u8, u8, u8); 8] = [
+                (255, 0, 0),
+                (255, 128, 0),
+                (255, 255, 0),
+                (0, 255, 0),
+                (0, 255, 255),
+                (0, 0, 255),
+                (139, 0, 255),
+                (255, 0, 128),
+            ];
+            for (i, &(pr, pg, pb)) in palette.iter().enumerate() {
+                let slot = (i % 4) as u8 + 1;
+                let color_pkt: [u8; 9] = [0, 20, BLANK_KEYBOARD, slot, pr, pg, pb, 0, 0];
+                dev.write_feature(&color_pkt);
+            }
+            sleep(Duration::from_millis(15));
+        }
+
+        let effect_pkt: [u8; 9] = [
+            0,
+            8,
+            CONTROL_KEYBOARD,
+            actual_effect,
+            speed,
+            light,
+            color_index,
+            direction,
+            0,
+        ];
+        dev.write_feature(&effect_pkt)
+    }
+
+    fn turn_off(&self) -> bool {
+        let dev_guard = self.device.lock();
+        if let Some(dev) = dev_guard.as_ref() {
+            let off_pkt: [u8; 9] = [0, 8, CONTROL_KEYBOARD, 255, 1, 50, 0, 0, 0];
+            dev.write_feature(&off_pkt)
+        } else {
+            false
+        }
+    }
+
+    fn is_connected(&self) -> bool {
+        self.device.lock().is_some()
+    }
+
+    fn backend_type(&self) -> LightbarBackendType {
+        LightbarBackendType::Ite8291Strip
+    }
+}
+
 pub struct NullLightbarStrategy;
 
 impl LightbarStrategy for NullLightbarStrategy {
@@ -410,5 +530,11 @@ mod tests {
 
         let ec_strat = EcDirectLightbarStrategy;
         assert_eq!(ec_strat.backend_type(), LightbarBackendType::EcDirect);
+
+        let strip_strat = Ite8291StripLightbarStrategy::new(Arc::clone(&dev_slot));
+        assert_eq!(strip_strat.backend_type(), LightbarBackendType::Ite8291Strip);
+        assert!(!strip_strat.is_connected());
+        assert!(!strip_strat.apply_lightbar(true, 1, 3, 2, "#00FFFF"));
+        assert!(!strip_strat.turn_off());
     }
 }

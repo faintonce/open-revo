@@ -28,9 +28,11 @@ pub struct IteLightingManager {
     kb_dev: Arc<Mutex<Option<IteLightingDevice>>>,
     lb_dev: Arc<Mutex<Option<IteLightingDevice>>>,
     hinge_dev: Arc<Mutex<Option<IteLightingDevice>>>,
+    strip_dev: Arc<Mutex<Option<IteLightingDevice>>>,
     pub lb_strategy: Usb7001LightbarStrategy,
     pub hinge_strategy: Usb7000LightbarStrategy,
     pub ec_hinge_strategy: EcDirectLightbarStrategy,
+    pub strip_strategy: Ite8291StripLightbarStrategy,
     pub state: Mutex<LightingPresetState>,
     pub is_sleeping: std::sync::atomic::AtomicBool,
 }
@@ -81,18 +83,22 @@ impl IteLightingManager {
         let kb_dev = Arc::new(Mutex::new(None));
         let lb_dev = Arc::new(Mutex::new(None));
         let hinge_dev = Arc::new(Mutex::new(None));
+        let strip_dev = Arc::new(Mutex::new(None));
 
         let lb_strategy = Usb7001LightbarStrategy::new(Arc::clone(&lb_dev));
         let hinge_strategy = Usb7000LightbarStrategy::new(Arc::clone(&hinge_dev));
         let ec_hinge_strategy = EcDirectLightbarStrategy;
+        let strip_strategy = Ite8291StripLightbarStrategy::new(Arc::clone(&strip_dev));
 
         let mgr = Self {
             kb_dev,
             lb_dev,
             hinge_dev,
+            strip_dev,
             lb_strategy,
             hinge_strategy,
             ec_hinge_strategy,
+            strip_strategy,
             state: Mutex::new(saved_state),
             is_sleeping: std::sync::atomic::AtomicBool::new(false),
         };
@@ -129,7 +135,7 @@ impl IteLightingManager {
 
     pub fn has_base_lightbar_device(&self) -> bool {
         self.refresh_devices();
-        self.lb_dev.lock().is_some() || Self::is_ec_lightbar_supported()
+        self.lb_dev.lock().is_some() || self.strip_dev.lock().is_some() || Self::is_ec_lightbar_supported() || Self::probe_ambient_strip_exists()
     }
 
     pub fn has_usb_base_lightbar(&self) -> bool {
@@ -159,7 +165,14 @@ impl IteLightingManager {
     }
 
     /// Static probe to determine if physical ITE 7001 base lightbar/logo device is attached
+    pub fn probe_ambient_strip_exists() -> bool {
+        Self::open_hid_device(ITE_VID, ITE_PID_AMBIENT_STRIP, 0).is_some()
+    }
+
     pub fn probe_lightbar_device_exists() -> bool {
+        if Self::probe_ambient_strip_exists() {
+            return true;
+        }
         if let Some(dev) = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_BASE, USAGE_LIGHTBAR) {
             if let Some(cap) = dev.probe_capability() {
                 // Official LM_ITE_RGB.cs: Base coastline bar supported on 1, 3, 4, 5, 7, 9, 11
@@ -217,6 +230,7 @@ impl IteLightingManager {
         *self.kb_dev.lock() = None;
         *self.lb_dev.lock() = None;
         *self.hinge_dev.lock() = None;
+        *self.strip_dev.lock() = None;
     }
 
     /// Gracefully release keyboard handle for BetterRGB streamer engine.
@@ -275,11 +289,13 @@ impl IteLightingManager {
     pub fn refresh_devices(&self) {
         let contract = self.active_contract();
 
-        // 1. Backend Isolation: If machine is purely EC-driven (e.g. thinbook white backlight) or no lighting,
-        // physically isolate the USB stack! Strictly avoid scanning, opening or polling USB HID bus.
-        if contract.backend != "USB_HID" {
-            return;
-        }
+        // 1. Keyboard USB Stack Isolation:
+        // The USB HID bus may only be touched for the KEYBOARD when its backend actually
+        // needs it. NOTE: this must NOT gate the lightbar / logo / hinge channels.
+        // On hybrid machines (EC SingleZone keyboard + USB ITE 048D:7001 lettering logo,
+        // e.g. GM6IX9B) gating everything on `backend` silently kills A-Cover LOGO control
+        // while the Machine Constitution still declares has_logo = true.
+        let keyboard_needs_usb = contract.backend == "USB_HID";
 
         // 2. Base Lightbar & Lettering Logo Channel:
         // Gated strictly by has_coastline or has_logo!
@@ -287,6 +303,15 @@ impl IteLightingManager {
             let mut lb = self.lb_dev.lock();
             if lb.is_none() {
                 *lb = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_BASE, USAGE_LIGHTBAR);
+            }
+        }
+
+        // 2b. ITE 8291 Companion Ambient Strip Channel (048D:6008, e.g. Titan PLUS GM7TG0M):
+        // Gated by has_coastline or has_air_vent!
+        if contract.has_coastline || contract.has_air_vent {
+            let mut strip = self.strip_dev.lock();
+            if strip.is_none() {
+                *strip = Self::open_hid_device(ITE_VID, ITE_PID_AMBIENT_STRIP, 0);
             }
         }
 
@@ -301,7 +326,7 @@ impl IteLightingManager {
 
         // 4. Keyboard Channel:
         // Gated strictly by keyboard_type!
-        if contract.keyboard_type == "4Zone" && Self::probe_four_zone_keyboard_exists() {
+        if keyboard_needs_usb && contract.keyboard_type == "4Zone" && Self::probe_four_zone_keyboard_exists() {
             let mut kb = self.kb_dev.lock();
             if kb.is_none() {
                 *kb = IteLightingDevice::open_exact(ITE_VID, ITE_PID_KEYBOARD_FOURZONE, 0, USAGE_PAGE_FOURZONE);
@@ -319,15 +344,19 @@ impl IteLightingManager {
 
     pub fn force_refresh_lightbar(&self) {
         let contract = self.active_contract();
-        if contract.backend == "USB_HID" && (contract.has_coastline || contract.has_logo) {
+        if contract.has_coastline || contract.has_logo {
             let mut lb = self.lb_dev.lock();
             *lb = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_BASE, USAGE_LIGHTBAR);
+        }
+        if contract.has_coastline || contract.has_air_vent {
+            let mut strip = self.strip_dev.lock();
+            *strip = Self::open_hid_device(ITE_VID, ITE_PID_AMBIENT_STRIP, 0);
         }
     }
 
     pub fn force_refresh_hinge(&self) {
         let contract = self.active_contract();
-        if contract.backend == "USB_HID" && contract.has_air_vent {
+        if contract.has_air_vent {
             let mut hg = self.hinge_dev.lock();
             *hg = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_HINGE, 0);
         }
@@ -688,6 +717,8 @@ impl IteLightingManager {
         self.refresh_devices();
         if self.lb_strategy.is_connected() {
             self.lb_strategy.apply_lightbar(enabled, effect, brightness_idx, speed_idx, color_hex)
+        } else if self.strip_strategy.is_connected() {
+            self.strip_strategy.apply_lightbar(enabled, effect, brightness_idx, speed_idx, color_hex)
         } else if Self::is_ec_lightbar_supported() {
             lightbar::EcDirectLightbarStrategy.apply_lightbar(enabled, effect, brightness_idx, speed_idx, color_hex)
         } else {
@@ -716,6 +747,8 @@ impl IteLightingManager {
 
         if self.hinge_strategy.is_connected() {
             self.hinge_strategy.apply_lightbar(enabled, effect, brightness_idx, speed_idx, color_hex)
+        } else if self.strip_strategy.is_connected() {
+            self.strip_strategy.apply_lightbar(enabled, effect, brightness_idx, speed_idx, color_hex)
         } else if self.ec_hinge_strategy.is_connected() {
             self.ec_hinge_strategy.apply_lightbar(enabled, effect, brightness_idx, speed_idx, color_hex)
         } else {
@@ -945,6 +978,20 @@ impl IteLightingManager {
 
         self.refresh_devices();
 
+        // Defensive fallback: if the cached handle is still missing even though the firmware
+        // reports a USB lettering logo, open the device on demand instead of silently
+        // turning the request into a no-op (which used to be reported to the UI as success).
+        if Self::probe_usb_logo_supported() {
+            let mut lb = self.lb_dev.lock();
+            if lb.is_none() {
+                crate::log_warn!(
+                    "LIGHTING_ARBITER",
+                    "apply_logo: cached 7001 handle missing, opening device on demand"
+                );
+                *lb = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_BASE, USAGE_LIGHTBAR);
+            }
+        }
+
         let light = LIGHTBAR_BRIGHTNESS_MAP
             .get(brightness_idx as usize)
             .copied()
@@ -1046,6 +1093,7 @@ impl IteLightingManager {
             lightbar::EcDirectLightbarStrategy.turn_off();
         }
         self.hinge_strategy.turn_off();
+        self.strip_strategy.turn_off();
 
         let has_ec_logo = Self::is_ec_logo_supported();
         if !has_ec_logo {

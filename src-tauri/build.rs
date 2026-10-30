@@ -131,7 +131,7 @@ pub fn deobf_bytes(bytes: &[u8], key: u8) -> Vec<u8> {
                 code.push_str("pub mod ite {\n    use super::*;\n\n");
                 let ite_vid = ite["ITE_VID"].as_u64().unwrap_or(0x048D) as u16;
                 code.push_str(&format!("    pub const ITE_VID: u16 = deobf_u16(0x{:04X});\n", ite_vid ^ k_u16));
-                let ite_pids = ["ITE_PID_KEYBOARD_PERKEY", "ITE_PID_KEYBOARD_FOURZONE", "ITE_PID_LIGHTBAR_BASE", "ITE_PID_LIGHTBAR_HINGE"];
+                let ite_pids = ["ITE_PID_KEYBOARD_PERKEY", "ITE_PID_KEYBOARD_FOURZONE", "ITE_PID_LIGHTBAR_BASE", "ITE_PID_LIGHTBAR_HINGE", "ITE_PID_AMBIENT_STRIP"];
                 for pid in &ite_pids {
                     let num = ite[pid].as_u64().unwrap_or(0) as u16;
                     code.push_str(&format!("    pub const {}: u16 = deobf_u16(0x{:04X});\n", pid, num ^ k_u16));
@@ -372,6 +372,7 @@ pub mod ite {
     pub const ITE_PID_KEYBOARD_FOURZONE: u16 = 0;
     pub const ITE_PID_LIGHTBAR_BASE: u16 = 0;
     pub const ITE_PID_LIGHTBAR_HINGE: u16 = 0;
+    pub const ITE_PID_AMBIENT_STRIP: u16 = 0;
     pub const USAGE_PAGE_ITE: u16 = 0;
     pub const USAGE_PAGE_FOURZONE: u16 = 0;
     pub const USAGE_PAGE_ME_1ST: u16 = 0;
