@@ -496,7 +496,14 @@ pub fn apply_logo_lighting(
         st.clone()
     };
     crate::driver::ite_lighting::save_lighting_state(&st_snapshot);
-    lighting_state.apply_logo(enabled, effect, brightness, &color);
+    let accepted = lighting_state.apply_logo(enabled, effect, brightness, &color);
+    if !accepted {
+        crate::log_warn!(
+            "LIGHTING_CMD",
+            "apply_logo_lighting: no lighting channel accepted the command (USB 7001 handle missing?)"
+        );
+        return Err("未找到可用的 A 面徽标控制通道，指令未下发到硬件".to_string());
+    }
     Ok(())
 }
 

@@ -275,11 +275,13 @@ impl IteLightingManager {
     pub fn refresh_devices(&self) {
         let contract = self.active_contract();
 
-        // 1. Backend Isolation: If machine is purely EC-driven (e.g. thinbook white backlight) or no lighting,
-        // physically isolate the USB stack! Strictly avoid scanning, opening or polling USB HID bus.
-        if contract.backend != "USB_HID" {
-            return;
-        }
+        // 1. Keyboard USB Stack Isolation:
+        // The USB HID bus may only be touched for the KEYBOARD when its backend actually
+        // needs it. NOTE: this must NOT gate the lightbar / logo / hinge channels.
+        // On hybrid machines (EC SingleZone keyboard + USB ITE 048D:7001 lettering logo,
+        // e.g. GM6IX9B) gating everything on `backend` silently kills A-Cover LOGO control
+        // while the Machine Constitution still declares has_logo = true.
+        let keyboard_needs_usb = contract.backend == "USB_HID";
 
         // 2. Base Lightbar & Lettering Logo Channel:
         // Gated strictly by has_coastline or has_logo!
@@ -301,7 +303,7 @@ impl IteLightingManager {
 
         // 4. Keyboard Channel:
         // Gated strictly by keyboard_type!
-        if contract.keyboard_type == "4Zone" && Self::probe_four_zone_keyboard_exists() {
+        if keyboard_needs_usb && contract.keyboard_type == "4Zone" && Self::probe_four_zone_keyboard_exists() {
             let mut kb = self.kb_dev.lock();
             if kb.is_none() {
                 *kb = IteLightingDevice::open_exact(ITE_VID, ITE_PID_KEYBOARD_FOURZONE, 0, USAGE_PAGE_FOURZONE);
@@ -319,7 +321,7 @@ impl IteLightingManager {
 
     pub fn force_refresh_lightbar(&self) {
         let contract = self.active_contract();
-        if contract.backend == "USB_HID" && (contract.has_coastline || contract.has_logo) {
+        if contract.has_coastline || contract.has_logo {
             let mut lb = self.lb_dev.lock();
             *lb = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_BASE, USAGE_LIGHTBAR);
         }
@@ -327,7 +329,7 @@ impl IteLightingManager {
 
     pub fn force_refresh_hinge(&self) {
         let contract = self.active_contract();
-        if contract.backend == "USB_HID" && contract.has_air_vent {
+        if contract.has_air_vent {
             let mut hg = self.hinge_dev.lock();
             *hg = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_HINGE, 0);
         }
@@ -944,6 +946,20 @@ impl IteLightingManager {
         }
 
         self.refresh_devices();
+
+        // Defensive fallback: if the cached handle is still missing even though the firmware
+        // reports a USB lettering logo, open the device on demand instead of silently
+        // turning the request into a no-op (which used to be reported to the UI as success).
+        if Self::probe_usb_logo_supported() {
+            let mut lb = self.lb_dev.lock();
+            if lb.is_none() {
+                crate::log_warn!(
+                    "LIGHTING_ARBITER",
+                    "apply_logo: cached 7001 handle missing, opening device on demand"
+                );
+                *lb = Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_BASE, USAGE_LIGHTBAR);
+            }
+        }
 
         let light = LIGHTBAR_BRIGHTNESS_MAP
             .get(brightness_idx as usize)
