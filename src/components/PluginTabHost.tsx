@@ -5,7 +5,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow, currentMonitor, LogicalSize, LogicalPosition } from '@tauri-apps/api/window';
 import { HardwareState, PowerMode } from '../types/hardware';
 import { CustomPluginItem } from './PluginsView';
-import { AlertCircle, FolderOpen, RotateCcw, Loader2, ExternalLink, Play, Square } from 'lucide-react';
+import { AlertCircle, FolderOpen, RotateCcw, Loader2, ExternalLink, Minimize2, Play, Square } from 'lucide-react';
 
 export interface PluginServiceStatus {
   plugin_id: string;
@@ -28,7 +28,44 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
   const [error, setError] = useState<string | null>(null);
   const [serviceStatus, setServiceStatus] = useState<PluginServiceStatus | null>(null);
   const [serviceActionLoading, setServiceActionLoading] = useState(false);
+  const [isPoppedOut, setIsPoppedOut] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Sync running state of independent pop-out window
+  useEffect(() => {
+    let unlistenClosed: (() => void) | undefined;
+    let unlistenStatus: (() => void) | undefined;
+
+    const checkRunning = async () => {
+      try {
+        const running = await invoke<string[]>('get_running_widgets');
+        setIsPoppedOut(running.includes(plugin.id));
+      } catch (_) {}
+    };
+
+    checkRunning();
+
+    listen<string>('widget-closed', (event) => {
+      if (event.payload === plugin.id) {
+        setIsPoppedOut(false);
+      }
+    }).then((un) => {
+      unlistenClosed = un;
+    });
+
+    listen<{ plugin_id: string; active: boolean }>('widget-status-changed', (event) => {
+      if (event.payload?.plugin_id === plugin.id) {
+        setIsPoppedOut(!!event.payload.active);
+      }
+    }).then((un) => {
+      unlistenStatus = un;
+    });
+
+    return () => {
+      if (unlistenClosed) unlistenClosed();
+      if (unlistenStatus) unlistenStatus();
+    };
+  }, [plugin.id]);
 
   // Expose OpenRevo Bridge to iframe parent context
   useEffect(() => {
@@ -375,8 +412,18 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
   const handlePopOut = async () => {
     try {
       await invoke('open_custom_widget', { pluginId: plugin.id });
+      setIsPoppedOut(true);
     } catch (err) {
       console.error('Failed to open detached widget window:', err);
+    }
+  };
+
+  const handleClosePopOut = async () => {
+    try {
+      await invoke('close_custom_widget', { pluginId: plugin.id });
+      setIsPoppedOut(false);
+    } catch (err) {
+      console.error('Failed to close detached widget window:', err);
     }
   };
 
@@ -518,15 +565,27 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
             <RotateCcw size={12} />
             <span>刷新</span>
           </button>
-          <button
-            onClick={handlePopOut}
-            className="toggle-btn active-indigo"
-            title="以独立原生窗口弹出运行，支持在玩游戏或脱离主控制台时随时调优"
-            style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
-          >
-            <ExternalLink size={12} />
-            <span>独立视窗运行</span>
-          </button>
+          {isPoppedOut ? (
+            <button
+              onClick={handleClosePopOut}
+              className="toggle-btn active-cyan"
+              title="当前正以独立原生视窗运行，点击收回并关闭独立视窗"
+              style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
+            >
+              <Minimize2 size={12} />
+              <span>收回视窗</span>
+            </button>
+          ) : (
+            <button
+              onClick={handlePopOut}
+              className="toggle-btn active-indigo"
+              title="以独立原生窗口弹出运行，支持在玩游戏或脱离主控制台时随时调优"
+              style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
+            >
+              <ExternalLink size={12} />
+              <span>独立视窗运行</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -7,6 +7,14 @@
   "type": "tab",
   "entry": "index.html",
   "min_host_version": "0.9.5",
+  "window": {
+    "width": 1024,
+    "height": 720,
+    "resizable": true,
+    "decorations": true,
+    "transparent": false,
+    "always_on_top": false
+  },
   "permissions": [
     "hardware:tuning",
     "power:control"

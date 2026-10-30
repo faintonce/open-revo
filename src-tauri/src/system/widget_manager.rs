@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use parking_lot::Mutex;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::commands::system_cmd::RawPluginManifest;
 
@@ -78,14 +78,31 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
         return Err(notice.unwrap_or_else(|| "当前 OpenRevo 版本低于该挂件最低要求版本".into()));
     }
 
-    let win_cfg = manifest.window.clone().unwrap_or(crate::commands::system_cmd::PluginWindowConfig {
-        width: 240.0,
-        height: 320.0,
-        transparent: true,
-        always_on_top: true,
-        resizable: false,
-        decorations: false,
-        skip_taskbar: true,
+    let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
+    let is_tab_plugin = p_type.eq_ignore_ascii_case("tab");
+
+    let win_cfg = manifest.window.clone().unwrap_or_else(|| {
+        if is_tab_plugin {
+            crate::commands::system_cmd::PluginWindowConfig {
+                width: 1024.0,
+                height: 720.0,
+                transparent: false,
+                always_on_top: false,
+                resizable: true,
+                decorations: true,
+                skip_taskbar: false,
+            }
+        } else {
+            crate::commands::system_cmd::PluginWindowConfig {
+                width: 240.0,
+                height: 320.0,
+                transparent: true,
+                always_on_top: true,
+                resizable: false,
+                decorations: false,
+                skip_taskbar: true,
+            }
+        }
     });
 
     // 1. Register fine-grained telemetry sensor subscription
@@ -141,6 +158,10 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
         .skip_taskbar(win_cfg.skip_taskbar)
         .initialization_script(&init_script)
         .visible(false); // Conceal during initial DOM mount to avoid white flash
+
+    if is_tab_plugin {
+        builder = builder.min_inner_size(600.0, 480.0);
+    }
 
     let cfg = crate::system::config::load_config();
     let mut positioned = false;
@@ -247,27 +268,38 @@ pub fn queue_widget_position(plugin_id: String, x: i32, y: i32) {
     }
 }
 
-/// Close and hide an active widget window, freeing all telemetry resources
+/// Clean up runtime telemetry and state when a widget or standalone window closes
+pub fn cleanup_widget_on_close(app: &AppHandle, plugin_id: &str) {
+    let mut active = get_active_widgets().lock();
+    active.remove(plugin_id);
+
+    // Unregister telemetry consumer to restore low-power heartbeat
+    crate::system::telemetry::unregister_consumer(plugin_id);
+
+    // Persist plugin toggle state
+    let mut cfg = crate::system::config::load_config();
+    cfg.custom_plugin_toggles.insert(plugin_id.to_string(), false);
+    crate::system::config::save_config(&cfg);
+
+    let _ = app.emit("widget-closed", plugin_id);
+    let _ = app.emit("widget-status-changed", serde_json::json!({
+        "plugin_id": plugin_id,
+        "active": false
+    }));
+    crate::log_info!("WIDGET", "Cleaned up widget runtime state and notified listeners for '{}'", plugin_id);
+}
+
+/// Close and destroy an active widget or standalone tab window, freeing all telemetry resources
 #[tauri::command]
 pub fn close_custom_widget(app: AppHandle, plugin_id: String) -> Result<bool, String> {
     let label = format_widget_label(&plugin_id);
 
     if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.hide();
-        crate::log_info!("WIDGET", "Widget window '{}' hidden.", label);
+        let _ = win.destroy();
+        crate::log_info!("WIDGET", "Widget window '{}' destroyed cleanly.", label);
     }
 
-    let mut active = get_active_widgets().lock();
-    active.remove(&plugin_id);
-
-    // Unregister telemetry consumer to restore low-power heartbeat
-    crate::system::telemetry::unregister_consumer(&plugin_id);
-
-    // Persist plugin toggle state
-    let mut cfg = crate::system::config::load_config();
-    cfg.custom_plugin_toggles.insert(plugin_id.clone(), false);
-    crate::system::config::save_config(&cfg);
-
+    cleanup_widget_on_close(&app, &plugin_id);
     Ok(true)
 }
 

@@ -450,6 +450,17 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
             }
         }
         WindowEvent::CloseRequested { api, .. } => {
+            let label = window.label();
+            if label.starts_with("widget_") {
+                // Secondary widget or standalone pop-out tab window: allow standard OS/user termination!
+                // Do NOT prevent close here. Let OS & Tauri destroy the window naturally.
+                let plugin_id = label.trim_start_matches("widget_").replace('_', "-");
+                let app = window.app_handle().clone();
+                crate::system::widget_manager::cleanup_widget_on_close(&app, &plugin_id);
+                crate::log_info!("WINDOW", "Widget window '{}' close granted and cleaned up smoothly.", label);
+                return;
+            }
+
             api.prevent_close();
             let scale = window.scale_factor().unwrap_or(1.0);
             if let Ok(sz) = window.inner_size() {
