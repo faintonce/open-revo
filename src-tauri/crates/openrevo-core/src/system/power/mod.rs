@@ -176,7 +176,7 @@ pub fn apply_windows_power_overlay(ui_mode: u8) {
         }
         2 => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
         3 => (&GUID_TURBO_PERF as *const GUID, "GUID_TURBO_PERF (最佳性能)"),
-        4 => (&GUID_TURBO_PERF as *const GUID, "GUID_TURBO_PERF (最佳性能)"),
+        4 => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
         _ => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
     };
 
