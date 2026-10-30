@@ -1,0 +1,15 @@
+{
+  "id": "gpu-curve-tuner",
+  "name": "显卡降压超频极客 (免小飞机)",
+  "version": "1.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "官方演示插件：免安装微星小飞机（MSI Afterburner）的原生 NVIDIA 显卡调谐中心。基于系统级 nvapi64.dll 驱动直连，支持核心/显存无感超频、实时 127 锚点 V/F 曲线解析、一键平移欠压（Undervolt）与防崩安全守卫，所有调优由显卡驱动底层硬件保持。",
+  "type": "tab",
+  "entry": "index.html",
+  "min_host_version": "0.9.4",
+  "permissions": [
+    "hardware:tuning",
+    "power:control"
+  ]
+}
+

@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>显卡降压超频极客 (免小飞机)</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --surface-base: #0b0f17;
+      --surface-card: rgba(22, 27, 34, 0.75);
+      --surface-card-hover: rgba(33, 38, 45, 0.85);
+      --surface-overlay: rgba(255, 255, 255, 0.06);
+      --surface-hover: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-accent: rgba(6, 182, 212, 0.4);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-dim: #94a3b8;
+      --status-ok: #10b981;
+      --status-ok-dim: rgba(16, 185, 129, 0.15);
+      --status-warn: #f59e0b;
+      --status-warn-dim: rgba(245, 158, 11, 0.15);
+      --status-error: #ef4444;
+      --status-error-dim: rgba(239, 68, 68, 0.15);
+      --status-info: #38bdf8;
+      --status-info-dim: rgba(56, 189, 248, 0.15);
+      --accent-cyan: #06b6d4;
+      --accent-indigo: #6366f1;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 18px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    .container {
+      max-width: 1060px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Header Banner */
+    .hero-card {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%), var(--surface-card);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .hero-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hero-title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hero-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .badge-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      background: var(--status-ok-dim);
+      color: var(--status-ok);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-ok);
+      box-shadow: 0 0 8px var(--status-ok);
+    }
+
+    .badge-sync {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Grid Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color 0.15s ease;
+    }
+    .stat-card:hover {
+      border-color: var(--border-medium);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-feature-settings: "tnum";
+      letter-spacing: -0.5px;
+    }
+
+    .stat-hint {
+      font-size: 10.5px;
+      color: var(--text-dim);
+    }
+
+    /* Panel Card */
+    .card-panel {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 10px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Slider Rows */
+    .tune-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+
+    .tune-row-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tune-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .tune-val-badge {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      font-family: Consolas, monospace;
+      padding: 2px 8px;
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+      border-radius: var(--radius-sm);
+    }
+
+    .range-slider {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.12);
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+      cursor: pointer;
+      border: 2px solid #fff;
+    }
+
+    /* Preset Buttons */
+    .preset-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-medium);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preset-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      border-color: var(--accent-cyan);
+    }
+    .preset-btn.active {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    /* Curve Visualization Canvas */
+    .curve-canvas-wrap {
+      background: #06090e;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      position: relative;
+    }
+
+    #vfCanvas {
+      width: 100%;
+      height: 200px;
+      display: block;
+    }
+
+    .canvas-legend {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      justify-content: flex-end;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .legend-color {
+      width: 12px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    /* Action Buttons */
+    .actions-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .btn-group-right {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 9px 18px;
+      font-size: 12.5px;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.15s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #06b6d4, #0284c7);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 4px 18px rgba(6, 182, 212, 0.5);
+      filter: brightness(1.1);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-medium);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--status-error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    /* Console */
+    .console-box {
+      background: #04070c;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      max-height: 105px;
+      overflow-y: auto;
+    }
+
+    .input-field {
+      background: #121826;
+      border: 1px solid var(--border-medium);
+      color: #fff;
+      font-size: 12px;
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      outline: none;
+      width: 90px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header Hero -->
+    <div class="hero-card">
+      <div class="hero-title-group">
+        <div class="hero-title">
+          <span id="gpuTitle">NVIDIA GeForce RTX 4090 Laptop GPU</span>
+          <span class="badge-pill" id="statusPill">
+            <span class="badge-dot"></span>
+            <span>NVAPI 硬件直连就绪</span>
+          </span>
+          <span class="badge-sync" id="modeSyncPill" style="display: none;">
+            <span>🟢 自定义模式联动中 (对齐 config.json)</span>
+          </span>
+        </div>
+        <div class="hero-subtitle">
+          免小飞机纯 Rust 驱动级显卡调优 · 100% 独立便携 · 支持 plugin_storage 与宿主双向事件联动
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="refreshHardwareInfo()">🔄 刷新状态</button>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>核心频率偏移</span>
+          <span id="statTelemetryTemp">--°C</span>
+        </div>
+        <div class="stat-value" id="statCoreOffset">+0 MHz</div>
+        <div class="stat-hint" id="statTelemetryPower">实时 GPU 功耗: -- W</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>显存时钟增量</span>
+          <span id="statTelemetryUsage">--%</span>
+        </div>
+        <div class="stat-value" id="statMemOffset">+0 MHz</div>
+        <div class="stat-hint" id="statTelemetryVram">VRAM 物理显存时钟加成</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>硬件 V/F 锚点</span>
+          <span>ClkVfPoints</span>
+        </div>
+        <div class="stat-value" id="statAnchorCount">127 点</div>
+        <div class="stat-hint" id="statVoltRange">450 mV ~ 1240 mV</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>调谐模式 & 存储</span>
+          <span>plugin_storage</span>
+        </div>
+        <div class="stat-value" id="statModeText" style="color: var(--status-ok);">出厂默认</div>
+        <div class="stat-hint" id="statStorageHint">参数沙盒持久化正常</div>
+      </div>
+    </div>
+
+    <!-- Classic Overclocking Section -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🚀 经典频率时钟调谐 (Core / VRAM Clock Tuning)</span>
+        </div>
+        <span style="font-size: 11px; color: var(--text-dim);">滑块拖动无级调节，松开实时反馈</span>
+      </div>
+
+      <!-- Core Slider -->
+      <div class="tune-row">
+        <div class="tune-row-header">
+          <span class="tune-label">GPU 核心频率偏移 (Core Clock Offset)</span>
+          <span class="tune-val-badge" id="coreValBadge">+0 MHz</span>
+        </div>
+        <input type="range" class="range-slider" id="coreSlider" min="-300" max="250" step="5" value="0"
+          oninput="onCoreSliderChange(this.value)" />
+      </div>
+
+      <!-- Memory Slider -->
+      <div class="tune-row">
+        <div class="tune-row-header">
+          <span class="tune-label">GPU 显存频率偏移 (Memory Clock Offset)</span>
+          <span class="tune-val-badge" id="memValBadge">+0 MHz</span>
+        </div>
+        <input type="range" class="range-slider" id="memSlider" min="0" max="1500" step="25" value="0"
+          oninput="onMemSliderChange(this.value)" />
+      </div>
+    </div>
+
+    <!-- Undervolt Engine (Afterburner Curve Killer) -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>⚡ 免小飞机 V/F 曲线降压引擎 (GPU Undervolting & Flat Lock)</span>
+        </div>
+        <span style="font-size: 11px; color: var(--status-ok);">● 降温 8~15°C · 降低功耗 15~30W · 消灭风啸</span>
+      </div>
+
+      <!-- Quick Preset Capsules -->
+      <div class="preset-pill-row">
+        <button class="preset-btn" onclick="applyPreset(850, 2250, '极致低温 (850mV)')">
+          ❄️ 极致低温 (850mV @ 2250MHz)
+        </button>
+        <button class="preset-btn active" onclick="applyPreset(875, 2450, '黄金甜点 (875mV)')">
+          ⚡ 黄金甜点 (875mV @ 2450MHz)
+        </button>
+        <button class="preset-btn" onclick="applyPreset(900, 2600, '极客能效 (900mV)')">
+          🚀 极客能效 (900mV @ 2600MHz)
+        </button>
+      </div>
+
+      <!-- Custom Input Row -->
+      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 12px; color: var(--text-secondary);">目标锁压 (Target Volt):</span>
+          <input type="number" id="inputTargetVolt" class="input-field" value="875" min="700" max="1100" step="5" />
+          <span style="font-size: 11px; color: var(--text-dim);">mV</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 12px; color: var(--text-secondary);">目标平频 (Target Freq):</span>
+          <input type="number" id="inputTargetFreq" class="input-field" value="2450" min="1500" max="3000" step="10" />
+          <span style="font-size: 11px; color: var(--text-dim);">MHz</span>
+        </div>
+        <button class="btn btn-secondary" style="padding: 5px 12px; font-size: 11.5px;" onclick="applyCustomUndervoltInputs()">
+          📐 计算并绘制曲线
+        </button>
+      </div>
+
+      <!-- V/F Curve Visualizer -->
+      <div class="curve-canvas-wrap">
+        <canvas id="vfCanvas"></canvas>
+        <div class="canvas-legend">
+          <div class="legend-item">
+            <span class="legend-color" style="background: rgba(255, 255, 255, 0.3);"></span>
+            <span>出厂 Stock 曲线</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #06b6d4;"></span>
+            <span>当前生效 V/F 曲线 (平移降压)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions & Console -->
+    <div class="actions-bar">
+      <div>
+        <button class="btn btn-danger" onclick="resetToStock()">⚠️ 恢复出厂设置 (Stock Defaults)</button>
+      </div>
+      <div class="btn-group-right">
+        <button class="btn btn-secondary" onclick="applyClockOffsetsOnly()">仅应用时钟偏移</button>
+        <button class="btn btn-primary" onclick="applyFullUndervoltToHardware()">💾 一键写入显卡硬件生效</button>
+      </div>
+    </div>
+
+    <!-- Output log console -->
+    <div class="console-box" id="consoleBox">
+      [00:00:00] 正在连接 OpenRevo 宿主 NVAPI 驱动网关...
+    </div>
+  </div>
+
+  <script>
+    const PLUGIN_ID = 'gpu-curve-tuner';
+    const LOCAL_STORAGE_KEY = 'openrevo_plugin_gpu_curve_tuner_cfg';
+
+    // --- State Storage ---
+    const STATE = {
+      gpuName: 'NVIDIA GPU',
+      isAvailable: false,
+      supportsVfCurve: false,
+      coreOffset: 0,
+      memOffset: 0,
+      vfPoints: [],
+      plannedDeltas: null,
+      targetVolt: 875,
+      targetFreq: 2450,
+      activeMode: '出厂默认',
+      hostPowerMode: null
+    };
+
+    // --- Unified RPC Invoker ---
+    async function rpc(command, args = {}) {
+      if (window.OpenRevo && typeof window.OpenRevo.invoke === 'function') {
+        return await window.OpenRevo.invoke(command, args);
+      }
+      if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+        return await window.__TAURI__.core.invoke(command, args);
+      }
+      if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.invoke === 'function') {
+        return await window.parent.__OPENREVO_BRIDGE__.invoke(command, args);
+      }
+      throw new Error('未连接到 OpenRevo 宿主通信网关');
+    }
+
+    function log(msg) {
+      const box = document.getElementById('consoleBox');
+      const time = new Date().toTimeString().split(' ')[0];
+      box.innerHTML += `\n[${time}] ${msg}`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // --- Plugin Storage Persistence Engine ---
+    async function loadPluginStorage() {
+      try {
+        let stored = null;
+        if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.get === 'function') {
+          stored = await window.OpenRevo.storage.get();
+        } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
+          stored = await window.parent.__OPENREVO_BRIDGE__.storage.get();
+        } else {
+          try {
+            stored = await rpc('get_plugin_storage', { pluginId: PLUGIN_ID });
+          } catch (_) {
+            const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (raw) stored = JSON.parse(raw);
+          }
+        }
+
+        if (stored && typeof stored === 'object' && Object.keys(stored).length > 0) {
+          if (typeof stored.target_volt === 'number') STATE.targetVolt = stored.target_volt;
+          if (typeof stored.target_freq === 'number') STATE.targetFreq = stored.target_freq;
+          if (typeof stored.active_mode === 'string') STATE.activeMode = stored.active_mode;
+          if (Array.isArray(stored.planned_deltas)) STATE.plannedDeltas = stored.planned_deltas;
+
+          document.getElementById('inputTargetVolt').value = STATE.targetVolt;
+          document.getElementById('inputTargetFreq').value = STATE.targetFreq;
+          document.getElementById('statModeText').textContent = STATE.activeMode;
+          document.getElementById('statStorageHint').textContent = '已恢复 plugin_storage 方案';
+
+          log(`[*] 成功从 plugin_storage 恢复持久化方案: ${STATE.activeMode} (${STATE.targetVolt}mV @ ${STATE.targetFreq}MHz)`);
+        }
+      } catch (err) {
+        console.warn('[Storage] Load failed:', err);
+      }
+    }
+
+    async function savePluginStorage() {
+      const config = {
+        target_volt: STATE.targetVolt,
+        target_freq: STATE.targetFreq,
+        core_offset: STATE.coreOffset,
+        mem_offset: STATE.memOffset,
+        active_mode: STATE.activeMode,
+        planned_deltas: STATE.plannedDeltas,
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(config));
+      } catch (_) {}
+
+      try {
+        if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.set === 'function') {
+          await window.OpenRevo.storage.set(config);
+          document.getElementById('statStorageHint').textContent = '已保存至 plugin_storage';
+          return;
+        }
+        if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
+          await window.parent.__OPENREVO_BRIDGE__.storage.set(config);
+          document.getElementById('statStorageHint').textContent = '已保存至 plugin_storage';
+          return;
+        }
+        await rpc('set_plugin_storage', { pluginId: PLUGIN_ID, data: config });
+        document.getElementById('statStorageHint').textContent = '已保存至 plugin_storage';
+      } catch (e) {
+        console.warn('[Storage] Save failed:', e);
+      }
+    }
+
+    // --- Hardware Data Loading ---
+    async function refreshHardwareInfo() {
+      try {
+        log('正在查询物理显卡 NVAPI 状态...');
+        const info = await rpc('get_gpu_tuning_info');
+        if (!info) {
+          log('[-] 未能获取显卡调优状态');
+          return;
+        }
+
+        STATE.gpuName = info.gpu_name || 'NVIDIA GPU';
+        STATE.isAvailable = info.is_available;
+        STATE.supportsVfCurve = info.supports_vf_curve;
+        STATE.coreOffset = info.core_offset_mhz || 0;
+        STATE.memOffset = info.mem_offset_mhz || 0;
+        STATE.vfPoints = info.vf_points || [];
+
+        document.getElementById('gpuTitle').textContent = STATE.gpuName;
+        document.getElementById('statCoreOffset').textContent = (STATE.coreOffset >= 0 ? '+' : '') + STATE.coreOffset + ' MHz';
+        document.getElementById('statMemOffset').textContent = (STATE.memOffset >= 0 ? '+' : '') + STATE.memOffset + ' MHz';
+        document.getElementById('statAnchorCount').textContent = STATE.vfPoints.length + ' 点';
+
+        document.getElementById('coreSlider').value = STATE.coreOffset;
+        document.getElementById('coreValBadge').textContent = (STATE.coreOffset >= 0 ? '+' : '') + STATE.coreOffset + ' MHz';
+        document.getElementById('memSlider').value = STATE.memOffset;
+        document.getElementById('memValBadge').textContent = (STATE.memOffset >= 0 ? '+' : '') + STATE.memOffset + ' MHz';
+
+        if (STATE.vfPoints.length > 0) {
+          const minV = STATE.vfPoints[0].volt_mv;
+          const maxV = STATE.vfPoints[STATE.vfPoints.length - 1].volt_mv;
+          document.getElementById('statVoltRange').textContent = `${minV} mV ~ ${maxV} mV`;
+        }
+
+        log(`[+] 成功识别 ${STATE.gpuName}，已加载 ${STATE.vfPoints.length} 个硬件 V/F 锚点。`);
+        drawCurve();
+      } catch (err) {
+        log(`[-] 刷新硬件失败: ${err.message || err}`);
+      }
+    }
+
+    // --- Slider Handlers ---
+    function onCoreSliderChange(val) {
+      STATE.coreOffset = parseInt(val, 10);
+      document.getElementById('coreValBadge').textContent = (STATE.coreOffset >= 0 ? '+' : '') + STATE.coreOffset + ' MHz';
+      document.getElementById('statCoreOffset').textContent = (STATE.coreOffset >= 0 ? '+' : '') + STATE.coreOffset + ' MHz';
+    }
+
+    function onMemSliderChange(val) {
+      STATE.memOffset = parseInt(val, 10);
+      document.getElementById('memValBadge').textContent = (STATE.memOffset >= 0 ? '+' : '') + STATE.memOffset + ' MHz';
+      document.getElementById('statMemOffset').textContent = (STATE.memOffset >= 0 ? '+' : '') + STATE.memOffset + ' MHz';
+    }
+
+    // --- Undervolt Calculation & Curve Visualization ---
+    function applyPreset(volt, freq, label) {
+      document.getElementById('inputTargetVolt').value = volt;
+      document.getElementById('inputTargetFreq').value = freq;
+      calculatePlannedCurve(volt, freq, label);
+    }
+
+    function applyCustomUndervoltInputs() {
+      const v = parseInt(document.getElementById('inputTargetVolt').value, 10);
+      const f = parseInt(document.getElementById('inputTargetFreq').value, 10);
+      calculatePlannedCurve(v, f, `自定义 (${v}mV @ ${f}MHz)`);
+    }
+
+    function calculatePlannedCurve(targetVolt, targetFreq, label) {
+      STATE.targetVolt = targetVolt;
+      STATE.targetFreq = targetFreq;
+      STATE.activeMode = label;
+      document.getElementById('statModeText').textContent = label;
+
+      if (!STATE.vfPoints || STATE.vfPoints.length < 16) {
+        log('[-] 缺少 V/F 曲线锚点数据，无法计算');
+        return;
+      }
+
+      // Find target anchor
+      let targetIdx = 0;
+      let minDiff = 999999;
+      for (let i = 0; i < STATE.vfPoints.length; i++) {
+        const diff = Math.abs(STATE.vfPoints[i].volt_mv - targetVolt);
+        if (diff < minDiff) {
+          minDiff = diff;
+          targetIdx = i;
+        }
+      }
+
+      const currentPoints = STATE.vfPoints;
+      const stockFreqAtTarget = currentPoints[targetIdx].freq_mhz - currentPoints[targetIdx].delta_mhz;
+      const baseBoost = Math.max(-300, Math.min(250, targetFreq - stockFreqAtTarget));
+
+      const newDeltas = new Array(currentPoints.length).fill(0);
+      for (let i = 1; i < currentPoints.length; i++) {
+        const stockFreq = currentPoints[i].freq_mhz - currentPoints[i].delta_mhz;
+        if (i <= targetIdx) {
+          newDeltas[i] = baseBoost;
+        } else {
+          const deltaToFlat = targetFreq - stockFreq;
+          newDeltas[i] = Math.max(-500, Math.min(baseBoost, deltaToFlat));
+        }
+      }
+
+      // Monotonic sanity check
+      let prevFreq = currentPoints[0].freq_mhz;
+      for (let i = 1; i < currentPoints.length; i++) {
+        const stockFreq = currentPoints[i].freq_mhz - currentPoints[i].delta_mhz;
+        const effFreq = stockFreq + newDeltas[i];
+        if (effFreq < prevFreq - 25) {
+          newDeltas[i] = Math.max(-500, Math.min(300, prevFreq - stockFreq));
+        }
+        prevFreq = stockFreq + newDeltas[i];
+      }
+
+      STATE.plannedDeltas = newDeltas;
+      log(`[✓] 已计算曲线方案 [${label}]: 低压段抬升 +${baseBoost}MHz, 超出 ${targetVolt}mV 后强制削平锁频至 ${targetFreq}MHz.`);
+      drawCurve();
+    }
+
+    // --- Drawing the V/F Curve on Canvas ---
+    function drawCurve() {
+      const canvas = document.getElementById('vfCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+
+      if (!STATE.vfPoints || STATE.vfPoints.length === 0) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('暂无 V/F 曲线数据', w / 2, h / 2);
+        return;
+      }
+
+      const points = STATE.vfPoints;
+      const minV = 450;
+      const maxV = 1150;
+      const minF = 200;
+      const maxF = 2800;
+
+      const paddingLeft = 45;
+      const paddingRight = 20;
+      const paddingTop = 20;
+      const paddingBottom = 30;
+
+      const plotW = w - paddingLeft - paddingRight;
+      const plotH = h - paddingTop - paddingBottom;
+
+      function toX(volt) {
+        return paddingLeft + ((volt - minV) / (maxV - minV)) * plotW;
+      }
+      function toY(freq) {
+        return h - paddingBottom - ((freq - minF) / (maxF - minF)) * plotH;
+      }
+
+      // Draw Grid Lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'right';
+
+      // Horizontal freq ticks
+      for (let f = 500; f <= 2500; f += 500) {
+        const y = toY(f);
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(w - paddingRight, y);
+        ctx.stroke();
+        ctx.fillText(f + 'M', paddingLeft - 6, y + 3);
+      }
+
+      // Vertical volt ticks
+      ctx.textAlign = 'center';
+      for (let v = 600; v <= 1100; v += 100) {
+        const x = toX(v);
+        ctx.beginPath();
+        ctx.moveTo(x, paddingTop);
+        ctx.lineTo(x, h - paddingBottom);
+        ctx.stroke();
+        ctx.fillText(v + 'mV', x, h - 12);
+      }
+
+      // 1. Draw Stock Curve (Dashed line)
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      let started = false;
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (p.volt_mv < minV || p.volt_mv > maxV) continue;
+        const stockF = p.freq_mhz - p.delta_mhz;
+        const x = toX(p.volt_mv);
+        const y = toY(stockF);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else { ctx.lineTo(x, y); }
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 2. Draw Active / Planned Undervolt Curve (Cyan Solid Line with Glow)
+      ctx.beginPath();
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(6, 182, 212, 0.6)';
+      ctx.shadowBlur = 8;
+      started = false;
+
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (p.volt_mv < minV || p.volt_mv > maxV) continue;
+        const stockF = p.freq_mhz - p.delta_mhz;
+        const delta = STATE.plannedDeltas ? STATE.plannedDeltas[i] : p.delta_mhz;
+        const effF = stockF + delta;
+        const x = toX(p.volt_mv);
+        const y = toY(effF);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else { ctx.lineTo(x, y); }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0; // reset shadow
+
+      // 3. Highlight Target Anchor Point
+      if (STATE.targetVolt) {
+        const targetX = toX(STATE.targetVolt);
+        const targetY = toY(STATE.targetFreq);
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`[${STATE.targetVolt}mV, ${STATE.targetFreq}MHz]`, targetX, targetY - 10);
+      }
+    }
+
+    // --- Hardware Actions ---
+    async function applyClockOffsetsOnly() {
+      try {
+        log(`正在应用频率偏移: 核心 ${STATE.coreOffset} MHz, 显存 ${STATE.memOffset} MHz...`);
+        await rpc('set_gpu_clock_offsets', {
+          coreOffsetMhz: STATE.coreOffset,
+          memOffsetMhz: STATE.memOffset
+        });
+        log('[✓] 核心/显存频率偏移已成功应用生效！');
+        await savePluginStorage();
+        refreshHardwareInfo();
+      } catch (err) {
+        log(`[-] 应用频率偏移失败: ${err.message || err}`);
+      }
+    }
+
+    async function applyFullUndervoltToHardware() {
+      try {
+        // 1. Apply memory offset first
+        if (STATE.memOffset !== 0) {
+          log(`正在同步显存频率加成 +${STATE.memOffset} MHz...`);
+          await rpc('set_gpu_clock_offsets', {
+            coreOffsetMhz: STATE.coreOffset,
+            memOffsetMhz: STATE.memOffset
+          });
+        }
+
+        // 2. Apply planned V/F curve
+        if (STATE.plannedDeltas && STATE.plannedDeltas.length >= 16) {
+          log(`正在向 NVIDIA 驱动写入 ${STATE.plannedDeltas.length} 锚点平移降压曲线...`);
+          await rpc('set_gpu_vf_curve_deltas', { deltasMhz: STATE.plannedDeltas });
+        } else {
+          log(`正在生成并下发目标降压曲线 (${STATE.targetVolt}mV @ ${STATE.targetFreq}MHz)...`);
+          await rpc('set_gpu_undervolt_curve', {
+            targetVoltMv: STATE.targetVolt,
+            maxBoostMhz: STATE.targetFreq
+          });
+        }
+
+        log('🎉 恭喜！免小飞机降压曲线已全量下发至显卡驱动生效！');
+        await savePluginStorage();
+        refreshHardwareInfo();
+      } catch (err) {
+        log(`[-] 写入显卡调优失败: ${err.message || err}`);
+      }
+    }
+
+    async function resetToStock() {
+      try {
+        log('正在还原显卡出厂设置 (清空核心/显存偏移与 V/F 曲线)...');
+        await rpc('reset_gpu_tuning');
+        STATE.plannedDeltas = null;
+        STATE.coreOffset = 0;
+        STATE.memOffset = 0;
+        document.getElementById('statModeText').textContent = '出厂默认';
+        log('[✓] 显卡已成功恢复出厂 stock 状态！');
+        await savePluginStorage();
+        refreshHardwareInfo();
+      } catch (err) {
+        log(`[-] 恢复出厂设置失败: ${err.message || err}`);
+      }
+    }
+
+    // --- Host Synchronization Handlers ---
+    function onExternalOffsetsChanged(coreMhz, memMhz) {
+      if (STATE.coreOffset === coreMhz && STATE.memOffset === memMhz) return;
+      STATE.coreOffset = coreMhz;
+      STATE.memOffset = memMhz;
+
+      document.getElementById('statCoreOffset').textContent = (coreMhz >= 0 ? '+' : '') + coreMhz + ' MHz';
+      document.getElementById('statMemOffset').textContent = (memMhz >= 0 ? '+' : '') + memMhz + ' MHz';
+      document.getElementById('coreSlider').value = coreMhz;
+      document.getElementById('coreValBadge').textContent = (coreMhz >= 0 ? '+' : '') + coreMhz + ' MHz';
+      document.getElementById('memSlider').value = memMhz;
+      document.getElementById('memValBadge').textContent = (memMhz >= 0 ? '+' : '') + memMhz + ' MHz';
+
+      log(`[⟳] 接收到宿主时钟变更广播: Core=${coreMhz >= 0 ? '+' : ''}${coreMhz}MHz, Mem=${memMhz >= 0 ? '+' : ''}${memMhz}MHz，界面已自动镜像同步。`);
+      savePluginStorage();
+    }
+
+    // --- Host Telemetry Listener ---
+    window.addEventListener('message', (e) => {
+      if (!e.data || typeof e.data !== 'object') return;
+      if (e.data.type === 'OPENREVO_TELEMETRY' && e.data.payload) {
+        const s = e.data.payload;
+        STATE.hostPowerMode = s.power_mode;
+
+        // Update telemetry badges
+        if (typeof s.gpu_temp === 'number' && s.gpu_temp > 0) {
+          document.getElementById('statTelemetryTemp').textContent = `${s.gpu_temp}°C`;
+        }
+        if (typeof s.gpu_power_w === 'number') {
+          document.getElementById('statTelemetryPower').textContent = `实时功耗: ${s.gpu_power_w.toFixed(1)} W`;
+        }
+        if (typeof s.gpu_usage === 'number') {
+          document.getElementById('statTelemetryUsage').textContent = `负载: ${s.gpu_usage}%`;
+        }
+        if (s.gpu_vram_used_mb && s.gpu_vram_mb) {
+          document.getElementById('statTelemetryVram').textContent = `显存: ${s.gpu_vram_used_mb} / ${s.gpu_vram_mb} MB`;
+        }
+
+        // Mode 4 indicates Custom Mode
+        const modeSyncPill = document.getElementById('modeSyncPill');
+        if (s.power_mode === 4) {
+          modeSyncPill.style.display = 'inline-flex';
+        } else {
+          modeSyncPill.style.display = 'none';
+        }
+      }
+    });
+
+    // --- Mount Listeners on Load ---
+    window.addEventListener('resize', drawCurve);
+    window.addEventListener('load', async () => {
+      // 1. Load sandboxed plugin storage
+      await loadPluginStorage();
+
+      // 2. Refresh physical hardware state
+      await refreshHardwareInfo();
+
+      // 3. Register Tauri Event Listener for host-wide clock offset sync
+      try {
+        if (window.OpenRevo && typeof window.OpenRevo.listen === 'function') {
+          window.OpenRevo.listen('gpu-clock-offsets-changed', (event) => {
+            if (event.payload) {
+              onExternalOffsetsChanged(event.payload.core_offset_mhz, event.payload.mem_offset_mhz);
+            }
+          });
+        } else if (window.__TAURI__ && window.__TAURI__.event && typeof window.__TAURI__.event.listen === 'function') {
+          window.__TAURI__.event.listen('gpu-clock-offsets-changed', (event) => {
+            if (event.payload) {
+              onExternalOffsetsChanged(event.payload.core_offset_mhz, event.payload.mem_offset_mhz);
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to attach gpu-clock-offsets-changed listener:', err);
+      }
+    });
+  </script>
+</body>
+
+</html>

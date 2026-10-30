@@ -757,8 +757,7 @@
         <div class="slider-input-wrapper">
           <button class="step-btn" onclick="adjustStep(-1)" title="-1%">-</button>
           <input type="range" id="targetSlider" class="range-slider" min="1" max="100" value="80"
-            oninput="onSliderInput(this.value)"
-            onchange="savePluginStorage()" />
+            oninput="onSliderInput(this.value)" onchange="savePluginStorage()" />
           <button class="step-btn" onclick="adjustStep(1)" title="+1%">+</button>
         </div>
       </div>
@@ -1029,7 +1028,7 @@
             return;
           }
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // 2. 尝试父级注入桥接
       try {
@@ -1040,7 +1039,7 @@
             return;
           }
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // 3. postMessage RPC 回退
       try {
@@ -1049,7 +1048,7 @@
           applyStoredConfig(data);
           return;
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // 4. 本地 localStorage 回退保底
       try {
@@ -1057,7 +1056,7 @@
         if (local) {
           applyStoredConfig(JSON.parse(local));
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     async function savePluginStorage() {
@@ -1076,7 +1075,7 @@
       // 1. 优先写本地 localStorage 缓存
       try {
         localStorage.setItem(PLUGIN_STORAGE_KEY, JSON.stringify(config));
-      } catch (_) {}
+      } catch (_) { }
 
       // 2. 写入 OpenRevo 宿主私有沙盒存储 plugin_storage/battery-hardware-limit/config.json
       try {

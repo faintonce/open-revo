@@ -302,6 +302,34 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     }
   };
 
+  // Listen for real-time GPU clock offset sync from plugins or external callers
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<{ core_offset_mhz: number; mem_offset_mhz: number }>('gpu-clock-offsets-changed', (event) => {
+      if (event.payload) {
+        setProfile((prev) => {
+          if (
+            prev.gpu_core_offset_mhz === event.payload.core_offset_mhz &&
+            prev.gpu_mem_offset_mhz === event.payload.mem_offset_mhz
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            gpu_core_offset_mhz: event.payload.core_offset_mhz,
+            gpu_mem_offset_mhz: event.payload.mem_offset_mhz,
+          };
+        });
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
   useEffect(() => {
     if (!activeProfileId || presetsList.length === 0) return;
     const currentPreset = presetsList.find((p) => p.id === activeProfileId);

@@ -805,6 +805,7 @@ pub fn export_profile_preset(id: String) -> Result<Option<String>, String> {
 
 #[tauri::command]
 pub fn apply_live_custom_tweak(
+    app: AppHandle,
     pl1: Option<u16>,
     pl2: Option<u16>,
     pl4: Option<u16>,
@@ -859,18 +860,21 @@ pub fn apply_live_custom_tweak(
             }
         }
 
-        // Apply GPU clock offsets if requested (NVAPI is universal across vendor GPUs)
-        if let (Some(c), Some(m)) = (gpu_core_offset, gpu_mem_offset) {
-            let gpu = crate::driver::gpu_bridge::get_global_gpu();
-            gpu.lock().set_clock_offsets(c, m);
-        } else if let Some(c) = gpu_core_offset {
-            let gpu = crate::driver::gpu_bridge::get_global_gpu();
-            let m = gpu.lock().get_mem_offset();
-            gpu.lock().set_clock_offsets(c, m);
-        } else if let Some(m) = gpu_mem_offset {
-            let gpu = crate::driver::gpu_bridge::get_global_gpu();
-            let c = gpu.lock().get_core_offset();
-            gpu.lock().set_clock_offsets(c, m);
+        // Apply GPU clock offsets only if super_perf is active (or explicitly being turned off)
+        let is_super_perf = super_perf.unwrap_or(cfg.custom_profile.gpu_super_perf);
+        if is_super_perf || super_perf == Some(false) {
+            if let (Some(c), Some(m)) = (gpu_core_offset, gpu_mem_offset) {
+                let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                gpu.lock().set_clock_offsets(c, m);
+            } else if let Some(c) = gpu_core_offset {
+                let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                let m = gpu.lock().get_mem_offset();
+                gpu.lock().set_clock_offsets(c, m);
+            } else if let Some(m) = gpu_mem_offset {
+                let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                let c = gpu.lock().get_core_offset();
+                gpu.lock().set_clock_offsets(c, m);
+            }
         }
 
         return Ok(());
@@ -930,18 +934,33 @@ pub fn apply_live_custom_tweak(
         "Custom Profile Live Tweak",
     );
 
-    // Apply GPU clock offsets if requested
-    if let (Some(c), Some(m)) = (gpu_core_offset, gpu_mem_offset) {
-        let gpu = crate::driver::gpu_bridge::get_global_gpu();
-        gpu.lock().set_clock_offsets(c, m);
-    } else if let Some(c) = gpu_core_offset {
-        let gpu = crate::driver::gpu_bridge::get_global_gpu();
-        let m = gpu.lock().get_mem_offset();
-        gpu.lock().set_clock_offsets(c, m);
-    } else if let Some(m) = gpu_mem_offset {
-        let gpu = crate::driver::gpu_bridge::get_global_gpu();
-        let c = gpu.lock().get_core_offset();
-        gpu.lock().set_clock_offsets(c, m);
+    // Apply GPU clock offsets only if super_perf is active (or explicitly being turned off)
+    let is_super_perf = super_perf.unwrap_or(cfg.custom_profile.gpu_super_perf);
+    if is_super_perf || super_perf == Some(false) {
+        if let (Some(c), Some(m)) = (gpu_core_offset, gpu_mem_offset) {
+            let gpu = crate::driver::gpu_bridge::get_global_gpu();
+            gpu.lock().set_clock_offsets(c, m);
+            let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+                "core_offset_mhz": c,
+                "mem_offset_mhz": m
+            }));
+        } else if let Some(c) = gpu_core_offset {
+            let gpu = crate::driver::gpu_bridge::get_global_gpu();
+            let m = gpu.lock().get_mem_offset();
+            gpu.lock().set_clock_offsets(c, m);
+            let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+                "core_offset_mhz": c,
+                "mem_offset_mhz": m
+            }));
+        } else if let Some(m) = gpu_mem_offset {
+            let gpu = crate::driver::gpu_bridge::get_global_gpu();
+            let c = gpu.lock().get_core_offset();
+            gpu.lock().set_clock_offsets(c, m);
+            let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+                "core_offset_mhz": c,
+                "mem_offset_mhz": m
+            }));
+        }
     }
 
     Ok(())
@@ -1124,3 +1143,78 @@ pub fn set_bld_fan_speed_cap(
 }
 
 
+
+#[tauri::command]
+pub fn get_gpu_tuning_info() -> crate::driver::nvapi::GpuTuningInfo {
+    crate::driver::nvapi::get_gpu_tuning_info()
+}
+
+#[tauri::command]
+pub fn set_gpu_clock_offsets(
+    app: AppHandle,
+    core_offset_mhz: i32,
+    mem_offset_mhz: i32,
+) -> Result<(), String> {
+    // 1. Direct hardware application via NVAPI driver
+    crate::driver::nvapi::set_gpu_clock_offsets(core_offset_mhz, mem_offset_mhz)?;
+
+    // 2. Sync internal GpuBridge atomic state
+    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+    let _ = gpu.lock().set_clock_offsets(core_offset_mhz, mem_offset_mhz);
+
+    // 3. Auto-sync to config.json when in Custom Mode (power_mode == 4)
+    let mut cfg = crate::system::config::load_config();
+    if cfg.power_mode == 4 {
+        cfg.custom_profile.gpu_core_offset_mhz = core_offset_mhz;
+        cfg.custom_profile.gpu_mem_offset_mhz = mem_offset_mhz;
+        let _ = crate::system::config::save_config(&cfg);
+        crate::log_info!("CONFIG", "Synchronized GPU clock offsets to custom_profile in config.json: Core={}MHz, Mem={}MHz", core_offset_mhz, mem_offset_mhz);
+    }
+
+    // 4. Emit event so both host CustomTuningPanel and all plugins receive the update
+    let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+        "core_offset_mhz": core_offset_mhz,
+        "mem_offset_mhz": mem_offset_mhz
+    }));
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_gpu_vf_curve_deltas(deltas_mhz: Vec<i32>) -> Result<(), String> {
+    crate::driver::nvapi::set_gpu_vf_curve_deltas(&deltas_mhz)
+}
+
+#[tauri::command]
+pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Result<(), String> {
+    crate::driver::nvapi::set_gpu_undervolt_curve(target_volt_mv, max_boost_mhz)
+}
+
+#[tauri::command]
+pub fn reset_gpu_vf_curve() -> Result<(), String> {
+    crate::driver::nvapi::reset_gpu_vf_curve()
+}
+
+#[tauri::command]
+pub fn reset_gpu_tuning(app: AppHandle) -> Result<(), String> {
+    crate::driver::nvapi::reset_gpu_tuning()?;
+
+    // Sync internal GpuBridge atomic state
+    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+    let _ = gpu.lock().set_clock_offsets(0, 0);
+
+    // Reset in config.json if in Custom mode
+    let mut cfg = crate::system::config::load_config();
+    if cfg.power_mode == 4 {
+        cfg.custom_profile.gpu_core_offset_mhz = 0;
+        cfg.custom_profile.gpu_mem_offset_mhz = 0;
+        let _ = crate::system::config::save_config(&cfg);
+    }
+
+    let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+        "core_offset_mhz": 0,
+        "mem_offset_mhz": 0
+    }));
+
+    Ok(())
+}

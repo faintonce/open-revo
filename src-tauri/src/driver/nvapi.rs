@@ -16,6 +16,10 @@ const ID_NVAPI_GPU_GET_PSTATES20: u32 = 0x6FF81213;
 const ID_NVAPI_GPU_SET_PSTATES20: u32 = 0x0F4DAE6B;
 const ID_NVAPI_GPU_SET_THERMAL_POLICIES: u32 = 0x34C0B13D;
 const ID_NVAPI_GPU_GET_THERMAL_POLICIES: u32 = 0xE3640A56;
+const ID_NVAPI_GPU_GET_CLOCK_BOOST_MASK: u32 = 0x507B4B59;
+const ID_NVAPI_GPU_GET_CLOCK_BOOST_TABLE: u32 = 0x23F1B133;
+const ID_NVAPI_GPU_SET_CLOCK_BOOST_TABLE: u32 = 0x0733E009;
+const ID_NVAPI_GPU_GET_VF_CURVE_STATUS: u32 = 0x21537AD4;
 
 // Structure definitions for PStates20 v1 and v2
 // Verified on physical silicon:
@@ -29,6 +33,47 @@ pub const PSTATES20_VER2: u32 = 0x00021CF8;
 pub const CLOCK_DOMAIN_GRAPHICS: u32 = 0; // GPU Core Clock
 pub const CLOCK_DOMAIN_MEMORY: u32 = 4;   // VRAM Clock
 
+// V/F Curve and Boost Table layout constants (JiaolongControl & simple-nvidia-undervolt)
+pub const CLOCK_MASKS_SIZE: usize = 6188;
+pub const VF_POINTS_MASK_BYTES: usize = 32;
+
+pub const STATUS_CURVE_SIZE: usize = 7208;
+pub const STATUS_ENTRY_BASE: usize = 0x40; // 64
+pub const STATUS_ENTRY_STRIDE: usize = 28;
+pub const STATUS_TYPE_OFFSET: usize = 0x04;
+pub const STATUS_FREQ_OFFSET: usize = 0x08;
+pub const STATUS_VOLT_OFFSET: usize = 0x0C;
+
+pub const CONTROL_TABLE_SIZE: usize = 9248;
+pub const CTRL_ENTRY_BASE: usize = 0x64; // 100
+pub const CTRL_ENTRY_STRIDE: usize = 36;
+pub const CTRL_DELTA_OFFSET: usize = 0x18; // 24
+
+pub const MIN_CORE_VOLT_UV: i32 = 300_000;
+pub const MAX_CORE_VOLT_UV: i32 = 1_300_000;
+
+#[inline]
+pub fn make_version(size: usize, version: u32) -> u32 {
+    (size as u32) | (version << 16)
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct GpuVfPoint {
+    pub volt_mv: i32,
+    pub freq_mhz: i32,
+    pub delta_mhz: i32,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct GpuTuningInfo {
+    pub gpu_name: String,
+    pub is_available: bool,
+    pub supports_vf_curve: bool,
+    pub core_offset_mhz: i32,
+    pub mem_offset_mhz: i32,
+    pub vf_points: Vec<GpuVfPoint>,
+}
+
 type FnQueryInterface = unsafe extern "C" fn(u32) -> *const ();
 type FnInitialize = unsafe extern "C" fn() -> i32;
 type FnUnload = unsafe extern "C" fn() -> i32;
@@ -38,6 +83,8 @@ type FnGPUGetPstates20 = unsafe extern "C" fn(usize, *mut u8) -> i32;
 type FnGPUSetPstates20 = unsafe extern "C" fn(usize, *const u8) -> i32;
 type FnGPUSetThermalPolicies = unsafe extern "C" fn(usize, *const u8) -> i32;
 type FnGPUGetThermalPolicies = unsafe extern "C" fn(usize, *mut u8) -> i32;
+type FnGpuStruct = unsafe extern "C" fn(usize, *mut u8) -> i32;
+type FnGpuConstStruct = unsafe extern "C" fn(usize, *const u8) -> i32;
 
 struct NvApiBindings {
     _lib: libloading::Library,
@@ -49,6 +96,10 @@ struct NvApiBindings {
     set_pstates20: FnGPUSetPstates20,
     set_thermal_policies: Option<FnGPUSetThermalPolicies>,
     _get_thermal_policies: Option<FnGPUGetThermalPolicies>,
+    get_clock_boost_mask: Option<FnGpuStruct>,
+    get_clock_boost_table: Option<FnGpuStruct>,
+    set_clock_boost_table: Option<FnGpuConstStruct>,
+    get_vf_curve_status: Option<FnGpuStruct>,
     primary_gpu_handle: usize,
 }
 
@@ -90,6 +141,15 @@ fn load_nvapi() -> Option<NvApiBindings> {
         let get_thermal_policies = get_proc(ID_NVAPI_GPU_GET_THERMAL_POLICIES)
             .map(|p| std::mem::transmute(p));
 
+        let get_clock_boost_mask: Option<FnGpuStruct> = get_proc(ID_NVAPI_GPU_GET_CLOCK_BOOST_MASK)
+            .map(|p| std::mem::transmute(p));
+        let get_clock_boost_table: Option<FnGpuStruct> = get_proc(ID_NVAPI_GPU_GET_CLOCK_BOOST_TABLE)
+            .map(|p| std::mem::transmute(p));
+        let set_clock_boost_table: Option<FnGpuConstStruct> = get_proc(ID_NVAPI_GPU_SET_CLOCK_BOOST_TABLE)
+            .map(|p| std::mem::transmute(p));
+        let get_vf_curve_status: Option<FnGpuStruct> = get_proc(ID_NVAPI_GPU_GET_VF_CURVE_STATUS)
+            .map(|p| std::mem::transmute(p));
+
         let ret = initialize();
         if ret != NVAPI_OK {
             crate::log_warn!("NVAPI", "NvAPI_Initialize returned error code: {}", ret);
@@ -125,6 +185,10 @@ fn load_nvapi() -> Option<NvApiBindings> {
             set_pstates20,
             set_thermal_policies,
             _get_thermal_policies: get_thermal_policies,
+            get_clock_boost_mask,
+            get_clock_boost_table,
+            set_clock_boost_table,
+            get_vf_curve_status,
             primary_gpu_handle,
         })
     }
@@ -273,4 +337,234 @@ pub fn set_gpu_thermal_limit(celsius: u32) -> Result<(), String> {
             Err(format!("NVAPI Set Thermal Policies failed: error code {}", ret))
         }
     }
+}
+
+/// Retrieve the 32-byte active VF Points Mask from hardware
+fn get_vf_points_mask_raw(drv: &NvApiBindings) -> Option<[u8; VF_POINTS_MASK_BYTES]> {
+    let func = drv.get_clock_boost_mask?;
+    let mut buf = vec![0u8; CLOCK_MASKS_SIZE];
+    let ver = make_version(CLOCK_MASKS_SIZE, 1);
+    buf[0..4].copy_from_slice(&ver.to_le_bytes());
+
+    let ret = unsafe { func(drv.primary_gpu_handle, buf.as_mut_ptr()) };
+    if ret != NVAPI_OK {
+        crate::log_warn!("NVAPI", "IdGpuGetClockBoostMask returned NVAPI code: {}", ret);
+        return None;
+    }
+    let mut mask = [0u8; VF_POINTS_MASK_BYTES];
+    mask.copy_from_slice(&buf[4..4 + VF_POINTS_MASK_BYTES]);
+    Some(mask)
+}
+
+/// Read the real-time active V/F (Voltage/Frequency) curve from NVIDIA GPU
+pub fn get_gpu_vf_curve() -> Option<Vec<GpuVfPoint>> {
+    let drv = get_driver()?;
+    let get_curve = drv.get_vf_curve_status?;
+    let _guard = NVAPI_MUTEX.lock();
+
+    let mask = get_vf_points_mask_raw(drv)?;
+
+    let mut buf = vec![0u8; STATUS_CURVE_SIZE];
+    let ver = make_version(STATUS_CURVE_SIZE, 1);
+    buf[0..4].copy_from_slice(&ver.to_le_bytes());
+    buf[4..4 + VF_POINTS_MASK_BYTES].copy_from_slice(&mask);
+
+    let ret = unsafe { get_curve(drv.primary_gpu_handle, buf.as_mut_ptr()) };
+    if ret != NVAPI_OK {
+        crate::log_warn!("NVAPI", "IdGpuGetVfCurveStatus returned NVAPI code: {}", ret);
+        return None;
+    }
+
+    let mut points = Vec::new();
+    let mut last_volt_uv = 0;
+
+    let mut e = STATUS_ENTRY_BASE;
+    while e + STATUS_ENTRY_STRIDE <= buf.len() {
+        let entry_type = i32::from_le_bytes(buf[e + STATUS_TYPE_OFFSET..e + STATUS_TYPE_OFFSET + 4].try_into().unwrap());
+        if entry_type != 0 {
+            // Memory domain anchors immediately terminate Graphics Core domain points
+            break;
+        }
+
+        let freq_khz = i32::from_le_bytes(buf[e + STATUS_FREQ_OFFSET..e + STATUS_FREQ_OFFSET + 4].try_into().unwrap());
+        let volt_uv = i32::from_le_bytes(buf[e + STATUS_VOLT_OFFSET..e + STATUS_VOLT_OFFSET + 4].try_into().unwrap());
+
+        if volt_uv < MIN_CORE_VOLT_UV || volt_uv > MAX_CORE_VOLT_UV {
+            break;
+        }
+
+        // Sub-millivolt non-increasing flags the end of physical anchors
+        if !points.is_empty() && volt_uv <= last_volt_uv {
+            break;
+        }
+
+        last_volt_uv = volt_uv;
+        points.push(GpuVfPoint {
+            volt_mv: volt_uv / 1000,
+            freq_mhz: freq_khz.max(0) / 1000,
+            delta_mhz: 0,
+        });
+
+        e += STATUS_ENTRY_STRIDE;
+    }
+
+    // Correlate with current editable delta table
+    if let Some(get_table) = drv.get_clock_boost_table {
+        let mut ctrl_buf = vec![0u8; CONTROL_TABLE_SIZE];
+        let ctrl_ver = make_version(CONTROL_TABLE_SIZE, 1);
+        ctrl_buf[0..4].copy_from_slice(&ctrl_ver.to_le_bytes());
+        ctrl_buf[4..4 + VF_POINTS_MASK_BYTES].copy_from_slice(&mask);
+
+        let t_ret = unsafe { get_table(drv.primary_gpu_handle, ctrl_buf.as_mut_ptr()) };
+        if t_ret == NVAPI_OK {
+            for i in 1..points.len() {
+                let pos = CTRL_ENTRY_BASE + (i - 1) * CTRL_ENTRY_STRIDE + CTRL_DELTA_OFFSET;
+                if pos + 4 <= ctrl_buf.len() {
+                    let raw_delta = i32::from_le_bytes(ctrl_buf[pos..pos + 4].try_into().unwrap());
+                    points[i].delta_mhz = raw_delta / 1000;
+                }
+            }
+        }
+    }
+
+    Some(points)
+}
+
+/// Set per-anchor frequency delta offsets (in MHz) directly into NVIDIA V/F Boost Table.
+/// Includes hardware sanity boundaries and strict buffer capacity protections.
+pub fn set_gpu_vf_curve_deltas(deltas_mhz: &[i32]) -> Result<(), String> {
+    if deltas_mhz.len() < 16 {
+        return Err("V/F 曲线有效锚点数过少 (< 16)，拒绝写入以防异常".to_string());
+    }
+    let max_pos = CTRL_ENTRY_BASE + (deltas_mhz.len() - 1) * CTRL_ENTRY_STRIDE + CTRL_DELTA_OFFSET + 4;
+    if max_pos > CONTROL_TABLE_SIZE {
+        return Err(format!("V/F 曲线锚点数超出控制表容量限制 ({} > {})", max_pos, CONTROL_TABLE_SIZE));
+    }
+
+    // Safety guard: Clamp individual delta range within -500 MHz .. +300 MHz
+    for (i, &d) in deltas_mhz.iter().enumerate() {
+        if d < -500 || d > 300 {
+            return Err(format!("锚点 #{} 频率偏移超出安全边界 (-500 ~ +300 MHz): {} MHz", i, d));
+        }
+    }
+
+    let drv = get_driver().ok_or_else(|| "NVIDIA NVAPI 不可用".to_string())?;
+    let get_table = drv.get_clock_boost_table.ok_or_else(|| "当前显卡驱动不支持读取 V/F 控制表".to_string())?;
+    let set_table = drv.set_clock_boost_table.ok_or_else(|| "当前显卡驱动不支持写入 V/F 控制表".to_string())?;
+    let _guard = NVAPI_MUTEX.lock();
+
+    let mask = get_vf_points_mask_raw(drv).ok_or_else(|| "读取 GPU VF 掩码失败".to_string())?;
+
+    let mut buf = vec![0u8; CONTROL_TABLE_SIZE];
+    let ver = make_version(CONTROL_TABLE_SIZE, 1);
+    buf[0..4].copy_from_slice(&ver.to_le_bytes());
+    buf[4..4 + VF_POINTS_MASK_BYTES].copy_from_slice(&mask);
+
+    // Read existing table first (read-modify-write) to guarantee vendor reserved fields integrity
+    let ret = unsafe { get_table(drv.primary_gpu_handle, buf.as_mut_ptr()) };
+    if ret != NVAPI_OK {
+        return Err(format!("读取当前时钟控制表失败: NVAPI 代码 {}", ret));
+    }
+
+    // Overwrite deltas (Anchor 0 is hardware baseline root and skipped)
+    for i in 1..deltas_mhz.len() {
+        let pos = CTRL_ENTRY_BASE + (i - 1) * CTRL_ENTRY_STRIDE + CTRL_DELTA_OFFSET;
+        let delta_khz = deltas_mhz[i] * 1000;
+        buf[pos..pos + 4].copy_from_slice(&delta_khz.to_le_bytes());
+    }
+
+    // Reseal version and request mask
+    buf[0..4].copy_from_slice(&ver.to_le_bytes());
+    buf[4..4 + VF_POINTS_MASK_BYTES].copy_from_slice(&mask);
+
+    let set_ret = unsafe { set_table(drv.primary_gpu_handle, buf.as_ptr()) };
+    if set_ret != NVAPI_OK {
+        crate::log_error!("NVAPI", "写入 V/F 曲线控制表失败: 代码 {}", set_ret);
+        return Err(format!("写入 V/F 曲线控制表失败: NVAPI 代码 {}", set_ret));
+    }
+
+    crate::log_info!("NVAPI", "V/F 曲线 {} 个锚点频率已成功编程至显卡驱动！", deltas_mhz.len());
+    Ok(())
+}
+
+/// Generate and apply a classic Afterburner-style horizontal flattened undervolt curve.
+/// Elevates low-voltage curve by boost offset, then strictly flattens all anchors beyond target_volt_mv.
+pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Result<(), String> {
+    let current_points = get_gpu_vf_curve().ok_or_else(|| "读取当前显卡 V/F 曲线失败".to_string())?;
+    if current_points.len() < 16 {
+        return Err("有效锚点数不足".to_string());
+    }
+
+    // Locate anchor closest to requested target voltage
+    let mut target_idx = 0;
+    let mut min_diff = i32::MAX;
+    for (i, p) in current_points.iter().enumerate() {
+        let diff = (p.volt_mv - target_volt_mv).abs();
+        if diff < min_diff {
+            min_diff = diff;
+            target_idx = i;
+        }
+    }
+
+    let stock_freq_at_target = current_points[target_idx].freq_mhz - current_points[target_idx].delta_mhz;
+    let base_boost = (max_boost_mhz - stock_freq_at_target).clamp(-300, 250);
+
+    let mut new_deltas = vec![0i32; current_points.len()];
+    for i in 1..current_points.len() {
+        let stock_freq = current_points[i].freq_mhz - current_points[i].delta_mhz;
+        if i <= target_idx {
+            // Ascending region: lift curve by base_boost
+            new_deltas[i] = base_boost;
+        } else {
+            // Flattened region: pin effective target frequency to max_boost_mhz
+            let delta_to_flat = max_boost_mhz - stock_freq;
+            new_deltas[i] = delta_to_flat.clamp(-500, base_boost);
+        }
+    }
+
+    // Monotonicity Sanity Guard (Adjacent dip <= 25 MHz)
+    let mut prev_freq = current_points[0].freq_mhz;
+    for i in 1..current_points.len() {
+        let stock_freq = current_points[i].freq_mhz - current_points[i].delta_mhz;
+        let eff_freq = stock_freq + new_deltas[i];
+        if eff_freq < prev_freq - 25 {
+            new_deltas[i] = (prev_freq - stock_freq).clamp(-500, 300);
+        }
+        prev_freq = stock_freq + new_deltas[i];
+    }
+
+    set_gpu_vf_curve_deltas(&new_deltas)
+}
+
+/// Reset all V/F curve deltas back to factory baseline (0 MHz offset on all anchors)
+pub fn reset_gpu_vf_curve() -> Result<(), String> {
+    let current_points = get_gpu_vf_curve().ok_or_else(|| "读取当前显卡 V/F 曲线失败".to_string())?;
+    let zero_deltas = vec![0i32; current_points.len()];
+    set_gpu_vf_curve_deltas(&zero_deltas)
+}
+
+/// Complete GPU Tuning status snapshot for frontend plugins and controls
+pub fn get_gpu_tuning_info() -> GpuTuningInfo {
+    let name = get_gpu_full_name().unwrap_or_else(|| "NVIDIA GPU".to_string());
+    let is_avail = is_nvapi_available();
+    let (core, mem) = get_gpu_clock_offsets().unwrap_or((0, 0));
+    let points = get_gpu_vf_curve().unwrap_or_default();
+    let supports_vf = !points.is_empty();
+
+    GpuTuningInfo {
+        gpu_name: name,
+        is_available: is_avail,
+        supports_vf_curve: supports_vf,
+        core_offset_mhz: core,
+        mem_offset_mhz: mem,
+        vf_points: points,
+    }
+}
+
+/// Reset all GPU tuning (both PState clock offsets and V/F curve) back to stock factory settings
+pub fn reset_gpu_tuning() -> Result<(), String> {
+    let _ = reset_gpu_clock_offsets();
+    let _ = reset_gpu_vf_curve();
+    crate::log_info!("NVAPI", "GPU tuning states successfully restored to factory defaults");
+    Ok(())
 }

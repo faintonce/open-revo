@@ -131,11 +131,14 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             }
 
             // 5. Dynamic GPU DB & TGP (Eco / Quiet Baseline)
-            // Neutralize any GPU overclocking offsets applied in Custom Mode (only if discrete GPU is present)
+            // Neutralize any GPU overclocking offsets ONLY if OpenRevo custom mode had super_perf enabled
             if crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
-                let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
-                let gpu = crate::driver::gpu_bridge::get_global_gpu();
-                gpu.lock().set_clock_offsets(0, 0);
+                let cfg = crate::system::config::load_config();
+                if cfg.custom_profile.gpu_super_perf {
+                    let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
+                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                    gpu.lock().set_clock_offsets(0, 0);
+                }
 
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
                 if gpu_caps.supports_gpu_tuning {
@@ -204,11 +207,14 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             }
 
             // 5. Dynamic GPU DB & TGP (Full factory Base TGP and DB capacity, discrete GPU only)
-            // Neutralize any GPU overclocking offsets applied in Custom Mode
+            // Neutralize any GPU overclocking offsets ONLY if OpenRevo custom mode had super_perf enabled
             if crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
-                let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
-                let gpu = crate::driver::gpu_bridge::get_global_gpu();
-                gpu.lock().set_clock_offsets(0, 0);
+                let cfg = crate::system::config::load_config();
+                if cfg.custom_profile.gpu_super_perf {
+                    let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
+                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                    gpu.lock().set_clock_offsets(0, 0);
+                }
 
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
                 if gpu_caps.supports_gpu_tuning {
@@ -277,11 +283,14 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             }
 
             // 5. Dynamic GPU DB & TGP (Full factory Base TGP and DB capacity, discrete GPU only)
-            // Neutralize any GPU overclocking offsets applied in Custom Mode
+            // Neutralize any GPU overclocking offsets ONLY if OpenRevo custom mode had super_perf enabled
             if crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
-                let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
-                let gpu = crate::driver::gpu_bridge::get_global_gpu();
-                gpu.lock().set_clock_offsets(0, 0);
+                let cfg = crate::system::config::load_config();
+                if cfg.custom_profile.gpu_super_perf {
+                    let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
+                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                    gpu.lock().set_clock_offsets(0, 0);
+                }
 
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
                 if gpu_caps.supports_gpu_tuning {
@@ -405,9 +414,9 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                         gpu.lock().set_clock_offsets(profile.gpu_core_offset_mhz, profile.gpu_mem_offset_mhz);
                     }
                 } else {
-                    let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
-                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
-                    gpu.lock().set_clock_offsets(0, 0);
+                    // Critical Guard: When gpu_super_perf is disabled, do NOT touch or reset NVAPI clock offsets.
+                    // This prevents wiping out external tuning tools (e.g. MSI Afterburner, GPU Curve Tuner plugin).
+                    crate::log_info!("POWER_MODE", "Custom Mode: gpu_super_perf is OFF, bypassing GPU clock offset overrides.");
                 }
             }
 
