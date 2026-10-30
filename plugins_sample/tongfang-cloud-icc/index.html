@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>同方原厂云端校色助手</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --surface-base: #0b0f17;
+      --surface-card: rgba(22, 27, 34, 0.75);
+      --surface-card-hover: rgba(33, 38, 45, 0.85);
+      --surface-overlay: rgba(255, 255, 255, 0.06);
+      --surface-hover: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-accent: rgba(56, 189, 248, 0.4);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-dim: #94a3b8;
+      --status-ok: #10b981;
+      --status-ok-dim: rgba(16, 185, 129, 0.15);
+      --status-warn: #f59e0b;
+      --status-warn-dim: rgba(245, 158, 11, 0.15);
+      --status-error: #ef4444;
+      --status-error-dim: rgba(239, 68, 68, 0.15);
+      --status-info: #38bdf8;
+      --status-info-dim: rgba(56, 189, 248, 0.15);
+      --accent-cyan: #06b6d4;
+      --accent-indigo: #6366f1;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    [data-theme="mono"] {
+      --accent-cyan: #ffffff;
+      --accent-indigo: #e2e8f0;
+      --border-accent: rgba(255, 255, 255, 0.4);
+      --status-info: #ffffff;
+      --status-info-dim: rgba(255, 255, 255, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 16px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Header Banner */
+    .hero-card {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%), var(--surface-card);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .hero-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hero-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: var(--status-info-dim);
+      border: 1px solid var(--border-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--status-info);
+      flex-shrink: 0;
+    }
+
+    .hero-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hero-badge {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .hero-desc {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+
+    /* Standard Card */
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .grid-props {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .prop-item {
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .prop-label {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .prop-value {
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--text-primary);
+      word-break: break-all;
+      font-weight: 600;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      outline: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-indigo) 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.25);
+    }
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.1);
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.35);
+    }
+
+    .btn-secondary {
+      background: var(--surface-overlay);
+      color: var(--text-secondary);
+      border-color: var(--border-medium);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    .btn-success {
+      background: var(--status-ok);
+      color: #0b0f17;
+      font-weight: 700;
+    }
+    .btn-success:hover:not(:disabled) {
+      filter: brightness(1.1);
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+    }
+
+    /* Controls bar */
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .segment-group {
+      display: inline-flex;
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .segment-btn {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-dim);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .segment-btn.active {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Profile Selector Dropdown / Row */
+    .profile-select-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      margin-top: 10px;
+    }
+
+    .profile-select-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .rev-select {
+      background: #06090e;
+      color: var(--text-primary);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      padding: 5px 10px;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    /* Terminal Console Log */
+    .console-card {
+      background: #06090e;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 8px;
+      word-break: break-all;
+    }
+
+    .log-time {
+      color: #64748b;
+      flex-shrink: 0;
+    }
+
+    .log-hit {
+      color: #34d399;
+      font-weight: 700;
+    }
+    .log-miss {
+      color: #64748b;
+    }
+    .log-info {
+      color: #38bdf8;
+    }
+    .log-warn {
+      color: #fbbf24;
+    }
+
+    /* Result Banner */
+    .result-banner {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .result-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .result-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--status-ok-dim);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: var(--status-ok);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .result-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .result-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .result-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Hero Banner -->
+    <div class="hero-card">
+      <div class="hero-left">
+        <div class="hero-icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            <path d="M5 3v4"/>
+            <path d="M19 17v4"/>
+            <path d="M3 5h4"/>
+            <path d="M17 19h4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="hero-title">
+            同方原厂云端校色助手
+            <span class="hero-badge">Cloud ICC v1.1</span>
+          </div>
+          <div class="hero-desc">
+            40/50 系多通道分流架构：针对 40 系自动定向 Uniwill 节点 (MAC 检索)，50 系定向 Aistone 节点并支持广色域多档位解压。
+          </div>
+        </div>
+      </div>
+      <div>
+        <button id="btnRefreshIdentity" class="btn btn-secondary" title="重新读取屏幕与主板硬件信息">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+            <path d="M8 16H3v5"/>
+          </svg>
+          重新探测
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 1: Hardware Identity -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="14" x="2" y="3" rx="2"/>
+            <line x1="8" x2="16" y1="21" y2="21"/>
+            <line x1="12" x2="12" y1="17" y2="21"/>
+          </svg>
+          本机硬件指纹库 (Hardware Fingerprint)
+        </div>
+        <span id="identStatus" class="hero-badge">探测中...</span>
+      </div>
+
+      <div class="grid-props">
+        <div class="prop-item">
+          <div class="prop-label">声明式驱动架构 (Hardware Truth)</div>
+          <div id="valArch" class="prop-value" style="color: var(--status-info);">--</div>
+        </div>
+        <div class="prop-item">
+          <div class="prop-label">屏幕面板 PnP 代码 (EDID)</div>
+          <div id="valPnp" class="prop-value">--</div>
+        </div>
+        <div class="prop-item">
+          <div class="prop-label">屏幕序列号 (Panel SN)</div>
+          <div id="valPanelSn" class="prop-value">--</div>
+        </div>
+        <div class="prop-item">
+          <div class="prop-label">主机 BIOS 序列号</div>
+          <div id="valBiosSn" class="prop-value">--</div>
+        </div>
+        <div class="prop-item">
+          <div class="prop-label">物理网卡 MAC 地址</div>
+          <div id="valMac" class="prop-value">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Retrieval Center -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="m10 15 5-3-5-3v6Z"/>
+          </svg>
+          云端校色探测与匹配中心
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 12px; color: var(--text-dim);">机型架构：</span>
+          <div class="segment-group">
+            <button class="segment-btn active" data-mode="auto">智能自动 (50系 $\rightarrow$ 40系)</button>
+            <button class="segment-btn" data-mode="40">40 系 (Uniwill · MAC检索)</button>
+            <button class="segment-btn" data-mode="50">50 系 (Aistone · SN检索)</button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button id="btnStartQuery" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            开始云端检索
+          </button>
+        </div>
+      </div>
+
+      <!-- Result Banner (Hidden initially) -->
+      <div id="resultBanner" class="result-banner hidden">
+        <div class="result-header">
+          <div class="result-info">
+            <div class="result-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6 9 17l-5-5"/>
+              </svg>
+            </div>
+            <div>
+              <div id="hitFileName" class="result-name">BOE0B87_B025AA6D0A6A.icm</div>
+              <div id="hitMeta" class="result-meta">大小: 20.2 KB · 包含有效 acsp 签名 · 原厂出厂专属调校</div>
+            </div>
+          </div>
+          <div class="result-actions">
+            <button id="btnApply" class="btn btn-success">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6 9 17l-5-5"/>
+              </svg>
+              应用所选校色
+            </button>
+            <button id="btnApplyAll" class="btn btn-secondary hidden" title="将压缩包内的全部校色档导入 OpenRevo">
+              批量导入全部档位
+            </button>
+            <button id="btnSaveLocal" class="btn btn-secondary">
+              下载备份
+            </button>
+          </div>
+        </div>
+
+        <!-- Multi-profile Dropdown (For 50 Series Wide Color Gamut ZIP packages) -->
+        <div id="profileSelectRow" class="profile-select-row hidden">
+          <span class="profile-select-label">选择要应用的色彩配置：</span>
+          <select id="profileDropdown" class="rev-select"></select>
+        </div>
+      </div>
+
+      <!-- Realtime Log Console -->
+      <div id="consoleLog" class="console-card">
+        <div class="log-line">
+          <span class="log-time">[准备就绪]</span>
+          <span class="log-info">选择机型架构后点击“开始云端检索”，系统将自动分流定向至官方出厂校色节点。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Unified RPC Invocation Gateway ---
+    async function rpc(command, args = {}) {
+      if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.invoke === 'function') {
+        return await window.parent.__OPENREVO_BRIDGE__.invoke(command, args);
+      }
+      if (window.OpenRevo && typeof window.OpenRevo.invoke === 'function') {
+        return await window.OpenRevo.invoke(command, args);
+      }
+      if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+        return await window.__TAURI__.core.invoke(command, args);
+      }
+      throw new Error('OpenRevo Bridge is not available');
+    }
+
+    // --- State Management ---
+    let STATE = {
+      identity: null,
+      mode: 'auto', // 'auto' | '40' | '50'
+      isSearching: false,
+      hitResult: null,
+      selectedProfileIndex: 0,
+    };
+
+    const DOM = {
+      valArch: document.getElementById('valArch'),
+      valPnp: document.getElementById('valPnp'),
+      valPanelSn: document.getElementById('valPanelSn'),
+      valBiosSn: document.getElementById('valBiosSn'),
+      valMac: document.getElementById('valMac'),
+      identStatus: document.getElementById('identStatus'),
+      btnRefreshIdentity: document.getElementById('btnRefreshIdentity'),
+      btnStartQuery: document.getElementById('btnStartQuery'),
+      consoleLog: document.getElementById('consoleLog'),
+      resultBanner: document.getElementById('resultBanner'),
+      hitFileName: document.getElementById('hitFileName'),
+      hitMeta: document.getElementById('hitMeta'),
+      btnApply: document.getElementById('btnApply'),
+      btnApplyAll: document.getElementById('btnApplyAll'),
+      btnSaveLocal: document.getElementById('btnSaveLocal'),
+      profileSelectRow: document.getElementById('profileSelectRow'),
+      profileDropdown: document.getElementById('profileDropdown'),
+    };
+
+    function appendLog(type, msg) {
+      const now = new Date().toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      let typeClass = 'log-info';
+      if (type === 'hit') typeClass = 'log-hit';
+      else if (type === 'miss') typeClass = 'log-miss';
+      else if (type === 'warn') typeClass = 'log-warn';
+
+      div.innerHTML = `<span class="log-time">[${now}]</span><span class="${typeClass}">${msg}</span>`;
+      DOM.consoleLog.appendChild(div);
+      DOM.consoleLog.scrollTop = DOM.consoleLog.scrollHeight;
+    }
+
+    // --- Load Identity ---
+    async function refreshIdentity() {
+      DOM.identStatus.textContent = '探测中...';
+      try {
+        const id = await rpc('get_cloud_icc_identity');
+        STATE.identity = id;
+
+        const mainMon = id.monitors.find(m => m.is_internal) || id.monitors[0];
+        DOM.valArch.textContent = id.arch_name || '未知架构';
+        DOM.valPnp.textContent = mainMon ? mainMon.pnp : '未检出';
+        DOM.valPanelSn.textContent = (mainMon && mainMon.panel_serial) ? mainMon.panel_serial : '(无独立面板SN)';
+        DOM.valBiosSn.textContent = id.bios_serial || '未检出';
+        DOM.valMac.textContent = id.mac_addresses.length > 0 ? id.mac_addresses.join(' / ') : '未检出';
+
+        DOM.identStatus.textContent = `就绪 (发现 ${id.monitors.length} 块显示屏)`;
+        DOM.identStatus.style.color = 'var(--status-ok)';
+        appendLog('info', `[硬件真值识别] 声明式底层架构：${id.arch_name}，PnP=${mainMon ? mainMon.pnp : 'None'}，MAC数=${id.mac_addresses.length}`);
+
+        // Automatically switch segment button to hardware recommended method
+        if (id.recommended_method) {
+          document.querySelectorAll('.segment-btn').forEach(btn => {
+            if (btn.dataset.mode === id.recommended_method) {
+              btn.click();
+            }
+          });
+        }
+      } catch (err) {
+        DOM.identStatus.textContent = '探测失败';
+        DOM.identStatus.style.color = 'var(--status-error)';
+        appendLog('warn', `硬件识别异常: ${err.message || err}`);
+      }
+    }
+
+    // --- Mode Selectors ---
+    document.querySelectorAll('.segment-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        STATE.mode = btn.dataset.mode;
+        appendLog('info', `已选择检索架构：${btn.textContent}`);
+      });
+    });
+
+    // --- Query Pipeline ---
+    async function startQuery() {
+      if (!STATE.identity) {
+        await refreshIdentity();
+      }
+      if (!STATE.identity) {
+        alert('无法获取本机硬件识别码，请先点击重新探测');
+        return;
+      }
+
+      DOM.resultBanner.classList.add('hidden');
+      DOM.profileSelectRow.classList.add('hidden');
+      DOM.btnApplyAll.classList.add('hidden');
+      STATE.hitResult = null;
+      STATE.isSearching = true;
+      DOM.btnStartQuery.disabled = true;
+
+      // Group candidate rules strictly
+      let candidateQueue = [];
+      if (STATE.mode === '50') {
+        // 50 series: SN candidates first with method="50"
+        candidateQueue = STATE.identity.candidates_method1.map(c => ({ name: c, method: '50', label: '50系专属(SN)' }));
+      } else if (STATE.mode === '40') {
+        // 40 series: MAC candidates first with method="40"
+        candidateQueue = STATE.identity.candidates_method2.map(c => ({ name: c, method: '40', label: '40系专属(MAC)' }));
+      } else {
+        // Auto mode: 50 series first, then 40 series, then fallback
+        candidateQueue = [
+          ...STATE.identity.candidates_method1.map(c => ({ name: c, method: '50', label: '方法1 [50系 Aistone]' })),
+          ...STATE.identity.candidates_method2.map(c => ({ name: c, method: '40', label: '方法2 [40系 Uniwill]' })),
+          ...STATE.identity.candidates_fallback.map(c => ({ name: c, method: 'auto', label: '方法3 [通用兜底]' })),
+        ];
+      }
+
+      appendLog('info', `启动分流检索队列，共计 ${candidateQueue.length} 个候选方案...`);
+
+      let hit = null;
+      for (let i = 0; i < candidateQueue.length; i++) {
+        const item = candidateQueue[i];
+        appendLog('info', `正在检索 [${i + 1}/${candidateQueue.length}] ${item.label} -> ${item.name}...`);
+        try {
+          const res = await rpc('fetch_cloud_icc_profile', {
+            candidate: item.name,
+            method: item.method
+          });
+          if (res && res.icc_profiles && res.icc_profiles.length > 0) {
+            hit = res;
+            const profileCount = res.icc_profiles.length;
+            appendLog('hit', `🎯 成功命中！来源: ${res.server_url.includes('uniwill') ? 'Uniwill 台湾' : 'Aistone 8001'}，解包获得 ${profileCount} 个校色文件！`);
+            break;
+          }
+        } catch (e) {
+          appendLog('miss', `未命中: ${item.name}`);
+        }
+      }
+
+      STATE.isSearching = false;
+      DOM.btnStartQuery.disabled = false;
+
+      if (hit) {
+        STATE.hitResult = hit;
+        STATE.selectedProfileIndex = 0;
+        DOM.hitFileName.textContent = hit.file_name;
+        
+        const isUniwill = hit.server_url.includes('uniwill');
+        const count = hit.icc_profiles.length;
+        DOM.hitMeta.textContent = `总包大小: ${(hit.file_size / 1024).toFixed(1)} KB · 节点: ${isUniwill ? 'Uniwill (40系)' : 'Aistone (50系)'} · 内含 ${count} 个有效色彩配置`;
+
+        // Handle multiple profiles inside ZIP
+        DOM.profileDropdown.innerHTML = '';
+        if (count > 1) {
+          DOM.profileSelectRow.classList.remove('hidden');
+          DOM.btnApplyAll.classList.remove('hidden');
+
+          hit.icc_profiles.forEach((p, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = `${p.file_name} (${(p.file_size / 1024).toFixed(1)} KB)`;
+            DOM.profileDropdown.appendChild(opt);
+          });
+        } else {
+          DOM.profileSelectRow.classList.add('hidden');
+          DOM.btnApplyAll.classList.add('hidden');
+        }
+
+        DOM.resultBanner.classList.remove('hidden');
+      } else {
+        appendLog('warn', `所有指定路径均未命中，当前机型可能未在所选服务器留存出厂专属校色。`);
+      }
+    }
+
+    DOM.profileDropdown.addEventListener('change', (e) => {
+      STATE.selectedProfileIndex = parseInt(e.target.value, 10) || 0;
+      const cur = STATE.hitResult.icc_profiles[STATE.selectedProfileIndex];
+      appendLog('info', `当前选定色彩配置：${cur.file_name}`);
+    });
+
+    // --- Apply Single Profile ---
+    async function applyProfile() {
+      if (!STATE.hitResult || !STATE.hitResult.icc_profiles.length) return;
+      const target = STATE.hitResult.icc_profiles[STATE.selectedProfileIndex] || STATE.hitResult.icc_profiles[0];
+
+      DOM.btnApply.disabled = true;
+      const originalText = DOM.btnApply.innerHTML;
+      DOM.btnApply.innerHTML = '正在注册并应用...';
+
+      try {
+        appendLog('info', `正在将 ${target.file_name} 注册至系统颜色库...`);
+        const importRes = await rpc('import_custom_color_profile', {
+          fileName: target.file_name,
+          fileBytes: target.file_bytes,
+          deviceName: null
+        });
+
+        if (importRes && importRes.active_profile_id) {
+          await rpc('apply_color_profile', {
+            profileId: importRes.active_profile_id,
+            deviceName: null
+          });
+        }
+
+        appendLog('hit', `✅ 出厂色彩配置 [${target.file_name}] 已成功应用至当前显示器！`);
+        DOM.btnApply.innerHTML = '✔ 应用生效';
+        setTimeout(() => {
+          DOM.btnApply.innerHTML = originalText;
+          DOM.btnApply.disabled = false;
+        }, 3000);
+      } catch (err) {
+        appendLog('warn', `应用失败: ${err.message || err}`);
+        alert(`应用失败: ${err.message || err}`);
+        DOM.btnApply.innerHTML = originalText;
+        DOM.btnApply.disabled = false;
+      }
+    }
+
+    // --- Batch Apply All Profiles ---
+    async function applyAllProfiles() {
+      if (!STATE.hitResult || STATE.hitResult.icc_profiles.length <= 1) return;
+      DOM.btnApplyAll.disabled = true;
+      appendLog('info', `开始批量导入 ${STATE.hitResult.icc_profiles.length} 个色彩档位至 OpenRevo 方案库...`);
+
+      try {
+        let lastId = null;
+        for (const p of STATE.hitResult.icc_profiles) {
+          const res = await rpc('import_custom_color_profile', {
+            fileName: p.file_name,
+            fileBytes: p.file_bytes,
+            deviceName: null
+          });
+          if (res && res.active_profile_id) lastId = res.active_profile_id;
+        }
+
+        if (lastId) {
+          await rpc('apply_color_profile', { profileId: lastId, deviceName: null });
+        }
+
+        appendLog('hit', `🎉 全部 ${STATE.hitResult.icc_profiles.length} 个原厂色彩配置已全量导入并同步至显卡色彩管理！`);
+        DOM.btnApplyAll.textContent = '✔ 批量导入成功';
+        setTimeout(() => {
+          DOM.btnApplyAll.textContent = '批量导入全部档位';
+          DOM.btnApplyAll.disabled = false;
+        }, 3000);
+      } catch (err) {
+        appendLog('warn', `批量导入中断: ${err.message || err}`);
+        DOM.btnApplyAll.disabled = false;
+      }
+    }
+
+    // --- Save Local File ---
+    function saveLocal() {
+      if (!STATE.hitResult) return;
+      const isZip = STATE.hitResult.is_zip;
+      const bytes = new Uint8Array(isZip ? STATE.hitResult.raw_bytes : STATE.hitResult.icc_profiles[STATE.selectedProfileIndex].file_bytes);
+      const fileName = isZip ? STATE.hitResult.file_name : STATE.hitResult.icc_profiles[STATE.selectedProfileIndex].file_name;
+
+      const blob = new Blob([bytes], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      appendLog('info', `已保存文件至本地：${fileName}`);
+    }
+
+    // Events
+    DOM.btnRefreshIdentity.addEventListener('click', refreshIdentity);
+    DOM.btnStartQuery.addEventListener('click', startQuery);
+    DOM.btnApply.addEventListener('click', applyProfile);
+    DOM.btnApplyAll.addEventListener('click', applyAllProfiles);
+    DOM.btnSaveLocal.addEventListener('click', saveLocal);
+
+    // Initial probe
+    refreshIdentity();
+  </script>
+</body>
+
+</html>

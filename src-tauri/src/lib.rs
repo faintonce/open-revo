@@ -350,6 +350,8 @@ pub fn run() {
             commands::hardware_cmd::set_color_calibration_enabled,
             commands::hardware_cmd::import_custom_color_profile,
             commands::hardware_cmd::delete_custom_color_profile,
+            commands::hardware_cmd::get_cloud_icc_identity,
+            commands::hardware_cmd::fetch_cloud_icc_profile,
             commands::hardware_cmd::export_device_diagnostic_report,
             commands::hardware_cmd::apply_gpu_tuning_state,
             commands::hardware_cmd::get_gpu_power_state_truth,

@@ -29,3 +29,4 @@ pub mod shortcuts;
 pub mod raw_gateway;
 pub mod watcher_hub;
 pub mod plugin_storage;
+pub mod cloud_icc;

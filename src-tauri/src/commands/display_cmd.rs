@@ -405,3 +405,66 @@ pub async fn set_miniled_status(enabled: bool) -> Result<bool, String> {
 }
 
 
+
+
+// ---------------------------------------------------------------------------
+// Cloud ICC Retrieval Commands (for Tongfang / Uniwill OEM factory profiles)
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn get_cloud_icc_identity() -> Result<crate::system::cloud_icc::CloudIccIdentity, String> {
+    tauri::async_runtime::spawn_blocking(crate::system::cloud_icc::get_cloud_icc_identity)
+        .await
+        .map_err(|e| format!("Task spawn error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn fetch_cloud_icc_profile(
+    candidate: String,
+    method: Option<String>,
+    server_url: Option<String>,
+) -> Result<crate::system::cloud_icc::CloudIccFetchHit, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let m = method.as_deref().unwrap_or("auto").to_lowercase();
+
+        let target_servers: Vec<&str> = if let Some(ref s) = server_url {
+            vec![s.as_str()]
+        } else if m == "40" || m == "mac" {
+            vec![
+                crate::system::cloud_icc::SERVER_UNIWILL,
+                crate::system::cloud_icc::SERVER_AISTONE,
+            ]
+        } else if m == "50" || m == "sn" {
+            vec![
+                crate::system::cloud_icc::SERVER_AISTONE,
+                crate::system::cloud_icc::SERVER_UNIWILL,
+            ]
+        } else {
+            let is_mac_candidate = candidate
+                .split('_')
+                .last()
+                .map(|s| s.len() == 12 && s.chars().all(|c| c.is_ascii_hexdigit()))
+                .unwrap_or(false);
+            if is_mac_candidate {
+                vec![
+                    crate::system::cloud_icc::SERVER_UNIWILL,
+                    crate::system::cloud_icc::SERVER_AISTONE,
+                ]
+            } else {
+                vec![
+                    crate::system::cloud_icc::SERVER_AISTONE,
+                    crate::system::cloud_icc::SERVER_UNIWILL,
+                ]
+            }
+        };
+
+        for srv in target_servers {
+            if let Some(hit) = crate::system::cloud_icc::probe_single_candidate(srv, &candidate, 6) {
+                return Ok(hit);
+            }
+        }
+        Err(format!("No cloud ICC found for candidate '{}'", candidate))
+    })
+    .await
+    .map_err(|e| format!("Task spawn error: {}", e))?
+}

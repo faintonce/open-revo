@@ -1,0 +1,14 @@
+{
+  "id": "tongfang-cloud-icc",
+  "name": "同方原厂云端校色助手",
+  "version": "1.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "官方演示插件：一键探测屏幕面板指纹、BIOS 序列号与物理网卡，自动并发检索同方/爱斯通云端出厂校色 ICC 并一键应用至系统，告别屏幕偏色发黄。",
+  "type": "tab",
+  "entry": "index.html",
+  "min_host_version": "0.9.5",
+  "permissions": [
+    "display:color"
+  ]
+}
+
