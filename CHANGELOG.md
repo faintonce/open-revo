@@ -20,7 +20,18 @@
 
 ---
 
-## [Unreleased] - 待发布
+## [0.9.5] - 2026-10-30
+
+### 🚀 显卡仿小飞机 V/F 曲线降压超频与生态解耦 (GPU Curve Tuner & Host Isolation)
+- **官方演示插件上线 (`gpu-curve-tuner` v1.0.0)**：
+  - **纯用户态免安装小飞机**：直接基于 Windows 原生 `nvapi64.dll` 通道，无需安装或常驻 MSI Afterburner，即可物理接管 NVIDIA 显卡 127 个硬件锚点的核心与显存频率。
+  - **交互式 Canvas 127 点 V/F 电压频率曲线渲染**：支持直观的可视化曲线拖动调谐、拐点平滑延伸与多档位预设（850mV@2250MHz、875mV@2450MHz、900mV@2600MHz 等）。
+  - **单调性与安全边界硬门禁**：内置 <= 25MHz 凹坑单调性断言与 [-500, +300]MHz 频率保护区间，杜绝误操作导致花屏死机。
+  - **沙箱存储独立持久化**：全面接入 `plugin_storage` 沙箱文件系统与 `OPENREVO_TELEMETRY` 遥测事件广播。
+- **宿主模式切换与参数防冲安全门禁 (Super Perf Isolation Guard)**：
+  - **彻底修复小飞机超频被 OpenRevo 覆盖冲掉的顽疾**：为 `apply_live_custom_tweak` 与 `ec_mode` 模式调度器增加严格的 `super_perf` 门禁。未开启超性能时，OpenRevo 绝不碰 NVAPI 频率，彻底放权给小飞机与独立调谐插件。
+  - **双向事件总线实时同步**：宿主与插件任意一端修改 GPU 核心/显存频率，均通过 `gpu-clock-offsets-changed` 事件实时双向广播同步，面板滑块与插件实时联动。
+
 
 ### 🛡️ 13/14代 CPU 寿元卫士官方插件 (CPU Guardian Plugin)
 - **专为 13900HX / 14900HX 打造的防缩缸调谐中心 (`cpu-guardian`)**：

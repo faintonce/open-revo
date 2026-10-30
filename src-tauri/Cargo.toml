@@ -1,6 +1,6 @@
 [package]
 name = "open-revo"
-version = "0.9.4"
+version = "0.9.5"
 description = "Lightweight Custom Control Center for Mechrevo Laptops"
 license = "GPL-3.0-or-later"
 edition = "2021"

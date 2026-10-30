@@ -4215,7 +4215,7 @@ dependencies = [
 
 [[package]]
 name = "open-revo"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "libloading 0.8.9",
  "openrevo-core",
@@ -4237,7 +4237,7 @@ dependencies = [
 
 [[package]]
 name = "openrevo-core"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "libloading 0.8.9",
  "parking_lot",

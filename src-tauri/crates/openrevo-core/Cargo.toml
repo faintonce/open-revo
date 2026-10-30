@@ -1,6 +1,6 @@
 [package]
 name = "openrevo-core"
-version = "0.9.4"
+version = "0.9.5"
 description = "High-Performance Core Engine for Mechrevo Laptop Hardware Orchestration"
 license = "GPL-3.0-or-later"
 edition = "2021"
