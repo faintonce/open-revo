@@ -28,6 +28,7 @@ export interface CustomPluginItem {
   author: string;
   description: string;
   plugin_type: string;
+  order?: number;
   enabled: boolean;
   dir_name: string;
   target_slot?: string;
