@@ -757,7 +757,8 @@
         <div class="slider-input-wrapper">
           <button class="step-btn" onclick="adjustStep(-1)" title="-1%">-</button>
           <input type="range" id="targetSlider" class="range-slider" min="1" max="100" value="80"
-            oninput="onSliderInput(this.value)" />
+            oninput="onSliderInput(this.value)"
+            onchange="savePluginStorage()" />
           <button class="step-btn" onclick="adjustStep(1)" title="+1%">+</button>
         </div>
       </div>
@@ -893,7 +894,10 @@
       statusBit: 2,   // bit2
       currentTarget: 80,
       isBusy: false,
+      _hasLoadedStorage: false,
     };
+
+    const PLUGIN_STORAGE_KEY = 'openrevo_battery_limit_storage';
 
     // --- 统一 RPC 通讯网关 (同时兼容 Direct Invoke 与 postMessage) ---
     async function rpc(command, args = {}) {
@@ -927,9 +931,170 @@
         if (command === 'raw_ec_write') action = 'RAW_EC_WRITE';
         if (command === 'raw_mailbox_invoke') action = 'RAW_MAILBOX_INVOKE';
         if (command === 'get_raw_ec_capabilities') action = 'GET_RAW_EC_CAPABILITIES';
+        if (command === 'get_plugin_storage') action = 'GET_PLUGIN_STORAGE';
+        if (command === 'set_plugin_storage') action = 'SET_PLUGIN_STORAGE';
 
         window.parent.postMessage({ action, payload: { ...args, reqId } }, '*');
       });
+    }
+
+    // --- 宿主双轨沙盒持久化 (plugin_storage) 引擎 ---
+    function parseRegValue(str, fallback) {
+      if (!str) return fallback;
+      const clean = str.trim();
+      const hexMatch = clean.match(/^0x([0-9a-fA-F]+)/);
+      if (hexMatch) return parseInt(hexMatch[1], 16);
+      const decMatch = clean.match(/^(\d+)/);
+      if (decMatch) return parseInt(decMatch[1], 10);
+      return fallback;
+    }
+
+    function applyStoredConfig(cfg) {
+      if (!cfg || typeof cfg !== 'object') return;
+      STATE._hasLoadedStorage = true;
+
+      // 1. 恢复目标充电上限
+      if (typeof cfg.target_limit === 'number' && cfg.target_limit >= 1 && cfg.target_limit <= 100) {
+        STATE.currentTarget = cfg.target_limit;
+        const slider = document.getElementById('targetSlider');
+        const display = document.getElementById('targetDisplay');
+        if (slider) slider.value = cfg.target_limit;
+        if (display) display.textContent = cfg.target_limit;
+        updatePresetCapsules(cfg.target_limit);
+      }
+
+      // 2. 恢复通信总线协议
+      if (cfg.protocol) {
+        STATE.protocol = cfg.protocol;
+        const protoSelect = document.getElementById('paramProtocol');
+        if (protoSelect) protoSelect.value = cfg.protocol;
+      }
+
+      // 3. 恢复门控脉冲值
+      if (cfg.pulse_val !== undefined) {
+        STATE.pulseVal = Number(cfg.pulse_val);
+        const pulseSelect = document.getElementById('paramPulseVal');
+        const customInput = document.getElementById('paramPulseCustomInput');
+        if (pulseSelect) {
+          if (STATE.pulseVal === 5 || STATE.pulseVal === 4) {
+            pulseSelect.value = String(STATE.pulseVal);
+            if (customInput) customInput.style.display = 'none';
+          } else {
+            pulseSelect.value = 'custom';
+            if (customInput) {
+              customInput.style.display = 'block';
+              customInput.value = '0x' + STATE.pulseVal.toString(16).toUpperCase();
+            }
+          }
+        }
+      }
+
+      // 4. 恢复脉冲保持时间
+      if (cfg.pulse_hold_ms) {
+        STATE.pulseHoldMs = Number(cfg.pulse_hold_ms);
+        const holdInput = document.getElementById('paramPulseHold');
+        if (holdInput) holdInput.value = STATE.pulseHoldMs;
+      }
+
+      // 5. 恢复底层寄存器配置
+      if (cfg.limit_reg) {
+        STATE.limitReg = Number(cfg.limit_reg);
+        const limitInput = document.getElementById('paramLimitReg');
+        if (limitInput) limitInput.value = `0x${STATE.limitReg.toString(16).toUpperCase().padStart(4, '0')} (${STATE.limitReg})`;
+      }
+      if (cfg.gate_reg) {
+        STATE.gateReg = Number(cfg.gate_reg);
+        const gateInput = document.getElementById('paramGateReg');
+        if (gateInput) gateInput.value = `0x${STATE.gateReg.toString(16).toUpperCase().padStart(4, '0')} (${STATE.gateReg})`;
+      }
+      if (cfg.status_reg) {
+        STATE.statusReg = Number(cfg.status_reg);
+        const statusInput = document.getElementById('paramStatusReg');
+        if (statusInput) statusInput.value = `0x${STATE.statusReg.toString(16).toUpperCase().padStart(4, '0')} (${STATE.statusReg})`;
+      }
+      if (cfg.status_bit !== undefined) {
+        STATE.statusBit = Number(cfg.status_bit);
+      }
+
+      logConsole(`[*] 已从 plugin_storage 恢复持久化机型参数: 协议=${STATE.protocol}, 脉冲=0x0${STATE.pulseVal.toString(16).toUpperCase()}, 保持=${STATE.pulseHoldMs}ms, 目标=${STATE.currentTarget}%`);
+    }
+
+    async function loadPluginStorage() {
+      // 1. 首选宿主在 iframe 注入的 window.OpenRevo.storage API
+      try {
+        if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.get === 'function') {
+          const data = await window.OpenRevo.storage.get();
+          if (data && Object.keys(data).length > 0) {
+            applyStoredConfig(data);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // 2. 尝试父级注入桥接
+      try {
+        if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
+          const data = await window.parent.__OPENREVO_BRIDGE__.storage.get();
+          if (data && Object.keys(data).length > 0) {
+            applyStoredConfig(data);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // 3. postMessage RPC 回退
+      try {
+        const data = await rpc('get_plugin_storage', { pluginId: 'battery-hardware-limit' });
+        if (data && Object.keys(data).length > 0) {
+          applyStoredConfig(data);
+          return;
+        }
+      } catch (_) {}
+
+      // 4. 本地 localStorage 回退保底
+      try {
+        const local = localStorage.getItem(PLUGIN_STORAGE_KEY);
+        if (local) {
+          applyStoredConfig(JSON.parse(local));
+        }
+      } catch (_) {}
+    }
+
+    async function savePluginStorage() {
+      const config = {
+        target_limit: STATE.currentTarget,
+        protocol: STATE.protocol,
+        pulse_val: STATE.pulseVal,
+        pulse_hold_ms: STATE.pulseHoldMs,
+        limit_reg: STATE.limitReg,
+        gate_reg: STATE.gateReg,
+        status_reg: STATE.statusReg,
+        status_bit: STATE.statusBit,
+        updated_at: new Date().toISOString()
+      };
+
+      // 1. 优先写本地 localStorage 缓存
+      try {
+        localStorage.setItem(PLUGIN_STORAGE_KEY, JSON.stringify(config));
+      } catch (_) {}
+
+      // 2. 写入 OpenRevo 宿主私有沙盒存储 plugin_storage/battery-hardware-limit/config.json
+      try {
+        if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.set === 'function') {
+          await window.OpenRevo.storage.set(config);
+          return;
+        }
+        if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
+          await window.parent.__OPENREVO_BRIDGE__.storage.set(config);
+          return;
+        }
+        window.parent.postMessage({
+          action: 'SET_PLUGIN_STORAGE',
+          payload: { data: config }
+        }, '*');
+      } catch (e) {
+        console.warn('[BatteryLimit] Failed to save storage:', e);
+      }
     }
 
     // --- EC 单字节读写封装 ---
@@ -971,11 +1136,13 @@
       if (next > 100) next = 100;
       document.getElementById('targetSlider').value = next;
       onSliderInput(next);
+      savePluginStorage();
     }
 
     function selectPreset(val) {
       document.getElementById('targetSlider').value = val;
       onSliderInput(val);
+      savePluginStorage();
     }
 
     function updatePresetCapsules(curVal) {
@@ -1016,7 +1183,12 @@
         STATE.pulseVal = parseInt(pVal, 10);
       }
       STATE.pulseHoldMs = parseInt(document.getElementById('paramPulseHold').value, 10) || 2500;
-      logConsole(`配置更新: 协议=${STATE.protocol}, 脉冲值=0x0${STATE.pulseVal.toString(16).toUpperCase()}, 脉冲保持=${STATE.pulseHoldMs}ms`);
+      STATE.limitReg = parseRegValue(document.getElementById('paramLimitReg').value, STATE.limitReg);
+      STATE.gateReg = parseRegValue(document.getElementById('paramGateReg').value, STATE.gateReg);
+      STATE.statusReg = parseRegValue(document.getElementById('paramStatusReg').value, STATE.statusReg);
+
+      logConsole(`配置更新: 协议=${STATE.protocol}, 脉冲值=0x0${STATE.pulseVal.toString(16).toUpperCase()}, 保持=${STATE.pulseHoldMs}ms`);
+      savePluginStorage();
     }
 
     // --- 核心业务：脉冲触发存储法 ---
@@ -1087,6 +1259,7 @@
         showProgress(false);
         showToast(`✅ 固件限充已成功锁定在 ${target}%！`);
         logConsole(`=== 限充设定圆满完成！已写入固件 NVRAM，关机/拔电源不丢 ===\n`);
+        savePluginStorage();
       } catch (err) {
         logConsole(`[FAIL] 执行过程发生异常: ${err.message}`);
         alert(`设定限充失败: ${err.message}`);
@@ -1127,6 +1300,11 @@
         showProgress(false);
         showToast('✅ 已取消限充，恢复原厂充满行为！');
         logConsole(`=== 已成功恢复充满！门控自动回落 ===\n`);
+        STATE.currentTarget = 100;
+        document.getElementById('targetSlider').value = 100;
+        document.getElementById('targetDisplay').textContent = 100;
+        updatePresetCapsules(100);
+        savePluginStorage();
       } catch (err) {
         logConsole(`[FAIL] 取消过程异常: ${err.message}`);
         alert(`取消限充失败: ${err.message}`);
@@ -1191,6 +1369,13 @@
           if (limitNum > 0 && limitNum <= 100) {
             document.getElementById('statLimitVal').textContent = limitNum;
             document.getElementById('statLimitDesc').textContent = isReached ? '已达上限，停止充电中' : '充电中，接近目标将停充';
+            // 若首次启动尚未持久化过任何目标，同步当前硬件真实限充为初始目标
+            if (!STATE._hasLoadedStorage) {
+              STATE.currentTarget = limitNum;
+              document.getElementById('targetSlider').value = limitNum;
+              document.getElementById('targetDisplay').textContent = limitNum;
+              updatePresetCapsules(limitNum);
+            }
           } else {
             document.getElementById('statLimitVal').textContent = '未限制';
             document.getElementById('statLimitUnit').textContent = '';
@@ -1265,19 +1450,30 @@
     }
 
     // --- 初始化监听 ---
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
+      // 1. 优先拉取并应用沙盒持久化配置
+      await loadPluginStorage();
+
+      // 2. 刷新硬件真实 EC 状态
       refreshHardwareState();
-      // 监听 telemetry 广播
+
+      // 3. 监听 telemetry 与 storage 回包广播
       window.addEventListener('message', (e) => {
-        if (e.data && e.data.type === 'OPENREVO_TELEMETRY') {
+        if (!e.data) return;
+        if (e.data.type === 'OPENREVO_TELEMETRY') {
           updateTelemetry(e.data.payload);
+        } else if (e.data.type === 'OPENREVO_PLUGIN_STORAGE_RESULT') {
+          if (e.data.success && e.data.payload) {
+            applyStoredConfig(e.data.payload);
+          }
         }
       });
       window.addEventListener('openrevo-telemetry', (e) => {
         if (e.detail) updateTelemetry(e.detail);
       });
-      // 初始触发一次自检静默读取
-      setTimeout(refreshHardwareState, 300);
+
+      // 4. 定时轮询硬件真实状态
+      setTimeout(refreshHardwareState, 400);
       setInterval(refreshHardwareState, 4000);
     });
   </script>

@@ -1,9 +1,9 @@
 {
   "id": "battery-hardware-limit",
   "name": "电池充电上限守护者",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "OpenRevo Official & Community",
-  "description": "官方演示插件：基于微内核硬件网关的多协议底层限充调控中心，支持同方脉冲存储法与宝龙达双阈值协议，自由设定 1~100% 充电阈值，参数全开可调。",
+  "description": "官方演示插件：基于微内核硬件网关的多协议底层限充调控中心，支持同方脉冲存储法与宝龙达双阈值协议，自由设定 1~100% 充电阈值，全参数支持机型与目标双轨沙盒持久化。",
   "type": "tab",
   "min_host_version": "0.9.4",
   "config": {
