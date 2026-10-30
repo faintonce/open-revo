@@ -51,6 +51,11 @@ pub struct HardwareState {
     pub is_dc_online: bool,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
+    /// 实际生效的 GPU 总功耗上限（W）：基础 TGP + DB（DB 关闭时只算基础）。0 = 读不到
+    pub gpu_tgp_watts: u32,
+    /// 当前档位实时生效的 CPU PL1 / PL2（W，EC 真值）。0 = 读不到，前端回落预设
+    pub live_pl1_w: u16,
+    pub live_pl2_w: u16,
 }
 
 pub fn get_machine_model() -> String {
@@ -146,6 +151,8 @@ pub fn collect_hardware_state(
 
     let cfg = crate::system::config::load_config();
 
+    let (live_pl1_w, live_pl2_w) = crate::system::power::read_live_cpu_pl(power_mode);
+
     HardwareState {
         power_mode,
         fan_boost,
@@ -185,6 +192,9 @@ pub fn collect_hardware_state(
         is_dc_online: is_dc_round_plugged_in(),
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
+        gpu_tgp_watts: crate::driver::wmi_ec::read_live_gpu_tgp_watts(),
+        live_pl1_w,
+        live_pl2_w,
     }
 }
 
@@ -760,6 +770,7 @@ pub struct CustomPluginItem {
     pub author: String,
     pub description: String,
     pub plugin_type: String,
+    pub order: Option<i32>,
     pub enabled: bool,
     pub dir_name: String,
     pub window: Option<PluginWindowConfig>,
@@ -783,6 +794,8 @@ pub struct RawPluginManifest {
     pub version: Option<String>,
     pub author: Option<String>,
     pub description: Option<String>,
+    #[serde(default)]
+    pub order: Option<i32>,
     #[serde(default, alias = "type", alias = "plugin_type")]
     pub plugin_type: Option<String>,
     pub entry: Option<String>,
@@ -1186,6 +1199,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 author: manifest.author.unwrap_or_else(|| "第三方开发者".into()),
                                 description: manifest.description.unwrap_or_else(|| "无插件描述".into()),
                                 plugin_type,
+                                order: manifest.order,
                                 enabled,
                                 dir_name: dir_name.clone(),
                                 window: manifest.window,
@@ -1223,6 +1237,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                     author: "本地".into(),
                     description: "本地扩展目录 (未检测到标准 manifest.json)".into(),
                     plugin_type: "directory".into(),
+                    order: None,
                     enabled,
                     dir_name,
                     window: None,

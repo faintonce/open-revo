@@ -989,9 +989,43 @@ pub fn get_gpu_power_state_truth() -> crate::system::actuator::UnifiedGpuStateTr
     crate::system::actuator::UnifiedPowerActuator::global().get_live_truth()
 }
 
+/// Apply GPU core / memory clock offsets through the NVAPI bridge.
+#[tauri::command]
+pub fn apply_gpu_oc(core_mhz: i32, mem_mhz: i32) -> Result<(i32, i32), String> {
+    if !crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
+        return Err("no NVIDIA discrete GPU detected; overclock skipped".to_string());
+    }
+    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+    let (core_now, mem_now) = {
+        let g = gpu.lock();
+        g.set_clock_offsets(core_mhz, mem_mhz);
+        (g.get_core_offset(), g.get_mem_offset())
+    };
+    crate::log_info!(
+        "GPU_OC",
+        "apply_gpu_oc requested core=+{} mem=+{} -> readback core=+{} mem=+{}",
+        core_mhz, mem_mhz, core_now, mem_now
+    );
+    if core_now != core_mhz || mem_now != mem_mhz {
+        return Err(format!(
+            "readback mismatch: core {} -> {}, mem {} -> {}",
+            core_mhz, core_now, mem_mhz, mem_now
+        ));
+    }
+    Ok((core_now, mem_now))
+}
+
 #[tauri::command]
 pub fn emergency_hard_unlock_gpu() -> Result<crate::system::actuator::UnifiedGpuStateTruth, String> {
     crate::system::actuator::UnifiedPowerActuator::global().emergency_hard_unlock()
+}
+
+/// 读取当前 GPU 核心/显存偏移（MHz）。用于 OC 按钮的 ON/OFF 初始状态。
+#[tauri::command]
+pub fn get_gpu_oc_state() -> (i32, i32) {
+    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+    let g = gpu.lock();
+    (g.get_core_offset(), g.get_mem_offset())
 }
 
 #[tauri::command]

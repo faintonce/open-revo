@@ -177,6 +177,8 @@ pub fn run() {
             commands::hardware_cmd::get_model_capabilities,
             commands::hardware_cmd::get_hardware_status,
             commands::hardware_cmd::set_power_mode,
+            commands::power_cmd::get_turbo_submode_state,
+            commands::power_cmd::set_turbo_submode,
             commands::hardware_cmd::set_fan_boost,
             commands::hardware_cmd::set_battery_limit,
             commands::hardware_cmd::switch_refresh_rate,
@@ -354,6 +356,8 @@ pub fn run() {
             commands::hardware_cmd::fetch_cloud_icc_profile,
             commands::hardware_cmd::export_device_diagnostic_report,
             commands::hardware_cmd::apply_gpu_tuning_state,
+            commands::hardware_cmd::apply_gpu_oc,
+            commands::hardware_cmd::get_gpu_oc_state,
             commands::hardware_cmd::get_gpu_power_state_truth,
             commands::hardware_cmd::emergency_hard_unlock_gpu,
             crate::system::telemetry::report_window_visibility,
@@ -476,6 +480,13 @@ pub fn run() {
             });
 
             crate::system::boot_trace::boot_log("TRAY", "System tray mounted and listeners active");
+
+            // 狂暴子模式能力探测（只读；不支持时 UI 不出现入口）
+            {
+                let diag = crate::system::power::turbo_submode::diagnose();
+                crate::log_info!("POWER_MODE", "turbo submode capability: {}", diag);
+                crate::system::boot_trace::boot_log("TURBO_SUB", &diag);
+            }
             crate::system::boot_trace::record_stage0_ui_ready();
 
             Ok(())
