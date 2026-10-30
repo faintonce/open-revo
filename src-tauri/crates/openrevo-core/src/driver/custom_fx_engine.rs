@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
-use super::ite_streamer::{BUF_SIZE, set_key, KEYMAP, get_key_x, get_key_y};
+use super::ite_streamer::{BUF_SIZE, set_key, keymap, get_key_x, get_key_y};
 
 pub struct CustomFxEngine {
     engine: rhai::Engine,
@@ -148,7 +148,7 @@ impl CustomFxEngine {
         map.insert("text".into(), rhai::Dynamic::from(cur_text));
         let ctx = rhai::Dynamic::from_map(map);
 
-        for key in KEYMAP.iter() {
+        for key in keymap().iter() {
             let kx = get_key_x(key);
             let ky = get_key_y(key);
             let mut scope = rhai::Scope::new();

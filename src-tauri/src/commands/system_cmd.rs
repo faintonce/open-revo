@@ -335,6 +335,11 @@ pub fn toggle_oem_service(
             crate::log_info!("TAKEOVER", "Successfully synchronized power mode and battery limit after takeover");
         });
     } else {
+        // 顺序不能反：先让键盘彻底松手，再恢复 OEM 服务。
+        // 流式线程退出时会发 stop_mcu（MCU 离开 0x33 自定义模式）并释放独占的 HID 句柄；
+        // 若只调 resume_oem_services()，官方控制台即使服务已起来也抢不回灯控 —— 实机验证，
+        // 用户必须手动重启本程序才能恢复。这是 takeover_oem 双向切换的对称性缺口。
+        crate::driver::ite_streamer::get_global_streamer().release_to_oem();
         let _ = service_mgr::resume_oem_services();
     }
 

@@ -167,7 +167,7 @@ pub fn render_streamer_frame(
             let r = (pr as f64 * pulse) as u8;
             let g = (pg as f64 * pulse) as u8;
             let b = (pb as f64 * pulse) as u8;
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 set_key(buf, key.offset, r, g, b);
             }
             *t += 1.0;
@@ -183,7 +183,7 @@ pub fn render_streamer_frame(
                 _ => (-19.0, -35.0),
             };
 
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let kx = get_key_x(key);
                 let ky = get_key_y(key);
                 let mut sum_r = 0.0;
@@ -224,7 +224,7 @@ pub fn render_streamer_frame(
             let lifetime = 1.3 / speed_mult.max(0.5);
             let width = 1.8;
 
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let kx = get_key_x(key);
                 let ky = get_key_y(key);
                 let mut sum_r = 0.0;
@@ -274,7 +274,7 @@ pub fn render_streamer_frame(
             let wavelength = 3.25;
             let flow = (*t * 0.033) * speed;
 
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let mut sum_r = 0.0;
                 let mut sum_g = 0.0;
                 let mut sum_b = 0.0;
@@ -315,7 +315,7 @@ pub fn render_streamer_frame(
             let cycle = 20.0 + width;
             let now_sec = *t * 0.033;
 
-            for (i, key) in KEYMAP.iter().enumerate() {
+            for (i, key) in keymap().iter().enumerate() {
                 let row = get_key_visual_row(key);
                 let kx = get_key_x(key);
                 let mut sum_r = 0.0;
@@ -366,7 +366,7 @@ pub fn render_streamer_frame(
             let dir_mul = if params.direction == 1 { -1.0 } else { 1.0 };
             let rot_deg = *t;
 
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let dx = get_key_x(key) - cx;
                 let dy = (get_key_y(key) - cy) * 1.85;
                 let angle_deg = dy.atan2(dx).to_degrees();
@@ -387,7 +387,7 @@ pub fn render_streamer_frame(
         6 => {
             let hue = (*t * 3.0 * speed_mult).rem_euclid(360.0);
             let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 set_key(buf, key.offset, r, g, b);
             }
             *t += 1.0;
@@ -405,7 +405,7 @@ pub fn render_streamer_frame(
                     *h = -(rand_f64(*t) * 4.0);
                 }
             }
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let col = (get_key_x(key).floor() as usize).min(23);
                 let y = get_key_y(key);
                 let head = key_tracker.matrix_heads[col];
@@ -446,7 +446,7 @@ pub fn render_streamer_frame(
                     }
                 }
                 if strike.head_pos <= finish_pos {
-                    for (i, key) in KEYMAP.iter().enumerate() {
+                    for (i, key) in keymap().iter().enumerate() {
                         let y = get_key_y(key);
                         let dv = strike.head_pos - y;
                         let center_x = strike.bolt_x + (y * 2.35 + strike.bend_seed).sin() * 0.40;
@@ -467,7 +467,7 @@ pub fn render_streamer_frame(
 
             let attack = 0.85;
             let release = 0.16;
-            for (i, key) in KEYMAP.iter().enumerate() {
+            for (i, key) in keymap().iter().enumerate() {
                 let target = if bright_arr[i] < 0.002 { 0.0 } else { bright_arr[i] };
                 let coef = if target > key_tracker.lightning_prev[i] { attack } else { release };
                 key_tracker.lightning_prev[i] += (target - key_tracker.lightning_prev[i]) * coef;
@@ -489,7 +489,7 @@ pub fn render_streamer_frame(
 
             let frame_seed = (*t as u64).wrapping_mul(0x9e3779b97f4a7c15);
 
-            for (i, key) in KEYMAP.iter().enumerate() {
+            for (i, key) in keymap().iter().enumerate() {
                 let row_frac = (key.row as f64) / 5.0;
                 let bottom_heat_bias = 55.0 * row_frac;
 
@@ -534,7 +534,7 @@ pub fn render_streamer_frame(
                 }
             }
 
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let kx = get_key_x(key);
                 let ky = get_key_y(key);
                 let mut total_r = 0.0;
@@ -584,7 +584,7 @@ pub fn render_streamer_frame(
             if alive < target_alive {
                 let to_spawn = target_alive - alive;
                 for _ in 0..to_spawn {
-                    let idx = (rand_f64(*t * 3.7) * (KEYMAP.len() as f64)) as usize % KEYMAP.len();
+                    let idx = (rand_f64(*t * 3.7) * (keymap().len() as f64)) as usize % keymap().len();
                     let item = &mut key_tracker.sparkle_list[idx];
                     if item.age == 0 {
                         item.age = 1;
@@ -598,7 +598,7 @@ pub fn render_streamer_frame(
                 }
             }
 
-            for (i, key) in KEYMAP.iter().enumerate() {
+            for (i, key) in keymap().iter().enumerate() {
                 let item = &mut key_tracker.sparkle_list[i];
                 if item.age > 0 {
                     let progress = item.age as f64 / item.duration as f64;
@@ -645,7 +645,7 @@ pub fn render_streamer_frame(
                 key_tracker.last_ambient_touch = now;
             }
 
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let row = get_key_visual_row(key);
                 let kx = get_key_x(key);
                 let mut sum_r = 0.0;
@@ -687,7 +687,7 @@ pub fn render_streamer_frame(
 
         // 13: Static
         13 => {
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 set_key(buf, key.offset, pr, pg, pb);
             }
         }
@@ -717,7 +717,7 @@ pub fn render_streamer_frame(
                     let y0 = 2.5;
                     let clash_x = 9.0 + 1.1 * (*t * 12.0).sin() * (0.7 + 0.3 * (*t * 23.0).cos());
 
-                    for key in KEYMAP.iter() {
+                    for key in keymap().iter() {
                         let kx = get_key_x(key);
                         let ky = get_key_y(key);
                         let dist_y = (ky - y0).abs();
@@ -958,7 +958,7 @@ pub fn render_streamer_frame(
                 201 => {
                     let time_val = *t * speed_mult;
                     let spin = time_val * 0.6;
-                    for key in KEYMAP.iter() {
+                    for key in keymap().iter() {
                         let kx = get_key_x(key);
                         let ky = get_key_y(key);
                         let dx = kx - 7.0;
@@ -1034,7 +1034,7 @@ pub fn render_streamer_frame(
                 // 202: Singularity
                 202 => {
                     let time_val = *t * speed_mult;
-                    for key in KEYMAP.iter() {
+                    for key in keymap().iter() {
                         let kx = get_key_x(key);
                         let ky = get_key_y(key);
                         let dx = kx - 8.5;
@@ -1089,7 +1089,7 @@ pub fn render_streamer_frame(
                     let speed = speed_mult * 6.5;
                     let scroll_offset = *t * speed;
 
-                    for key in KEYMAP.iter() {
+                    for key in keymap().iter() {
                         let kx = get_key_x(key);
                         let ky = get_key_y(key);
 
@@ -1128,7 +1128,7 @@ pub fn render_streamer_frame(
 
         // Fallback default: Wave
         _ => {
-            for key in KEYMAP.iter() {
+            for key in keymap().iter() {
                 let kx = get_key_x(key);
                 let ky = get_key_y(key);
                 let hue = (*t + kx * 15.0 + ky * 20.0).rem_euclid(360.0);

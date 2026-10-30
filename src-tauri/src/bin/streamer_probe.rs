@@ -172,8 +172,11 @@ fn main() {
                 let path_str = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(path_ptr, path_len) });
                 let path_lower = path_str.to_lowercase();
 
-                // Only inspect ITE 8291 (VID 048D, PID 600B)
-                if path_lower.contains("vid_048d") && path_lower.contains("pid_600b") {
+                // Only inspect ITE 8291 per-key RGB keyboards.
+                // 不能只认 pid_600b：蛟龙 GM7ZG7S 等机型用 0xCE00，同为 0x33 逐键协议。
+                // 第二层仍由 UsagePage 0xFF03 / MI_01 / OutputLen >= 65 把关，不会误收别的设备。
+                if path_lower.contains("vid_048d")
+                    && (path_lower.contains("pid_600") || path_lower.contains("pid_ce00")) {
                     // Try exclusive first
                     let mut is_excl = true;
                     let mut h = unsafe {

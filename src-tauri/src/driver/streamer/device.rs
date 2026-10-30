@@ -8,7 +8,7 @@ use std::time::Duration;
 use crate::driver::hid_ffi::*;
 use crate::driver::lighting::parse_hex_color;
 use crate::driver::wmi_ec::ADDR_AP_OEM_BYTE;
-use super::layout::{BUF_SIZE, ITE_VID, USAGE_PAGE_ITE};
+use super::layout::{is_perkey_pid, set_active_layout, BUF_SIZE, ITE_PID_KEYBOARD_CE00, ITE_VID, LAYOUT_CE00, LAYOUT_DEFAULT, USAGE_PAGE_ITE};
 
 pub struct StreamerDeviceInfo {
     pub handle: HANDLE,
@@ -398,6 +398,9 @@ pub fn open_raw_ite_keyboard_device() -> Option<StreamerDeviceInfo> {
         let mut best_path = String::new();
         let mut best_feat_len = 9;
         let mut best_out_len = 65;
+        // 与 best_handle 绑定的键位表，只有在候选真正胜出时才生效，
+        // 否则被跳过的候选会把 layout 改成下一台机器不该用的表。
+        let mut best_layout = LAYOUT_DEFAULT;
 
         for idx in 0..128 {
             if SetupDiEnumDeviceInterfaces(dev_info, std::ptr::null_mut(), &hid_guid, idx, &mut iface_data) == 0 {
@@ -421,7 +424,8 @@ pub fn open_raw_ite_keyboard_device() -> Option<StreamerDeviceInfo> {
                     while *path_ptr.add(path_len) != 0 { path_len += 1; }
                     let path_str = String::from_utf16_lossy(std::slice::from_raw_parts(path_ptr, path_len)).to_lowercase();
 
-                    if !path_str.contains("vid_048d") || !path_str.contains("pid_600") {
+                    // 与 probe_exists() 共用判据：VID 048D + MI_01 + 逐键 PID（含 0xCE00）
+                    if !super::IteStreamerController::is_perkey_path(&path_str) {
                         continue;
                     }
 
@@ -447,7 +451,7 @@ pub fn open_raw_ite_keyboard_device() -> Option<StreamerDeviceInfo> {
                     }
                     if h != INVALID_HANDLE_VALUE && !h.is_null() {
                         let mut attrs = HIDD_ATTRIBUTES { size: std::mem::size_of::<HIDD_ATTRIBUTES>() as u32, vendor_id: 0, product_id: 0, version_number: 0 };
-                        if HidD_GetAttributes(h, &mut attrs) != 0 && attrs.vendor_id == ITE_VID && (attrs.product_id >= 0x6000 && attrs.product_id <= 0x600B) {
+                        if HidD_GetAttributes(h, &mut attrs) != 0 && attrs.vendor_id == ITE_VID && is_perkey_pid(attrs.product_id) {
                             let mut preparsed: isize = 0;
                             if HidD_GetPreparsedData(h, &mut preparsed) != 0 {
                                 let mut caps: HIDP_CAPS = std::mem::zeroed();
@@ -493,6 +497,13 @@ pub fn open_raw_ite_keyboard_device() -> Option<StreamerDeviceInfo> {
                                     }
                                     best_score = score;
                                     best_handle = h;
+                                    // 0xCE00 的灯位与 0x600B 基准表有 4 处实测差异，
+                                    // 直接套用基准表会出现「右 Shift 不亮、上方向键/右 Ctrl 缺灯」。
+                                    best_layout = if attrs.product_id == ITE_PID_KEYBOARD_CE00 {
+                                        LAYOUT_CE00
+                                    } else {
+                                        LAYOUT_DEFAULT
+                                    };
                                     best_path = path_str;
                                     best_feat_len = if caps.feature_report_byte_length > 0 {
                                         caps.feature_report_byte_length as usize
@@ -524,6 +535,8 @@ pub fn open_raw_ite_keyboard_device() -> Option<StreamerDeviceInfo> {
                 best_out_len,
                 best_path
             );
+            // 键位表必须在流式线程启动前确定：effects.rs / custom_fx_engine.rs 每帧都读它。
+            set_active_layout(best_layout);
             Some(StreamerDeviceInfo {
                 handle: best_handle,
                 path: best_path,

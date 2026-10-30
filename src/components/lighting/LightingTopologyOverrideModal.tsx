@@ -227,10 +227,10 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
                   <div className="topology-tooltip">
                     <div className="topology-tip-title">
                       <span>全彩逐键 RGB</span>
-                      <span className="topology-tip-chip">048D:600B</span>
+                      <span className="topology-tip-chip">048D:600B / CE00</span>
                     </div>
                     <p className="topology-tip-desc">每个按键独立设色，支持 BetterRGB 60FPS 极客流光、水波涟漪与自定义着色器。</p>
-                    <div className="topology-tip-example">典型: 耀世16 Pro/Ultra, 苍龙16 等高配</div>
+                    <div className="topology-tip-example">典型: 耀世16 Pro/Ultra, 苍龙16, 蛟龙 GM7ZG7S(CE00) 等高配</div>
                   </div>
                 </div>
 

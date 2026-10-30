@@ -394,7 +394,7 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
     ? '单区同色 RGB [EC硬件调光]'
     : isFourZone
     ? 'ITE 8291 r2 4区 RGB 控制器 (048D:CE00)'
-    : 'ITE 单键 RGB 控制器 (048D:600B)';
+    : 'ITE 8291 单键 RGB 控制器 (048D 逐键 HID)';
 
   const pageDesc = isSingleColor
     ? '检测到当前机型为单色 LED 背光，已自动精简无效控制项，支持开关、3档亮度与闲置熄灯'

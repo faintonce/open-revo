@@ -177,7 +177,7 @@ pub fn resume_oem_services() -> Result<(), String> {
             if let Some(_) = crate::system::process::is_process_running("gcubridge.exe") {
                 gcubridge_active = true;
             } else {
-                let _ = run_cmd_captured("sc.exe", &["start", "GCUBridge"]);
+                let (sc_code, sc_out, sc_err) = run_cmd_captured("sc.exe", &["start", "GCUBridge"]);
                 let wait_start = Instant::now();
                 while wait_start.elapsed().as_millis() < 3000 {
                     if crate::system::process::is_process_running("gcubridge.exe").is_some() {
@@ -185,6 +185,18 @@ pub fn resume_oem_services() -> Result<(), String> {
                         break;
                     }
                     std::thread::sleep(std::time::Duration::from_millis(150));
+                }
+                if !gcubridge_active {
+                    // 非管理员会话下 `sc start` 会以 Access Denied 失败，
+                    // 旧代码用 `let _ =` 把结果丢掉了 —— 用户看到的现象是「已归还，但官方控制台
+                    // 仍然点不动」，日志里却没有任何线索。这里必须留下现场。
+                    crate::log_warn!(
+                        "TAKEOVER",
+                        "GCUBridge failed to start after resume (sc exit={:?}, stdout='{}', stderr='{}'). Official control center may remain unresponsive.",
+                        sc_code,
+                        sc_out,
+                        sc_err
+                    );
                 }
             }
         }
