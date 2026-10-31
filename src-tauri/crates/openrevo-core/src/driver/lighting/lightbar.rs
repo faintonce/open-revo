@@ -359,7 +359,20 @@ impl LightbarStrategy for EcDirectLightbarStrategy {
 
 // --- Null Strategy (Fallback when no lightbar is detected) ---
 
-// --- ITE 8291 Ambient Strip Implementation (Companion 048D:6008, e.g. Titan PLUS GM7TG0M) ---
+// --- ITE 8291 Ambient Strip Implementation (Companion 048D:6008, e.g. 30-Series Moulds) ---
+// Ground-Truth Protocol verified from official GamingCenter2 registry & hardware logs:
+// Effect codes: 1=Static, 2=Breath, 3=Wave, 5=Rainbow, 13=Ripple, 19=Colorful, 32=Raindrop, 33=Wings
+// Dynamic multi-color modes drive official 7-color wheel into slots 1..=7.
+
+const OFFICIAL_PALETTE_7: [(u8, u8, u8); 7] = [
+    (255, 0, 0),     // #FF0000 Red
+    (255, 165, 0),   // #FFA500 Orange
+    (255, 255, 0),   // #FFFF00 Yellow
+    (0, 255, 0),     // #00FF00 Green
+    (0, 0, 255),     // #0000FF Blue
+    (0, 255, 255),   // #00FFFF Cyan
+    (139, 0, 255),   // #8B00FF Purple
+];
 
 pub struct Ite8291StripLightbarStrategy {
     device: Arc<Mutex<Option<IteLightingDevice>>>,
@@ -388,6 +401,11 @@ impl LightbarStrategy for Ite8291StripLightbarStrategy {
 
         if !enabled || brightness_idx == 0 {
             // Save = 0 strictly to avoid brown-out eFlash corruption
+            // Flush all 7 color slots to black before shutdown to eliminate residual ghost frames
+            for slot in 1..=7 {
+                let black_pkt: [u8; 9] = [0, 20, BLANK_KEYBOARD, slot, 0, 0, 0, 0, 0];
+                dev.write_feature(&black_pkt);
+            }
             let off_pkt: [u8; 9] = [0, 8, CONTROL_KEYBOARD, 255, 1, 50, 0, 0, 0];
             return dev.write_feature(&off_pkt);
         }
@@ -398,47 +416,41 @@ impl LightbarStrategy for Ite8291StripLightbarStrategy {
             .copied()
             .unwrap_or(75);
 
+        // Hardware-grounded effect ID mapping for 8291 companion MCU (derived from GamingCenter2 reg):
         let actual_effect = match effect {
-            20 => 2,          // Rainbow Breathing
-            13 | 4 => 4,      // Conflict / Collision
-            12 | 6 => 6,      // Meteor
-            10 => 6,          // Raindrop
-            9 => 3,           // Marquee -> Wave
-            14 => 3,          // Water Flow -> Wave
+            1 => 1,           // Static
+            2 => 2,           // Breath
+            3 => 3,           // Wave
+            20 | 5 => 5,      // Rainbow Cycle
+            10 | 32 => 32,    // Raindrop / Sparkle
+            13 => 13,         // Ripple / Flow
+            19 => 19,         // Colorful
+            4 | 33 => 33,     // Wings / Collision
+            6 | 12 => 13,     // Meteor -> Ripple
+            9 => 5,           // Marquee -> Rainbow cycle
             e => e,
         };
 
-        let is_circular = effect == 20
-            || actual_effect == 3
-            || actual_effect == 4
-            || actual_effect == 14
-            || (actual_effect == 2 && color_hex.eq_ignore_ascii_case("rainbow"));
+        let is_circular = matches!(actual_effect, 3 | 5 | 13 | 19 | 32 | 33)
+            || color_hex.eq_ignore_ascii_case("rainbow");
         let color_index = if is_circular { 8 } else { 1 };
         let (r, g, b) = parse_hex_color(color_hex);
         let direction: u8 = match actual_effect {
-            3 => 1,
+            3 | 5 => 1,
             _ => 0,
         };
 
         if !is_circular {
-            for slot in 1..=4 {
+            // Static / Breath: Fill all 7 hardware slots with active color to ensure uniform illumination
+            for slot in 1..=7 {
                 let color_pkt: [u8; 9] = [0, 20, BLANK_KEYBOARD, slot, r, g, b, 0, 0];
                 dev.write_feature(&color_pkt);
             }
             sleep(Duration::from_millis(15));
         } else {
-            let palette: [(u8, u8, u8); 8] = [
-                (255, 0, 0),
-                (255, 128, 0),
-                (255, 255, 0),
-                (0, 255, 0),
-                (0, 255, 255),
-                (0, 0, 255),
-                (139, 0, 255),
-                (255, 0, 128),
-            ];
-            for (i, &(pr, pg, pb)) in palette.iter().enumerate() {
-                let slot = (i % 4) as u8 + 1;
+            // Dynamic multi-color: Program official 7-color spectrum palette into slots 1..=7
+            for (i, &(pr, pg, pb)) in OFFICIAL_PALETTE_7.iter().enumerate() {
+                let slot = (i + 1) as u8;
                 let color_pkt: [u8; 9] = [0, 20, BLANK_KEYBOARD, slot, pr, pg, pb, 0, 0];
                 dev.write_feature(&color_pkt);
             }
@@ -462,6 +474,10 @@ impl LightbarStrategy for Ite8291StripLightbarStrategy {
     fn turn_off(&self) -> bool {
         let dev_guard = self.device.lock();
         if let Some(dev) = dev_guard.as_ref() {
+            for slot in 1..=7 {
+                let black_pkt: [u8; 9] = [0, 20, BLANK_KEYBOARD, slot, 0, 0, 0, 0, 0];
+                dev.write_feature(&black_pkt);
+            }
             let off_pkt: [u8; 9] = [0, 8, CONTROL_KEYBOARD, 255, 1, 50, 0, 0, 0];
             dev.write_feature(&off_pkt)
         } else {
