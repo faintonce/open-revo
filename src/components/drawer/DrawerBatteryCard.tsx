@@ -35,13 +35,16 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
             if (!status.is_dc_online) return '电池供电';
             const adapterKnown = (status.adapter_type && status.adapter_type !== '未知') || status.adapter_watts != null;
             if (!adapterKnown) return 'AC 已连接';
-            const ratedW = status.adapter_watts
-              ? status.adapter_watts === 230
-                ? ' 230/240W'
-                : ` ${status.adapter_watts}W`
-              : status.adapter_raw != null
-                ? ` (EC 0x${status.adapter_raw.toString(16).toUpperCase().padStart(2, '0')})`
-                : '';
+            const barrel = status.adapter_type === '圆口' || status.adapter_type === '圆口+Type-C';
+            const ratedW = !barrel
+              ? ''
+              : status.adapter_watts
+                ? status.adapter_watts === 230
+                  ? ' 230/240W'
+                  : ` ${status.adapter_watts}W`
+                : status.adapter_raw != null
+                  ? ` (EC 0x${status.adapter_raw.toString(16).toUpperCase().padStart(2, '0')})`
+                  : '';
             const rate = status.battery_rate_watts ?? 0;
             if (rate > 0) return `适配器${ratedW} · 充电中 ${rate}W`;
             const limit = status.battery_limit ?? 100;
