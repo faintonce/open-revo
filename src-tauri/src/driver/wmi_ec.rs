@@ -645,6 +645,34 @@ pub fn get_hardware_support_flags() -> HardwareSupportFlags {
 // Custom Performance & Fan Tuning (Registers re-exported from hal::vault)
 // ---------------------------------------------------------
 
+// ---------------------------------------------------------
+// PL4 单位口径（同方双倍机型：EC 0x0727 bit7 = 2W/LSB）
+// ---------------------------------------------------------
+
+/// PL4 的单位：EC 单位选择位为 1 时按 2W/LSB（双倍机型），否则 1W/LSB。
+pub fn pl4_unit_watts() -> u16 {
+    match wmi_read_ec(ADDR_PL4_UNIT_CTRL) {
+        // 0xFF 视为读取失败/未实现，保守按 1W/LSB 处理，避免把写入值减半
+        Some(v) if v != 0xFF && (v & MASK_PL4_UNIT_2W) != 0 => 2,
+        _ => 1,
+    }
+}
+
+/// PL4 寄存器字节能表达的瓦数上限（255 × 单位；双倍机型为 510W）。
+pub fn pl4_abs_max_watts() -> u16 {
+    255u16.saturating_mul(pl4_unit_watts())
+}
+
+/// PL4 寄存器字节 → 瓦数。
+pub fn pl4_reg_to_watts(reg: u8) -> u16 {
+    (reg as u16).saturating_mul(pl4_unit_watts())
+}
+
+/// 瓦数 → PL4 寄存器字节（按单位折算后截断到 u8）。
+pub fn pl4_watts_to_reg(watts: u16) -> u8 {
+    (watts / pl4_unit_watts()).min(255) as u8
+}
+
 /// Apply Single Custom PL1 Limit (Clamped and guarantees PL1 <= PL2 <= PL4)
 pub fn set_custom_pl1_ec(pl1: u16) -> bool {
     let pl1_val = pl1.clamp(15, 240) as u8;
@@ -672,29 +700,31 @@ pub fn set_custom_pl2_ec(pl2: u16) -> bool {
     // immediately locking CPU to 0.54G~0.60G!
     let margin = crate::system::config::get_cpu_pl4_margin();
     let cur_pl4 = wmi_read_ec(ADDR_CUSTOM_PL4).unwrap_or(0);
-    let safe_pl4 = (pl2_val as u16 + margin).min(250) as u8;
+    let safe_pl4_watts = (pl2_val as u16 + margin).min(pl4_abs_max_watts());
+    let safe_pl4 = pl4_watts_to_reg(safe_pl4_watts);
     if cur_pl4 < safe_pl4 {
         let _ = wmi_write_ec(ADDR_CUSTOM_PL4, safe_pl4);
         crate::log_warn!(
             "EC_TUNING",
             "Auto-elevating PL4 from {}W to {}W to preserve {}W transient safety buffer above PL2 ({}W)",
-            cur_pl4, safe_pl4, margin, pl2_val
+            pl4_reg_to_watts(cur_pl4), safe_pl4_watts, margin, pl2_val
         );
     }
     ok
 }
 
-/// Apply Single Custom PL4 Limit (Strictly clamped to [PL2 + margin, 250] to prevent VRM BD PROCHOT 0.6G lock)
+/// Apply Single Custom PL4 Limit (Clamped to [PL2 + margin, 255 × PL4 unit] to prevent VRM BD PROCHOT 0.6G lock)
 pub fn set_custom_pl4_ec(pl4: u16) -> bool {
     let margin = crate::system::config::get_cpu_pl4_margin();
     let cur_pl2 = wmi_read_ec(ADDR_CUSTOM_PL2).unwrap_or(15);
-    let safe_min_pl4 = (cur_pl2 as u16 + margin).min(250);
-    let pl4_val = pl4.clamp(safe_min_pl4, 250) as u8;
+    let safe_min_pl4_watts = (cur_pl2 as u16 + margin).min(pl4_abs_max_watts());
+    let pl4_watts = pl4.clamp(safe_min_pl4_watts, pl4_abs_max_watts());
+    let pl4_val = pl4_watts_to_reg(pl4_watts);
     let ok = wmi_write_ec(ADDR_CUSTOM_PL4, pl4_val);
     crate::log_info!(
         "EC_TUNING",
-        "set_custom_pl4_ec: PL4={}W (clamped with safe_min_pl4={}W based on PL2={}W, margin={}W) -> ok={}",
-        pl4_val, safe_min_pl4, cur_pl2, margin, ok
+        "set_custom_pl4_ec: PL4={}W (reg={}, min_safe={}W, max={}W, unit={}W/LSB, based on PL2={}W, margin={}W) -> ok={}",
+        pl4_watts, pl4_val, safe_min_pl4_watts, pl4_abs_max_watts(), pl4_unit_watts(), cur_pl2, margin, ok
     );
     ok
 }
@@ -712,8 +742,9 @@ pub fn compute_safe_pl_limits_with_margin(pl1: u16, pl2: u16, pl4: u16, margin: 
     // PL4 MUST NEVER BE SMALLER THAN PL2 + margin!
     // If PL4 is too close to PL2, transient microsecond spikes trip VRM hardware overcurrent (BD PROCHOT),
     // immediately locking CPU to 0.54G~0.60G!
-    let min_pl4 = (pl2_val as u16 + margin).min(255);
-    let pl4_val = pl4.clamp(min_pl4, 255) as u8;
+    let min_pl4_watts = (pl2_val as u16 + margin).min(pl4_abs_max_watts());
+    let pl4_watts = pl4.clamp(min_pl4_watts, pl4_abs_max_watts());
+    let pl4_val = pl4_watts_to_reg(pl4_watts);
     (pl1_val, pl2_val, pl4_val)
 }
 
@@ -730,8 +761,8 @@ pub fn set_custom_pl_limits(pl1: u16, pl2: u16, pl4: u16) -> bool {
     let margin = crate::system::config::get_cpu_pl4_margin();
     crate::log_info!(
         "CUSTOM_TRACE",
-        "set_custom_pl_limits: PL1={}W, PL2={}W, PL4_reg={} (req={}W, min_safe={}W) -> ok={}",
-        pl1_val, pl2_val, pl4_val, pl4, (pl2_val as u16 + margin).min(250), ok1 && ok2 && ok3
+        "set_custom_pl_limits: PL1={}W, PL2={}W, PL4_reg={} (req={}W, min_safe={}W, max={}W) -> ok={}",
+        pl1_val, pl2_val, pl4_val, pl4, (pl2_val as u16 + margin).min(pl4_abs_max_watts()), pl4_abs_max_watts(), ok1 && ok2 && ok3
     );
     crate::log_info!("EC_TUNING", "set_custom_pl_limits: PL1={}W, PL2={}W, PL4_reg={} -> ok={}", pl1_val, pl2_val, pl4_val, ok1 && ok2 && ok3);
     ok1 && ok2 && ok3
@@ -933,10 +964,8 @@ pub fn read_live_gpu_tgp_watts() -> u32 {
     let floor = caps.ctgp_floor_watts;
     let offset = wmi_read_ec(ADDR_TGP_OFFSET).unwrap_or(0) as u32;
     let base = (floor + offset).min(caps.base_tgp_max_watts);
-    // ADDR_DB_CTRL1 bit1 = Dynamic Boost 使能位
-    const DB_CTRL_ENABLE_BIT: u8 = 0x02;
     let ctrl = wmi_read_ec(ADDR_DB_CTRL1).unwrap_or(0);
-    let db_on = (ctrl & DB_CTRL_ENABLE_BIT) != 0;
+    let db_on = (ctrl & 0x02) != 0;
     let db = if db_on { db_target.min(caps.max_db_watts) } else { 0 };
     base + db
 }

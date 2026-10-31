@@ -12,6 +12,16 @@ pub struct PowerSettingsInfo {
     pub battery_mode: String,        // "long_life" (100) | "balance" (80) | "station" (60)
     pub battery_limit: u8,           // actual hardware limit: 100, 80, 60, etc.
     pub battery_hardware_limit_enabled: bool,
+    /// 适配器类型（圆口 / Type-C / 圆口+Type-C / 未知）
+    pub adapter_type: String,
+    /// 适配器额定功率编码的原始 EC 值
+    pub adapter_raw: Option<u8>,
+    /// 适配器额定功率（W），未知为 None
+    pub adapter_watts: Option<u16>,
+    /// 电池充电功率（W），仅在真正充电且有值时存在
+    pub battery_rate_watts: Option<f32>,
+    /// 电池循环次数
+    pub battery_cycle_count: Option<u32>,
     pub usb_charge_enabled: bool,
     pub ac_recovery_enabled: bool,
     pub high_perf_scheme: bool,
@@ -572,6 +582,7 @@ pub fn query_sleep_guard_registry_states(cfg: &crate::system::config::AppConfig)
         sleep_hibernate_30m,
     ) = query_sleep_guard_registry_states(&cfg);
 
+    let power_input = crate::system::power::read_power_input();
     PowerSettingsInfo {
         battery_percent: percent,
         is_ac_online: is_dc,
@@ -579,6 +590,11 @@ pub fn query_sleep_guard_registry_states(cfg: &crate::system::config::AppConfig)
         battery_mode: mode,
         battery_limit: effective_limit,
         battery_hardware_limit_enabled: cfg.battery_hardware_limit_enabled,
+        adapter_type: power_input.adapter_type,
+        adapter_raw: power_input.adapter_raw,
+        adapter_watts: power_input.adapter_watts,
+        battery_rate_watts: power_input.battery_rate_watts,
+        battery_cycle_count: power_input.battery_cycle_count,
         usb_charge_enabled: usb_charge,
         ac_recovery_enabled: ac_recovery,
         high_perf_scheme: cfg.high_perf_scheme,

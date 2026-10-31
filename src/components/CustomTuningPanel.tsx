@@ -187,9 +187,11 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const minMaxPl2 = turboPl2 + pl2Offset;
   const maxMaxPl2 = turboPl2 + 50 + pl2Offset;
 
-  const defaultMaxPl4 = turboPl4 + 50 + pl4Offset;
-  const minMaxPl4 = Math.max(defaultMaxPl4 - 30, turboPl2 + pl2Offset + pl4Margin);
-  const maxMaxPl4 = defaultMaxPl4 + 30;
+  // PL4 可表达上限：双倍机型（EC 0x0727 bit7=1）为 255×2=510W
+  const pl4AbsMax = presets?.pl4_abs_max ?? (255 * (presets?.pl4_unit ?? 1));
+  const defaultMaxPl4 = Math.min(turboPl4 + 50 + pl4Offset, pl4AbsMax);
+  const minMaxPl4 = Math.min(Math.max(defaultMaxPl4 - 30, turboPl2 + pl2Offset + pl4Margin), pl4AbsMax);
+  const maxMaxPl4 = Math.min(defaultMaxPl4 + 30, pl4AbsMax);
 
   const [maxPl1, setMaxPl1] = useState<number>(() => {
     if (appConfig?.cpu_pl1_max != null) {

@@ -6,6 +6,11 @@ import { RevBadge, RevSwitch } from './ui';
 interface PowerSettingsInfo {
   battery_percent: number;
   is_ac_online: boolean;
+  adapter_type: string;
+  adapter_watts: number | null;
+  adapter_raw: number | null;
+  battery_rate_watts: number | null;
+  battery_cycle_count: number | null;
   is_charging?: boolean;
   battery_mode: string; // "long_life" (100) | "balance" (80) | "station" (60)
   battery_limit: number;
@@ -29,6 +34,11 @@ export const PowerTuningView: React.FC = () => {
   const [powerInfo, setPowerInfo] = useState<PowerSettingsInfo>({
     battery_percent: 100,
     is_ac_online: true,
+  adapter_type: '未知',
+  adapter_watts: null,
+  adapter_raw: null,
+  battery_rate_watts: null,
+  battery_cycle_count: null,
     is_charging: false,
     battery_mode: 'balance',
     battery_limit: 80,
@@ -626,12 +636,31 @@ export const PowerTuningView: React.FC = () => {
                 color: powerInfo.is_ac_online ? 'var(--status-ok)' : 'var(--status-warn)',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '5px',
                 fontWeight: 600,
               }}
             >
               {powerInfo.is_ac_online ? <Plug className="w-3.5 h-3.5" /> : <Battery className="w-3.5 h-3.5" />}
-              <span>{powerInfo.is_ac_online ? '已连接电源适配器' : '正在使用电池供电'}</span>
+              <span>{(() => {
+                if (!powerInfo.is_ac_online) return '正在使用电池供电';
+                const known = (powerInfo.adapter_type && powerInfo.adapter_type !== '未知') || powerInfo.adapter_watts != null;
+                if (!known) return '已连接电源适配器';
+                const type = powerInfo.adapter_type && powerInfo.adapter_type !== '未知' ? powerInfo.adapter_type : '';
+                const rated = powerInfo.adapter_watts ? ' ' + powerInfo.adapter_watts + '/240W' : (powerInfo.adapter_raw != null ? ' (EC 0x' + powerInfo.adapter_raw.toString(16).toUpperCase().padStart(2, '0') + ')' : '');
+                const head = (type + rated).trim();
+                const charging = (powerInfo.battery_rate_watts ?? 0) > 0;
+                const limit = powerInfo.battery_limit ?? 100;
+                const limited = !charging && limit < 100 && powerInfo.battery_percent >= limit;
+                const full = !charging && powerInfo.battery_percent >= 100;
+                const parts: string[] = [];
+                if (head) parts.push(head);
+                if (limited) parts.push('已限充');
+                else if (full) parts.push('已充满');
+                else if (charging) { parts.push('充电中'); parts.push('充电 ' + powerInfo.battery_rate_watts + 'W'); }
+                if (powerInfo.battery_cycle_count) parts.push('循环 ' + powerInfo.battery_cycle_count + ' 次');
+                return parts.join(' · ');
+              })()}</span>
             </div>
           </div>
         </div>
