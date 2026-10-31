@@ -1255,6 +1255,7 @@ pub fn reset_gpu_tuning(app: AppHandle) -> Result<(), String> {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Pl4UnitState {
+    pub supported: bool,
     pub enabled: bool,
     pub unit: u16,
     pub abs_max: u16,
@@ -1263,9 +1264,10 @@ pub struct Pl4UnitState {
 /// 查询 PL4 单/双倍口径状态（以 EC 实际值为准）
 #[tauri::command]
 pub fn get_pl4_unit() -> Pl4UnitState {
+    let supported = crate::system::cpu_monitor::is_intel_cpu();
     let enabled = crate::driver::wmi_ec::pl4_double_enabled();
     let unit = if enabled { 2 } else { 1 };
-    Pl4UnitState { enabled, unit, abs_max: 255 * unit }
+    Pl4UnitState { supported, enabled, unit, abs_max: 255 * unit }
 }
 
 /// 切换 PL4 单/双倍口径（改写 EC 0x0727 bit7），返回切换后状态
@@ -1275,5 +1277,5 @@ pub fn set_pl4_unit_double(enabled: bool) -> Result<Pl4UnitState, String> {
         return Err("仅 Intel 机型支持 PL4 单/双倍口径切换".to_string());
     }
     let now = crate::driver::wmi_ec::set_pl4_double_enabled(enabled)?;
-    Ok(Pl4UnitState { enabled: now, unit: if now { 2 } else { 1 }, abs_max: if now { 510 } else { 255 } })
+    Ok(Pl4UnitState { supported: true, enabled: now, unit: if now { 2 } else { 1 }, abs_max: if now { 510 } else { 255 } })
 }

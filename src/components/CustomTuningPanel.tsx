@@ -188,20 +188,25 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const maxMaxPl2 = turboPl2 + 50 + pl2Offset;
 
   // PL4 可表达上限：双倍口径（EC 0x0727 bit7=1）为 255×2=510W，可在下方开关切换
-  const isIntel = (modelCaps?.cpu_vendor ?? '').toLowerCase().includes('intel');
-  const [pl4UnitInfo, setPl4UnitInfo] = useState<{ enabled: boolean; unit: number; abs_max: number } | null>(null);
+  // 临时预览：仅 UI 展示双倍口径，不写 EC（预览版专用）
+  const PL4_PREVIEW = false;
+  const [pl4UnitInfo, setPl4UnitInfo] = useState<{ supported?: boolean; enabled: boolean; unit: number; abs_max: number } | null>(
+    PL4_PREVIEW ? { enabled: true, unit: 2, abs_max: 510 } : null,
+  );
   const [pl4UnitBusy, setPl4UnitBusy] = useState(false);
   // 开关状态以 EC 实际值为准：面板打开时读一次，之后每 10 秒重读一次；
   // 预设变化（切模式/外部工具改 EC）时也重读。
   React.useEffect(() => {
     let alive = true;
     const refresh = () => {
-      invoke<{ enabled: boolean; unit: number; abs_max: number }>('get_pl4_unit')
+      invoke<{ supported?: boolean; enabled: boolean; unit: number; abs_max: number }>('get_pl4_unit')
         .then((res) => { if (alive) setPl4UnitInfo(res); })
         .catch(() => {});
     };
-    refresh();
-    const timer = window.setInterval(refresh, 10000);
+    if (!PL4_PREVIEW) {
+      refresh();
+    }
+    const timer = window.setInterval(() => { if (!PL4_PREVIEW) refresh(); }, 10000);
     return () => { alive = false; window.clearInterval(timer); };
   }, [presets]);
   const pl4AbsMax = pl4UnitInfo?.abs_max ?? presets?.pl4_abs_max ?? (255 * (presets?.pl4_unit ?? 1));
@@ -229,6 +234,10 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   });
 
   const handleTogglePl4Double = async (enabled: boolean) => {
+    if (PL4_PREVIEW) {
+      setPl4UnitInfo({ enabled, unit: enabled ? 2 : 1, abs_max: enabled ? 510 : 255 });
+      return;
+    }
     if (pl4UnitBusy) return;
     setPl4UnitBusy(true);
     try {
@@ -1050,7 +1059,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
             onToggleBiosOc={handleToggleBiosOc}
             pl4Double={pl4UnitInfo?.enabled}
             pl4DoubleBusy={pl4UnitBusy}
-            onTogglePl4Double={isIntel ? handleTogglePl4Double : undefined}
+            onTogglePl4Double={PL4_PREVIEW || pl4UnitInfo?.supported ? handleTogglePl4Double : undefined}
           />
 
           {/* Column 2: GPU Performance & Overclocking */}
