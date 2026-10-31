@@ -483,8 +483,9 @@ pub fn read_power_input() -> PowerInputInfo {
     let adapter_type = read_adapter_type();
     let adapter_known = adapter_type != "未知";
     let barrel = adapter_type == "圆口" || adapter_type == "圆口+Type-C";
-    // 只有圆口/圆口+Type-C 走 0x49F 编码表；纯 Type-C 不显示瓦数
-    // （0x7B9 在多数同方机型上是充电上限，不能当适配器瓦数用）
+    // 适配器瓦数以 EC 0x49F 为准（0xD42 只是同一索引的另一种表示）；
+    // 0x7B9 在多数同方机型上是充电上限，不能当适配器瓦数用。
+    // Type-C 暂时不显示瓦数，只显示类型（等实际机型验证完成后再放开）。
     let (adapter_raw, adapter_watts) = if adapter_known && barrel {
         (read_adapter_raw(), read_adapter_rated_watts())
     } else {
