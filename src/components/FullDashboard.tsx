@@ -607,37 +607,45 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             }
           }}
         >
-          {BUILTIN_MODULE_SLOTS.filter((slot) => isSlotActive(slot, { status, isWaterCoolerEnabled, isCoolerConnected, moduleToggles, capabilities }))
-            .sort((a, b) => a.order - b.order)
-            .map((slot) => {
-              const IconComponent = slot.icon;
-              const isActive = activeTab === slot.id;
+          {(() => {
+            const navItems: any[] = [
+              ...BUILTIN_MODULE_SLOTS
+                .filter((slot) => isSlotActive(slot, { status, isWaterCoolerEnabled, isCoolerConnected, moduleToggles, capabilities }))
+                .map((slot) => ({ kind: 'builtin', order: slot.order, slot })),
+              ...tabPlugins.map((plugin) => ({ kind: 'plugin', order: plugin.order ?? 66.5, plugin })),
+            ].sort((a, b) => a.order - b.order);
+            return navItems.map((item) => {
+              if (item.kind === 'builtin') {
+                const slot = item.slot;
+                const IconComponent = slot.icon;
+                const isActive = activeTab === slot.id;
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => setActiveTab(slot.id)}
+                    className={`nav-tab ${slot.tabClassName} ${isActive ? 'active' : ''}`}
+                  >
+                    <IconComponent size={14} className={slot.iconClass || 'w-3.5 h-3.5'} />
+                    <span>{slot.name}</span>
+                    {slot.renderBadge && slot.renderBadge({ status, isWaterCoolerEnabled, isCoolerConnected })}
+                  </button>
+                );
+              }
+              const plugin = item.plugin;
+              const isActive = activeTab === plugin.id;
               return (
                 <button
-                  key={slot.id}
-                  onClick={() => setActiveTab(slot.id)}
-                  className={`nav-tab ${slot.tabClassName} ${isActive ? 'active' : ''}`}
+                  key={plugin.id}
+                  onClick={() => setActiveTab(plugin.id)}
+                  className={`nav-tab tab-plugin-custom ${isActive ? 'active' : ''}`}
+                  title={plugin.description}
                 >
-                  <IconComponent size={14} className={slot.iconClass || 'w-3.5 h-3.5'} />
-                  <span>{slot.name}</span>
-                  {slot.renderBadge && slot.renderBadge({ status, isWaterCoolerEnabled, isCoolerConnected })}
+                  <Layers size={14} className="w-3.5 h-3.5" />
+                  <span>{plugin.name}</span>
                 </button>
               );
-            })}
-          {tabPlugins.map((plugin) => {
-            const isActive = activeTab === plugin.id;
-            return (
-              <button
-                key={plugin.id}
-                onClick={() => setActiveTab(plugin.id)}
-                className={`nav-tab tab-plugin-custom ${isActive ? 'active' : ''}`}
-                title={plugin.description}
-              >
-                <Layers size={14} className="w-3.5 h-3.5" />
-                <span>{plugin.name}</span>
-              </button>
-            );
-          })}
+            });
+          })()}
         </div>
         {canScrollNavRight && <div className="sub-nav-fade sub-nav-fade-right" />}
       </div>

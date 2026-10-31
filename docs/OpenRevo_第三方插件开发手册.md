@@ -148,6 +148,7 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 | `name` | `string` | **必填** | 全类型 | 人类可读的插件名称，展示于插件管理器 |
 | `version` | `string` | **必填** | 全类型 | 语义化版本号（如 `1.0.0`） |
 | `min_host_version` / `min_version` / `openrevo_version` | `string` | 可选 | 全类型 | **【宿主最低兼容版本】**采用标准 SemVer（如 `"0.9.3"`）。若宿主版本低于该值，插件管理器自动显示警告徽章并安全阻止运行，杜绝新特性在旧二进制中静默失效 |
+| `order` | `number` | 可选 | `tab` | **【导航排序】**第三方 Tab 在顶栏中的排序权重（内置页权重为 10 / 20 / … / 65 / 70）；不填时默认 `66.5`，即落在「插件」与「支持作者」之间 |
 | `plugin_type` / `type` | `string` | **必填** | 全类型 | 插件形态：`"skin"` \| `"background"` \| `"slot"` \| `"tab"` \| `"widget"` \| `"service"` \| `"shell"`（双向别名兼容） |
 | `target_slot` / `slot` | `string` | 条件必填 | `slot` | 挂载的目标宿主插槽代号（如 `"power.hardware_limit"`） |
 | `slot_height` / `slotHeight` | `string` | 可选 | `slot` | 微插槽高度约束（如 `"36px"` 或 `"54px"`，默认 `"54px"`） |

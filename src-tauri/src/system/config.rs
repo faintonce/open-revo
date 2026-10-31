@@ -13,6 +13,8 @@ pub struct AppConfig {
     #[serde(default = "default_power_mode_battery")]
     pub power_mode_battery: u8,   // 1: Office, 2: Balance (Preferred mode on Battery power)
     #[serde(default)]
+    pub turbo_silent: bool,       // 狂暴子模式：true = 静音狂暴，false = 高能狂暴（仅支持的机型生效）
+    #[serde(default)]
     pub fan_boost: bool,          // true / false
     #[serde(default = "default_battery_limit")]
     pub battery_limit: u8,        // 80 or 100
@@ -398,6 +400,7 @@ impl Default for AppConfig {
             power_mode: 2,          // Default Balance
             power_mode_ac: 3,       // Default Beast on AC
             power_mode_battery: 2,  // Default Balance on Battery
+            turbo_silent: false,    // Default 高能狂暴（不支持的机型无影响）
             fan_boost: false,
             battery_limit: 80,      // Default 80% battery protection
             win_key_locked: false,

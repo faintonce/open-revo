@@ -276,6 +276,27 @@ impl EcBridge {
         thread::spawn(move || {
             crate::system::power_mode::apply_windows_power_overlay(detected_mode);
         });
+
+        // Physical/firmware mode switch only changes the mode index; it does not restore
+        // the turbo submode (silent/extreme). Re-apply the remembered one after entering Turbo.
+        if detected_mode == 3 && crate::system::power::turbo_submode::is_supported() {
+            thread::spawn(|| {
+                thread::sleep(Duration::from_millis(600));
+                let cfg = crate::system::config::load_config();
+                match crate::system::power::turbo_submode::apply_silent(cfg.turbo_silent) {
+                    Ok(()) => crate::log_info!(
+                        "POWER_MODE",
+                        "physical key -> turbo: re-applied remembered submode (silent={})",
+                        cfg.turbo_silent
+                    ),
+                    Err(e) => crate::log_warn!(
+                        "POWER_MODE",
+                        "physical key -> turbo: re-apply remembered submode failed: {}",
+                        e
+                    ),
+                }
+            });
+        }
     }
 
     pub fn is_fan_boost(&self) -> bool {

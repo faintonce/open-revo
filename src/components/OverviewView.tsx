@@ -65,6 +65,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const currentModeInfo = POWER_MODES.find((m) => m.id === status.power_mode) || POWER_MODES[1];
 
   const getDisplayPowerTarget = () => {
+    const liveTgp = status.gpu_tgp_watts && status.gpu_tgp_watts > 0 ? status.gpu_tgp_watts : 0;
+    const livePl1 = status.live_pl1_w && status.live_pl1_w > 0 ? status.live_pl1_w : 0;
+    const withLiveTgp = (label: string, pl1: number, tgp: number) => ({
+      label,
+      // 优先用后端读到的「当前档位实时生效 PL1」（EC 真值）
+      pl1: livePl1 > 0 ? livePl1 : pl1,
+      // 优先用后端读到的「实际生效 TGP」（基础 TGP + DB，DB 关闭时只算基础）
+      tgp: liveTgp > 0 ? liveTgp : tgp,
+    });
     const presets = status.power_presets;
     const isCustom = status.power_mode === 4;
 
@@ -82,11 +91,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         tgp = presets.base_tgp + (presets.max_db || 0);
       }
 
-      return {
-        label: '当前设定',
-        pl1,
-        tgp,
-      };
+      return withLiveTgp('当前设定', pl1, tgp);
     }
 
     let pl1 = currentModeInfo.pl1;
@@ -96,11 +101,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       const modeKey = status.power_mode === 1 ? 'office' : status.power_mode === 3 ? 'turbo' : 'balance';
       const pl1Val = capabilities.power_mode_watts[modeKey];
       if (pl1Val !== undefined) {
-        return {
-          label: '原厂目标',
-          pl1: pl1Val,
-          tgp: 0,
-        };
+        return withLiveTgp('', pl1Val, 0);
       }
     }
 
@@ -108,11 +109,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
     if (isPureIgpu) {
       const thinLightPl1 = status.power_mode === 1 ? 35 : status.power_mode === 3 ? 54 : 45;
-      return {
-        label: '原厂目标',
-        pl1: thinLightPl1,
-        tgp: 0,
-      };
+      return withLiveTgp('', thinLightPl1, 0);
     }
 
     if (presets && presets.hardware_read) {
@@ -134,11 +131,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       }
     }
 
-    return {
-      label: presets?.hardware_read ? '原厂目标' : '参考值 (读取预设值失败)',
+    return withLiveTgp(
+      presets?.hardware_read ? '' : '参考值 (读取预设值失败)',
       pl1,
       tgp,
-    };
+    );
   };
 
   const powerTarget = getDisplayPowerTarget();
@@ -172,7 +169,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               fontWeight: 700,
             }}
           >
-            {powerTarget.label} PL1: {powerTarget.pl1}W{capabilities?.discrete_gpu !== false ? ` | TGP: ${powerTarget.tgp > 0 ? `${powerTarget.tgp}W` : '--'}` : ''}
+            {powerTarget.label ? `${powerTarget.label} ` : ''}PL1: {powerTarget.pl1}W{capabilities?.discrete_gpu !== false ? ` | TGP: ${powerTarget.tgp > 0 ? `${powerTarget.tgp}W` : '--'}` : ''}
           </div>
         </div>
         <ModeSelector
