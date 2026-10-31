@@ -36,7 +36,9 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
             const adapterKnown = (status.adapter_type && status.adapter_type !== '未知') || status.adapter_watts != null;
             if (!adapterKnown) return 'AC 已连接';
             const ratedW = status.adapter_watts
-              ? ` ${status.adapter_watts}/240W`
+              ? status.adapter_watts === 230
+                ? ' 230/240W'
+                : ` ${status.adapter_watts}W`
               : status.adapter_raw != null
                 ? ` (EC 0x${status.adapter_raw.toString(16).toUpperCase().padStart(2, '0')})`
                 : '';

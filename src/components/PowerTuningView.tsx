@@ -647,7 +647,9 @@ export const PowerTuningView: React.FC = () => {
                 const known = (powerInfo.adapter_type && powerInfo.adapter_type !== '未知') || powerInfo.adapter_watts != null;
                 if (!known) return '已连接电源适配器';
                 const type = powerInfo.adapter_type && powerInfo.adapter_type !== '未知' ? powerInfo.adapter_type : '';
-                const rated = powerInfo.adapter_watts ? ' ' + powerInfo.adapter_watts + '/240W' : (powerInfo.adapter_raw != null ? ' (EC 0x' + powerInfo.adapter_raw.toString(16).toUpperCase().padStart(2, '0') + ')' : '');
+                const rated = powerInfo.adapter_watts
+                  ? (powerInfo.adapter_watts === 230 ? ' 230/240W' : ' ' + powerInfo.adapter_watts + 'W')
+                  : (powerInfo.adapter_raw != null ? ' (EC 0x' + powerInfo.adapter_raw.toString(16).toUpperCase().padStart(2, '0') + ')' : '');
                 const head = (type + rated).trim();
                 const charging = (powerInfo.battery_rate_watts ?? 0) > 0;
                 const limit = powerInfo.battery_limit ?? 100;
