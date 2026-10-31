@@ -649,6 +649,40 @@ pub fn get_hardware_support_flags() -> HardwareSupportFlags {
 // PL4 单位口径（同方双倍机型：EC 0x0727 bit7 = 2W/LSB）
 // ---------------------------------------------------------
 
+/// PL4 当前是否为双倍口径（EC 单位选择位 bit7 = 1）。
+pub fn pl4_double_enabled() -> bool {
+    match wmi_read_ec(ADDR_PL4_UNIT_CTRL) {
+        Some(v) if v != 0xFF && (v & MASK_PL4_UNIT_2W) != 0 => true,
+        _ => false,
+    }
+}
+
+/// 切换 PL4 单/双倍口径：改写 EC 单位选择位的 bit7。
+/// 成功返回切换后的状态；失败时尝试恢复原值。
+pub fn set_pl4_double_enabled(enabled: bool) -> Result<bool, String> {
+    let current = wmi_read_ec(ADDR_PL4_UNIT_CTRL).ok_or_else(|| "EC 单位选择位读取失败".to_string())?;
+    if current == 0xFF {
+        return Err("EC 单位选择位读取无效（0xFF）".to_string());
+    }
+    let next = if enabled {
+        current | MASK_PL4_UNIT_2W
+    } else {
+        current & !MASK_PL4_UNIT_2W
+    };
+    if next == current {
+        return Ok(enabled);
+    }
+    if !wmi_write_ec(ADDR_PL4_UNIT_CTRL, next) {
+        return Err("EC 单位选择位写入失败".to_string());
+    }
+    match wmi_read_ec(ADDR_PL4_UNIT_CTRL) {
+        Some(after) if after != 0xFF && ((after & MASK_PL4_UNIT_2W) != 0) == enabled => Ok(enabled),
+        _ => {
+            let _ = wmi_write_ec(ADDR_PL4_UNIT_CTRL, current);
+            Err("EC 单位选择位回读与目标不一致，已回滚".to_string())
+        }
+    }
+}
 /// PL4 的单位：EC 单位选择位为 1 时按 2W/LSB（双倍机型），否则 1W/LSB。
 pub fn pl4_unit_watts() -> u16 {
     match wmi_read_ec(ADDR_PL4_UNIT_CTRL) {

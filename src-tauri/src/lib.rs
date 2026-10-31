@@ -391,6 +391,8 @@ pub fn run() {
             commands::tuning_cmd::set_gpu_undervolt_curve,
             commands::tuning_cmd::reset_gpu_vf_curve,
             commands::tuning_cmd::reset_gpu_tuning,
+            commands::tuning_cmd::get_pl4_unit,
+            commands::tuning_cmd::set_pl4_unit_double,
         ])
         .setup(move |app| {
             openrevo_core::set_global_event_sink(Arc::new(TauriEventSink::new(app.handle().clone())));

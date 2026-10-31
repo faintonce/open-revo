@@ -187,8 +187,24 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const minMaxPl2 = turboPl2 + pl2Offset;
   const maxMaxPl2 = turboPl2 + 50 + pl2Offset;
 
-  // PL4 可表达上限：双倍机型（EC 0x0727 bit7=1）为 255×2=510W
-  const pl4AbsMax = presets?.pl4_abs_max ?? (255 * (presets?.pl4_unit ?? 1));
+  // PL4 可表达上限：双倍口径（EC 0x0727 bit7=1）为 255×2=510W，可在下方开关切换
+  const isIntel = (modelCaps?.cpu_vendor ?? '').toLowerCase().includes('intel');
+  const [pl4UnitInfo, setPl4UnitInfo] = useState<{ enabled: boolean; unit: number; abs_max: number } | null>(null);
+  const [pl4UnitBusy, setPl4UnitBusy] = useState(false);
+  // 开关状态以 EC 实际值为准：面板打开时读一次，之后每 10 秒重读一次；
+  // 预设变化（切模式/外部工具改 EC）时也重读。
+  React.useEffect(() => {
+    let alive = true;
+    const refresh = () => {
+      invoke<{ enabled: boolean; unit: number; abs_max: number }>('get_pl4_unit')
+        .then((res) => { if (alive) setPl4UnitInfo(res); })
+        .catch(() => {});
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 10000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [presets]);
+  const pl4AbsMax = pl4UnitInfo?.abs_max ?? presets?.pl4_abs_max ?? (255 * (presets?.pl4_unit ?? 1));
   const defaultMaxPl4 = Math.min(turboPl4 + 50 + pl4Offset, pl4AbsMax);
   const minMaxPl4 = Math.min(Math.max(defaultMaxPl4 - 30, turboPl2 + pl2Offset + pl4Margin), pl4AbsMax);
   const maxMaxPl4 = Math.min(defaultMaxPl4 + 30, pl4AbsMax);
@@ -211,6 +227,27 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     }
     return defaultMaxPl4;
   });
+
+  const handleTogglePl4Double = async (enabled: boolean) => {
+    if (pl4UnitBusy) return;
+    setPl4UnitBusy(true);
+    try {
+      const res = await invoke<{ enabled: boolean; unit: number; abs_max: number }>('set_pl4_unit_double', { enabled });
+      const oldUnit = pl4UnitInfo?.unit ?? 1;
+      const ratio = res.unit / (oldUnit || 1);
+      setPl4UnitInfo(res);
+      // 同一 EC 字节换口径后，界面瓦数按比例换算
+      setProfile((p) => ({
+        ...p,
+        cpu_pl4_watts: Math.min(res.abs_max, Math.max(minPl + pl4Margin, Math.round(p.cpu_pl4_watts * ratio))),
+      }));
+      setMaxPl4((m) => Math.min(res.abs_max, Math.max(minPl + pl4Margin, Math.round(m * ratio))));
+    } catch (e) {
+      console.warn('切换 PL4 口径失败', e);
+    } finally {
+      setPl4UnitBusy(false);
+    }
+  };
 
   const initialProfileRef = React.useRef<string>('');
   const liveTweakDebounceRef = useRef<any>(null);
@@ -1011,6 +1048,9 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
             onChangePl2={handlePl2Change}
             onChangePl4={handlePl4Change}
             onToggleBiosOc={handleToggleBiosOc}
+            pl4Double={pl4UnitInfo?.enabled}
+            pl4DoubleBusy={pl4UnitBusy}
+            onTogglePl4Double={isIntel ? handleTogglePl4Double : undefined}
           />
 
           {/* Column 2: GPU Performance & Overclocking */}
