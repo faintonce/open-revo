@@ -165,6 +165,8 @@ pub fn read_adapter_raw() -> Option<u8> {
     wmi_ec::wmi_read_ec(wmi_ec::ADDR_ADAPTER_RATED_WATTS)
 }
 
+
+
 /// 适配器额定功率（W）。0x49F 的 bit3~6 编码，未识别返回 None。
 pub fn read_adapter_rated_watts() -> Option<u16> {
     let raw = wmi_ec::wmi_read_ec(wmi_ec::ADDR_ADAPTER_RATED_WATTS)?;
@@ -478,10 +480,16 @@ pub fn read_power_input() -> PowerInputInfo {
     // 只有供电类型字节能明确识别出圆口 / Type-C 时，才信任额定功率与电池充电功率；
     // 宝龙达模具不提供 0x7CC/0x49F，读到的 0x00 不能当成 330W 适配器，
     // 此时全部返回未知，由界面回落到原「已连接电源适配器」文案。
-    let adapter_raw = read_adapter_raw();
     let adapter_type = read_adapter_type();
     let adapter_known = adapter_type != "未知";
-    let adapter_watts = if adapter_known { read_adapter_rated_watts() } else { None };
+    let barrel = adapter_type == "圆口" || adapter_type == "圆口+Type-C";
+    // 只有圆口/圆口+Type-C 走 0x49F 编码表；纯 Type-C 不显示瓦数
+    // （0x7B9 在多数同方机型上是充电上限，不能当适配器瓦数用）
+    let (adapter_raw, adapter_watts) = if adapter_known && barrel {
+        (read_adapter_raw(), read_adapter_rated_watts())
+    } else {
+        (None, None)
+    };
     let battery_rate_watts = if adapter_known { read_battery_rate_watts() } else { None };
     let battery_cycle_count = read_battery_cycle_count();
     PowerInputInfo {
