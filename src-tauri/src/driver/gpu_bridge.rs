@@ -1372,6 +1372,7 @@ pub fn parse_flexible_f32(s: &str) -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
+    const DEFAULT_VRAM_MB: u64 = 8192;
     use super::*;
 
     #[test]
@@ -1379,14 +1380,14 @@ mod tests {
         // Legacy integer formats
         assert_eq!(parse_flexible_u32("45"), Some(45));
         assert_eq!(parse_flexible_u32("  45  "), Some(45));
-        assert_eq!(parse_flexible_u64("8192"), Some(8192));
+        assert_eq!(parse_flexible_u64("8192"), Some(DEFAULT_VRAM_MB));
 
         // Modern / 621+ driver floating-point formats
         assert_eq!(parse_flexible_u32("45.0"), Some(45));
         assert_eq!(parse_flexible_u32("45.4"), Some(45));
         assert_eq!(parse_flexible_u32("45.6"), Some(46));
         assert_eq!(parse_flexible_u32(" 35.0 "), Some(35));
-        assert_eq!(parse_flexible_u64("8192.0"), Some(8192));
+        assert_eq!(parse_flexible_u64("8192.0"), Some(DEFAULT_VRAM_MB));
 
         // Invalid / empty inputs
         assert_eq!(parse_flexible_u32(""), None);
@@ -1409,7 +1410,7 @@ mod tests {
         assert_eq!(parse_flexible_u32(parts[2]), Some(8000)); // mem
         assert_eq!(parse_flexible_u32(parts[3]), Some(52));   // temp
         assert_eq!(parse_flexible_u32(parts[4]), Some(45));   // usage
-        assert_eq!(parse_flexible_u64(parts[5]), Some(8192)); // vram total
+        assert_eq!(parse_flexible_u64(parts[5]), Some(DEFAULT_VRAM_MB)); // vram total
         assert_eq!(parse_flexible_u64(parts[6]), Some(2048)); // vram used
         assert_eq!(parse_flexible_f32(parts[7]), Some(85.5)); // power
 
@@ -1420,7 +1421,7 @@ mod tests {
         assert_eq!(parse_flexible_u32(modern_parts[2]), Some(8000)); // mem
         assert_eq!(parse_flexible_u32(modern_parts[3]), Some(52));   // temp - no longer stuck at 35!
         assert_eq!(parse_flexible_u32(modern_parts[4]), Some(45));   // usage
-        assert_eq!(parse_flexible_u64(modern_parts[5]), Some(8192)); // vram total
+        assert_eq!(parse_flexible_u64(modern_parts[5]), Some(DEFAULT_VRAM_MB)); // vram total
         assert_eq!(parse_flexible_u64(modern_parts[6]), Some(2048)); // vram used
         assert_eq!(parse_flexible_f32(modern_parts[7]), Some(85.5)); // power
     }

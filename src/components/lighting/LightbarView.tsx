@@ -30,7 +30,7 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
           !isBaseLightbarSupported
             ? '未检测到硬件'
             : isEcLightbar
-            ? '主板 EC 硬件直通调控 (EC 1864)'
+            ? '主板 EC 灯条控制'
             : 'ITE Lightbar4 控制器 (048D:7001)'
         }
         badgeVariant={!isBaseLightbarSupported ? 'default' : 'info'}

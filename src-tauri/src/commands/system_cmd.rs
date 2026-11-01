@@ -314,15 +314,15 @@ pub fn toggle_oem_service(
             if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY) {
                 let mut new_v = if cfg_clone.ac_recovery_enabled { v | crate::driver::wmi_ec::AC_RECOVERY_BITMASK } else { v & !crate::driver::wmi_ec::AC_RECOVERY_BITMASK };
                 if effective_mode == 4 {
-                    new_v |= crate::driver::wmi_ec::MASK_QKEY_WHITE_1830;
+                    new_v |= crate::driver::wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY;
                 } else {
-                    new_v &= !crate::driver::wmi_ec::MASK_QKEY_WHITE_1830;
+                    new_v &= !crate::driver::wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY;
                 }
                 crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY, new_v);
             }
             if effective_mode == 4 {
                 if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_CAMERA_CUTOFF) {
-                    crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_CAMERA_CUTOFF, v | crate::driver::wmi_ec::MASK_QKEY_WHITE_1831);
+                    crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_CAMERA_CUTOFF, v | crate::driver::wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
                 }
             }
             if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {

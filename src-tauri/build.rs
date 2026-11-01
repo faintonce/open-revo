@@ -246,7 +246,7 @@ pub mod ec {
     pub const ADDR_DC_ROUND_JACK: u16 = 0;
     pub const ADDR_FAN_BOOST_CLAMP: u16 = 0;
     pub const ADDR_SUPER_PERFORMANCE: u16 = 0;
-    pub const ADDR_TURBO_TRIGGER_1115: u16 = 0;
+    pub const ADDR_TURBO_TRIGGER: u16 = 0;
     pub const ADDR_CUSTOM_PL1: u16 = 0;
     pub const ADDR_CUSTOM_PL2: u16 = 0;
     pub const ADDR_CUSTOM_PL4: u16 = 0;
@@ -315,8 +315,8 @@ pub mod mask {
     pub const TOUCHPAD_BITMASK: u8 = 0x08;
     pub const AC_RECOVERY_BITMASK: u8 = 0x08;
     pub const CAMERA_CUTOFF_BITMASK: u8 = 0x08;
-    pub const MASK_QKEY_WHITE_1830: u8 = 0x80;
-    pub const MASK_QKEY_WHITE_1831: u8 = 0x40;
+    pub const MASK_QKEY_WHITE_AC_RECOVERY: u8 = 0x80;
+    pub const MASK_QKEY_WHITE_CAMERA_CUTOFF: u8 = 0x40;
     pub const MASK_LIQUID_COOLING_SUPPORT: u8 = 0x80;
     pub const FAN_TABLE_LATCH_BIT: u8 = 0x04;
     pub const FAN_BOOST_CLAMP_BIT: u8 = 0x40;
@@ -411,6 +411,11 @@ fn git_short_hash() -> String {
 }
 
 fn main() {
+    if env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
+        println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+        println!("cargo:rustc-link-arg=/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'");
+        println!("cargo:rustc-link-arg-bins=/MANIFEST:NO");
+    }
     generate_hardware_vault();
 
     let git_hash = git_short_hash();

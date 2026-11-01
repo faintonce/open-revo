@@ -880,7 +880,7 @@ pub fn apply_live_custom_tweak(
         return Ok(());
     }
 
-    wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER_1115, 0);
+    wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0);
 
     let mut pl_or_temp_changed = false;
     if let (Some(p1), Some(p2), Some(p4)) = (pl1, pl2, pl4) {

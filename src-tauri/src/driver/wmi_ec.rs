@@ -397,8 +397,8 @@ pub fn is_fan_boost_active() -> bool {
             .unwrap_or(false);
 
     if is_tongfang_hardware {
-        let s1873 = wmi_read_ec(ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
-        return (s1873 & FAN_BOOST_CLAMP_BIT) != 0;
+        let fan_boost_clamp = wmi_read_ec(ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
+        return (fan_boost_clamp & FAN_BOOST_CLAMP_BIT) != 0;
     }
 
     let is_bld = crate::hal::declarative::load_matched_manifest()
@@ -1157,7 +1157,7 @@ pub fn heal_cpu_power_contract(
     let ok_tcc = set_cpu_temp_target(temp_target_enabled, safe_temp_c);
 
     // 3. Clear Silent Mode & Overheat Throttle Flags
-    let _ = wmi_write_ec(ADDR_TURBO_TRIGGER_1115, 0);
+    let _ = wmi_write_ec(ADDR_TURBO_TRIGGER, 0);
 
     // 4. Kick EC Trigger Byte to force EC power/thermal evaluation refresh (breaks Limp Mode)
     let cur_trig = wmi_read_ec(ADDR_TRIGGER_BYTE).unwrap_or(0);

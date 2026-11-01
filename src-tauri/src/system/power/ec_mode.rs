@@ -91,10 +91,10 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             // --- Office / Silent Mode (Green LED) ---
             // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_1830);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
             }
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_1831);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
             }
 
             // Physical Mode & Chassis Q-Key LED: Green (0xA0 on 40/50-series, 0x10/0x50 on legacy)
@@ -112,7 +112,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x28);
             // 3. Mark silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER_1115, 1);
+            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 1);
 
             // 4. Dynamic/Configured CPU Power Limits:
             // GROUND TRUTH RULE: If user has NOT set custom user_presets, DO NOT write power limit registers!
@@ -167,10 +167,10 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             // --- Balance / Gaming Mode (Blue LED) ---
             // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_1830);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
             }
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_1831);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
             }
 
             // Physical Mode & Chassis Q-Key LED: Blue (0x00 on 40/50-series, 0x10/0x50 on legacy)
@@ -188,7 +188,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x20);
             // 3. Clear silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER_1115, 0);
+            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0);
 
             // 4. Dynamic/Configured CPU Power Limits:
             // GROUND TRUTH RULE: If user has NOT set custom user_presets, DO NOT write power limit registers!
@@ -244,10 +244,10 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             // --- Beast / Turbo Mode (Red LED) ---
             // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_1830);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
             }
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_1831);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
             }
 
             // Physical Mode & Chassis Q-Key LED: Red (0x10 on 40/50-series, 0x10/0x50 on legacy)
@@ -264,7 +264,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x20);
             // 3. Clear silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER_1115, 0);
+            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0);
 
             // 4. Dynamic/Configured CPU Power Limits:
             // GROUND TRUTH RULE: If user has NOT set custom user_presets, DO NOT write power limit registers!
@@ -322,7 +322,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             let pre_pwr_mode = wmi_ec::wmi_read_ec(wmi_ec::ADDR_MODE_INDEX).unwrap_or(0);
             let pre_fan_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
             let pre_trigger_byte = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
-            let pre_turbo_flag = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_TRIGGER_1115).unwrap_or(0);
+            let pre_turbo_flag = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_TRIGGER).unwrap_or(0);
             let pre_pl1 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CUSTOM_PL1).unwrap_or(0);
             let pre_pl2 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CUSTOM_PL2).unwrap_or(0);
             let pre_pl4 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CUSTOM_PL4).unwrap_or(0);
@@ -356,14 +356,14 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             // Physical Q-Key LED: Custom Mode (preserve Bit 3 AC Recovery) - Gaming laptops only
             if !crate::hal::platform_probe::is_ultrabook() {
                 if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v | wmi_ec::MASK_QKEY_WHITE_1830);
+                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
                 } else {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, wmi_ec::MASK_QKEY_WHITE_1830);
+                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
                 }
                 if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v | wmi_ec::MASK_QKEY_WHITE_1831);
+                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
                 } else {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, wmi_ec::MASK_QKEY_WHITE_1831);
+                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
                 }
             }
             
@@ -399,7 +399,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             set_ec_mode_index(0x10);
 
             // Clear silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER_1115, 0);
+            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0);
 
             // Apply or reset GPU Clock Offsets via native NVAPI
             if gpu_caps.supports_gpu_tuning {
@@ -509,10 +509,10 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
 
             // Re-confirm White Q-Key LED post-latch to guarantee hardware latch permanence
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v | wmi_ec::MASK_QKEY_WHITE_1830);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
             }
             if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v | wmi_ec::MASK_QKEY_WHITE_1831);
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
             }
 
             crate::log_info!("POWER_MODE", "Custom Mode (Mode 4) successfully asserted with White Q-Key LED, 0x10 Turbo base & Trigger");
@@ -527,7 +527,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
     let raw_mode_index = wmi_ec::wmi_read_ec(wmi_ec::ADDR_MODE_INDEX).unwrap_or(0);
     let raw_trigger_byte = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
     let raw_fan_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
-    let raw_turbo_flag = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_TRIGGER_1115).unwrap_or(0);
+    let raw_turbo_flag = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_TRIGGER).unwrap_or(0);
     let raw_pl1 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CUSTOM_PL1).unwrap_or(0);
     let raw_pl2 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CUSTOM_PL2).unwrap_or(0);
     let raw_pl4 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CUSTOM_PL4).unwrap_or(0);

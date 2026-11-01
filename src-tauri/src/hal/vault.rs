@@ -7,6 +7,7 @@
 // - Zero plaintext EC physical addresses or constants exist in open-source repository files.
 
 include!(concat!(env!("OUT_DIR"), "/generated_vault.rs"));
+pub use openrevo_core::hal::vault::display;
 
 #[cfg(test)]
 mod tests {

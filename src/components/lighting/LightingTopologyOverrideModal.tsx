@@ -284,7 +284,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
                   <div className="topology-tooltip">
                     <div className="topology-tip-title">
                       <span>单色白光背光</span>
-                      <span className="topology-tip-chip">EC 1932</span>
+                      <span className="topology-tip-chip">EC 白光背光</span>
                     </div>
                     <p className="topology-tip-desc">纯白光 LED，支持关 / 弱光 (50%) / 强光 (100%) 三档无频闪梯级调光。</p>
                     <div className="topology-tip-example">典型: 无界14X, 无界15X 等轻薄本</div>
@@ -458,7 +458,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
                   <div className="topology-tooltip">
                     <div className="topology-tip-title">
                       <span>盾形螺母发光标</span>
-                      <span className="topology-tip-chip">Motherboard EC 1963</span>
+                      <span className="topology-tip-chip">主板 EC 灯效</span>
                     </div>
                     <p className="topology-tip-desc">上下两瓣组成的盾形/螺母发光标，由主板 EC 直驱，支持单色常亮、呼吸与三色混光。</p>
                     <div className="topology-tip-example">典型: 苍龙, 耀世全系列, 极光X, 蛟龙</div>

@@ -8,6 +8,11 @@
 
 include!(concat!(env!("OUT_DIR"), "/generated_vault.rs"));
 
+pub mod display {
+    pub const IOCTL_VIDEO_QUERY_DISPLAY_BRIGHTNESS: u32 = 0x00230498;
+    pub const IOCTL_VIDEO_SET_DISPLAY_BRIGHTNESS: u32 = 0x0023049C;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -511,7 +511,7 @@ pub fn start_hardware_state_watcher(
                             let raw_tcc = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_CUSTOM_TCC).unwrap_or(0);
                             let raw_fan_clamp = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
                             let raw_power_status = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_POWER_STATUS).unwrap_or(0);
-                            let raw_turbo_flag = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_TRIGGER_1115).unwrap_or(0);
+                            let raw_turbo_flag = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_TRIGGER).unwrap_or(0);
                             crate::log_warn!(
                                 "CUSTOM_TRACE",
                                 "[THROTTLE ANOMALY DETECTED] CPU Frequency collapsed to {}MHz (Max: {}MHz, Limit: {}MHz)! EC Diagnostic Dump: PL1={}W, PL2={}W, PL4={}W, Tcc=0x{:02X}, Boost=0x{:02X}, Power=0x{:02X}, Silent={}",

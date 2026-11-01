@@ -1403,7 +1403,7 @@ mod tests {
             "power_mode": 2,
             "hardware_snapshot": {
                 "system_info": { "board_model": "GM6IX9B" },
-                "ec_project_id_1856": 25
+                "ec_project_id": 25
             }
         }"#;
 
