@@ -67,23 +67,6 @@ export const PowerTuningView: React.FC = () => {
     return () => { disposed = true; clearInterval(timer); };
   }, []);
 
-  const runControl = async (command: string, args: Record<string, unknown>) => {
-    if (busy.current || loading) return;
-    busy.current = true;
-    revision.current += 1;
-    setLoading(true);
-    setControlError(null);
-    try {
-      const res = await invoke<PowerSettingsInfo>(command, args);
-      if (res) setPowerInfo(res);
-    } catch (error) {
-      setControlError('更改电源设置失败：' + String(error));
-    } finally {
-      busy.current = false;
-      setLoading(false);
-    }
-  };
-
   const handleSelectBatteryMode = async (mode: string) => {
     if (loading) return;
     setLoading(true);
@@ -98,9 +81,22 @@ export const PowerTuningView: React.FC = () => {
     }
   };
 
-  const handleToggleOption = (option: 'usb_charge' | 'ac_recovery' | 'high_perf') => {
+  const handleToggleOption = async (option: 'usb_charge' | 'ac_recovery' | 'high_perf') => {
+    if (busy.current || loading) return;
+    busy.current = true;
+    revision.current += 1;
+    setLoading(true);
+    setControlError(null);
     const keyMap = { usb_charge: 'usb_charge_enabled', ac_recovery: 'ac_recovery_enabled', high_perf: 'high_perf_scheme' } as const;
-    return runControl('set_power_option', { option, enable: !powerInfo[keyMap[option]] });
+    try {
+      const res = await invoke<PowerSettingsInfo>('set_power_option', { option, enable: !powerInfo[keyMap[option]] });
+      if (res) setPowerInfo(res);
+    } catch (error) {
+      setControlError('更改电源设置失败：' + String(error));
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
   };
 
   const handleToggleSleepGuard = async (
