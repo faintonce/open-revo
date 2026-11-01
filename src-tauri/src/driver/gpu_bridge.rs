@@ -390,7 +390,7 @@ pub fn detect_discrete_gpu() -> Option<(String, u64)> {
                 let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
                 if !parts.is_empty() && !parts[0].is_empty() {
                     let name = parts[0].to_string();
-                    let vram = parts.get(1).and_then(|v| v.parse::<u64>().ok()).unwrap_or(8192);
+                    let vram = parts.get(1).and_then(|v| parse_flexible_u64(v)).unwrap_or(8192);
                     return Some((name, vram));
                 }
             }
@@ -614,9 +614,9 @@ fn detect_initial_gpu() -> (String, u64, u16, u16) {
             let parts: Vec<&str> = text.trim().split(',').map(|s| s.trim()).collect();
             if !parts.is_empty() && !parts[0].is_empty() {
                 let name = parts[0].to_string();
-                let vram = parts.get(1).and_then(|v| v.parse::<u64>().ok()).unwrap_or(8192);
-                let def_pwr = parts.get(2).and_then(|v| v.parse::<f32>().ok()).map(|f| f.round() as u16).unwrap_or(0);
-                let max_pwr = parts.get(3).and_then(|v| v.parse::<f32>().ok()).map(|f| f.round() as u16).unwrap_or(0);
+                let vram = parts.get(1).and_then(|v| parse_flexible_u64(v)).unwrap_or(8192);
+                let def_pwr = parts.get(2).and_then(|v| parse_flexible_f32(v)).map(|f| f.round() as u16).unwrap_or(0);
+                let max_pwr = parts.get(3).and_then(|v| parse_flexible_f32(v)).map(|f| f.round() as u16).unwrap_or(0);
                 return (name, vram, def_pwr, max_pwr);
             }
         }
@@ -730,26 +730,26 @@ impl GpuBridge {
                                     *n = name.to_string();
                                 }
                             }
-                            if let Ok(c) = parts[1].parse::<u32>() {
+                            if let Some(c) = parse_flexible_u32(parts[1]) {
                                 inner.core_freq.store(c, Ordering::SeqCst);
                             }
-                            if let Ok(m) = parts[2].parse::<u32>() {
+                            if let Some(m) = parse_flexible_u32(parts[2]) {
                                 inner.mem_freq.store(m, Ordering::SeqCst);
                             }
-                            if let Ok(t) = parts[3].parse::<u32>() {
+                            if let Some(t) = parse_flexible_u32(parts[3]) {
                                 inner.temp.store(t, Ordering::SeqCst);
                             }
-                            if let Ok(u) = parts[4].parse::<u32>() {
+                            if let Some(u) = parse_flexible_u32(parts[4]) {
                                 inner.usage.store(u, Ordering::SeqCst);
                             }
-                            if let Ok(v_tot) = parts[5].parse::<u64>() {
+                            if let Some(v_tot) = parse_flexible_u64(parts[5]) {
                                 inner.vram_mb.store(v_tot, Ordering::SeqCst);
                             }
-                            if let Ok(v_use) = parts[6].parse::<u64>() {
+                            if let Some(v_use) = parse_flexible_u64(parts[6]) {
                                 inner.vram_used_mb.store(v_use, Ordering::SeqCst);
                             }
                             if parts.len() >= 8 {
-                                if let Ok(p) = parts[7].parse::<f32>() {
+                                if let Some(p) = parse_flexible_f32(parts[7]) {
                                     let dw = (p * 10.0).round() as u32;
                                     inner.power_dw.store(dw, Ordering::SeqCst);
                                 }
@@ -1177,3 +1177,100 @@ pub fn probe_gpu_tuning_capabilities() -> GpuTuningCapabilities {
     }
 }
 
+/// Resilient numeric parser for telemetry values from nvidia-smi / external CLIs.
+/// Seamlessly handles both integer format ("45") and floating-point format ("45.0", "45.2"),
+/// as well as whitespace padding or potential driver locale differences.
+pub fn parse_flexible_u32(s: &str) -> Option<u32> {
+    let s = s.trim();
+    if let Ok(v) = s.parse::<u32>() {
+        return Some(v);
+    }
+    s.parse::<f64>().ok().and_then(|f| {
+        if f.is_nan() || f.is_infinite() || f < 0.0 {
+            None
+        } else {
+            Some(f.round() as u32)
+        }
+    })
+}
+
+pub fn parse_flexible_u64(s: &str) -> Option<u64> {
+    let s = s.trim();
+    if let Ok(v) = s.parse::<u64>() {
+        return Some(v);
+    }
+    s.parse::<f64>().ok().and_then(|f| {
+        if f.is_nan() || f.is_infinite() || f < 0.0 {
+            None
+        } else {
+            Some(f.round() as u64)
+        }
+    })
+}
+
+pub fn parse_flexible_f32(s: &str) -> Option<f32> {
+    let s = s.trim();
+    s.parse::<f32>().ok().and_then(|f| {
+        if f.is_nan() || f.is_infinite() {
+            None
+        } else {
+            Some(f)
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_flexible_numbers() {
+        // Legacy integer formats
+        assert_eq!(parse_flexible_u32("45"), Some(45));
+        assert_eq!(parse_flexible_u32("  45  "), Some(45));
+        assert_eq!(parse_flexible_u64("8192"), Some(8192));
+
+        // Modern / 621+ driver floating-point formats
+        assert_eq!(parse_flexible_u32("45.0"), Some(45));
+        assert_eq!(parse_flexible_u32("45.4"), Some(45));
+        assert_eq!(parse_flexible_u32("45.6"), Some(46));
+        assert_eq!(parse_flexible_u32(" 35.0 "), Some(35));
+        assert_eq!(parse_flexible_u64("8192.0"), Some(8192));
+
+        // Invalid / empty inputs
+        assert_eq!(parse_flexible_u32(""), None);
+        assert_eq!(parse_flexible_u32("N/A"), None);
+        assert_eq!(parse_flexible_u32("[Not Supported]"), None);
+        assert_eq!(parse_flexible_u32("-5.0"), None);
+
+        // Power draw float parsing
+        assert_eq!(parse_flexible_f32("115.00"), Some(115.0));
+        assert_eq!(parse_flexible_f32("  85.5 "), Some(85.5));
+        assert_eq!(parse_flexible_f32("N/A"), None);
+    }
+
+    #[test]
+    fn test_nvidia_smi_telemetry_csv_parsing() {
+        // Legacy integer CSV output
+        let legacy_line = "NVIDIA GeForce RTX 4060 Laptop GPU, 2100, 8000, 52, 45, 8192, 2048, 85.5";
+        let parts: Vec<&str> = legacy_line.split(',').map(|s| s.trim()).collect();
+        assert_eq!(parse_flexible_u32(parts[1]), Some(2100)); // core
+        assert_eq!(parse_flexible_u32(parts[2]), Some(8000)); // mem
+        assert_eq!(parse_flexible_u32(parts[3]), Some(52));   // temp
+        assert_eq!(parse_flexible_u32(parts[4]), Some(45));   // usage
+        assert_eq!(parse_flexible_u64(parts[5]), Some(8192)); // vram total
+        assert_eq!(parse_flexible_u64(parts[6]), Some(2048)); // vram used
+        assert_eq!(parse_flexible_f32(parts[7]), Some(85.5)); // power
+
+        // Modern 621+ float CSV output (temperature and frequencies with decimal points)
+        let modern_line = "NVIDIA GeForce RTX 4060 Laptop GPU, 2100.0, 8000.0, 52.0, 45.0, 8192.0, 2048.0, 85.5";
+        let modern_parts: Vec<&str> = modern_line.split(',').map(|s| s.trim()).collect();
+        assert_eq!(parse_flexible_u32(modern_parts[1]), Some(2100)); // core
+        assert_eq!(parse_flexible_u32(modern_parts[2]), Some(8000)); // mem
+        assert_eq!(parse_flexible_u32(modern_parts[3]), Some(52));   // temp - no longer stuck at 35!
+        assert_eq!(parse_flexible_u32(modern_parts[4]), Some(45));   // usage
+        assert_eq!(parse_flexible_u64(modern_parts[5]), Some(8192)); // vram total
+        assert_eq!(parse_flexible_u64(modern_parts[6]), Some(2048)); // vram used
+        assert_eq!(parse_flexible_f32(modern_parts[7]), Some(85.5)); // power
+    }
+}
