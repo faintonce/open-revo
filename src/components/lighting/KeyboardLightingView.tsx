@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sun } from 'lucide-react';
+import { Sun, Palette } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   LightingState,
@@ -26,6 +26,8 @@ interface KeyboardLightingViewProps {
   kbHwInfo: KeyboardHardwareInfo | null;
   sendKeyboard: (patch: Partial<LightingState>) => void;
   sendFourZoneColors?: (zones: [string, string, string, string]) => void;
+  /** 键盘页「恢复默认」时递增，用于把六色轮换复位为默认 6 色 */
+  cycleResetToken?: number;
 }
 
 export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
@@ -33,6 +35,7 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
   kbHwInfo,
   sendKeyboard,
   sendFourZoneColors,
+  cycleResetToken,
 }) => {
   const isSingleColor = kbHwInfo?.hardware_type === 'SingleColor';
   const isSingleZone = kbHwInfo?.hardware_type === 'SingleZoneRgb';
@@ -350,6 +353,44 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
 
   const displaySpeed = localSpeed !== null ? localSpeed : lighting.kb_speed;
 
+  const effectNow = lighting.kb_effect ?? 1;
+
+  // 轮播 6 段颜色（本地保存 + 下发后端）
+  const [cycleColors, setCycleColors] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('openrevo_kb_cycle_colors');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length === 6) { return arr; }
+      }
+    } catch { /* ignore */ }
+    return ['#D30607', '#D55B0A', '#D4A906', '#05D308', '#0709D6', '#D308D6'];
+  });
+
+  useEffect(() => {
+    invoke('set_keyboard_cycle_colors', { colors: cycleColors }).catch(() => { /* ignore */ });
+  }, []);
+
+  // 恢复默认：六色轮换复位为默认 6 色
+  useEffect(() => {
+    if (!cycleResetToken) { return; }
+    const defaults = ['#D30607', '#D55B0A', '#D4A906', '#05D308', '#0709D6', '#D308D6'];
+    setCycleColors(defaults);
+    setActiveCycleIndex(0);
+    try { localStorage.setItem('openrevo_kb_cycle_colors', JSON.stringify(defaults)); } catch { /* ignore */ }
+    invoke('set_keyboard_cycle_colors', { colors: defaults }).catch(() => { /* ignore */ });
+  }, [cycleResetToken]);
+
+  const [activeCycleIndex, setActiveCycleIndex] = useState(0);
+
+  const updateCycleColor = (index: number, hex: string) => {
+    const next = [...cycleColors];
+    next[index] = hex;
+    setCycleColors(next);
+    try { localStorage.setItem('openrevo_kb_cycle_colors', JSON.stringify(next)); } catch { /* ignore */ }
+    invoke('set_keyboard_cycle_colors', { colors: next }).catch(() => { /* ignore */ });
+  };
+
   const currentZones: [string, string, string, string] = [
     lighting.kb_zones?.[0] || '#00FFFF',
     lighting.kb_zones?.[1] || '#0000FF',
@@ -544,6 +585,7 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
             onBrightnessChange={handleBrightnessChange}
             displaySpeed={displaySpeed}
             onSpeedChange={handleSpeedChange}
+            showSpeed={!isSingleZone || effectNow === 4}
           />
 
           {/* Color Palette */}
@@ -556,12 +598,85 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
               onChangeMainColor={(hex) => sendKeyboard({ kb_color: hex })}
             />
           ) : !isSingleColor && (
-            <LightColorRow
-              label="定制主色调："
-              color={lighting.kb_color}
-              onChangeColor={(hex: string) => sendKeyboard({ kb_color: hex })}
-              iconColor="var(--color-brand)"
-            />
+            isSingleZone && effectNow === 3 ? (
+              <div className="lighting-sub-panel" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Palette className="w-4 h-4" style={{ color: 'var(--color-brand)' }} />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>呼吸颜色（4 色）：</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {[
+                    ['白', '#FFFFFF'],
+                    ['红', '#FF0000'],
+                    ['绿', '#00FF00'],
+                    ['蓝', '#0000FF'],
+                  ].map(([name, hex]) => {
+                    const isSelected = (lighting.kb_color || '').toLowerCase() === hex.toLowerCase();
+                    return (
+                      <div
+                        key={hex}
+                        onClick={() => sendKeyboard({ kb_color: hex })}
+                        title={name}
+                        className={`color-dot ${isSelected ? 'active' : ''}`}
+                        style={{
+                          backgroundColor: hex,
+                          boxShadow: isSelected ? `0 0 8px ${hex}` : 'none',
+                          width: '20px',
+                          height: '20px',
+                          flex: '0 0 auto',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ) : isSingleZone && effectNow === 4 ? (
+              <div className="lighting-sub-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Palette className="w-4 h-4" style={{ color: 'var(--color-brand)' }} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>六色轮换（6 色）：</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {cycleColors.map((hex, index) => {
+                      const isActive = activeCycleIndex === index;
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => setActiveCycleIndex(index)}
+                          title={`第 ${index + 1} 段`}
+                          className={`color-dot ${isActive ? 'active' : ''}`}
+                          style={{
+                            backgroundColor: hex,
+                            boxShadow: isActive ? `0 0 8px ${hex}` : 'none',
+                            width: '20px',
+                            height: '20px',
+                            flex: '0 0 auto',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="color"
+                    value={cycleColors[activeCycleIndex] || '#FFFFFF'}
+                    onChange={(e) => updateCycleColor(activeCycleIndex, e.target.value)}
+                    title={`编辑第 ${activeCycleIndex + 1} 段`}
+                    style={{ width: '28px', height: '28px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {(cycleColors[activeCycleIndex] || '#FFFFFF').toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <LightColorRow
+                label="定制主色调："
+                color={lighting.kb_color}
+                onChangeColor={(hex: string) => sendKeyboard({ kb_color: hex })}
+                iconColor="var(--color-brand)"
+              />
+            )
           )}
         </>
       )}

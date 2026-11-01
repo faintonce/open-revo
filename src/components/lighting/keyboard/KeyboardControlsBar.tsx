@@ -11,6 +11,8 @@ export interface KeyboardControlsBarProps {
   onBrightnessChange: (val: number) => void;
   displaySpeed: number;
   onSpeedChange: (val: number) => void;
+  /** 单区轮播等需要显示速度时置 true（不给则仅非单区显示） */
+  showSpeed?: boolean;
 }
 
 export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
@@ -23,7 +25,9 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
   onBrightnessChange,
   displaySpeed,
   onSpeedChange,
+  showSpeed,
 }) => {
+  const allowSpeed = showSpeed ?? !isSingleZone;
   const directions = isFourZone
     ? [
         { id: 0, icon: ArrowRight, label: '从左至右' },
@@ -112,7 +116,7 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
           />
         </div>
 
-        {!isSingleColor && !isSingleZone && (
+        {!isSingleColor && allowSpeed && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>

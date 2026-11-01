@@ -79,7 +79,7 @@ pub fn deobf_bytes(bytes: &[u8], key: u8) -> Vec<u8> {
                 code.push_str("    pub const ADDR_DC_ROUND_JACK: u16 = ADDR_POWER_STATUS;\n");
                 code.push_str("    pub const ADDR_SUPER_PERFORMANCE: u16 = ADDR_FAN_BOOST_CLAMP;\n");
                 code.push_str("    pub const ADDR_GPU_DB_MAX: u16 = ADDR_DB_WATTS1;\n");
-                code.push_str("    pub const ADDR_RGB_CONTROL: u16 = ADDR_FAN_ISOLATED;\n");
+
                 code.push_str("    pub const ADDR_MYFAN2_L1_PWM: u16 = ADDR_DB_CTRL1;\n");
                 code.push_str("    pub const ADDR_MYFAN2_L2_PWM: u16 = ADDR_TGP_OFFSET;\n");
                 code.push_str("    pub const ADDR_MYFAN2_L3_PWM: u16 = ADDR_DB_FLAG1;\n");
