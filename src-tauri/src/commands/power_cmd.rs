@@ -355,10 +355,12 @@ pub fn set_battery_limit(limit: u8, ec_state: State<'_, SharedEcBridge>) -> Resu
     Ok(())
 }
 
-#[tauri::command]
-pub fn get_power_settings(
-    ec_state: State<'_, SharedEcBridge>,
-) -> PowerSettingsInfo {
+#[tauri::command(async)]
+pub fn get_power_settings(ec_state: State<'_, SharedEcBridge>) -> PowerSettingsInfo {
+    read_power_settings(ec_state.inner())
+}
+
+fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
     let cfg = crate::system::config::load_config();
     let (percent, _, is_charging) = get_live_power_status();
     let is_dc = is_dc_round_plugged_in();
@@ -372,29 +374,7 @@ pub fn get_power_settings(
         "balance".to_string()
     };
 
-    let usb_charge = if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
-        let is_on = (v & crate::driver::wmi_ec::TRIGGER_USB_CHARGE) != 0;
-        if cfg.usb_charge_enabled && !is_on {
-            crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, v | crate::driver::wmi_ec::TRIGGER_USB_CHARGE);
-            true
-        } else {
-            is_on
-        }
-    } else {
-        cfg.usb_charge_enabled
-    };
-
-    let ac_recovery = if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY) {
-        let is_on = (v & crate::driver::wmi_ec::AC_RECOVERY_BITMASK) != 0;
-        if cfg.ac_recovery_enabled && !is_on {
-            crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY, v | crate::driver::wmi_ec::AC_RECOVERY_BITMASK);
-            true
-        } else {
-            is_on
-        }
-    } else {
-        cfg.ac_recovery_enabled
-    };
+    let (usb_charge, ac_recovery) = read_ec_power_options(&cfg, crate::driver::wmi_ec::wmi_read_ec);
 
 #[cfg(target_os = "windows")]
 fn get_active_power_scheme_guid() -> String {
@@ -688,42 +668,13 @@ pub fn set_battery_hardware_limit(
     Ok(get_power_settings(ec_state))
 }
 
-#[tauri::command]
-pub fn set_power_option(
-    option: String,
-    enable: bool,
-    ec_state: State<'_, SharedEcBridge>,
-) -> Result<PowerSettingsInfo, String> {
+#[tauri::command(async)]
+pub fn set_power_option(option: String, enable: bool, ec_state: State<'_, SharedEcBridge>) -> Result<PowerSettingsInfo, String> {
     let mut cfg = crate::system::config::load_config();
-    match option.as_str() {
-        "usb_charge" => {
-            cfg.usb_charge_enabled = enable;
-            if let Some(mut val) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
-                if enable { val |= crate::driver::wmi_ec::TRIGGER_USB_CHARGE; } else { val &= !crate::driver::wmi_ec::TRIGGER_USB_CHARGE; }
-                crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, val);
-            } else {
-                crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, if enable { crate::driver::wmi_ec::TRIGGER_USB_CHARGE } else { 0x00 });
-            }
-        }
-        "ac_recovery" => {
-            cfg.ac_recovery_enabled = enable;
-            if let Some(mut val) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY) {
-                if enable { val |= crate::driver::wmi_ec::AC_RECOVERY_BITMASK; } else { val &= !crate::driver::wmi_ec::AC_RECOVERY_BITMASK; }
-                crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY, val);
-            } else {
-                crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY, if enable { crate::driver::wmi_ec::AC_RECOVERY_BITMASK } else { 0x00 });
-            }
-        }
-        "high_perf" => {
-            cfg.high_perf_scheme = enable;
-            if enable {
-                crate::system::power_mode::apply_windows_power_overlay(cfg.power_mode);
-            }
-        }
-        _ => return Err("Invalid power option".into()),
-    }
-    crate::system::config::save_config(&cfg);
-    Ok(get_power_settings(ec_state))
+    crate::system::config::ensure_config_writable()?;
+    apply_power_option(&mut cfg, &option, enable, crate::driver::wmi_ec::wmi_modify_ec_mask, crate::system::power_mode::set_windows_power_overlay)?;
+    crate::system::config::try_save_config(&cfg)?;
+    Ok(read_power_settings(ec_state.inner()))
 }
 
 #[cfg(target_os = "windows")]
@@ -861,5 +812,195 @@ mod tests {
         assert_eq!(parsed.power_mode, 2);
         assert_eq!(parsed.power_mode_ac, 3); // defaulted
         assert_eq!(parsed.power_mode_battery, 2); // defaulted
+    }
+}
+
+
+fn read_ec_power_options(
+    cfg: &crate::system::config::AppConfig,
+    mut read: impl FnMut(u16) -> Option<u8>,
+) -> (bool, bool) {
+    // Recovery hooks own writes; this view combines preferences and observed bits.
+    let usb = read(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE)
+        .map(|value| {
+            cfg.usb_charge_enabled || value & crate::driver::wmi_ec::TRIGGER_USB_CHARGE != 0
+        })
+        .unwrap_or(cfg.usb_charge_enabled);
+    let ac = read(crate::driver::wmi_ec::ADDR_AC_RECOVERY)
+        .map(|value| {
+            cfg.ac_recovery_enabled || value & crate::driver::wmi_ec::AC_RECOVERY_BITMASK != 0
+        })
+        .unwrap_or(cfg.ac_recovery_enabled);
+    (usb, ac)
+}
+
+fn apply_power_option(
+    cfg: &mut crate::system::config::AppConfig,
+    option: &str,
+    enable: bool,
+    modify: impl FnOnce(u16, u8, bool) -> Option<u8>,
+    overlay: impl FnOnce(u8) -> Result<(), String>,
+) -> Result<(), String> {
+    match option {
+        "usb_charge" | "ac_recovery" => {
+            crate::hal::power_options::apply_ec_option(option, enable, modify)?;
+            if option == "usb_charge" {
+                cfg.usb_charge_enabled = enable;
+            } else {
+                cfg.ac_recovery_enabled = enable;
+            }
+        }
+        "high_perf" => {
+            if enable {
+                overlay(cfg.power_mode)?;
+            }
+            cfg.high_perf_scheme = enable;
+        }
+        _ => return Err("Invalid power option".into()),
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod power_option_tests {
+    use super::*;
+
+    #[test]
+    fn regression_power_option_updates_only_its_setting_after_ec_acknowledgement() {
+        use crate::driver::wmi_ec;
+        for (option, field, address, bits) in [
+            (
+                "usb_charge",
+                "usb_charge_enabled",
+                wmi_ec::ADDR_TRIGGER_BYTE,
+                wmi_ec::TRIGGER_USB_CHARGE,
+            ),
+            (
+                "ac_recovery",
+                "ac_recovery_enabled",
+                wmi_ec::ADDR_AC_RECOVERY,
+                wmi_ec::AC_RECOVERY_BITMASK,
+            ),
+        ] {
+            for initial in [false, true] {
+                for enable in [false, true] {
+                    for acknowledged in [false, true] {
+                        let mut cfg = crate::system::config::AppConfig::default();
+                        cfg.usb_charge_enabled = initial;
+                        cfg.ac_recovery_enabled = initial;
+                        let mut expected = serde_json::to_value(&cfg).unwrap();
+                        let mut calls = 0;
+                        let result = apply_power_option(
+                            &mut cfg,
+                            option,
+                            enable,
+                            |actual, mask, target| {
+                                calls += 1;
+                                assert_eq!((actual, mask, target), (address, bits, enable));
+                                acknowledged.then_some(if target { mask } else { 0 })
+                            },
+                            |_| panic!("EC options must not alter the Windows overlay"),
+                        );
+                        assert_eq!(calls, 1);
+                        assert_eq!(result.is_ok(), acknowledged);
+                        if acknowledged {
+                            expected[field] = serde_json::json!(enable);
+                        }
+                        assert_eq!(serde_json::to_value(cfg).unwrap(), expected);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn regression_enabling_overlay_from_disabled_applies_before_saving_and_reports_failure() {
+        let mut cfg = crate::system::config::AppConfig::default();
+        cfg.high_perf_scheme = false;
+        cfg.power_mode = 3;
+        let failed = apply_power_option(
+            &mut cfg,
+            "high_perf",
+            true,
+            |_, _, _| panic!("Windows overlay must not use EC I/O"),
+            |mode| {
+                assert_eq!(mode, 3);
+                Err("overlay rejected".into())
+            },
+        );
+        assert_eq!(failed.unwrap_err(), "overlay rejected");
+        assert!(!cfg.high_perf_scheme);
+        let mut applied = false;
+        apply_power_option(
+            &mut cfg,
+            "high_perf",
+            true,
+            |_, _, _| panic!("Windows overlay must not use EC I/O"),
+            |mode| {
+                assert_eq!(mode, 3);
+                applied = true;
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(applied && cfg.high_perf_scheme);
+        apply_power_option(
+            &mut cfg,
+            "high_perf",
+            false,
+            |_, _, _| panic!("Disabling overlay linkage must not use EC I/O"),
+            |_| panic!("Disabling linkage must preserve the current Windows setting"),
+        )
+        .unwrap();
+        assert!(!cfg.high_perf_scheme);
+    }
+
+    #[test]
+    fn regression_unknown_power_option_never_reaches_hardware_or_changes_settings() {
+        let mut cfg = crate::system::config::AppConfig::default();
+        let original = serde_json::to_value(&cfg).unwrap();
+        for option in ["", "USB_CHARGE", "unknown"] {
+            assert!(apply_power_option(
+                &mut cfg,
+                option,
+                true,
+                |_, _, _| panic!("Unknown option reached EC I/O"),
+                |_| panic!("Unknown option reached Windows I/O")
+            )
+            .is_err());
+            assert_eq!(serde_json::to_value(&cfg).unwrap(), original);
+        }
+    }
+
+    #[test]
+    fn regression_power_option_query_preserves_preference_semantics_without_reasserting_hardware() {
+        use crate::driver::wmi_ec;
+        let mut cfg = crate::system::config::AppConfig::default();
+        cfg.usb_charge_enabled = true;
+        cfg.ac_recovery_enabled = true;
+        let mut reads = Vec::new();
+        assert_eq!(
+            read_ec_power_options(&cfg, |address| {
+                reads.push(address);
+                Some(0)
+            }),
+            (true, true)
+        );
+        assert_eq!(reads, [wmi_ec::ADDR_TRIGGER_BYTE, wmi_ec::ADDR_AC_RECOVERY]);
+        assert!(cfg.usb_charge_enabled && cfg.ac_recovery_enabled);
+        cfg.ac_recovery_enabled = false;
+        assert_eq!(read_ec_power_options(&cfg, |_| None), (true, false));
+        cfg.usb_charge_enabled = false;
+        assert_eq!(read_ec_power_options(&cfg, |_| Some(0)), (false, false));
+        assert_eq!(
+            read_ec_power_options(&cfg, |address| Some(
+                if address == wmi_ec::ADDR_TRIGGER_BYTE {
+                    wmi_ec::TRIGGER_USB_CHARGE
+                } else {
+                    wmi_ec::AC_RECOVERY_BITMASK
+                }
+            )),
+            (true, true)
+        );
     }
 }
