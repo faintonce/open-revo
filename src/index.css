@@ -3174,3 +3174,89 @@ body,
 
 
 
+
+/* GCU OC 快捷胶囊（狂暴模式左上角） */
+.gpu-oc-wrap { position: relative; display: inline-flex; }
+.gpu-oc-chip {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 3;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 1.4;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--theme-pwr-dim);
+  border: 1px solid var(--theme-pwr-border);
+  color: var(--theme-pwr);
+  cursor: pointer;
+}
+.gpu-oc-chip.is-applied { border-color: var(--theme-pwr); }
+.gpu-oc-chip.is-error { color: var(--status-error); border-color: var(--status-error); }
+
+/* 狂暴模式分段按钮：左静音狂暴 / 右高能狂暴（仅支持子模式的机型） */
+.turbo-seg { display: inline-flex; }
+.turbo-seg .turbo-seg-item { border-radius: 0; }
+.turbo-seg .turbo-seg-item:first-child { border-radius: 10px 0 0 10px; }
+.turbo-seg .turbo-seg-item:last-child { border-radius: 0 10px 10px 0; margin-left: -1px; }
+.turbo-seg .turbo-seg-item.active {
+  background: var(--theme-pwr-dim);
+  border-color: var(--theme-pwr-border);
+  color: var(--theme-pwr);
+  box-shadow: 0 0 12px var(--theme-pwr-glow);
+}
+.turbo-seg .turbo-seg-item[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+/* 狂暴模式：静音/高能 分段卡片 + 左上角 GCU OC 胶囊（仪表盘） */
+.mode-seg-wrap { position: relative; display: flex; }
+.mode-seg { display: flex; flex: 1; }
+.mode-seg .mode-seg-btn { flex: 1; border-radius: 0; }
+.mode-seg .mode-seg-btn:first-child { border-radius: 12px 0 0 12px; }
+.mode-seg .mode-seg-btn:last-child { border-radius: 0 12px 12px 0; margin-left: -1px; }
+.mode-seg .mode-seg-btn .mode-title { font-size: 12px; }
+.mode-oc-chip {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  z-index: 3;
+  padding: 0 5px;
+  font-size: 9px;
+  line-height: 1.4;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--theme-pwr-dim);
+  border: 1px solid var(--theme-pwr-border);
+  color: var(--theme-pwr);
+  cursor: pointer;
+}
+.mode-oc-chip.is-applied { border-color: var(--theme-pwr); }
+.mode-oc-chip.is-error { color: var(--status-error); border-color: var(--status-error); }
+
+/* 迷你抽屉：支持静音/高能子模式时，狂暴区更宽、其它按钮收窄 */
+.m-pwr-row { display: flex; gap: 8px; align-items: stretch; }
+.m-pwr-row > .m-btn-action { flex: 1 1 0; min-width: 0; }
+.m-pwr-row > .gpu-oc-wrap { flex: 2.4 1 0; min-width: 0; }
+.m-pwr-row .turbo-seg { flex: 1; }
+.m-pwr-row .turbo-seg-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+}
+
+/* OC 胶囊让位：狂暴按钮/卡片顶部留空并加高，避免被胶囊遮住内容 */
+.mode-btn { position: relative; }
+.mode-beast { padding-top: 22px; }
+.mode-beast .mode-title { margin-top: 2px; }
+.mode-oc-chip { top: 4px; right: 5px; }
+.mode-seg-btn { min-height: 74px; }
+
+/* 迷你抽屉：狂暴区按钮只保留相对定位（OC 允许轻微遮挡，图标恢复原大小） */
+.gpu-oc-wrap .m-btn-action { position: relative; }
+.gpu-oc-wrap .gpu-oc-chip { top: 1px; right: 2px; }

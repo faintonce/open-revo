@@ -916,6 +916,31 @@ pub fn set_gpu_power_state_ec(
     ok
 }
 
+/// 读取当前实际生效的 GPU 总功耗上限（W），供 UI 显示真实 TGP 用：
+///   - 非满血卡：有效基础 TGP = cTGP floor + EC 偏移；DB 使能时再加 DB 目标
+///   - 满血卡：基础 TGP 锁定，仅 DB 目标参与
+/// 读不到或不支持调优时返回 0，调用方回落到原厂预设值。
+pub fn read_live_gpu_tgp_watts() -> u32 {
+    let caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
+    if !caps.supports_gpu_tuning || caps.base_tgp_max_watts == 0 {
+        return 0;
+    }
+    let db_target = wmi_read_ec(ADDR_DB_WATTS1).unwrap_or(5) as u32;
+    if caps.is_full_power {
+        let db = if db_target > 5 { db_target.min(caps.max_db_watts) } else { 0 };
+        return caps.base_tgp_max_watts + db;
+    }
+    let floor = caps.ctgp_floor_watts;
+    let offset = wmi_read_ec(ADDR_TGP_OFFSET).unwrap_or(0) as u32;
+    let base = (floor + offset).min(caps.base_tgp_max_watts);
+    // ADDR_DB_CTRL1 bit1 = Dynamic Boost 使能位
+    const DB_CTRL_ENABLE_BIT: u8 = 0x02;
+    let ctrl = wmi_read_ec(ADDR_DB_CTRL1).unwrap_or(0);
+    let db_on = (ctrl & DB_CTRL_ENABLE_BIT) != 0;
+    let db = if db_on { db_target.min(caps.max_db_watts) } else { 0 };
+    base + db
+}
+
 /// Directly update Dynamic Boost Target Watts.
 /// On full-power cards, only writes ADDR_DB_WATTS1.
 /// On non-full-power cards, preserves cTGP offset.

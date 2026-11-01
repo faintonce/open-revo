@@ -135,3 +135,21 @@ pub fn refresh_factory_power_presets(_has_gpu: bool) -> FactoryPowerPresets {
     *PRESETS_CACHE.write() = Some(presets.clone());
     presets
 }
+
+/// 读取当前档位**实时生效**的 CPU PL1 / PL2（W，EC 寄存器真值）。
+/// - 1/2/3 档：读对应档位的工厂表字节（固件/外部工具改写后会变）
+/// - 4 档（自定义）：读自定义 PL 寄存器（用户下发后的实际值）
+/// 读不到的档位返回 0，调用方回落到预设值。
+pub fn read_live_cpu_pl(ui_mode: u8) -> (u16, u16) {
+    use crate::driver::wmi_ec as ec;
+    let (a1, a2) = match ui_mode {
+        1 => (ec::ADDR_OFFICE_PL1, ec::ADDR_OFFICE_PL2),
+        2 => (ec::ADDR_BALANCE_PL1, ec::ADDR_BALANCE_PL2),
+        3 => (ec::ADDR_TURBO_PL1, ec::ADDR_TURBO_PL2),
+        4 => (ec::ADDR_CUSTOM_PL1, ec::ADDR_CUSTOM_PL2),
+        _ => (ec::ADDR_BALANCE_PL1, ec::ADDR_BALANCE_PL2),
+    };
+    let pl1 = ec::wmi_read_ec(a1).unwrap_or(0) as u16;
+    let pl2 = ec::wmi_read_ec(a2).unwrap_or(0) as u16;
+    (pl1, pl2)
+}

@@ -863,3 +863,49 @@ mod tests {
         assert_eq!(parsed.power_mode_battery, 2); // defaulted
     }
 }
+
+// ============================================================
+//  狂暴子模式（静音狂暴 / 高能狂暴）
+//  仅对能力位满足的机型开放；不满足时 supported=false，UI 隐藏入口。
+// ============================================================
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct TurboSubmodeState {
+    pub supported: bool,
+    pub silent: Option<bool>,
+}
+
+fn read_turbo_submode_state() -> TurboSubmodeState {
+    let supported = crate::system::power::turbo_submode::is_supported();
+    TurboSubmodeState {
+        supported,
+        silent: if supported {
+            crate::system::power::turbo_submode::current_silent()
+        } else {
+            None
+        },
+    }
+}
+
+#[tauri::command]
+pub fn get_turbo_submode_state() -> TurboSubmodeState {
+    let st = read_turbo_submode_state();
+    crate::log_info!(
+        "POWER_MODE",
+        "turbo submode state: supported={}, silent={:?}",
+        st.supported,
+        st.silent
+    );
+    st
+}
+
+#[tauri::command]
+pub fn set_turbo_submode(silent: bool, app: AppHandle) -> Result<TurboSubmodeState, String> {
+    crate::system::power::turbo_submode::apply_silent(silent)?;
+    let mut cfg = crate::system::config::load_config();
+    cfg.turbo_silent = silent;
+    crate::system::config::save_config(&cfg);
+    let st = read_turbo_submode_state();
+    let _ = app.emit("turbo-submode-changed", st.clone());
+    crate::log_info!("POWER_MODE", "turbo submode switched by user: silent={}", silent);
+    Ok(st)
+}

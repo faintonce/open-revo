@@ -45,6 +45,9 @@ export interface HardwareState {
   is_dc_online?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
   cpu_power_w?: number;      // CPU package real-time power (W)
   gpu_power_w?: number;      // GPU real-time power draw (W)
+  gpu_tgp_watts?: number;    // 实际生效的 GPU 总功耗上限（基础 TGP + DB；DB 关闭时只算基础）
+  live_pl1_w?: number;      // 当前档位实时生效的 CPU PL1（W，EC 真值）
+  live_pl2_w?: number;      // 当前档位实时生效的 CPU PL2（W，EC 真值）
   gpu_tuning_caps?: GpuTuningCapabilities; // Multi-generation GPU tuning & DB/cTGP capabilities
 }
 
