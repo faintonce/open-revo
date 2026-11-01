@@ -99,24 +99,19 @@ fn handle_system_resume_pipeline(event_name: &str) {
 
     let cfg = crate::system::config::load_config();
     if let Some(ec) = GLOBAL_EC.read().clone() {
-        let cfg_limit = cfg.battery_limit;
-        let cfg_override = cfg.battery_hardware_limit_enabled;
-        println!(
-            "[Power Guard] System resumed: Re-asserting battery limit ({}%) with override={}",
-            cfg_limit, cfg_override
-        );
-        ec.lock().apply_battery_limit_with_override(cfg_limit, cfg_override);
-
-        // Delayed re-assertion to defend against late ACPI battery driver initialization
-        let ec_delayed = ec.clone();
         std::thread::spawn(move || {
+            let cfg = crate::system::config::load_config();
+            if let Err(error) = ec.lock().apply_battery_limit_with_override(
+                cfg.battery_limit, cfg.battery_hardware_limit_enabled,
+            ) {
+                crate::log_warn!("POWER_RESTORE", "Wake battery protection restore failed: {}", error);
+            }
             std::thread::sleep(std::time::Duration::from_millis(2000));
             let cfg_delayed = crate::system::config::load_config();
             if cfg_delayed.battery_hardware_limit_enabled && cfg_delayed.battery_limit < 95 {
-                ec_delayed.lock().apply_battery_limit_with_override(
-                    cfg_delayed.battery_limit,
-                    true,
-                );
+                if let Err(error) = ec.lock().apply_battery_limit_with_override(cfg_delayed.battery_limit, true) {
+                    crate::log_warn!("POWER_RESTORE", "Delayed wake battery protection restore failed: {}", error);
+                }
             }
         });
     }

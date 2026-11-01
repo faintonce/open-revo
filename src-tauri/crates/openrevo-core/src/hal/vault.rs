@@ -37,3 +37,10 @@ mod tests {
         }
     }
 }
+
+pub mod battery {
+    pub const LEGACY_PLATFORM_GATE: u8 = 0x04;
+    pub const LEGACY_PLATFORM_OVERRIDE: u8 = 0x05;
+    pub const NATIVE_PLATFORM_ID: u8 = 0x07;
+    pub const OFFICE_FAN_CLAMP: u8 = 0xA0;
+}

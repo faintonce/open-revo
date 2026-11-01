@@ -294,7 +294,9 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
                 _ => None,
             };
             if let Some(bm) = batt_mode {
-                let _ = hal.set_battery_health(bm);
+                if let Err(error) = hal.set_battery_health(bm) {
+                    crate::log_warn!("POWER_RESTORE", "Battery protection restore failed: {}", error);
+                }
             }
 
             crate::system::boot_trace::boot_log("RESTORE", "Thin & light startup hardware restoration completed");
@@ -322,7 +324,9 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
                 }
             }
 
-            ec.set_battery_limit(cfg.battery_limit);
+            if let Err(error) = ec.set_battery_limit(cfg.battery_limit) {
+                crate::log_warn!("POWER_RESTORE", "Battery protection restore failed: {}", error);
+            }
             ec.set_fan_boost(cfg.fan_boost);
         }
 
@@ -333,7 +337,9 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
                 std::thread::sleep(std::time::Duration::from_millis(2500));
                 let cfg_delayed = crate::system::config::load_config();
                 if cfg_delayed.battery_hardware_limit_enabled && cfg_delayed.battery_limit < 95 {
-                    ec_delayed.lock().apply_battery_limit_with_override(cfg_delayed.battery_limit, true);
+                    if let Err(error) = ec_delayed.lock().apply_battery_limit_with_override(cfg_delayed.battery_limit, true) {
+                        crate::log_warn!("POWER_RESTORE", "Delayed battery protection restore failed: {}", error);
+                    }
                 }
             });
         }

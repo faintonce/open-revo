@@ -339,26 +339,17 @@ pub fn set_fan_boost(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_battery_limit(limit: u8, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
-    ec_state.lock().set_battery_limit(limit);
-    let mut cfg = crate::system::config::load_config();
-    cfg.battery_limit = limit;
-    cfg.battery_mode = if limit >= 95 {
-        "long_life".to_string()
-    } else if limit <= 65 {
-        "station".to_string()
-    } else {
-        "balance".to_string()
-    };
-    crate::system::config::save_config(&cfg);
-    Ok(())
+    ec_state.lock().set_battery_limit(limit)
 }
 
-#[tauri::command]
-pub fn get_power_settings(
-    ec_state: State<'_, SharedEcBridge>,
-) -> PowerSettingsInfo {
+#[tauri::command(async)]
+pub fn get_power_settings(ec_state: State<'_, SharedEcBridge>) -> PowerSettingsInfo {
+    read_power_settings(ec_state.inner())
+}
+
+fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
     let cfg = crate::system::config::load_config();
     let (percent, _, is_charging) = get_live_power_status();
     let is_dc = is_dc_round_plugged_in();
@@ -653,39 +644,17 @@ pub fn set_sleep_auto_office(
     Ok(get_power_settings(ec_state))
 }
 
-#[tauri::command]
-pub fn set_battery_mode(
-    mode: String,
-    ec_state: State<'_, SharedEcBridge>,
-) -> Result<PowerSettingsInfo, String> {
-    let limit = match mode.as_str() {
-        "long_life" => 100,
-        "station" => 60,
-        _ => 80, // "balance"
-    };
-
-    let mut cfg = crate::system::config::load_config();
-    cfg.battery_mode = mode.clone();
-    cfg.battery_limit = limit;
-    crate::system::config::save_config(&cfg);
-
-    ec_state.lock().apply_battery_limit_with_override(limit, cfg.battery_hardware_limit_enabled);
-
-    Ok(get_power_settings(ec_state))
+#[tauri::command(async)]
+pub fn set_battery_mode(mode: String, ec_state: State<'_, SharedEcBridge>) -> Result<PowerSettingsInfo, String> {
+    let limit = crate::hal::battery_control::mode_limit(&mode)?;
+    ec_state.lock().set_battery_limit(limit)?;
+    Ok(read_power_settings(ec_state.inner()))
 }
 
-#[tauri::command]
-pub fn set_battery_hardware_limit(
-    enable: bool,
-    ec_state: State<'_, SharedEcBridge>,
-) -> Result<PowerSettingsInfo, String> {
-    let mut cfg = crate::system::config::load_config();
-    cfg.battery_hardware_limit_enabled = enable;
-    crate::system::config::save_config(&cfg);
-
-    ec_state.lock().set_battery_hardware_limit_override(enable);
-
-    Ok(get_power_settings(ec_state))
+#[tauri::command(async)]
+pub fn set_battery_hardware_limit(enable: bool, ec_state: State<'_, SharedEcBridge>) -> Result<PowerSettingsInfo, String> {
+    ec_state.lock().set_battery_hardware_limit_override(enable)?;
+    Ok(read_power_settings(ec_state.inner()))
 }
 
 #[tauri::command]

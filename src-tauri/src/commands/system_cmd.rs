@@ -309,7 +309,9 @@ pub fn toggle_oem_service(
             {
                 let ec = ec_clone.lock();
                 ec.set_power_mode(effective_mode);
-                ec.set_battery_limit(cfg_clone.battery_limit);
+                if let Err(error) = ec.set_battery_limit(cfg_clone.battery_limit) {
+                    crate::log_warn!("POWER_RESTORE", "Battery protection restore failed: {}", error);
+                }
             }
             if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY) {
                 let mut new_v = if cfg_clone.ac_recovery_enabled { v | crate::driver::wmi_ec::AC_RECOVERY_BITMASK } else { v & !crate::driver::wmi_ec::AC_RECOVERY_BITMASK };

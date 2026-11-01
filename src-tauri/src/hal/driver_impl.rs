@@ -21,29 +21,18 @@ impl MechrevoHardwareHAL for MechrevoHALImpl {
     }
 
     fn set_battery_health(&self, mode: BatteryHealthMode) -> Result<(), HalError> {
-        let (limit_up, mode_byte) = match mode {
-            BatteryHealthMode::LongLife => (100u8, mask::BATTERY_MODE_LONGLIFE),
-            BatteryHealthMode::Balance => (80u8, mask::BATTERY_MODE_BALANCE),
-            BatteryHealthMode::Station => (60u8, mask::BATTERY_MODE_STATION),
+        let limit = match mode {
+            BatteryHealthMode::LongLife => 100,
+            BatteryHealthMode::Balance => 80,
+            BatteryHealthMode::Station => 60,
         };
-
-        let down_limit = if limit_up > 5 { limit_up - 5 } else { limit_up };
-
-        // 1. Write cutoff limits (Upper, Lower)
-        let ok1 = wmi_ec::wmi_write_ec(ec::ADDR_BATTERY_LIMIT_UP, limit_up);
-        let ok2 = wmi_ec::wmi_write_ec(ec::ADDR_BATTERY_LIMIT_DOWN, down_limit);
-
-        // 2. Atomically update battery protection mode preserving touchpad bit
-        let ok3 = wmi_ec::wmi_modify_ec(ec::ADDR_BATTERY_PROTECTION_MODE, |cur_bat_mode| {
-            let preserved_touchpad = cur_bat_mode & mask::TOUCHPAD_BITMASK;
-            (mode_byte & !mask::TOUCHPAD_BITMASK) | preserved_touchpad
-        }).is_some();
-
-        if ok1 && ok2 && ok3 {
-            Ok(())
-        } else {
-            Err(HalError::RegisterAccessFailed("Failed to update battery health registers".to_string()))
-        }
+        crate::hal::battery_control::write_thresholds(limit, wmi_ec::wmi_write_ec, |mode| {
+            wmi_ec::wmi_modify_ec(ec::ADDR_BATTERY_PROTECTION_MODE, |current| {
+                mode | (current & mask::TOUCHPAD_BITMASK)
+            })
+        })
+        .map(|_| ())
+        .map_err(HalError::RegisterAccessFailed)
     }
 
     fn set_fan_boost(&self, active: bool) -> Result<(), HalError> {

@@ -220,6 +220,8 @@ export default function App() {
     power_mode?: { val: PowerMode; expiry: number };
   }>({});
 
+  const snapshotRevision = useRef(0);
+
   const [activeSkin, setActiveSkin] = useState<string | null>(null);
   const [activeBackground, setActiveBackground] = useState<string | null>(null);
 
@@ -296,6 +298,7 @@ export default function App() {
     if (isBldPreview) return;
     try {
       const state = await invoke<HardwareState>('get_hardware_status');
+      snapshotRevision.current += 1;
       const now = Date.now();
       const lock = overrideLockRef.current;
       setHardwareState((_prev) => {
@@ -329,7 +332,7 @@ export default function App() {
             ...prev,
             power_mode: cfg.power_mode,
             fan_boost: cfg.fan_boost,
-            battery_limit: cfg.battery_limit,
+            battery_limit: snapshotRevision.current > 0 || overrideLockRef.current.battery_limit ? prev.battery_limit : cfg.battery_limit,
             win_key_locked: cfg.win_key_locked,
             refresh_rate: cfg.refresh_rate,
             autostart: cfg.autostart,
@@ -392,6 +395,7 @@ export default function App() {
     let unlistenTelemetry: (() => void) | undefined;
     listen<HardwareState>('hardware-state-updated', (event) => {
       const state = event.payload;
+      snapshotRevision.current += 1;
       const now = Date.now();
       const lock = overrideLockRef.current;
       setHardwareState((_prev) => {
@@ -608,7 +612,11 @@ export default function App() {
   };
 
   // Battery limit
+  const batteryBusy = useRef(false);
   const handleToggleBatteryLimit = async (targetLimit?: number) => {
+    if (batteryBusy.current) return;
+    batteryBusy.current = true;
+    const revision = snapshotRevision.current;
     let nextLimit: number;
     if (typeof targetLimit === 'number') {
       nextLimit = targetLimit;
@@ -621,14 +629,17 @@ export default function App() {
         nextLimit = 80;
       }
     }
-    overrideLockRef.current.battery_limit = { val: nextLimit, expiry: Date.now() + 4000 };
-    setHardwareState((prev) => ({ ...prev, battery_limit: nextLimit }));
-    if (isTauriEnv) {
-      try {
+    try {
+      if (isTauriEnv || '__TAURI_INTERNALS__' in window) {
         await invoke('set_battery_limit', { limit: nextLimit });
-      } catch (e) {
-        console.error('Failed to set battery limit:', e);
       }
+      if (snapshotRevision.current !== revision) return;
+      overrideLockRef.current.battery_limit = { val: nextLimit, expiry: Date.now() + 4000 };
+      setHardwareState((prev) => ({ ...prev, battery_limit: nextLimit }));
+    } catch (error) {
+      alert('切换电池保护失败：' + String(error));
+    } finally {
+      batteryBusy.current = false;
     }
   };
 

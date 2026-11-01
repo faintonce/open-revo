@@ -56,9 +56,18 @@ fn main() {
             }
             "--set-battery-limit" => {
                 if let Some(val) = args.get(2) {
-                    let limit: u8 = val.parse().unwrap_or(80);
+                    let limit: u8 = match val.parse() {
+                        Ok(limit) => limit,
+                        Err(error) => {
+                            eprintln!("Invalid battery charge limit: {}", error);
+                            std::process::exit(1);
+                        }
+                    };
                     println!("[>] Setting Battery Charge Limit to: {}%", limit);
-                    ec.set_battery_limit(limit);
+                    if let Err(error) = ec.set_battery_limit(limit) {
+                        eprintln!("Battery charge limit failed: {}", error);
+                        std::process::exit(1);
+                    }
                     println!("[✓] Battery limit set successfully.");
                 }
             }

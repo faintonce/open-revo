@@ -191,7 +191,7 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
             return Ok(());
         }
 
-        Ok(())
+        Err(HalError::UnsupportedModel("Battery protection action is not defined in the model manifest".into()))
     }
 
     fn set_fan_boost(&self, active: bool) -> Result<(), HalError> {

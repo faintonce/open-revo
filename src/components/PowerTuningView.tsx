@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Zap, Battery, Plug, ShieldCheck, Globe, Ban, Lock, Clock, Moon, Snowflake, Info } from 'lucide-react';
 import { RevBadge, RevSwitch } from './ui';
@@ -47,37 +47,44 @@ export const PowerTuningView: React.FC = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [controlError, setControlError] = useState<string | null>(null);
+  const busy = useRef(false);
+  const revision = useRef(0);
 
   useEffect(() => {
-    invoke<PowerSettingsInfo>('get_power_settings')
-      .then((res) => {
-        if (res) setPowerInfo(res);
-      })
-      .catch((e) => console.error('Failed to get power settings:', e));
-
-    const timer = setInterval(() => {
+    let disposed = false;
+    const refresh = () => {
+      if (busy.current) return;
+      const requestRevision = ++revision.current;
       invoke<PowerSettingsInfo>('get_power_settings')
         .then((res) => {
-          if (res) setPowerInfo(res);
+          if (!disposed && !busy.current && revision.current === requestRevision && res) setPowerInfo(res);
         })
-        .catch(() => { });
-    }, 5000);
-    return () => clearInterval(timer);
+        .catch((error) => console.error('Failed to get power settings:', error));
+    };
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    return () => { disposed = true; clearInterval(timer); };
   }, []);
 
-  const handleSelectBatteryMode = async (mode: string) => {
-    if (loading) return;
+  const runControl = async (command: string, args: Record<string, unknown>) => {
+    if (busy.current || loading) return;
+    busy.current = true;
+    revision.current += 1;
     setLoading(true);
-    setPowerInfo((prev) => ({ ...prev, battery_mode: mode }));
+    setControlError(null);
     try {
-      const res = await invoke<PowerSettingsInfo>('set_battery_mode', { mode });
+      const res = await invoke<PowerSettingsInfo>(command, args);
       if (res) setPowerInfo(res);
-    } catch (e) {
-      console.error('Failed to set battery mode:', e);
+    } catch (error) {
+      setControlError('更改电源设置失败：' + String(error));
     } finally {
+      busy.current = false;
       setLoading(false);
     }
   };
+
+  const handleSelectBatteryMode = (mode: string) => runControl('set_battery_mode', { mode });
 
   const handleToggleOption = async (option: 'usb_charge' | 'ac_recovery' | 'high_perf') => {
     if (loading) return;
@@ -172,7 +179,8 @@ export const PowerTuningView: React.FC = () => {
   };
 
   return (
-    <div className="power-view-container">
+    <div className="power-view-container" aria-busy={loading}>
+      {controlError && <p className="sys-row-desc" role="alert">{controlError}</p>}
       {/* 1. Top Header Bar with Auto Office Checkbox */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -515,7 +523,7 @@ export const PowerTuningView: React.FC = () => {
           {/* Left: 3 Radio Modes with Exact OEM Copy */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {/* Mode 1: 长效模式 */}
-            <div
+            <button type="button" disabled={loading} aria-pressed={powerInfo.battery_mode === 'long_life'}
               onClick={() => handleSelectBatteryMode('long_life')}
               className={`battery-mode-card battery-mode-long-life ${powerInfo.battery_mode === 'long_life' ? 'active' : ''}`}
             >
@@ -530,10 +538,10 @@ export const PowerTuningView: React.FC = () => {
                   适合很长时间使用电池工作的环境。
                 </div>
               </div>
-            </div>
+            </button>
 
             {/* Mode 2: 平衡模式 */}
-            <div
+            <button type="button" disabled={loading} aria-pressed={powerInfo.battery_mode === 'balance'}
               onClick={() => handleSelectBatteryMode('balance')}
               className={`battery-mode-card battery-mode-balance ${powerInfo.battery_mode === 'balance' ? 'active' : ''}`}
             >
@@ -548,10 +556,10 @@ export const PowerTuningView: React.FC = () => {
                   偶而会携带电脑工作，且不需要多余靠电池供电。
                 </div>
               </div>
-            </div>
+            </button>
 
             {/* Mode 3: 工作站模式 */}
-            <div
+            <button type="button" disabled={loading} aria-pressed={powerInfo.battery_mode === 'station'}
               onClick={() => handleSelectBatteryMode('station')}
               className={`battery-mode-card battery-mode-station ${powerInfo.battery_mode === 'station' ? 'active' : ''}`}
             >
@@ -566,7 +574,7 @@ export const PowerTuningView: React.FC = () => {
                   如果很容易接续适配器工作，无携带电脑外出工作的需求，强烈建议使用此模式，延长电池的寿命。
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Right: Real-time Animated Battery Gauge */}

@@ -347,91 +347,167 @@ impl EcBridge {
         self.cache.lock().battery_limit
     }
 
-    pub fn set_battery_limit(&self, limit: u8) {
+    pub fn set_battery_limit(&self, limit: u8) -> Result<(), String> {
         let cfg = crate::system::config::load_config();
-        self.apply_battery_limit_with_override(limit, cfg.battery_hardware_limit_enabled);
+        self.apply_battery_limit_with_override(limit, cfg.battery_hardware_limit_enabled)
     }
 
-    pub fn set_battery_hardware_limit_override(&self, hardware_override: bool) {
+    pub fn set_battery_hardware_limit_override(
+        &self,
+        hardware_override: bool,
+    ) -> Result<(), String> {
         let cfg = crate::system::config::load_config();
-        self.apply_battery_limit_with_override(cfg.battery_limit, hardware_override);
+        self.apply_battery_settings(cfg.battery_limit, hardware_override, true)
     }
 
-    pub fn apply_battery_limit_with_override(&self, limit: u8, hardware_override: bool) {
-        {
-            let mut c = self.cache.lock();
-            c.battery_limit = limit;
-            c.battery_limit_cooldown_until = Instant::now() + Duration::from_secs(5);
+    pub fn apply_battery_limit_with_override(
+        &self,
+        limit: u8,
+        hardware_override: bool,
+    ) -> Result<(), String> {
+        self.apply_battery_settings(limit, hardware_override, false)
+    }
+
+    fn apply_battery_settings(
+        &self,
+        limit: u8,
+        hardware_override: bool,
+        persist_override: bool,
+    ) -> Result<(), String> {
+        use crate::hal::{battery_control, vault::battery};
+        battery_control::validate_limit(limit)?;
+        crate::system::config::ensure_config_writable()?;
+        if !wmi_ec::get_hardware_support_flags().has_battery_limit {
+            return Err("Battery charge protection is not supported on this platform".into());
         }
-
-        thread::spawn(move || {
-            let is_tongfang_hardware = crate::driver::wmi_ec::is_acpi_driver_available()
-                || crate::hal::declarative::load_matched_manifest()
-                    .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
-                    .unwrap_or(false);
-
-            if !is_tongfang_hardware {
-                let health_mode = if limit >= 95 {
-                    crate::hal::BatteryHealthMode::LongLife
-                } else if limit <= 65 {
-                    crate::hal::BatteryHealthMode::Station
-                } else {
-                    crate::hal::BatteryHealthMode::Balance
-                };
-                let hal = crate::hal::get_hardware_driver();
-                let _ = hal.set_battery_health(health_mode);
-                return;
-            }
-
-            let mode_code = if limit >= 95 {
-                wmi_ec::BATTERY_MODE_LONGLIFE
-            } else if limit <= 65 {
-                wmi_ec::BATTERY_MODE_STATION
-            } else {
-                wmi_ec::BATTERY_MODE_BALANCE
-            };
-
-            let down_limit = if limit > 5 { limit - 5 } else { limit };
-
-            // 0. Platform4 Gate method (for legacy gaming chassis without manifest):
-            //    Only apply platform spoofing on non-declarative gaming platforms
-            let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
-            if !is_declarative {
-                if hardware_override && limit < 95 {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
-                } else {
-                    let cur_id = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID).unwrap_or(0x07);
-                    let restore_id = if cur_id == 0x04 || cur_id == 0x05 { 0x07 } else { cur_id };
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restore_id);
+        self.apply_battery_control(
+            limit,
+            || {
+                let direct = wmi_ec::is_acpi_driver_available()
+                    || crate::hal::declarative::load_matched_manifest()
+                        .map(|manifest| {
+                            manifest.channels.values().any(|channel| {
+                                matches!(channel,
+                        crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })
+                            })
+                        })
+                        .unwrap_or(false);
+                if !direct {
+                    let hal = crate::hal::get_hardware_driver();
+                    if !hal.is_hardware_supported() {
+                        return Err("No hardware driver is available for battery protection".into());
+                    }
+                    let mode =
+                        match limit {
+                            100 => crate::hal::BatteryHealthMode::LongLife,
+                            80 => crate::hal::BatteryHealthMode::Balance,
+                            60 => crate::hal::BatteryHealthMode::Station,
+                            _ => return Err(
+                                "This model supports battery limits of 60, 80 or 100 percent only"
+                                    .into(),
+                            ),
+                        };
+                    return hal
+                        .set_battery_health(mode)
+                        .map_err(|error| error.to_string());
                 }
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
-            }
 
-            // 1. First write cut-off thresholds (Upper, Lower)
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_UP, limit);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_DOWN, down_limit);
+                if crate::hal::declarative::load_matched_manifest().is_none() {
+                    if hardware_override && limit < 95 {
+                        if !wmi_ec::wmi_write_ec(
+                            wmi_ec::ADDR_PLATFORM_REAL_ID,
+                            battery::LEGACY_PLATFORM_GATE,
+                        ) {
+                            return Err("Failed to apply the battery platform gate".into());
+                        }
+                    } else {
+                        let current = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID)
+                            .ok_or("Failed to read the battery platform identity")?;
+                        let restored = if current == battery::LEGACY_PLATFORM_GATE
+                            || current == battery::LEGACY_PLATFORM_OVERRIDE
+                        {
+                            battery::NATIVE_PLATFORM_ID
+                        } else {
+                            current
+                        };
+                        if !wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restored) {
+                            return Err("Failed to restore the battery platform identity".into());
+                        }
+                    }
+                    if !wmi_ec::wmi_write_ec(
+                        wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE,
+                        wmi_ec::BATTERY_OVERRIDE_RESET_VALUE,
+                    ) {
+                        return Err("Failed to reset the battery platform override".into());
+                    }
+                }
 
-            // 2. Atomically update battery protection mode while strictly preserving Touchpad state bit
-            let final_mode_byte = wmi_ec::wmi_modify_ec(wmi_ec::ADDR_BATTERY_PROTECTION_MODE, |cur_bat_mode| {
-                let tp_bit = cur_bat_mode & wmi_ec::TOUCHPAD_BITMASK;
-                mode_code | tp_bit
-            }).unwrap_or(mode_code);
+                let mode =
+                    battery_control::write_thresholds(limit, wmi_ec::wmi_write_ec, |mode| {
+                        wmi_ec::wmi_modify_ec(wmi_ec::ADDR_BATTERY_PROTECTION_MODE, |current| {
+                            mode | (current & wmi_ec::TOUCHPAD_BITMASK)
+                        })
+                    })?;
+                let cfg = crate::system::config::load_config();
+                if !crate::hal::platform_probe::is_ultrabook() && matches!(cfg.power_mode, 1 | 2) {
+                    let boost = if cfg.fan_boost {
+                        wmi_ec::FAN_BOOST_CLAMP_BIT
+                    } else {
+                        0
+                    };
+                    let clamp = if cfg.power_mode == 1 {
+                        battery::OFFICE_FAN_CLAMP
+                    } else {
+                        0
+                    } | boost;
+                    if !wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, clamp) {
+                        return Err(
+                            "Battery protection was written, but fan indicator alignment failed"
+                                .into(),
+                        );
+                    }
+                }
+                crate::log_info!(
+                    "EC_BATTERY",
+                    "Battery protection confirmed: limit={}%, hardware_override={}, mode=0x{:02X}",
+                    limit,
+                    hardware_override,
+                    mode
+                );
+                Ok(())
+            },
+            || {
+                crate::system::config::modify_config(|cfg| {
+                    cfg.battery_limit = limit;
+                    cfg.battery_mode = battery_control::mode_name(limit).into();
+                    if persist_override {
+                        cfg.battery_hardware_limit_enabled = hardware_override;
+                    }
+                    Ok(())
+                })
+                .map_err(|error| {
+                    format!(
+                        "Battery protection was submitted, but saving settings failed: {}",
+                        error
+                    )
+                })
+            },
+        )
+    }
 
-            // 3. Immediately align Q-Key LED clamp for active Office or Balance mode under platform override (Gaming laptops only)
-            let current_power_mode = crate::system::config::load_config().power_mode;
-            if !crate::hal::platform_probe::is_ultrabook() && (current_power_mode == 1 || current_power_mode == 2) {
-                let fan_boost = crate::system::config::load_config().fan_boost;
-                let boost_bit = if fan_boost { wmi_ec::FAN_BOOST_CLAMP_BIT } else { 0 };
-                let target_clamp = (if current_power_mode == 1 { 0xA0 } else { 0x00 }) | boost_bit;
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, target_clamp);
-            }
-
-            crate::log_info!(
-                "EC_BATTERY",
-                "Hardware battery limit applied [Platform4-REAL_ID]: limit={}%, down={}, hw_override={}, mode_byte=0x{:02X}",
-                limit, down_limit, hardware_override, final_mode_byte
-            );
-        });
+    fn apply_battery_control(
+        &self,
+        limit: u8,
+        apply: impl FnOnce() -> Result<(), String>,
+        commit: impl FnOnce() -> Result<(), String>,
+    ) -> Result<(), String> {
+        crate::hal::battery_control::validate_limit(limit)?;
+        self.cache.lock().battery_limit_cooldown_until = Instant::now() + Duration::from_secs(5);
+        let result = apply();
+        self.cache.lock().battery_limit_cooldown_until = Instant::now() + Duration::from_secs(5);
+        result?;
+        self.cache.lock().battery_limit = limit;
+        commit()
     }
 
     pub fn get_cpu_fan_rpm(&self) -> u16 {
@@ -450,3 +526,8 @@ impl EcBridge {
 }
 
 pub type SharedEcBridge = Arc<Mutex<EcBridge>>;
+
+
+#[cfg(test)]
+#[path = "battery_limit_tests.rs"]
+mod battery_limit_tests;
