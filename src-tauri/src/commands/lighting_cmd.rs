@@ -782,3 +782,15 @@ pub fn set_keyboard_sleep_timeout(seconds: u32, app: tauri::AppHandle) -> Result
     Ok(())
 }
 
+
+#[tauri::command]
+pub fn set_keyboard_cycle_colors(colors: Vec<String>) {
+    let parsed: Vec<[u8; 3]> = colors
+        .iter()
+        .filter_map(|c| {
+            let (r, g, b) = crate::driver::lighting::parse_hex_color(c);
+            Some([r, g, b])
+        })
+        .collect();
+    crate::driver::lighting::set_ec_cycle_colors(parsed);
+}

@@ -224,6 +224,7 @@ pub fn run() {
             commands::hardware_cmd::get_lighting_hardware_override,
             commands::hardware_cmd::get_keyboard_hardware_info,
             commands::hardware_cmd::apply_keyboard_lighting,
+            commands::hardware_cmd::set_keyboard_cycle_colors,
             commands::hardware_cmd::apply_lightbar_lighting,
             commands::hardware_cmd::apply_hinge_lighting,
             commands::hardware_cmd::apply_four_zone_colors,

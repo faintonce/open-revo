@@ -27,7 +27,7 @@ export const LightColorRow: React.FC<LightColorRowProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <Palette className="w-4 h-4" style={{ color: iconColor }} />
         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{label}</span>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {PRESET_COLORS.map((c) => {
             const isSelected = color.toLowerCase() === c.hex.toLowerCase();
             return (
