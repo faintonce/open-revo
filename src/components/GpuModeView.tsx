@@ -1,3 +1,4 @@
+import { subscribeVisiblePolling } from './mainVisibility';
 /**
  * GpuModeView — 显卡模式页编排层（状态管理 + 子组件组装）
  *
@@ -371,19 +372,20 @@ export const GpuModeView: React.FC = () => {
       })
       .catch((e) => console.warn('Failed to query miniled support:', e));
 
-    const fetchBrightness = () => {
+    const readBrightness = async () => {
       if (Date.now() - isInteractingBrightnessRef.current < 1500) return;
-      invoke<number>('get_display_brightness')
-        .then((val) => { if (typeof val === 'number' && val >= 0 && val <= 100) setBrightness(val); })
-        .catch(() => {});
+      return invoke<number>('get_display_brightness');
     };
+    const receiveBrightness = (val: number | undefined) => {
+      if (typeof val === 'number' && val >= 0 && val <= 100) setBrightness(val);
+    };
+    const fetchBrightness = () => readBrightness().then(receiveBrightness).catch(() => {});
     const handleFocusSync = () => {
       fetchBrightness();
       fetchCalibrationState(activeDeviceNameRef.current || undefined);
     };
-    fetchBrightness();
     window.addEventListener('focus', handleFocusSync);
-    const brightnessInterval = setInterval(fetchBrightness, 3000);
+    const stopBrightnessPolling = subscribeVisiblePolling(readBrightness, receiveBrightness, 3000);
 
     let unlistenBrightness: (() => void) | undefined;
     listen<number>('display-brightness-changed', (event) => {
@@ -399,7 +401,7 @@ export const GpuModeView: React.FC = () => {
 
     return () => {
       window.removeEventListener('focus', handleFocusSync);
-      clearInterval(brightnessInterval);
+      stopBrightnessPolling();
       if (unlistenBrightness) unlistenBrightness();
       if (unlistenColor) unlistenColor();
     };

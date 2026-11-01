@@ -23,7 +23,8 @@ pub fn register_consumer(consumer_id: &str, sensors: &[String]) {
     let mut map = get_subscribed_sensors().lock();
     let set: HashSet<String> = sensors.iter().cloned().collect();
     map.insert(consumer_id.to_string(), set);
-    let count = ACTIVE_SUBSCRIBERS.fetch_add(1, Ordering::SeqCst) + 1;
+    let count = map.len() as u32;
+    ACTIVE_SUBSCRIBERS.store(count, Ordering::SeqCst);
     crate::log_info!(
         "TELEMETRY",
         "Registered consumer '{}' with {} sensors. Total active consumers: {}",
@@ -37,7 +38,8 @@ pub fn register_consumer(consumer_id: &str, sensors: &[String]) {
 pub fn unregister_consumer(consumer_id: &str) {
     let mut map = get_subscribed_sensors().lock();
     if map.remove(consumer_id).is_some() {
-        let count = ACTIVE_SUBSCRIBERS.fetch_sub(1, Ordering::SeqCst).saturating_sub(1);
+        let count = map.len() as u32;
+        ACTIVE_SUBSCRIBERS.store(count, Ordering::SeqCst);
         crate::log_info!(
             "TELEMETRY",
             "Unregistered consumer '{}'. Remaining active consumers: {}",
@@ -51,6 +53,7 @@ pub fn unregister_consumer(consumer_id: &str) {
 pub fn set_main_window_visible(visible: bool) {
     let old = MAIN_WINDOW_VISIBLE.swap(visible, Ordering::SeqCst);
     if old != visible {
+        emit_main_visibility();
         crate::log_info!(
             "TELEMETRY",
             "Main window visibility changed to: {}. (Heartbeat policy updated)",
@@ -64,6 +67,7 @@ static REBOOT_FREEZE: AtomicBool = AtomicBool::new(false);
 /// Report system reboot in progress to completely freeze telemetry polling and GPU hardware access
 pub fn set_reboot_freeze(freeze: bool) {
     REBOOT_FREEZE.store(freeze, Ordering::SeqCst);
+    emit_main_visibility();
     if freeze {
         crate::log_info!("TELEMETRY", "System reboot initiated: telemetry heartbeat completely frozen.");
     }
@@ -73,11 +77,22 @@ pub fn set_reboot_freeze(freeze: bool) {
 pub fn set_screen_suspended(suspended: bool) {
     let old = SCREEN_SUSPENDED.swap(suspended, Ordering::SeqCst);
     if old != suspended {
+        emit_main_visibility();
         crate::log_info!(
             "TELEMETRY",
             "Screen suspended changed to: {}. (Telemetry loop parked/resumed)",
             suspended
         );
+    }
+}
+
+fn main_polling_allowed() -> bool {
+    MAIN_WINDOW_VISIBLE.load(Ordering::SeqCst) && !SCREEN_SUSPENDED.load(Ordering::SeqCst) && !REBOOT_FREEZE.load(Ordering::SeqCst)
+}
+
+fn emit_main_visibility() {
+    if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+        let _ = app.emit_to("main", "main-telemetry-visibility", main_polling_allowed());
     }
 }
 
@@ -95,6 +110,9 @@ pub fn is_telemetry_active() -> bool {
 /// CRITICAL DEFENSE: If no GPU metrics are requested and main console is closed,
 /// NEVER query GPU to prevent waking up NVIDIA dGPU from D3Cold ultra-low power state.
 pub fn should_query_gpu() -> bool {
+    if REBOOT_FREEZE.load(Ordering::Relaxed) || SCREEN_SUSPENDED.load(Ordering::Relaxed) {
+        return false;
+    }
     if MAIN_WINDOW_VISIBLE.load(Ordering::Relaxed) {
         return true;
     }
@@ -175,7 +193,26 @@ pub fn get_telemetry_heartbeat_status() -> Result<serde_json::Value, String> {
         "active": active,
         "consumers": consumers,
         "main_visible": main_visible,
+        "main_polling": main_polling_allowed(),
         "screen_suspended": screen_suspended,
         "query_gpu": query_gpu,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regression_consumer_registration_is_idempotent() {
+        let id = "telemetry-regression";
+        let initial = ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst);
+        register_consumer(id, &["cpu_temp".into()]);
+        register_consumer(id, &["gpu_temp".into()]);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), initial + 1);
+        assert!(get_subscribed_sensors().lock()[id].contains("gpu_temp"));
+        unregister_consumer(id);
+        unregister_consumer(id);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), initial);
+    }
 }

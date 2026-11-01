@@ -1,11 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen, emit } from '@tauri-apps/api/event';
 import { HardwareState, PowerMode } from './types/hardware';
 import { MiniDrawer } from './components/MiniDrawer';
-import { FullDashboard } from './components/FullDashboard';
+import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
+import { subscribeWidgetTelemetry } from './components/widgetTelemetry';
+import { mainVisibility } from './components/mainVisibility';
 import { ModelCapabilities } from './plugins/plugin_manifest';
+
+const FullDashboard = lazy(() => import('./components/FullDashboard').then((module) => ({ default: module.FullDashboard })));
 
 const BLD_PREVIEW_STATE: HardwareState = {
   power_mode: 2,
@@ -291,32 +295,30 @@ export default function App() {
     docEl.setAttribute('data-window-mode', isExpanded ? 'full' : 'mini');
   }, [activeSkin, activeBackground, theme, isExpanded]);
 
-  // Poll hardware status
+  const receiveStatus = useCallback((state: HardwareState) => {
+    const now = Date.now();
+    const lock = overrideLockRef.current;
+    setHardwareState((_prev) => {
+      let merged = { ...state };
+      if (lock.fan_boost && now < lock.fan_boost.expiry) {
+        merged.fan_boost = lock.fan_boost.val;
+      }
+      if (lock.battery_limit && now < lock.battery_limit.expiry) {
+        merged.battery_limit = lock.battery_limit.val;
+      }
+      if (lock.power_mode && now < lock.power_mode.expiry) {
+        merged.power_mode = lock.power_mode.val;
+      }
+      return merged;
+    });
+    setIsTauriEnv(true);
+  }, []);
+
   const fetchStatus = useCallback(async () => {
     if (isBldPreview) return;
-    try {
-      const state = await invoke<HardwareState>('get_hardware_status');
-      const now = Date.now();
-      const lock = overrideLockRef.current;
-      setHardwareState((_prev) => {
-        let merged = { ...state };
-        if (lock.fan_boost && now < lock.fan_boost.expiry) {
-          merged.fan_boost = lock.fan_boost.val;
-        }
-        if (lock.battery_limit && now < lock.battery_limit.expiry) {
-          merged.battery_limit = lock.battery_limit.val;
-        }
-        if (lock.power_mode && now < lock.power_mode.expiry) {
-          merged.power_mode = lock.power_mode.val;
-        }
-        return merged;
-      });
-      setIsTauriEnv(true);
-    } catch {
-      // In standalone web browser dev mode, keep simulation state
-      setIsTauriEnv(false);
-    }
-  }, [isBldPreview]);
+    try { receiveStatus(await invoke<HardwareState>('get_hardware_status')); }
+    catch { setIsTauriEnv(false); }
+  }, [isBldPreview, receiveStatus]);
 
   useEffect(() => {
     if (isBldPreview) return;
@@ -382,38 +384,17 @@ export default function App() {
 
       try {
         await invoke('frontend_ready');
-        await invoke('report_window_visibility', { visible: true });
+        const win = getCurrentWindow();
+        await invoke('report_window_visibility', { visible: await win.isVisible() && !(await win.isMinimized()) });
       } catch (_) {}
-      fetchStatus();
     };
     bootSync();
 
-    // Responsive hardware state event bus subscription (zero polling overhead)
-    let unlistenTelemetry: (() => void) | undefined;
-    listen<HardwareState>('hardware-state-updated', (event) => {
-      const state = event.payload;
-      const now = Date.now();
-      const lock = overrideLockRef.current;
-      setHardwareState((_prev) => {
-        let merged = { ...state };
-        if (lock.fan_boost && now < lock.fan_boost.expiry) {
-          merged.fan_boost = lock.fan_boost.val;
-        }
-        if (lock.battery_limit && now < lock.battery_limit.expiry) {
-          merged.battery_limit = lock.battery_limit.val;
-        }
-        if (lock.power_mode && now < lock.power_mode.expiry) {
-          merged.power_mode = lock.power_mode.val;
-        }
-        return merged;
-      });
-      setIsTauriEnv(true);
-    }).then((un) => {
-      unlistenTelemetry = un;
-    }).catch(() => {});
-
-    // Slow fallback watchdog timer (10s) just in case event stream is quiet
-    const timer = setInterval(fetchStatus, 10000);
+    const stopTelemetry = subscribeWidgetTelemetry({
+      ...mainVisibility,
+      readSnapshot: () => invoke<HardwareState>('get_hardware_status'),
+      listenTelemetry: (handler) => listen<HardwareState>('hardware-state-updated', (event) => handler(event.payload)),
+    }, receiveStatus);
 
     // Strictly synchronize layout mode with explicit window events or large width
     // Converts physical pixels to logical pixels via scaleFactor on High-DPI screens
@@ -553,8 +534,7 @@ export default function App() {
     syncModeWithWindowSize();
 
     return () => {
-      clearInterval(timer);
-      if (unlistenTelemetry) unlistenTelemetry();
+      stopTelemetry();
       if (unlistenReset) unlistenReset();
       if (unlistenSyncMode) unlistenSyncMode();
       if (unlistenFocus) unlistenFocus();
@@ -569,7 +549,7 @@ export default function App() {
       window.removeEventListener('resize', syncModeWithWindowSize);
       window.removeEventListener('focus', syncModeWithWindowSize);
     };
-  }, [fetchStatus]);
+  }, [fetchStatus, receiveStatus]);
 
   // Power mode
   const handleSetPowerMode = async (mode: PowerMode) => {
@@ -768,6 +748,8 @@ export default function App() {
       data-form-factor={capabilities?.form_factor || 'gaming'}
     >
       {isExpanded ? (
+        <ModuleErrorBoundary moduleName="OpenRevo">
+        <Suspense fallback={<div className="sys-sub-panel" role="status">正在加载控制台…</div>}>
         <FullDashboard
           status={hardwareState}
           theme={theme}
@@ -792,6 +774,8 @@ export default function App() {
           previewMode={previewMode}
           onPreviewFormFactor={handlePreviewFormFactor}
         />
+        </Suspense>
+        </ModuleErrorBoundary>
       ) : (
         <MiniDrawer
           status={hardwareState}

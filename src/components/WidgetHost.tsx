@@ -6,6 +6,7 @@ import { getCurrentWindow, currentMonitor } from '@tauri-apps/api/window';
 import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
 import { HardwareState, PowerMode } from '../types/hardware';
 import { Flame, Fan, X } from 'lucide-react';
+import { subscribeWidgetTelemetry } from './widgetTelemetry';
 
 interface WidgetHostProps {
   pluginId: string;
@@ -93,47 +94,18 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
     fetchCustomHtml();
   }, [pluginId]);
 
-  // 3. Fallback heartbeat & telemetry sync
+  // 3. Receive heartbeat events; poll only while visible after events stop.
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let timer: any;
-
-    const fetchSnapshot = async () => {
-      try {
-        const state = await invoke<HardwareState>('get_hardware_status');
-        setHardware((prev) => ({ ...prev, ...state }));
-        // Broadcast to sandboxed iframe as postMessage backup
-        if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.postMessage(
-            { type: 'OPENREVO_TELEMETRY', payload: state },
-            '*'
-          );
-        }
-      } catch (_) {}
-    };
-
-    const init = async () => {
-      await fetchSnapshot();
-      try {
-        unlisten = await listen<HardwareState>('hardware-state-updated', (event) => {
-          setHardware((prev) => ({ ...prev, ...event.payload }));
-          if (iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage(
-              { type: 'OPENREVO_TELEMETRY', payload: event.payload },
-              '*'
-            );
-          }
-        });
-      } catch (_) {}
-    };
-
-    init();
-    timer = setInterval(fetchSnapshot, 1500);
-
-    return () => {
-      if (timer) clearInterval(timer);
-      if (unlisten) unlisten();
-    };
+    const win = getCurrentWindow();
+    return subscribeWidgetTelemetry({
+      readSnapshot: () => invoke<HardwareState>('get_hardware_status'),
+      listenTelemetry: (handler) => listen<HardwareState>('hardware-state-updated', (event) => handler(event.payload)),
+      listenVisibility: (handler) => win.listen<boolean>('widget-visibility-changed', (event) => handler(event.payload)),
+      isVisible: () => win.isVisible(),
+    }, (state) => {
+      setHardware((prev) => ({ ...prev, ...state }));
+      iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_TELEMETRY', payload: state }, '*');
+    });
   }, [pluginId]);
 
   // 4. Listen to postMessage from sandboxed iframe

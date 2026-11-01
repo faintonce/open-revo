@@ -1,3 +1,4 @@
+import { subscribeVisiblePolling } from './mainVisibility';
 import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { AlertTriangle, Info, Check, X } from 'lucide-react';
@@ -65,25 +66,15 @@ export const WaterCoolerView: React.FC<WaterCoolerViewProps> = ({
 
   // Active polling while mounted
   useEffect(() => {
-    const fetchCoolerStatus = async () => {
-      try {
-        const res = await invoke<CoolerTelemetry>('get_water_cooler_status');
-        if (res) {
-          setCoolerData((prev) => ({
-            ...res,
-            pump_start_temp: isDraggingPumpRef.current ? prev.pump_start_temp : (res.pump_start_temp ?? prev.pump_start_temp),
-            pump_turbo_temp: isDraggingPumpRef.current ? prev.pump_turbo_temp : (res.pump_turbo_temp ?? prev.pump_turbo_temp),
-          }));
-          if (onConnectionChange) {
-            onConnectionChange(res.connected);
-          }
-        }
-      } catch (_) {}
-    };
-
-    fetchCoolerStatus();
-    const interval = setInterval(fetchCoolerStatus, 1500);
-    return () => clearInterval(interval);
+    return subscribeVisiblePolling(() => invoke<CoolerTelemetry>('get_water_cooler_status'), (res) => {
+      if (!res) return;
+      setCoolerData((prev) => ({
+        ...res,
+        pump_start_temp: isDraggingPumpRef.current ? prev.pump_start_temp : (res.pump_start_temp ?? prev.pump_start_temp),
+        pump_turbo_temp: isDraggingPumpRef.current ? prev.pump_turbo_temp : (res.pump_turbo_temp ?? prev.pump_turbo_temp),
+      }));
+      onConnectionChange?.(res.connected);
+    }, 1500);
   }, [onConnectionChange]);
 
   const handleUpdateCooler = async (pumpV?: number, fanD?: number) => {
