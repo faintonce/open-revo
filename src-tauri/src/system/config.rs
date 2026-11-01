@@ -6,6 +6,8 @@ use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
+    #[serde(skip)]
+    pub base_snapshot: Option<std::sync::Arc<serde_json::Value>>,
     #[serde(default = "default_power_mode")]
     pub power_mode: u8,           // 1: Office, 2: Balance, 3: Beast, 4: Custom (Current live active mode)
     #[serde(default = "default_power_mode_ac")]
@@ -395,6 +397,7 @@ fn default_osd_position() -> String { "top-left".to_string() }
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
+            base_snapshot: None,
             power_mode: 2,          // Default Balance
             power_mode_ac: 3,       // Default Beast on AC
             power_mode_battery: 2,  // Default Balance on Battery
@@ -1189,101 +1192,92 @@ pub fn import_profile_json(json_content: &str, original_filename: Option<String>
 
 static CONFIG_CACHE: LazyLock<RwLock<Option<AppConfig>>> = LazyLock::new(|| RwLock::new(None));
 
+static CONFIG_LOAD_ERROR: LazyLock<RwLock<Option<String>>> = LazyLock::new(|| RwLock::new(None));
+
+pub fn ensure_config_writable() -> Result<(), String> {
+    match CONFIG_LOAD_ERROR.read().as_ref() {
+        Some(error) => Err(format!("配置读取失败，已阻止覆盖原文件：{}", error)),
+        None => Ok(()),
+    }
+}
+
+fn read_config_document(path: &std::path::Path) -> Result<Option<(AppConfig, bool)>, String> {
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.to_string()),
+    };
+    let mut value: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let fields = value.as_object_mut().ok_or("Configuration must be a JSON object")?;
+    let mut migrate = fields.remove("hardware_snapshot").is_some();
+    migrate |= fields.remove("custom_profile").is_some();
+    migrate |= ["gpu_core_offset_max", "gpu_mem_offset_max", "gpu_offset_step"].iter().any(|key| !fields.contains_key(*key));
+    let cfg = serde_json::from_value(value).map_err(|e| e.to_string())?;
+    Ok(Some((cfg, migrate)))
+}
+
 fn load_config_from_disk() -> AppConfig {
-    let path = get_config_path();
-    if path.exists() {
-        if let Ok(content) = fs::read_to_string(&path) {
-            // Actively purge legacy fields and ensure GPU tuning bounds are explicitly visible in config.json
-            let mut sanitized = false;
-            let missing_gpu_bounds = !content.contains("\"gpu_core_offset_max\"")
-                || !content.contains("\"gpu_mem_offset_max\"")
-                || !content.contains("\"gpu_offset_step\"");
-
-            let final_content = if content.contains("\"hardware_snapshot\"") || content.contains("\"custom_profile\"") {
-                if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(obj) = val.as_object_mut() {
-                        if obj.remove("hardware_snapshot").is_some() {
-                            sanitized = true;
-                        }
-                        if obj.remove("custom_profile").is_some() {
-                            sanitized = true;
-                        }
-                    }
-                    if sanitized {
-                        serde_json::to_string_pretty(&val).unwrap_or_else(|_| content.clone())
-                    } else {
-                        content.clone()
-                    }
-                } else {
-                    content.clone()
-                }
-            } else {
-                content.clone()
-            };
-
-            if missing_gpu_bounds {
-                sanitized = true;
+    let parsed = read_config_document(&get_config_path());
+    *CONFIG_LOAD_ERROR.write() = parsed.as_ref().err().cloned();
+    match parsed {
+        Ok(Some((mut cfg, migrate))) => {
+            if cfg.power_mode_ac == 0 {
+                cfg.power_mode_ac = cfg.saved_power_mode_on_battery.filter(|v| (1..=4).contains(v))
+                    .unwrap_or(if (1..=4).contains(&cfg.power_mode) { cfg.power_mode } else { 3 });
             }
-
-            if sanitized {
-                let _ = fs::write(&path, &final_content);
-                crate::log_info!("CONFIG", "Synchronized config.json schema and ensured GPU offset limits are explicitly persisted");
+            if cfg.power_mode_battery == 0 { cfg.power_mode_battery = if cfg.power_mode == 1 { 1 } else { 2 }; }
+            let profiles = list_profiles();
+            if let Some(active) = profiles.iter().find(|p| p.id == cfg.active_profile_id).or_else(|| profiles.first()) {
+                cfg.active_profile_id = active.id.clone();
+                cfg.custom_profile = active.profile.clone();
             }
-
-            if let Ok(mut cfg) = serde_json::from_str::<AppConfig>(&final_content) {
-                // Dual-parameter power mode backward compatibility migration
-                if cfg.power_mode_ac == 0 {
-                    if let Some(saved) = cfg.saved_power_mode_on_battery {
-                        if saved >= 1 && saved <= 4 {
-                            cfg.power_mode_ac = saved;
-                        }
-                    }
-                    if cfg.power_mode_ac == 0 {
-                        cfg.power_mode_ac = if cfg.power_mode >= 1 && cfg.power_mode <= 4 {
-                            cfg.power_mode
-                        } else {
-                            3
-                        };
-                    }
-                }
-                if cfg.power_mode_battery == 0 {
-                    cfg.power_mode_battery = if cfg.power_mode == 1 { 1 } else { 2 };
-                }
-
-                // Ensure active profile is loaded from profiles/<active_id>.json
-                let profiles = list_profiles();
-                if let Some(active) = profiles.iter().find(|p| p.id == cfg.active_profile_id) {
-                    cfg.custom_profile = active.profile.clone();
-                } else if let Some(first) = profiles.first() {
-                    cfg.active_profile_id = first.id.clone();
-                    cfg.custom_profile = first.profile.clone();
-                }
-
-                if missing_gpu_bounds {
-                    save_config_to_disk(&cfg);
-                    crate::log_info!("CONFIG", "Persisted explicit GPU offset bounds into config.json");
-                }
-                return cfg;
+            if migrate {
+                if let Err(error) = save_config_to_disk(&cfg) { eprintln!("Cannot migrate configuration: {}", error); }
             }
+            cfg
         }
-    }
-    AppConfig::default()
-}
-
-fn save_config_to_disk(cfg: &AppConfig) {
-    let path = get_config_path();
-    if let Ok(json) = serde_json::to_string_pretty(cfg) {
-        let tmp_path = path.with_extension("tmp");
-        if fs::write(&tmp_path, &json).is_ok() {
-            let _ = fs::rename(&tmp_path, &path);
-        } else {
-            let _ = fs::write(path, json);
+        Ok(None) => AppConfig::default(),
+        Err(error) => {
+            crate::log_error!("CONFIG", "Cannot load configuration; original file preserved: {}", error);
+            AppConfig::default()
         }
     }
 }
 
-/// Thread-safe in-memory configuration loader. Returns cached copy in <0.001ms.
+pub fn reset_config_cache() {
+    let _io = crate::system::config_io::DATA_IO.lock();
+    let cfg = track_snapshot(AppConfig::default());
+    *CONFIG_CACHE.write() = Some(cfg);
+    *CONFIG_LOAD_ERROR.write() = None;
+}
+
+fn config_snapshot(cfg: &AppConfig) -> Result<serde_json::Value, String> {
+    let mut value = serde_json::to_value(cfg).map_err(|e| e.to_string())?;
+    value["custom_profile"] = serde_json::to_value(&cfg.custom_profile).map_err(|e| e.to_string())?;
+    Ok(value)
+}
+
+fn track_snapshot(mut cfg: AppConfig) -> AppConfig {
+    cfg.base_snapshot = Some(std::sync::Arc::new(config_snapshot(&cfg).expect("AppConfig must serialize")));
+    cfg
+}
+
+fn save_config_to_disk(cfg: &AppConfig) -> Result<(), String> {
+    ensure_config_writable()?;
+    let bytes = serde_json::to_vec_pretty(cfg).map_err(|e| e.to_string())?;
+    crate::system::config_io::atomic_write(&get_config_path(), &bytes)
+}
+
+fn commit_config(cache: &mut Option<AppConfig>, path: &std::path::Path, cfg: AppConfig) -> Result<(), String> {
+    let cfg = track_snapshot(cfg);
+    let bytes = serde_json::to_vec_pretty(&cfg).map_err(|e| e.to_string())?;
+    crate::system::config_io::atomic_write(path, &bytes)?;
+    *cache = Some(cfg);
+    Ok(())
+}
+
 pub fn load_config() -> AppConfig {
+    let _io = crate::system::config_io::DATA_IO.lock();
     if let Some(cfg) = CONFIG_CACHE.read().as_ref() {
         return cfg.clone();
     }
@@ -1291,39 +1285,65 @@ pub fn load_config() -> AppConfig {
     if let Some(cfg) = guard.as_ref() {
         return cfg.clone();
     }
-    let cfg = load_config_from_disk();
+    let cfg = track_snapshot(load_config_from_disk());
     *guard = Some(cfg.clone());
     cfg
 }
 
-/// Updates the in-memory configuration cache and persists to disk atomically.
-pub fn save_config(cfg: &AppConfig) {
-    let mut guard = CONFIG_CACHE.write();
-    *guard = Some(cfg.clone());
-    save_config_to_disk(cfg);
-}
-
-/// Atomically modifies the active configuration in-place under an exclusive write lock,
-/// then persists the updated configuration to disk. Prevents multi-module RMW race conditions.
-pub fn modify_config<F: FnOnce(&mut AppConfig) -> R, R>(f: F) -> R {
-    let mut guard = CONFIG_CACHE.write();
-    let mut cfg = if let Some(ref current) = *guard {
-        current.clone()
+fn merge_config(current: Option<&AppConfig>, cfg: &AppConfig) -> Result<AppConfig, String> {
+    if let (Some(current), Some(baseline)) = (current, cfg.base_snapshot.as_deref()) {
+        let mut value = config_snapshot(current)?;
+        crate::system::config_io::merge_changes(&mut value, baseline, &config_snapshot(cfg)?);
+        serde_json::from_value(value).map_err(|e| e.to_string())
     } else {
-        load_config_from_disk()
-    };
-    let res = f(&mut cfg);
-    save_config_to_disk(&cfg);
-    *guard = Some(cfg);
-    res
+        Ok(cfg.clone())
+    }
 }
 
-/// Forces a fresh reload from disk into the in-memory cache.
-pub fn reload_config_from_disk() -> AppConfig {
+pub fn try_save_config(cfg: &AppConfig) -> Result<(), String> {
+    let _io = crate::system::config_io::DATA_IO.lock();
     let mut guard = CONFIG_CACHE.write();
-    let cfg = load_config_from_disk();
+    let result = (|| {
+        if guard.is_none() { *guard = Some(track_snapshot(load_config_from_disk())); }
+        ensure_config_writable()?;
+        let updated = merge_config(guard.as_ref(), cfg)?;
+        commit_config(&mut guard, &get_config_path(), updated)
+    })();
+    drop(guard);
+    if let Err(ref error) = result {
+        crate::log_error!("CONFIG", "Configuration save failed: {}", error);
+    }
+    result
+}
+
+pub fn modify_config<F: FnOnce(&mut AppConfig) -> Result<R, String>, R>(f: F) -> Result<R, String> {
+    let _io = crate::system::config_io::DATA_IO.lock();
+    let mut guard = CONFIG_CACHE.write();
+    let result = (|| {
+        let mut cfg = guard.as_ref().cloned().unwrap_or_else(load_config_from_disk);
+        ensure_config_writable()?;
+        let result = f(&mut cfg)?;
+        commit_config(&mut guard, &get_config_path(), cfg)?;
+        Ok(result)
+    })();
+    drop(guard);
+    if let Err(ref error) = result {
+        crate::log_error!("CONFIG", "Configuration update failed: {}", error);
+    }
+    result
+}
+
+pub fn reload_config_from_disk() -> AppConfig {
+    let _io = crate::system::config_io::DATA_IO.lock();
+    let mut guard = CONFIG_CACHE.write();
+    let cfg = track_snapshot(load_config_from_disk());
     *guard = Some(cfg.clone());
     cfg
+}
+
+// Existing callers retain their logging-only save contract.
+pub fn save_config(cfg: &AppConfig) {
+    let _ = try_save_config(cfg);
 }
 
 /// Check if water cooler module is enabled:
@@ -1461,3 +1481,93 @@ mod tests {
     }
 }
 
+
+
+#[cfg(test)]
+mod regression_tests {
+    use super::*;
+    fn isolated_config() -> AppConfig {
+        serde_json::from_value(serde_json::json!({"module_toggles": {}})).unwrap()
+    }
+
+    #[test]
+    fn regression_invalid_configuration_is_an_error_not_missing_data() {
+        let path = std::env::temp_dir().join(format!("openrevo-config-invalid-{}.json", std::process::id()));
+        assert!(read_config_document(&path).unwrap().is_none());
+        for invalid in ["{", "[]", "{\"power_mode\":\"invalid\",\"module_toggles\":{}}"] {
+            fs::write(&path, invalid).unwrap();
+            assert!(read_config_document(&path).is_err());
+            assert_eq!(fs::read_to_string(&path).unwrap(), invalid);
+        }
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn regression_config_merges_fields_maps_and_runtime_profile() {
+        let baseline = track_snapshot(isolated_config());
+        let mut current = baseline.clone();
+        current.fan_boost = true;
+        current.widget_positions.insert("other".into(), (10, 20));
+        let mut draft = baseline.clone();
+        draft.osd_scale = "120%".into();
+        draft.widget_positions.insert("edited".into(), (30, 40));
+        draft.custom_profile.cpu_pl1_watts = 95;
+        let merged = merge_config(Some(&current), &draft).unwrap();
+        assert!(merged.fan_boost);
+        assert_eq!(merged.osd_scale, "120%");
+        assert_eq!(merged.widget_positions.len(), 2);
+        assert_eq!(merged.custom_profile.cpu_pl1_watts, 95);
+        let persisted = serde_json::to_value(&merged).unwrap();
+        assert!(persisted.get("base_snapshot").is_none());
+        assert!(persisted.get("custom_profile").is_none());
+    }
+
+    #[test]
+    fn regression_concurrent_config_saves_preserve_each_widgets_position() {
+        let dir = std::env::temp_dir().join(format!("openrevo-config-concurrent-{}", std::process::id()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("config.json");
+        let baseline = track_snapshot(isolated_config());
+        let cache = RwLock::new(Some(baseline.clone()));
+        std::thread::scope(|scope| {
+            for i in 0..16 {
+                let cache = &cache;
+                let path = &path;
+                let mut draft = baseline.clone();
+                draft.widget_positions.insert(format!("widget_{}", i), (i, i));
+                scope.spawn(move || {
+                    let mut guard = cache.write();
+                    let updated = merge_config(guard.as_ref(), &draft).unwrap();
+                    commit_config(&mut guard, path, updated).unwrap();
+                });
+            }
+        });
+        assert_eq!(cache.read().as_ref().unwrap().widget_positions.len(), 16);
+        let disk: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(disk["widget_positions"].as_object().unwrap().len(), 16);
+        fs::remove_file(path).unwrap();
+        fs::remove_dir(dir).unwrap();
+    }
+
+    #[test]
+    fn regression_failed_config_save_preserves_cache_and_original_file() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = std::env::temp_dir().join(format!("openrevo-config-failure-{}", std::process::id()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("config.json");
+        let original = track_snapshot(isolated_config());
+        let bytes = serde_json::to_vec_pretty(&original).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        let lock = fs::OpenOptions::new().read(true).share_mode(0).open(&path).unwrap();
+        let mut cache = Some(original.clone());
+        let mut draft = original;
+        draft.osd_scale = "120%".into();
+        assert!(commit_config(&mut cache, &path, draft).is_err());
+        assert_eq!(cache.as_ref().unwrap().osd_scale, "100%");
+        drop(lock);
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        fs::remove_file(path).unwrap();
+        fs::remove_dir(dir).unwrap();
+    }
+}
