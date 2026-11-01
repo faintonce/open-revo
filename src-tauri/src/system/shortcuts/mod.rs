@@ -4,48 +4,18 @@
 pub mod types;
 pub mod dispatcher;
 pub mod manager;
+pub mod settings;
 
 pub use types::{ParsedKeyCombo, ShortcutAction, ShortcutBinding};
 pub use manager::{
     check_match_and_trigger, get_all_shortcuts, load_plugin_shortcuts, register_shortcut,
     unload_plugin_shortcuts, unregister_shortcut,
 };
+pub use settings::{get_system_shortcut_settings, set_system_shortcut_enabled, SystemShortcutSetting};
 
 /// Initialize default system shortcuts and load plugin shortcuts
 pub fn init_shortcuts() {
     crate::log_info!("SHORTCUTS", "Initializing OpenRevo Universal Shortcut Bus...");
 
-    // Register high-value default shortcuts if none exist
-    register_shortcut(ShortcutBinding {
-        id: "sys_fan_boost".to_string(),
-        name: "一键全速强冷切换".to_string(),
-        combo: "Ctrl+Shift+F".to_string(),
-        action: ShortcutAction::ToggleFanBoost,
-        osd: true,
-        enabled: true,
-        swallow: false,
-        plugin_id: None,
-    });
-
-    register_shortcut(ShortcutBinding {
-        id: "sys_cycle_power_mode".to_string(),
-        name: "循环切换性能模式".to_string(),
-        combo: "Ctrl+Shift+M".to_string(),
-        action: ShortcutAction::CyclePowerMode,
-        osd: true,
-        enabled: true,
-        swallow: false,
-        plugin_id: None,
-    });
-
-    register_shortcut(ShortcutBinding {
-        id: "sys_toggle_refresh_rate".to_string(),
-        name: "屏幕刷新率瞬切 (高刷/省电)".to_string(),
-        combo: "Ctrl+Shift+R".to_string(),
-        action: ShortcutAction::ToggleRefreshRate,
-        osd: true,
-        enabled: true,
-        swallow: false,
-        plugin_id: None,
-    });
+    settings::init_system_shortcuts();
 }

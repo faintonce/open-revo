@@ -4,12 +4,25 @@
 use tauri::AppHandle;
 use crate::system::shortcuts::{
     get_all_shortcuts, register_shortcut as reg_shortcut, unregister_shortcut as unreg_shortcut,
-    ShortcutAction, ShortcutBinding,
+    ShortcutAction, ShortcutBinding, SystemShortcutSetting,
 };
 
 #[tauri::command]
 pub fn get_registered_shortcuts() -> Vec<ShortcutBinding> {
     get_all_shortcuts()
+}
+
+#[tauri::command]
+pub fn get_system_shortcut_settings() -> Result<Vec<SystemShortcutSetting>, String> {
+    crate::system::shortcuts::get_system_shortcut_settings()
+}
+
+#[tauri::command]
+pub fn set_system_shortcut_enabled(
+    id: String,
+    enabled: bool,
+) -> Result<Vec<SystemShortcutSetting>, String> {
+    crate::system::shortcuts::set_system_shortcut_enabled(id, enabled)
 }
 
 #[tauri::command]

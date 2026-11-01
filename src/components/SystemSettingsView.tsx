@@ -18,10 +18,12 @@ import {
   Download,
   RefreshCw,
   HardDrive,
+  Keyboard,
 } from 'lucide-react';
 import { HardwareState } from '../types/hardware';
 import { RevBadge, RevSwitch } from './ui';
 import { ModelCapabilities } from '../plugins/plugin_manifest';
+import { SystemShortcutsDialog } from './SystemShortcutsDialog';
 
 export interface OsdConfig {
   enabled: boolean;
@@ -74,6 +76,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
   const [wakeWindowMode, setWakeWindowMode] = useState<'remember' | 'mini' | 'full'>('remember');
   const [miniAutoHide, setMiniAutoHide] = useState(true);
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
   const [unlockBatteryLimit, setUnlockBatteryLimit] = useState(!!status.unlock_battery_power_limit);
   const [showUnlockBatteryConfirm, setShowUnlockBatteryConfirm] = useState(false);
   const [togglingUnlockBattery, setTogglingUnlockBattery] = useState(false);
@@ -482,6 +485,17 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             />
           </div>
 
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">全局快捷键</div>
+              <div className="sys-row-desc">管理强冷、性能模式与刷新率的快捷键开关</div>
+            </div>
+            <button type="button" className="toggle-btn" onClick={() => setShowShortcutsDialog(true)}>
+              <Keyboard size={12} aria-hidden="true" />
+              管理快捷键
+            </button>
+          </div>
+
           {/* 解除离电限制 (允许电池下启用狂暴与自定义) */}
           <div className="quick-row" style={{ alignItems: 'center' }}>
             <div>
@@ -865,6 +879,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
         </div>
       </div>
+
+      {showShortcutsDialog && <SystemShortcutsDialog onClose={() => setShowShortcutsDialog(false)} />}
 
       {/* 清除数据二次确认弹窗 */}
       {showClearConfirm && (

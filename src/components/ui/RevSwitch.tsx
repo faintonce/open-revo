@@ -9,6 +9,7 @@ export interface RevSwitchProps {
   activeGlow?: string;
   className?: string;
   style?: React.CSSProperties;
+  ariaLabel?: string;
 }
 
 export const RevSwitch: React.FC<RevSwitchProps> = ({
@@ -20,6 +21,7 @@ export const RevSwitch: React.FC<RevSwitchProps> = ({
   activeGlow,
   className = '',
   style,
+  ariaLabel,
 }) => {
   const getDims = () => {
     switch (size) {
@@ -58,6 +60,16 @@ export const RevSwitch: React.FC<RevSwitchProps> = ({
     <div
       role="switch"
       aria-checked={checked}
+      aria-disabled={disabled}
+      aria-label={ariaLabel}
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!disabled) onChange(!checked);
+        }
+      }}
       onClick={(e) => {
         e.stopPropagation();
         if (!disabled) onChange(!checked);

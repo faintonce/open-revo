@@ -2,6 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Built-in global shortcut settings */
+.shortcuts-dialog.sys-modal-card {
+  max-width: 520px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--surface-base);
+  border-color: var(--border-medium);
+  box-shadow: none;
+  text-align: left;
+}
+
+.shortcuts-dialog .shortcuts-dialog-header {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.shortcuts-dialog-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--accent-pwr);
+}
+
+.shortcuts-dialog .shortcuts-close-button {
+  padding: 6px;
+  flex-shrink: 0;
+}
+
+.shortcuts-dialog .shortcuts-dialog-body {
+  margin-bottom: 12px;
+}
+
+.shortcuts-dialog-note {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
+
+.shortcuts-dialog .shortcuts-setting-row {
+  gap: 14px;
+  padding: 12px;
+}
+
+.shortcuts-setting-label {
+  min-width: 0;
+}
+
+.shortcuts-key-combo {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 6px;
+  font: 11px var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+}
+
+.shortcuts-setting-status {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.shortcuts-dialog .sys-row-controls {
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.shortcuts-loading {
+  padding: 22px 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.shortcuts-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: var(--status-error);
+  background: var(--status-error-dim);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
+}
+
+.shortcuts-save-status {
+  min-height: 20px;
+  margin: 8px 0;
+  font-size: 11px;
+  color: var(--status-ok);
+}
+
+.shortcuts-dialog .shortcuts-dialog-actions {
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.shortcuts-dialog :focus-visible {
+  outline: 2px solid var(--accent-pwr);
+  outline-offset: 3px;
+}
+
+.shortcuts-dialog:focus {
+  outline: none;
+}
+
+[data-theme="mono"] .shortcuts-dialog.sys-modal-card {
+  background: var(--surface-base);
+  border-color: var(--border-medium);
+  box-shadow: none;
+}
+
+[data-theme="mono"] .shortcuts-dialog-heading,
+[data-theme="mono"] .shortcuts-save-status {
+  color: var(--text-primary);
+}
+
+@media (max-width: 420px) {
+  .shortcuts-setting-row {
+    flex-wrap: wrap;
+  }
+
+  .shortcuts-dialog .sys-row-controls {
+    margin-left: auto;
+  }
+}
+
 :root {
   /* ==========================================================================
      OPENREVO DESIGN SYSTEM TOKENS (V1 STANDARD ARCHITECTURE)

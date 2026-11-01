@@ -71,6 +71,18 @@ pub fn unregister_shortcut(id: &str) -> bool {
     })
 }
 
+/// Change whether a registered shortcut can match, without dispatching its action.
+/// The parsed key combination and lookup index remain unchanged.
+pub fn set_shortcut_enabled(id: &str, enabled: bool) -> bool {
+    let mut guard = REGISTRY.write().unwrap();
+    if let Some(entry) = guard.as_mut().and_then(|map| map.get_mut(id)) {
+        entry.binding.enabled = enabled;
+        true
+    } else {
+        false
+    }
+}
+
 /// Retrieve all currently registered shortcuts
 pub fn get_all_shortcuts() -> Vec<ShortcutBinding> {
     let guard = REGISTRY.read().unwrap();
@@ -153,4 +165,37 @@ pub fn check_match_and_trigger(
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::system::shortcuts::ShortcutAction;
+
+    #[test]
+    fn enabling_only_changes_the_enabled_flag() {
+        let binding = ShortcutBinding {
+            id: "test_enabled_flag_only".into(),
+            name: "Test binding".into(),
+            combo: "Ctrl+Shift+F".into(),
+            action: ShortcutAction::TriggerOsdPreview,
+            osd: false,
+            enabled: true,
+            swallow: false,
+            plugin_id: Some("test_plugin".into()),
+        };
+        assert!(register_shortcut(binding.clone()));
+        assert!(set_shortcut_enabled(&binding.id, false));
+        let mut expected = binding.clone();
+        expected.enabled = false;
+        let current = get_all_shortcuts()
+            .into_iter()
+            .find(|entry| entry.id == binding.id)
+            .unwrap();
+        assert_eq!(current, expected);
+        assert!(set_shortcut_enabled(&binding.id, true));
+        assert!(get_all_shortcuts().contains(&binding));
+        assert!(unregister_shortcut(&binding.id));
+        assert!(!set_shortcut_enabled("test_missing_binding", false));
+    }
 }

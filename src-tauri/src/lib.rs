@@ -350,6 +350,8 @@ pub fn run() {
             crate::system::widget_manager::get_running_widgets,
             crate::system::widget_manager::widget_ready,
             commands::shortcut_cmd::get_registered_shortcuts,
+            commands::shortcut_cmd::get_system_shortcut_settings,
+            commands::shortcut_cmd::set_system_shortcut_enabled,
             commands::shortcut_cmd::register_custom_shortcut,
             commands::shortcut_cmd::unregister_custom_shortcut,
             commands::shortcut_cmd::trigger_shortcut_action,
