@@ -1,6 +1,7 @@
 pub mod ble_cooler;
 pub mod ec_bridge;
 pub mod gpu_bridge;
+pub mod nvml;
 pub mod lighting;
 pub mod ite_lighting;
 pub mod streamer;
