@@ -23,6 +23,21 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
   const isThinLight = capabilities?.form_factor === 'thin_light' || capabilities?.discrete_gpu === false;
   const hasCustomMode = capabilities?.power_modes ? capabilities.power_modes.includes('custom') : !isThinLight;
   const [gpuOc, setGpuOc] = useState<{ on: boolean; busy: boolean; error: boolean }>({ on: false, busy: false, error: false });
+  const [ocDefaults, setOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
+
+  useEffect(() => {
+    invoke<any>('get_app_config')
+      .then((cfg) => {
+        if (!cfg) return;
+        const core = Number(cfg.gpu_oc_core_mhz);
+        const mem = Number(cfg.gpu_oc_mem_mhz);
+        setOcDefaults({
+          core: Number.isFinite(core) && core >= 0 ? core : 105,
+          mem: Number.isFinite(mem) && mem >= 0 ? mem : 500,
+        });
+      })
+      .catch(() => { });
+  }, []);
   // 狂暴子模式（静音/高能）：只有能力位满足的机型才显示入口
   const [turboSub, setTurboSub] = useState<{ supported: boolean; silent: boolean }>({ supported: false, silent: false });
 
@@ -104,15 +119,20 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
       <button
         className={`gpu-oc-chip${gpuOc.on ? ' is-applied' : ''}${gpuOc.error ? ' is-error' : ''}`}
         title={gpuOc.on
-          ? 'GPU OC 已开启（核心 +105 MHz / 显存 +500 MHz），点击关闭'
-          : 'GPU OC 未开启，点击开启（核心 +105 MHz / 显存 +500 MHz）'}
+          ? `GPU OC 已开启（核心 +${ocDefaults.core} MHz / 显存 +${ocDefaults.mem} MHz），点击关闭`
+          : `GPU OC 未开启，点击开启（核心 +${ocDefaults.core} MHz / 显存 +${ocDefaults.mem} MHz）`}
         onClick={async (e) => {
           e.stopPropagation();
           if (gpuOc.busy) return;
           const next = !gpuOc.on;
           setGpuOc((s) => ({ ...s, busy: true, error: false }));
           try {
-            await invoke('apply_gpu_oc', { coreMhz: next ? 105 : 0, memMhz: next ? 500 : 0 });
+            const cfg: any = await invoke('get_app_config').catch(() => null);
+            const cfgCore = Number(cfg?.gpu_oc_core_mhz);
+            const cfgMem = Number(cfg?.gpu_oc_mem_mhz);
+            const core = Number.isFinite(cfgCore) && cfgCore >= 0 ? cfgCore : ocDefaults.core;
+            const mem = Number.isFinite(cfgMem) && cfgMem >= 0 ? cfgMem : ocDefaults.mem;
+            await invoke('apply_gpu_oc', { coreMhz: next ? core : 0, memMhz: next ? mem : 0 });
             setGpuOc({ on: next, busy: false, error: false });
           } catch (err) {
             console.warn('[DrawerPowerModeCard] toggle gpu oc failed:', err);

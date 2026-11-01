@@ -36,6 +36,22 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   // 狂暴子模式（静音/高能）：只有能力位满足的机型才拆成两段
   const [turboSub, setTurboSub] = useState<{ supported: boolean; silent: boolean }>({ supported: false, silent: false });
   const [gcuOc, setGcuOc] = useState<{ on: boolean; busy: boolean; error: boolean }>({ on: false, busy: false, error: false });
+  const [ocDefaults, setOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
+
+  // GPU OC 默认值来自设置页（config.json 持久化），开启时使用
+  useEffect(() => {
+    invoke<any>('get_app_config')
+      .then((cfg) => {
+        if (!cfg) return;
+        const core = Number(cfg.gpu_oc_core_mhz);
+        const mem = Number(cfg.gpu_oc_mem_mhz);
+        setOcDefaults({
+          core: Number.isFinite(core) && core >= 0 ? core : 105,
+          mem: Number.isFinite(mem) && mem >= 0 ? mem : 500,
+        });
+      })
+      .catch(() => { });
+  }, []);
 
   // OC 状态：初始查一次 + 跟随 host 的 gpu-clock-offsets-changed（宿主/另一窗口复位时同步）
   useEffect(() => {
@@ -117,7 +133,12 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
     const next = !gcuOc.on;
     setGcuOc((s) => ({ ...s, busy: true, error: false }));
     try {
-      await invoke('apply_gpu_oc', { coreMhz: next ? 105 : 0, memMhz: next ? 500 : 0 });
+      const cfg: any = await invoke('get_app_config').catch(() => null);
+      const cfgCore = Number(cfg?.gpu_oc_core_mhz);
+      const cfgMem = Number(cfg?.gpu_oc_mem_mhz);
+      const core = Number.isFinite(cfgCore) && cfgCore >= 0 ? cfgCore : ocDefaults.core;
+      const mem = Number.isFinite(cfgMem) && cfgMem >= 0 ? cfgMem : ocDefaults.mem;
+      await invoke('apply_gpu_oc', { coreMhz: next ? core : 0, memMhz: next ? mem : 0 });
       setGcuOc({ on: next, busy: false, error: false });
     } catch (err) {
       console.warn('[ModeSelector] toggle gpu oc failed:', err);
@@ -129,8 +150,8 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
     <div
       className={`mode-oc-chip${gcuOc.on ? ' is-applied' : ''}${gcuOc.error ? ' is-error' : ''}`}
       title={gcuOc.on
-        ? 'GPU OC 已开启（核心 +105 MHz / 显存 +500 MHz），点击关闭'
-        : 'GPU OC 未开启，点击开启（核心 +105 MHz / 显存 +500 MHz）'}
+        ? `GPU OC 已开启（核心 +${ocDefaults.core} MHz / 显存 +${ocDefaults.mem} MHz），点击关闭`
+        : `GPU OC 未开启，点击开启（核心 +${ocDefaults.core} MHz / 显存 +${ocDefaults.mem} MHz）`}
       onClick={toggleGcuOc}
     >
       {gcuOc.busy ? 'OC...' : gcuOc.error ? 'GPU OC !' : gcuOc.on ? 'GPU OC ON' : 'GPU OC OFF'}
