@@ -17,6 +17,20 @@ pub struct FactoryPowerPresets {
     pub base_tgp: u16,
     pub max_db: u16,
     pub hardware_read: bool,
+    /// PL4 单位（W/LSB）：1 = 常规，2 = 双倍机型
+    #[serde(default = "default_pl4_unit")]
+    pub pl4_unit: u16,
+    /// PL4 可表达上限（255 × 单位；双倍机型为 510W）
+    #[serde(default = "default_pl4_abs_max")]
+    pub pl4_abs_max: u16,
+}
+
+fn default_pl4_unit() -> u16 {
+    1
+}
+
+fn default_pl4_abs_max() -> u16 {
+    255
 }
 
 static PRESETS_CACHE: parking_lot::RwLock<Option<FactoryPowerPresets>> = parking_lot::RwLock::new(None);
@@ -58,6 +72,8 @@ pub fn refresh_factory_power_presets(_has_gpu: bool) -> FactoryPowerPresets {
                 base_tgp,
                 max_db,
                 hardware_read: true,
+                pl4_unit: crate::driver::wmi_ec::pl4_unit_watts(),
+                pl4_abs_max: crate::driver::wmi_ec::pl4_abs_max_watts(),
             };
             *PRESETS_CACHE.write() = Some(presets.clone());
             return presets;
@@ -69,13 +85,21 @@ pub fn refresh_factory_power_presets(_has_gpu: bool) -> FactoryPowerPresets {
 
     let off_pl1 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL1).unwrap_or(0) as u16;
     let off_pl2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL2).unwrap_or(0) as u16;
-    let off_pl4 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL4).unwrap_or(0) as u16;
+    let off_pl4 = crate::driver::wmi_ec::pl4_reg_to_watts(
+        crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL4).unwrap_or(0),
+    );
     let bal_pl1 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL1).unwrap_or(0) as u16;
     let bal_pl2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL2).unwrap_or(0) as u16;
-    let bal_pl4 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL4).unwrap_or(0) as u16;
+    let bal_pl4 = crate::driver::wmi_ec::pl4_reg_to_watts(
+        crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL4).unwrap_or(0),
+    );
     let tur_pl1 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL1).unwrap_or(0) as u16;
     let tur_pl2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL2).unwrap_or(0) as u16;
-    let tur_pl4 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL4).unwrap_or(0) as u16;
+    let tur_pl4 = crate::driver::wmi_ec::pl4_reg_to_watts(
+        crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL4).unwrap_or(0),
+    );
+    let pl4_unit = crate::driver::wmi_ec::pl4_unit_watts();
+    let pl4_abs_max = crate::driver::wmi_ec::pl4_abs_max_watts();
 
     let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
     let drv_base = gpu_caps.base_tgp_max_watts as u16;
@@ -114,7 +138,7 @@ pub fn refresh_factory_power_presets(_has_gpu: bool) -> FactoryPowerPresets {
 
     let calc_pl4 = |raw_pl4: u16, pl2_val: u16, fallback: u16| -> u16 {
         let val = if raw_pl4 > 0 { raw_pl4 } else { fallback };
-        val.max(pl2_val.saturating_add(20))
+        val.max(pl2_val.saturating_add(20)).min(pl4_abs_max)
     };
 
     let presets = FactoryPowerPresets {
@@ -130,8 +154,28 @@ pub fn refresh_factory_power_presets(_has_gpu: bool) -> FactoryPowerPresets {
         base_tgp,
         max_db,
         hardware_read: is_hw || drv_base > 0 || model_match.is_trusted,
+        pl4_unit,
+        pl4_abs_max,
     };
 
     *PRESETS_CACHE.write() = Some(presets.clone());
     presets
+}
+
+/// 读取当前档位**实时生效**的 CPU PL1 / PL2（W，EC 寄存器真值）。
+/// - 1/2/3 档：读对应档位的工厂表字节（固件/外部工具改写后会变）
+/// - 4 档（自定义）：读自定义 PL 寄存器（用户下发后的实际值）
+/// 读不到的档位返回 0，调用方回落到预设值。
+pub fn read_live_cpu_pl(ui_mode: u8) -> (u16, u16) {
+    use crate::driver::wmi_ec as ec;
+    let (a1, a2) = match ui_mode {
+        1 => (ec::ADDR_OFFICE_PL1, ec::ADDR_OFFICE_PL2),
+        2 => (ec::ADDR_BALANCE_PL1, ec::ADDR_BALANCE_PL2),
+        3 => (ec::ADDR_TURBO_PL1, ec::ADDR_TURBO_PL2),
+        4 => (ec::ADDR_CUSTOM_PL1, ec::ADDR_CUSTOM_PL2),
+        _ => (ec::ADDR_BALANCE_PL1, ec::ADDR_BALANCE_PL2),
+    };
+    let pl1 = ec::wmi_read_ec(a1).unwrap_or(0) as u16;
+    let pl2 = ec::wmi_read_ec(a2).unwrap_or(0) as u16;
+    (pl1, pl2)
 }

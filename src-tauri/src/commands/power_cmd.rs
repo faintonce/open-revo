@@ -12,6 +12,16 @@ pub struct PowerSettingsInfo {
     pub battery_mode: String,        // "long_life" (100) | "balance" (80) | "station" (60)
     pub battery_limit: u8,           // actual hardware limit: 100, 80, 60, etc.
     pub battery_hardware_limit_enabled: bool,
+    /// 适配器类型（圆口 / Type-C / 圆口+Type-C / 未知）
+    pub adapter_type: String,
+    /// 适配器额定功率编码的原始 EC 值
+    pub adapter_raw: Option<u8>,
+    /// 适配器额定功率（W），未知为 None
+    pub adapter_watts: Option<u16>,
+    /// 电池充电功率（W），仅在真正充电且有值时存在
+    pub battery_rate_watts: Option<f32>,
+    /// 电池循环次数
+    pub battery_cycle_count: Option<u32>,
     pub usb_charge_enabled: bool,
     pub ac_recovery_enabled: bool,
     pub high_perf_scheme: bool,
@@ -572,6 +582,7 @@ pub fn query_sleep_guard_registry_states(cfg: &crate::system::config::AppConfig)
         sleep_hibernate_30m,
     ) = query_sleep_guard_registry_states(&cfg);
 
+    let power_input = crate::system::power::read_power_input();
     PowerSettingsInfo {
         battery_percent: percent,
         is_ac_online: is_dc,
@@ -579,6 +590,11 @@ pub fn query_sleep_guard_registry_states(cfg: &crate::system::config::AppConfig)
         battery_mode: mode,
         battery_limit: effective_limit,
         battery_hardware_limit_enabled: cfg.battery_hardware_limit_enabled,
+        adapter_type: power_input.adapter_type,
+        adapter_raw: power_input.adapter_raw,
+        adapter_watts: power_input.adapter_watts,
+        battery_rate_watts: power_input.battery_rate_watts,
+        battery_cycle_count: power_input.battery_cycle_count,
         usb_charge_enabled: usb_charge,
         ac_recovery_enabled: ac_recovery,
         high_perf_scheme: cfg.high_perf_scheme,
@@ -862,4 +878,50 @@ mod tests {
         assert_eq!(parsed.power_mode_ac, 3); // defaulted
         assert_eq!(parsed.power_mode_battery, 2); // defaulted
     }
+}
+
+// ============================================================
+//  狂暴子模式（静音狂暴 / 高能狂暴）
+//  仅对能力位满足的机型开放；不满足时 supported=false，UI 隐藏入口。
+// ============================================================
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct TurboSubmodeState {
+    pub supported: bool,
+    pub silent: Option<bool>,
+}
+
+fn read_turbo_submode_state() -> TurboSubmodeState {
+    let supported = crate::system::power::turbo_submode::is_supported();
+    TurboSubmodeState {
+        supported,
+        silent: if supported {
+            crate::system::power::turbo_submode::current_silent()
+        } else {
+            None
+        },
+    }
+}
+
+#[tauri::command]
+pub fn get_turbo_submode_state() -> TurboSubmodeState {
+    let st = read_turbo_submode_state();
+    crate::log_info!(
+        "POWER_MODE",
+        "turbo submode state: supported={}, silent={:?}",
+        st.supported,
+        st.silent
+    );
+    st
+}
+
+#[tauri::command]
+pub fn set_turbo_submode(silent: bool, app: AppHandle) -> Result<TurboSubmodeState, String> {
+    crate::system::power::turbo_submode::apply_silent(silent)?;
+    let mut cfg = crate::system::config::load_config();
+    cfg.turbo_silent = silent;
+    crate::system::config::save_config(&cfg);
+    let st = read_turbo_submode_state();
+    let _ = app.emit("turbo-submode-changed", st.clone());
+    crate::log_info!("POWER_MODE", "turbo submode switched by user: silent={}", silent);
+    Ok(st)
 }

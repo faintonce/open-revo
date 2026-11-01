@@ -27,6 +27,9 @@ export interface CpuTuningSectionProps {
   onAdjustMaxPl1?: (delta: number) => void;
   onAdjustMaxPl2?: (delta: number) => void;
   onAdjustMaxPl4?: (delta: number) => void;
+  pl4Double?: boolean;
+  pl4DoubleBusy?: boolean;
+  onTogglePl4Double?: (enabled: boolean) => void;
   tempTargetEnabled: boolean;
   tempTarget: number;
   tempTargetMin?: number;
@@ -76,6 +79,9 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
   onAdjustMaxPl1,
   onAdjustMaxPl2,
   onAdjustMaxPl4,
+  pl4Double,
+  pl4DoubleBusy,
+  onTogglePl4Double,
   tempTargetEnabled,
   tempTarget,
   tempTargetMin = 85,
@@ -312,6 +318,24 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
         onAdjustMax={onAdjustMaxPl4}
         colorVar="var(--color-beast)"
       />
+
+      {onTogglePl4Double && (
+        <div className="quick-row" style={{ marginTop: '6px' }}>
+          <div className="sys-row-label">
+            PL4 双倍口径（2W/LSB）{pl4Double ? '：已开启' : '：已关闭'}
+          </div>
+          <div className="sys-row-controls">
+            <button
+              type="button"
+              className={`toggle-btn ${pl4Double ? 'active-indigo' : ''}`}
+              disabled={pl4DoubleBusy}
+              onClick={() => onTogglePl4Double(!pl4Double)}
+            >
+              {pl4Double ? '双倍（上限 510W）' : '单倍（上限 255W）'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* BIOS Advanced Switch */}
       <CpuBiosOcRow

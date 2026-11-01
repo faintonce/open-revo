@@ -66,7 +66,7 @@ pub struct ProbeMetadata {
 pub struct PowerLimitGroup {
     pub pl1_w: u8,
     pub pl2_w: u8,
-    pub pl4_w: u8,
+    pub pl4_w: u16,
     pub tcc_offset_deg: u8,
 }
 
@@ -463,22 +463,22 @@ pub fn collect_hardware_snapshot() -> HardwareSnapshot {
     // 7. Factory Power Presets Snapshot (EC Power Tables)
     let off_pl1 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL1).unwrap_or(0);
     let off_pl2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL2).unwrap_or(0);
-    let off_pl4 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL4).unwrap_or(0);
+    let off_pl4 = crate::driver::wmi_ec::pl4_reg_to_watts(crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL4).unwrap_or(0));
     let off_tcc = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_TCC).unwrap_or(0);
 
     let bal_pl1 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL1).unwrap_or(0);
     let bal_pl2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL2).unwrap_or(0);
-    let bal_pl4 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL4).unwrap_or(0);
+    let bal_pl4 = crate::driver::wmi_ec::pl4_reg_to_watts(crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL4).unwrap_or(0));
     let bal_tcc = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_TCC).unwrap_or(0);
 
     let tur_pl1 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL1).unwrap_or(0);
     let tur_pl2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL2).unwrap_or(0);
-    let tur_pl4 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL4).unwrap_or(0);
+    let tur_pl4 = crate::driver::wmi_ec::pl4_reg_to_watts(crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL4).unwrap_or(0));
     let tur_tcc = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_TCC).unwrap_or(0);
 
     let cur_pl1 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_CUSTOM_PL1).unwrap_or(0);
     let cur_pl2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_CUSTOM_PL2).unwrap_or(0);
-    let cur_pl4 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_CUSTOM_PL4).unwrap_or(0);
+    let cur_pl4 = crate::driver::wmi_ec::pl4_reg_to_watts(crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_CUSTOM_PL4).unwrap_or(0));
 
     let gpu_db_ctrl = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_DB_CTRL1).unwrap_or(0);
     let gpu_tgp = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TGP_OFFSET).unwrap_or(0);

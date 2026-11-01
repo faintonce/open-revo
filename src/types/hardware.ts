@@ -43,8 +43,17 @@ export interface HardwareState {
   board_name?: string;       // e.g. "XINGYAO Series-P916F-STX" or "GM6IX9B"
   power_presets?: FactoryPowerPresets; // Real hardware factory power limits from motherboard EC
   is_dc_online?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
+  adapter_type?: string;      // 适配器类型（圆口 / Type-C / 圆口+Type-C / 未知）
+  adapter_watts?: number;     // 适配器额定功率（W）
+  adapter_raw?: number;       // 适配器额定功率编码的原始 EC 值
+  battery_rate_watts?: number; // 电池充电功率（W），仅充电时有值
+  battery_percent?: number;   // 电池电量（%）
+  battery_cycle_count?: number; // 电池循环次数
   cpu_power_w?: number;      // CPU package real-time power (W)
   gpu_power_w?: number;      // GPU real-time power draw (W)
+  gpu_tgp_watts?: number;    // 实际生效的 GPU 总功耗上限（基础 TGP + DB；DB 关闭时只算基础）
+  live_pl1_w?: number;      // 当前档位实时生效的 CPU PL1（W，EC 真值）
+  live_pl2_w?: number;      // 当前档位实时生效的 CPU PL2（W，EC 真值）
   gpu_tuning_caps?: GpuTuningCapabilities; // Multi-generation GPU tuning & DB/cTGP capabilities
 }
 
@@ -75,6 +84,8 @@ export interface FactoryPowerPresets {
   base_tgp: number;
   max_db: number;
   hardware_read: boolean;
+  pl4_unit?: number;   // PL4 单位（W/LSB）：1 = 常规，2 = 双倍机型
+  pl4_abs_max?: number; // PL4 可表达上限（双倍机型 510W）
 }
 
 export interface AppConfig {

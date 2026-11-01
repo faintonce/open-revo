@@ -219,16 +219,20 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
                 if gpu_caps.supports_gpu_tuning {
                     let actuator = crate::system::actuator::UnifiedPowerActuator::global();
-                    let db = gpu_caps.max_db_watts.clamp(5, 35) as u8;
                     let floor = gpu_caps.ctgp_floor_watts as u8;
                     let max_base = gpu_caps.base_tgp_max_watts as u8;
                     let max_offset = max_base.saturating_sub(floor);
                     let _ = actuator.apply_gpu_state(
                         Some(false),
-                        Some(true),
-                        Some(db),
+                        Some(false),
+                        Some(0),
                         Some(max_offset),
-                        "Balanced Mode Factory Baseline",
+                        "Balanced Mode Base TGP (DB off)",
+                    );
+                    crate::log_info!(
+                        "POWER_MODE",
+                        "Balanced Mode: GPU Dynamic Boost disabled, base TGP raised to max (+{}W offset)",
+                        max_offset
                     );
                 }
             }
@@ -315,6 +319,14 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Turbo Fan Table
             apply_mode_fan_table(3);
+
+            // 8. 狂暴子模式（静音 / 高能）：只对能力位满足的机型生效
+            if crate::system::power::turbo_submode::is_supported() {
+                let cfg = crate::system::config::load_config();
+                if let Err(e) = crate::system::power::turbo_submode::apply_silent(cfg.turbo_silent) {
+                    crate::log_warn!("POWER_MODE", "turbo submode apply failed: {}", e);
+                }
+            }
         }
         4 => {
             // --- Custom Mode (White LED & User Custom Profile) ---

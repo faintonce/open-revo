@@ -31,7 +31,28 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
         </div>
         <div className="m-header-right" style={{ color: 'var(--theme-bat)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: status.is_dc_online ? '#34d399' : '#fbbf24' }} />
-          {status.is_dc_online ? 'AC 已连接' : '电池供电'}
+          {(() => {
+            if (!status.is_dc_online) return '电池供电';
+            const adapterKnown = (status.adapter_type && status.adapter_type !== '未知') || status.adapter_watts != null;
+            if (!adapterKnown) return 'AC 已连接';
+            const barrel = status.adapter_type === '圆口' || status.adapter_type === '圆口+Type-C';
+            const ratedW = !barrel
+              ? ''
+              : status.adapter_watts
+                ? status.adapter_watts === 230
+                  ? ' 230/240W'
+                  : ` ${status.adapter_watts}W`
+                : status.adapter_raw != null
+                  ? ` (EC 0x${status.adapter_raw.toString(16).toUpperCase().padStart(2, '0')})`
+                  : '';
+            const rate = status.battery_rate_watts ?? 0;
+            if (rate > 0) return `适配器${ratedW} · 充电中 ${rate}W`;
+            const limit = status.battery_limit ?? 100;
+            const pct = status.battery_percent ?? 100;
+            if (limit < 100 && pct >= limit) return `适配器${ratedW} · 已限充`;
+            if (pct >= 100) return `适配器${ratedW} · 已充满`;
+            return `适配器${ratedW}`;
+          })()}
         </div>
       </div>
 

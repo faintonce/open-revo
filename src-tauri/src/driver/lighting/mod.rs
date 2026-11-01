@@ -64,12 +64,13 @@ pub fn get_global_lighting() -> SharedIteLightingManager {
         if !crate::hal::platform_probe::is_ultrabook() {
             let mgr_clone = Arc::clone(&mgr);
             std::thread::spawn(move || {
-                let saved = mgr_clone.state.lock().clone();
-                if saved.ceremony_enabled {
-                    mgr_clone.trigger_welcome();
-                } else {
-                    mgr_clone.restore_all();
-                }
+                // 接管时不主动改变灯效：不跑启动仪式、不恢复预设，仅刷新设备句柄。
+                // UI 通过 load_lighting_state / 状态查询读取并显示当前状态。
+                mgr_clone.refresh_devices();
+                crate::log_info!(
+                    "LIGHTING",
+                    "Takeover: passive lighting mode (device handles refreshed, no writes issued)"
+                );
             });
             mgr.start_idle_watcher();
         }

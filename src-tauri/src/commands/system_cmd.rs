@@ -49,8 +49,25 @@ pub struct HardwareState {
     pub model_name: String,
     pub power_presets: FactoryPowerPresets,
     pub is_dc_online: bool,
+    /// 适配器类型（圆口 / Type-C / 圆口+Type-C / 未知）
+    pub adapter_type: String,
+    /// 适配器额定功率编码的原始 EC 值
+    pub adapter_raw: Option<u8>,
+    /// 适配器额定功率（W），未知为 None
+    pub adapter_watts: Option<u16>,
+    /// 电池充电功率（W），仅在真正充电且有值时存在
+    pub battery_rate_watts: Option<f32>,
+    /// 电池电量（%）
+    pub battery_percent: u8,
+    /// 电池循环次数
+    pub battery_cycle_count: Option<u32>,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
+    /// 实际生效的 GPU 总功耗上限（W）：基础 TGP + DB（DB 关闭时只算基础）。0 = 读不到
+    pub gpu_tgp_watts: u32,
+    /// 当前档位实时生效的 CPU PL1 / PL2（W，EC 真值）。0 = 读不到，前端回落预设
+    pub live_pl1_w: u16,
+    pub live_pl2_w: u16,
 }
 
 pub fn get_machine_model() -> String {
@@ -146,6 +163,9 @@ pub fn collect_hardware_state(
 
     let cfg = crate::system::config::load_config();
 
+    let (live_pl1_w, live_pl2_w) = crate::system::power::read_live_cpu_pl(power_mode);
+
+    let power_input = crate::system::power::read_power_input();
     HardwareState {
         power_mode,
         fan_boost,
@@ -183,8 +203,17 @@ pub fn collect_hardware_state(
         model_name: get_machine_model(),
         power_presets: get_factory_power_presets(has_gpu),
         is_dc_online: is_dc_round_plugged_in(),
+        adapter_type: power_input.adapter_type,
+        adapter_raw: power_input.adapter_raw,
+        adapter_watts: power_input.adapter_watts,
+        battery_rate_watts: power_input.battery_rate_watts,
+        battery_percent: openrevo_core::system::power::status::get_live_power_status().0,
+        battery_cycle_count: power_input.battery_cycle_count,
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
+        gpu_tgp_watts: crate::driver::wmi_ec::read_live_gpu_tgp_watts(),
+        live_pl1_w,
+        live_pl2_w,
     }
 }
 
@@ -469,6 +498,18 @@ pub struct DesensitizedCapabilities {
     pub has_win_lock: bool,
     pub is_rgb_keyboard: bool,
     pub is_dc_online: bool,
+    /// 适配器类型（圆口 / Type-C / 圆口+Type-C / 未知）
+    pub adapter_type: String,
+    /// 适配器额定功率编码的原始 EC 值
+    pub adapter_raw: Option<u8>,
+    /// 适配器额定功率（W），未知为 None
+    pub adapter_watts: Option<u16>,
+    /// 电池充电功率（W），仅在真正充电且有值时存在
+    pub battery_rate_watts: Option<f32>,
+    /// 电池电量（%）
+    pub battery_percent: u8,
+    /// 电池循环次数
+    pub battery_cycle_count: Option<u32>,
 }
 
 #[tauri::command]
@@ -542,11 +583,12 @@ pub fn export_device_diagnostic_report(
     let current_refresh_rate = display::get_refresh_rate();
     let available_refresh_rates = display::get_available_refresh_rates();
 
+    let power_input = crate::system::power::read_power_input();
     let off_pl1 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_OFFICE_PL1).unwrap_or(0) as u16;
     let bal_pl1 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_BALANCE_PL1).unwrap_or(0) as u16;
     let tur_pl1 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_PL1).unwrap_or(0) as u16;
     let tur_pl2 = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_PL2).unwrap_or(0) as u16;
-    let tur_pl4_raw = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_PL4).unwrap_or(0) as u16;
+    let tur_pl4_raw = wmi_ec::pl4_reg_to_watts(wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_PL4).unwrap_or(0));
     let tur_pl4_effective = tur_pl4_raw;
     let tur_tcc = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_TCC).unwrap_or(0);
     let gpu_db_max = wmi_ec::wmi_read_ec(wmi_ec::ADDR_GPU_DB_MAX).unwrap_or(25);
@@ -596,6 +638,12 @@ pub fn export_device_diagnostic_report(
             has_win_lock: flags.has_win_lock,
             is_rgb_keyboard: flags.is_rgb_keyboard,
             is_dc_online: is_dc,
+            adapter_type: power_input.adapter_type,
+        adapter_raw: power_input.adapter_raw,
+            adapter_watts: power_input.adapter_watts,
+            battery_rate_watts: power_input.battery_rate_watts,
+            battery_percent: openrevo_core::system::power::status::get_live_power_status().0,
+        battery_cycle_count: power_input.battery_cycle_count,
         },
     };
 
@@ -765,6 +813,7 @@ pub struct CustomPluginItem {
     pub author: String,
     pub description: String,
     pub plugin_type: String,
+    pub order: Option<i32>,
     pub enabled: bool,
     pub dir_name: String,
     pub window: Option<PluginWindowConfig>,
@@ -788,6 +837,8 @@ pub struct RawPluginManifest {
     pub version: Option<String>,
     pub author: Option<String>,
     pub description: Option<String>,
+    #[serde(default)]
+    pub order: Option<i32>,
     #[serde(default, alias = "type", alias = "plugin_type")]
     pub plugin_type: Option<String>,
     pub entry: Option<String>,
@@ -1191,6 +1242,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 author: manifest.author.unwrap_or_else(|| "第三方开发者".into()),
                                 description: manifest.description.unwrap_or_else(|| "无插件描述".into()),
                                 plugin_type,
+                                order: manifest.order,
                                 enabled,
                                 dir_name: dir_name.clone(),
                                 window: manifest.window,
@@ -1228,6 +1280,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                     author: "本地".into(),
                     description: "本地扩展目录 (未检测到标准 manifest.json)".into(),
                     plugin_type: "directory".into(),
+                    order: None,
                     enabled,
                     dir_name,
                     window: None,

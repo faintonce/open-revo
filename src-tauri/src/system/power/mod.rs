@@ -1,11 +1,14 @@
 pub mod arbiter;
+pub mod battery_input;
 pub mod ec_mode;
 pub mod fan_table;
 pub mod oem_sync;
 pub mod ppm;
 pub mod presets;
+pub mod turbo_submode;
 
 pub use arbiter::{PowerArbiter, PowerIntentSource};
+pub use battery_input::{read_power_input, read_adapter_type, read_adapter_rated_watts, read_battery_rate_watts, PowerInputInfo};
 pub use ec_mode::apply_ec_hardware_mode;
 pub use fan_table::{
     apply_fan_table_to_ec, apply_mode_fan_table, build_custom_fan_table, get_mode_fan_table,
@@ -17,7 +20,7 @@ pub use ppm::{
     get_windows_power_schemes, restore_official_power_plan, set_active_windows_power_scheme,
     WindowsPowerScheme,
 };
-pub use presets::{get_factory_power_presets, get_cached_factory_power_presets, refresh_factory_power_presets, FactoryPowerPresets};
+pub use presets::{get_factory_power_presets, get_cached_factory_power_presets, refresh_factory_power_presets, read_live_cpu_pl, FactoryPowerPresets};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
