@@ -142,7 +142,7 @@ pub fn collect_hardware_state(
     let oem_running = process::is_oem_service_running();
     let oem_installed = process::is_oem_installed();
     let is_intel_13_14_gen = cpu.is_intel_13_14_gen();
-    let autostart_enabled = autostart::is_autostart_enabled();
+    let autostart_enabled = autostart::is_autostart_enabled_cached();
 
     let cfg = crate::system::config::load_config();
 

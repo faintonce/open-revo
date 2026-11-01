@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::ffi::CString;
+use std::sync::LazyLock;
+use std::time::Duration;
 use windows::core::PCSTR;
 use windows::Win32::Graphics::Gdi::{
     ChangeDisplaySettingsA, ChangeDisplaySettingsExA, EnumDisplayDevicesA, EnumDisplaySettingsA,
@@ -8,6 +10,120 @@ use windows::Win32::Graphics::Gdi::{
     DISPLAY_DEVICE_ATTACHED_TO_DESKTOP, DISPLAY_DEVICE_PRIMARY_DEVICE, DM_DISPLAYFREQUENCY,
     EDS_ROTATEDMODE, ENUM_CURRENT_SETTINGS, ENUM_DISPLAY_SETTINGS_MODE, ENUM_REGISTRY_SETTINGS,
 };
+
+use crate::system::query_cache::KeyedExpiringCache;
+
+/// Cache key used when a query targets the primary display without naming it.
+const PRIMARY_DISPLAY_KEY: &str = "\\\\.\\PRIMARY";
+
+/// Probe result shared by the monitor and refresh-rate queries:
+/// (width, height, current_hz, supported_rates_at_that_resolution).
+type ModeInfo = (u32, u32, u32, Vec<u32>);
+
+/// Enumerating every display mode costs ~22 ms on a 210-mode panel (measured on a
+/// 2560x1600 240 Hz panel), and the telemetry heartbeat used to run it twice every
+/// 1.5 s. The mode table only changes on resolution/refresh-rate switch or on a
+/// monitor hot-plug, both of which trigger `invalidate_display_mode_cache`.
+static MODE_INFO_CACHE: LazyLock<KeyedExpiringCache<String, Option<ModeInfo>>> =
+    LazyLock::new(|| KeyedExpiringCache::new(Duration::from_secs(30)));
+
+/// Drop every cached display-mode table. Call after changing resolution or refresh
+/// rate, and on `WM_DISPLAYCHANGE`.
+pub fn invalidate_display_mode_cache() {
+    MODE_INFO_CACHE.invalidate_all();
+}
+
+/// Query current resolution, current refresh rate and every refresh rate offered at
+/// that resolution for one display. `dev_name` of `None` targets the primary display.
+/// Results are cached per display for [`MODE_INFO_CACHE`]'s TTL.
+fn probe_mode_info(dev_name: Option<&str>) -> Option<ModeInfo> {
+    let cache_key = dev_name.unwrap_or(PRIMARY_DISPLAY_KEY).to_string();
+    MODE_INFO_CACHE.get_or_compute(cache_key, || probe_mode_info_uncached(dev_name))
+}
+
+fn probe_mode_info_uncached(dev_name: Option<&str>) -> Option<ModeInfo> {
+    // The Win32 calls want a NUL-terminated PCSTR; keep it alive for the whole probe.
+    let dev_cstr = dev_name.and_then(|name| CString::new(name).ok());
+
+    unsafe {
+        let mut dm_curr: DEVMODEA = std::mem::zeroed();
+        dm_curr.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
+
+        let got_curr = match dev_cstr.as_ref() {
+            Some(cstr) => {
+                let pc_dev_name = PCSTR(cstr.as_ptr() as *const u8);
+                EnumDisplaySettingsExA(pc_dev_name, ENUM_CURRENT_SETTINGS, &mut dm_curr, EDS_ROTATEDMODE)
+                    .as_bool()
+                    || EnumDisplaySettingsA(pc_dev_name, ENUM_CURRENT_SETTINGS, &mut dm_curr).as_bool()
+                    || EnumDisplaySettingsA(pc_dev_name, ENUM_REGISTRY_SETTINGS, &mut dm_curr).as_bool()
+            }
+            None => {
+                EnumDisplaySettingsA(None, ENUM_CURRENT_SETTINGS, &mut dm_curr).as_bool()
+                    || EnumDisplaySettingsA(None, ENUM_REGISTRY_SETTINGS, &mut dm_curr).as_bool()
+            }
+        };
+
+        if !got_curr || dm_curr.dmPelsWidth == 0 || dm_curr.dmPelsHeight == 0 {
+            return None;
+        }
+
+        let target_width = dm_curr.dmPelsWidth;
+        let target_height = dm_curr.dmPelsHeight;
+        let current_hz = dm_curr.dmDisplayFrequency;
+
+        let mut rates = BTreeSet::new();
+        let mut mode_idx = 0u32;
+
+        loop {
+            let mut dm_mode: DEVMODEA = std::mem::zeroed();
+            dm_mode.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
+
+            let got_mode = match dev_cstr.as_ref() {
+                Some(cstr) => {
+                    let pc_dev_name = PCSTR(cstr.as_ptr() as *const u8);
+                    EnumDisplaySettingsExA(
+                        pc_dev_name,
+                        ENUM_DISPLAY_SETTINGS_MODE(mode_idx),
+                        &mut dm_mode,
+                        EDS_ROTATEDMODE,
+                    )
+                    .as_bool()
+                        || EnumDisplaySettingsA(pc_dev_name, ENUM_DISPLAY_SETTINGS_MODE(mode_idx), &mut dm_mode)
+                            .as_bool()
+                }
+                None => EnumDisplaySettingsA(None, ENUM_DISPLAY_SETTINGS_MODE(mode_idx), &mut dm_mode).as_bool(),
+            };
+
+            if !got_mode {
+                break;
+            }
+
+            // Match regular or portrait-rotated resolution
+            let matches_res = (dm_mode.dmPelsWidth == target_width && dm_mode.dmPelsHeight == target_height)
+                || (dm_mode.dmPelsWidth == target_height && dm_mode.dmPelsHeight == target_width);
+
+            if matches_res && dm_mode.dmDisplayFrequency > 0 {
+                rates.insert(dm_mode.dmDisplayFrequency);
+            }
+            mode_idx += 1;
+        }
+
+        // Normalize typical Windows 59Hz reporting to standard 60Hz
+        let normalized_curr_hz = if current_hz == 59 { 60 } else { current_hz };
+
+        if rates.is_empty() && normalized_curr_hz > 0 {
+            rates.insert(normalized_curr_hz);
+        }
+
+        Some((
+            target_width,
+            target_height,
+            normalized_curr_hz,
+            rates.into_iter().collect(),
+        ))
+    }
+}
+
 
 /// Information for an individual connected and active display monitor
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,69 +181,11 @@ pub fn get_all_monitors() -> Vec<DisplayMonitor> {
                         mon_idx += 1;
                     }
 
-                    // 2. Query current resolution and current refresh rate
-                    let mut dm_curr: DEVMODEA = std::mem::zeroed();
-                    dm_curr.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
-
-                    let got_curr = EnumDisplaySettingsExA(
-                        pc_dev_name,
-                        ENUM_CURRENT_SETTINGS,
-                        &mut dm_curr,
-                        EDS_ROTATEDMODE,
-                    )
-                    .as_bool()
-                        || EnumDisplaySettingsA(pc_dev_name, ENUM_CURRENT_SETTINGS, &mut dm_curr).as_bool()
-                        || EnumDisplaySettingsA(pc_dev_name, ENUM_REGISTRY_SETTINGS, &mut dm_curr).as_bool();
-
-                    if got_curr && dm_curr.dmPelsWidth > 0 && dm_curr.dmPelsHeight > 0 {
-                        let target_width = dm_curr.dmPelsWidth;
-                        let target_height = dm_curr.dmPelsHeight;
-                        let current_hz = dm_curr.dmDisplayFrequency;
-
-                        // 3. Enumerate all supported refresh rates at current resolution
-                        let mut rates = BTreeSet::new();
-                        let mut mode_idx = 0u32;
-
-                        loop {
-                            let mut dm_mode: DEVMODEA = std::mem::zeroed();
-                            dm_mode.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
-                            let got_mode = EnumDisplaySettingsExA(
-                                pc_dev_name,
-                                ENUM_DISPLAY_SETTINGS_MODE(mode_idx),
-                                &mut dm_mode,
-                                EDS_ROTATEDMODE,
-                            )
-                            .as_bool()
-                                || EnumDisplaySettingsA(
-                                    pc_dev_name,
-                                    ENUM_DISPLAY_SETTINGS_MODE(mode_idx),
-                                    &mut dm_mode,
-                                )
-                                .as_bool();
-
-                            if !got_mode {
-                                break;
-                            }
-
-                            // Match regular or portrait-rotated resolution
-                            let matches_res = (dm_mode.dmPelsWidth == target_width
-                                && dm_mode.dmPelsHeight == target_height)
-                                || (dm_mode.dmPelsWidth == target_height
-                                    && dm_mode.dmPelsHeight == target_width);
-
-                            if matches_res && dm_mode.dmDisplayFrequency > 0 {
-                                rates.insert(dm_mode.dmDisplayFrequency);
-                            }
-                            mode_idx += 1;
-                        }
-
-                        // Normalize typical Windows 59Hz reporting to standard 60Hz
-                        let normalized_curr_hz = if current_hz == 59 { 60 } else { current_hz };
-
-                        if rates.is_empty() && normalized_curr_hz > 0 {
-                            rates.insert(normalized_curr_hz);
-                        }
-
+                    // 2. Query current resolution, refresh rate and the supported rate matrix
+                    //    (cached per display; see probe_mode_info)
+                    if let Some((target_width, target_height, normalized_curr_hz, supported_rates)) =
+                        probe_mode_info(Some(&dev_name))
+                    {
                         // 4. Determine whether internal laptop screen and build friendly label
                         let is_internal = is_likely_internal_screen(&dev_name, &monitor_name, &monitor_id, is_primary);
                         let friendly_name = format_friendly_screen_name(
@@ -148,7 +206,7 @@ pub fn get_all_monitors() -> Vec<DisplayMonitor> {
                             width: target_width,
                             height: target_height,
                             current_hz: normalized_curr_hz,
-                            supported_rates: rates.into_iter().collect(),
+                            supported_rates,
                         });
                     }
                 }
@@ -236,6 +294,8 @@ pub fn set_monitor_refresh_rate(device_name: &str, hz: u32) -> Result<(), String
             if res.0 == 0 {
                 // Notify Desktop Window Manager to re-evaluate and apply desktop layout
                 let _ = ChangeDisplaySettingsExA(None, None, None, CDS_TYPE(0), None);
+                // The mode table just changed; drop cached probe results for every display.
+                invalidate_display_mode_cache();
                 return Ok(());
             }
             return Err(format!(
@@ -368,6 +428,7 @@ pub fn set_refresh_rate(hz: u32) -> Result<(), String> {
 
             let res = ChangeDisplaySettingsA(Some(&dm), CDS_UPDATEREGISTRY);
             if res.0 == 0 {
+                invalidate_display_mode_cache();
                 return Ok(());
             }
             return Err(format!("ChangeDisplaySettings failed with code: {}", res.0));
@@ -378,39 +439,9 @@ pub fn set_refresh_rate(hz: u32) -> Result<(), String> {
 
 /// Enumerate all available refresh rates supported on primary display
 pub fn get_available_refresh_rates() -> Vec<u32> {
-    unsafe {
-        let mut dm_curr: DEVMODEA = std::mem::zeroed();
-        dm_curr.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
-        if !EnumDisplaySettingsA(None, ENUM_CURRENT_SETTINGS, &mut dm_curr).as_bool() {
-            return vec![60];
-        }
-        let target_width = dm_curr.dmPelsWidth;
-        let target_height = dm_curr.dmPelsHeight;
-
-        // See get_all_monitors() for why DEVMODEA is reset on every iteration.
-        let mut rates = BTreeSet::new();
-        let mut mode_num = 0u32;
-
-        loop {
-            let mut dm: DEVMODEA = std::mem::zeroed();
-            dm.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
-            if !EnumDisplaySettingsA(None, ENUM_DISPLAY_SETTINGS_MODE(mode_num), &mut dm).as_bool() {
-                break;
-            }
-            if dm.dmPelsWidth == target_width
-                && dm.dmPelsHeight == target_height
-                && dm.dmDisplayFrequency > 0
-            {
-                rates.insert(dm.dmDisplayFrequency);
-            }
-            mode_num += 1;
-        }
-
-        if rates.is_empty() {
-            rates.insert(dm_curr.dmDisplayFrequency);
-        }
-        rates.into_iter().collect()
-    }
+    probe_mode_info(None)
+        .map(|(_, _, _, rates)| rates)
+        .unwrap_or_else(|| vec![60])
 }
 
 // ----------------------------------------------------------------------------
