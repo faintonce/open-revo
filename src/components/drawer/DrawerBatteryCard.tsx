@@ -114,6 +114,12 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
           长效
         </button>
       </div>
+
+      {status.battery_cycle_count != null && status.battery_cycle_count > 0 && (
+        <div style={{ marginTop: '4px', fontSize: '10.5px', color: 'var(--text-dim)', textAlign: 'right' }}>
+          循环 {status.battery_cycle_count} 次
+        </div>
+      )}
     </div>
   );
 };
