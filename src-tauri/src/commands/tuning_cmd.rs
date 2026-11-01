@@ -1270,7 +1270,7 @@ pub fn get_pl4_unit() -> Pl4UnitState {
     Pl4UnitState { supported, enabled, unit, abs_max: 255 * unit }
 }
 
-/// 切换 PL4 单/双倍口径（改写 EC 0x0727 bit7），返回切换后状态
+/// 切换 PL4 单/双倍口径（改写 EC 单位选择位 bit7），返回切换后状态
 #[tauri::command]
 pub fn set_pl4_unit_double(enabled: bool) -> Result<Pl4UnitState, String> {
     if !crate::system::cpu_monitor::is_intel_cpu() {

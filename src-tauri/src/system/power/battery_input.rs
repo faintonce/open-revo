@@ -167,7 +167,7 @@ pub fn read_adapter_raw() -> Option<u8> {
 
 
 
-/// 适配器额定功率（W）。0x49F 的 bit3~6 编码，未识别返回 None。
+/// 适配器额定功率（W）。ADDR_ADAPTER_RATED_WATTS 的 bit3~6 编码，未识别返回 None。
 pub fn read_adapter_rated_watts() -> Option<u16> {
     let raw = wmi_ec::wmi_read_ec(wmi_ec::ADDR_ADAPTER_RATED_WATTS)?;
     let code = raw & 0x78;
@@ -331,7 +331,7 @@ pub fn read_battery_rate_watts() -> Option<f32> {
 pub fn read_battery_cycle_count() -> Option<u32> {
     static CACHE: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
     *CACHE.get_or_init(|| {
-        // 与厂商控制台同源：EC 0x4A6 低字节 / 0x4A7 高字节
+        // 与厂商控制台同源：EC ADDR_BATTERY_CYCLE_LOW 低字节 / ADDR_BATTERY_CYCLE_HIGH 高字节
         if let Some(low) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_BATTERY_CYCLE_LOW) {
             let high = wmi_ec::wmi_read_ec(wmi_ec::ADDR_BATTERY_CYCLE_HIGH).unwrap_or(0);
             let value = ((high as u32) << 8) | (low as u32);
@@ -478,13 +478,13 @@ pub struct PowerInputInfo {
 
 pub fn read_power_input() -> PowerInputInfo {
     // 只有供电类型字节能明确识别出圆口 / Type-C 时，才信任额定功率与电池充电功率；
-    // 宝龙达模具不提供 0x7CC/0x49F，读到的 0x00 不能当成 330W 适配器，
+    // 宝龙达模具不提供 ADDR_POWER_STATUS/ADDR_ADAPTER_RATED_WATTS，读到的 0x00 不能当成 330W 适配器，
     // 此时全部返回未知，由界面回落到原「已连接电源适配器」文案。
     let adapter_type = read_adapter_type();
     let adapter_known = adapter_type != "未知";
     let barrel = adapter_type == "圆口" || adapter_type == "圆口+Type-C";
-    // 适配器瓦数以 EC 0x49F 为准（0xD42 只是同一索引的另一种表示）；
-    // 0x7B9 在多数同方机型上是充电上限，不能当适配器瓦数用。
+    // 适配器瓦数以 EC ADDR_ADAPTER_RATED_WATTS 为准（适配器索引 只是同一索引的另一种表示）；
+    // ADDR_BATTERY_LIMIT_UP 在多数同方机型上是充电上限，不能当适配器瓦数用。
     // Type-C 暂时不显示瓦数，只显示类型（等实际机型验证完成后再放开）。
     let (adapter_raw, adapter_watts) = if adapter_known && barrel {
         (read_adapter_raw(), read_adapter_rated_watts())

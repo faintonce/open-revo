@@ -187,7 +187,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const minMaxPl2 = turboPl2 + pl2Offset;
   const maxMaxPl2 = turboPl2 + 50 + pl2Offset;
 
-  // PL4 可表达上限：双倍口径（EC 0x0727 bit7=1）为 255×2=510W，可在下方开关切换
+  // PL4 可表达上限：双倍口径（EC 单位选择位 bit7=1）为 255×2=510W，可在下方开关切换
   // 临时预览：仅 UI 展示双倍口径，不写 EC（预览版专用）
   const PL4_PREVIEW = false;
   const [pl4UnitInfo, setPl4UnitInfo] = useState<{ supported?: boolean; enabled: boolean; unit: number; abs_max: number } | null>(
