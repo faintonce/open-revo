@@ -10949,5 +10949,66 @@
     "fan_control_respective": false,
     "has_water_cooler": true,
     "keyboard_type": "TypeA"
+  },
+  {
+    "_note": "社区提交机型（翼龙 15 Pro / GM5HG7A）。DMI BaseBoardProduct=GM5HG7A，EC ProjectID=25（实测）。factory_specs 为 EC 实测出厂表；presets 为 R23 实测功耗曲线标定（65W=满血，45W=均衡默认，25W=最高边际能效）。45W 落在 40~54W 段（边际约 97 分/W），较 54W 少 17% 功耗、仅损失约 5.5% 性能。fan_tables 待采集原厂曲线，暂为空以沿用通用兜底表。",
+    "mine": false,
+    "model_id": "GM5HG7A",
+    "display_name": "Yilong15Pro Series GM5HG7A",
+    "alias": "翼龙 15 Pro",
+    "project_id": 25,
+    "bios_project_id": "",
+    "factory_specs": {
+      "office": {
+        "pl1": 35,
+        "pl2": 35,
+        "pl4": 70,
+        "temp_offset": 95
+      },
+      "balanced": {
+        "pl1": 65,
+        "pl2": 65,
+        "pl4": 100,
+        "temp_offset": 95
+      },
+      "turbo": {
+        "pl1": 90,
+        "pl2": 90,
+        "pl4": 100,
+        "temp_offset": 95
+      },
+      "base_tgp": 115,
+      "max_db": 25
+    },
+    "presets": {
+      "office": {
+        "pl1": 25,
+        "pl2": 25,
+        "pl4": 50,
+        "temp_offset": 95
+      },
+      "balanced": {
+        "pl1": 45,
+        "pl2": 45,
+        "pl4": 100,
+        "temp_offset": 95
+      },
+      "turbo": {
+        "pl1": 65,
+        "pl2": 65,
+        "pl4": 100,
+        "temp_offset": 95
+      }
+    },
+    "pl1_default": 45,
+    "pl2_default": 45,
+    "pl4_default": 100,
+    "base_tgp": 115,
+    "max_db": 25,
+    "max_fan_duty": 100,
+    "temp_levels": 10,
+    "fan_control_respective": false,
+    "has_water_cooler": false,
+    "keyboard_type": "SingleZone_RGB"
   }
 ]
