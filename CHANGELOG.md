@@ -20,6 +20,22 @@
 
 ---
 
+## [0.9.6] - 2026-11-01
+
+### 🧩 核心引擎 SDK 架构前置改造与跨平台门面就绪 (Core SDK & Slint Readiness)
+- **统一引擎调度门面 (`OpenRevoEngine`)**：
+  - 于 `openrevo-core` 建立统一的引擎 Facade，收拢硬件信息嗅探 (`get_hardware_snapshot`)、性能模式切换 (`set_power_mode`)、功耗预设查询 (`get_power_presets`)、灯效管理及遥测启停，为纯 Rust Slint 前端及未来第三方多语言 SDK 奠定稳固契约。
+  - 支持实例与全局懒加载单例模式 (`OpenRevoEngine::global()`)，无侵入兼容现有各级模块。
+- **跨平台依赖条件编译隔离 (`cfg(windows)`)**：
+  - 将 `windows` crate 全面收归至 `[target.'cfg(windows)'.dependencies]`，为 Linux 编译 `libopenrevo_core.so` 扫除 Windows 平台符号障碍。
+- **强类型与 FFI 友好事件系统 (`CoreEvent` / `CoreEventSink`)**：
+  - 新增强类型枚举 `CoreEvent`，抽象物理性能模式按键切换、风扇强冷、OSD 触发、遥测推流与水冷状态变更。
+  - 支持 `CallbackEventSink` 闭包与标准 C 函数指针委托转译，解耦各类 UI 框架依赖。
+- **安全生命周期与优雅退出 (Graceful Lifecycle)**：
+  - 提供显式 `shutdown()` 与原子状态指示，确保外部动态链接库加载或宿主关闭时所有常驻监控线程优雅退出。
+
+---
+
 ## [0.9.5] - 2026-10-30
 
 ### 🚀 显卡仿小飞机 V/F 曲线降压超频与生态解耦 (GPU Curve Tuner & Host Isolation)
