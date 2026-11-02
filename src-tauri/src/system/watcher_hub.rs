@@ -600,15 +600,20 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
             }
         }
         WatcherAction::RawEcModifyMask { address, mask, value } => {
-            if let Err(e) = crate::system::raw_gateway::shield::validate_write_operation(*address, 0) {
-                crate::log_warn!("WATCHER_ACT", "[{}] Blast shield blocked EC modify on 0x{:04X}: {}", watcher_name, address, e);
+            if let Err(error) = crate::system::raw_gateway::shield::validate_read_address(*address) {
+                crate::log_warn!("WATCHER_ACT", "{}", error);
                 return;
             }
-            if let Some(cur) = crate::driver::wmi_ec::wmi_read_ec(*address) {
-                let next = if *value { cur | mask } else { cur & !mask };
-                crate::log_info!("WATCHER_ACT", "[{}] Modifying EC 0x{:04X} mask 0x{:02X} (val: {}): 0x{:02X} -> 0x{:02X}", watcher_name, address, mask, value, cur, next);
-                let _ = crate::driver::wmi_ec::wmi_write_ec(*address, next);
-            } else {
+            let mut validation_error = None;
+            let result = crate::driver::wmi_ec::wmi_modify_ec(*address, |current| {
+                match crate::system::raw_gateway::shield::masked_write_value(*address, current, *mask, *value) {
+                    Ok(next) => next,
+                    Err(error) => { validation_error = Some(error); current }
+                }
+            });
+            if let Some(error) = validation_error {
+                crate::log_warn!("WATCHER_ACT", "{}", error);
+            } else if result.is_none() {
                 crate::log_warn!("WATCHER_ACT", "[{}] Failed to read EC 0x{:04X} for bitmask modification", watcher_name, address);
             }
         }
