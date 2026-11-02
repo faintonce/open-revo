@@ -25,6 +25,42 @@ impl ShortcutRegistry {
             lookup: HashMap::new(),
         }
     }
+    fn match_key(
+        &self,
+        vk: u16,
+        is_ctrl: bool,
+        is_alt: bool,
+        is_shift: bool,
+        is_win: bool,
+    ) -> (Option<ShortcutBinding>, bool) {
+        let Some(candidate_ids) = self.lookup.get(&vk) else {
+            return (None, false);
+        };
+        let now = std::time::Instant::now();
+        for id in candidate_ids {
+            if let Some(entry) = self.entries.get(id) {
+                if entry.binding.enabled
+                    && entry.parsed.matches(vk, is_ctrl, is_alt, is_shift, is_win)
+                {
+                    let debounce_ms = match entry.binding.action {
+                        super::types::ShortcutAction::ToggleRefreshRate => 1200,
+                        _ => 400,
+                    };
+                    let Ok(mut last_guard) = entry.last_triggered.try_lock() else {
+                        return (None, false);
+                    };
+                    if last_guard.is_some_and(|last| {
+                        now.duration_since(last) < std::time::Duration::from_millis(debounce_ms)
+                    }) {
+                        return (None, entry.binding.swallow);
+                    }
+                    *last_guard = Some(now);
+                    return (Some(entry.binding.clone()), entry.binding.swallow);
+                }
+            }
+        }
+        (None, false)
+    }
 }
 
 static REGISTRY: RwLock<Option<ShortcutRegistry>> = RwLock::new(None);
@@ -148,48 +184,105 @@ pub fn check_match_and_trigger(
     is_shift: bool,
     is_win: bool,
 ) -> bool {
-    let guard = REGISTRY.read().unwrap();
+    let (binding, swallow) = match_shortcut(vk, is_ctrl, is_alt, is_shift, is_win);
+    if let Some(binding) = binding {
+        dispatch_action(app.clone(), binding);
+    }
+    swallow
+}
+
+
+fn match_shortcut(
+    vk: u16,
+    is_ctrl: bool,
+    is_alt: bool,
+    is_shift: bool,
+    is_win: bool,
+) -> (Option<ShortcutBinding>, bool) {
+    // The Windows keyboard hook must not wait for a settings save or another key event.
+    let Ok(guard) = REGISTRY.try_read() else {
+        return (None, false);
+    };
     let Some(ref registry) = *guard else {
-        return false;
+        return (None, false);
     };
-    let Some(candidate_ids) = registry.lookup.get(&vk) else {
-        return false;
-    };
+    registry.match_key(vk, is_ctrl, is_alt, is_shift, is_win)
+}
 
-    let now = std::time::Instant::now();
-    let mut matched_entry: Option<(ShortcutBinding, bool)> = None;
-
-    for id in candidate_ids {
-        if let Some(entry) = registry.entries.get(id) {
-            if entry.binding.enabled && entry.parsed.matches(vk, is_ctrl, is_alt, is_shift, is_win) {
-                // Filter typematic auto-repeat and rapid re-triggers
-                let debounce_ms = match entry.binding.action {
-                    super::types::ShortcutAction::ToggleRefreshRate => 1200, // Display mode switches need at least 1.2s to settle
-                    _ => 400, // Standard shortcuts debounce 400ms to ignore Windows key repeat
-                };
-
-                let mut last_guard = entry.last_triggered.lock().unwrap();
-                if let Some(last) = *last_guard {
-                    if now.duration_since(last) < std::time::Duration::from_millis(debounce_ms) {
-                        // Still within cooldown period, ignore repeat but still respect swallow
-                        return entry.binding.swallow;
-                    }
-                }
-                *last_guard = Some(now);
-                matched_entry = Some((entry.binding.clone(), entry.binding.swallow));
-                break;
-            }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn test_binding(id: &str) -> ShortcutBinding {
+        ShortcutBinding {
+            id: id.into(),
+            name: "test".into(),
+            combo: "Ctrl+Alt+Shift+F23".into(),
+            action: super::super::types::ShortcutAction::TriggerOsdPreview,
+            osd: false,
+            enabled: true,
+            swallow: true,
+            plugin_id: None,
         }
     }
 
-    // Drop the registry read lock before dispatching
-    drop(guard);
-
-    if let Some((binding, swallow)) = matched_entry {
-        crate::log_info!("SHORTCUTS", "Triggered shortcut '{}' ({})", binding.name, binding.combo);
-        dispatch_action(app.clone(), binding);
-        return swallow;
+    #[test]
+    fn regression_keyboard_hook_does_not_wait_for_shortcut_registration() {
+        let guard = REGISTRY.write().unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            tx.send(match_shortcut(0, false, false, false, false))
+                .unwrap();
+        });
+        let result = rx.recv_timeout(std::time::Duration::from_millis(500));
+        drop(guard);
+        worker.join().unwrap();
+        assert_eq!(result.unwrap(), (None, false));
     }
 
-    false
+    #[test]
+    fn regression_shortcut_matching_preserves_swallow_debounce_and_disabled_behavior() {
+        let binding = test_binding("matching-regression");
+        let parsed = ParsedKeyCombo::parse(&binding.combo).unwrap();
+        let mut registry = ShortcutRegistry::new();
+        registry
+            .lookup
+            .insert(parsed.vk_code, vec![binding.id.clone()]);
+        registry.entries.insert(
+            binding.id.clone(),
+            RegistryEntry {
+                binding: binding.clone(),
+                parsed,
+                last_triggered: Mutex::new(None),
+            },
+        );
+        assert_eq!(
+            registry.match_key(parsed.vk_code, true, true, true, false),
+            (Some(binding.clone()), true)
+        );
+        assert_eq!(
+            registry.match_key(parsed.vk_code, true, true, true, false),
+            (None, true)
+        );
+        assert_eq!(
+            registry.match_key(parsed.vk_code, false, true, true, false),
+            (None, false)
+        );
+        {
+            let _busy = registry.entries[&binding.id].last_triggered.lock().unwrap();
+            assert_eq!(
+                registry.match_key(parsed.vk_code, true, true, true, false),
+                (None, false)
+            );
+        }
+        registry
+            .entries
+            .get_mut(&binding.id)
+            .unwrap()
+            .binding
+            .enabled = false;
+        assert_eq!(
+            registry.match_key(parsed.vk_code, true, true, true, false),
+            (None, false)
+        );
+    }
 }

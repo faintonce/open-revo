@@ -37,8 +37,10 @@ pub fn push_interactive_key_event(vk: i32) {
     if !IS_INTERACTIVE_STREAMING.load(Ordering::Relaxed) {
         return;
     }
-    if let Some(tx) = KEY_EVENT_SENDER.lock().as_ref() {
-        let _ = tx.try_send(vk);
+    if let Some(sender) = KEY_EVENT_SENDER.try_lock() {
+        if let Some(tx) = sender.as_ref() {
+            let _ = tx.try_send(vk);
+        }
     }
 }
 
@@ -297,5 +299,39 @@ pub fn vk_to_pos(vk: i32) -> (f64, f64) {
         0x27 => (14.0, 5.0), // Right
         0x60..=0x69 => (16.0 + ((vk - 0x60) % 3) as f64, 2.0 + ((vk - 0x60) / 3) as f64), // Numpad
         _ => (9.5, 2.5), // Center
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regression_keyboard_events_do_not_wait_for_a_busy_or_full_streamer_channel() {
+        let receiver = register_key_event_receiver();
+        set_interactive_mode(true);
+        let guard = KEY_EVENT_SENDER.lock();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            push_interactive_key_event(1);
+            tx.send(()).unwrap();
+        });
+        let result = rx.recv_timeout(std::time::Duration::from_millis(500));
+        drop(guard);
+        worker.join().unwrap();
+        assert!(result.is_ok());
+        assert!(receiver.try_recv().is_err());
+        for key in 0..65 {
+            push_interactive_key_event(key);
+        }
+        assert_eq!(
+            receiver.try_iter().collect::<Vec<_>>(),
+            (0..64).collect::<Vec<_>>()
+        );
+        set_interactive_mode(false);
+        push_interactive_key_event(99);
+        assert!(receiver.try_recv().is_err());
+        unregister_key_event_sender();
     }
 }
