@@ -81,7 +81,7 @@ fn dispatch_acpi_event(
                 let current_mode = ec_bridge.lock().get_power_mode();
                 let is_dc = crate::system::power::status::is_dc_round_plugged_in();
                 let mut cfg = crate::system::config::load_config();
-                let next_mode = if is_dc || cfg.unlock_battery_power_limit {
+                let next_mode = if crate::system::power::ensure_power_mode_allowed(3).is_ok() {
                     // Explicit 4-stage mode cycle: 1 (Office) -> 2 (Balance) -> 3 (Beast) -> 4 (Custom) -> 1 (Office)
                     match current_mode {
                         1 => 2,
@@ -107,16 +107,12 @@ fn dispatch_acpi_event(
                     is_dc,
                     cfg.unlock_battery_power_limit
                 );
-                ec_bridge.lock().set_power_mode(next_mode);
-
-                // Update persistent config
                 cfg.power_mode = next_mode;
-                if is_dc {
-                    cfg.power_mode_ac = next_mode;
-                } else {
-                    cfg.power_mode_battery = next_mode;
+                if is_dc { cfg.power_mode_ac = next_mode; } else { cfg.power_mode_battery = next_mode; }
+                if let Err(error) = ec_bridge.lock().set_power_mode_with_config(&cfg) {
+                    crate::log_warn!("WMI_LISTENER", "Q-Key performance mode change failed: {}", error);
+                    return;
                 }
-                crate::system::config::save_config(&cfg);
 
                 // Broadcast to UI so frontend badges, charts, and colors update immediately
                 crate::event::power_mode_changed_global(next_mode);
@@ -360,4 +356,3 @@ pub fn start_wmi_event_listener(ec_bridge: SharedEcBridge) {
         })
         .expect("Failed to spawn WMI event watcher thread");
 }
-

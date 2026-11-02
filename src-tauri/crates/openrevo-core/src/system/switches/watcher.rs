@@ -59,6 +59,7 @@ pub fn start_hardware_state_watcher(
         let mut last_mic = super::audio::get_microphone_state();
         let mut last_ac_line: Option<bool> = None;
         let mut last_dc_line: Option<bool> = None;
+        let mut mode_retry_after: Option<(bool, std::time::Instant)> = None;
         let mut last_win_lock = Some(cfg.win_key_locked);
         let mut last_win_toggle_time = std::time::Instant::now() - std::time::Duration::from_secs(10);
         let mut last_fn_toggle_time = std::time::Instant::now() - std::time::Duration::from_secs(10);
@@ -262,22 +263,26 @@ pub fn start_hardware_state_watcher(
             }
 
             // 7. Watch AC Power Transition for Auto Min Refresh Rate on Battery
+            let _mode_operation = crate::hal::power_control::MODE_OPERATION.lock();
             let (_, is_ac, _) = crate::commands::hardware_cmd::get_live_power_status();
             let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
 
             let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
 
+            let mut mode_restore_failed = false;
+            let retry_waiting = mode_retry_after.is_some_and(|(power, deadline)| {
+                power == is_dc && std::time::Instant::now() < deadline
+            });
             if is_thin_light {
                 // Pure iGPU / Thin & Light Laptops:
                 // Completely respect user's manual power mode choice!
                 // Never force switch to Beast on AC plug, and never force Balance on battery.
                 if let Some(last_dc) = last_dc_line {
                     if last_dc != is_dc {
-                        use tauri::Emitter;
                         let _ = app.emit("dc-status-changed", is_dc);
                     }
                 }
-            } else {
+            } else if !retry_waiting {
                 // Dual-parameter AC/Battery safety & persistence guard for Gaming Laptops:
                 // Gaming laptops must not run in Beast (3) or Custom (4) on battery/Type-C to prevent battery overcurrent.
                 // Thin & light laptops rely on hardware EC power envelopes and must NOT be demoted or forced into balance.
@@ -292,24 +297,30 @@ pub fn start_hardware_state_watcher(
                         }
                         if is_thin_light {
                             crate::log_info!("POWER_WATCHER", "Power line unplugged on thin-and-light laptop: preserving user power mode {}", cur_mode);
-                            crate::system::config::save_config(&updated_cfg);
+                            let _ = crate::system::config::save_config(&updated_cfg);
                         } else if !updated_cfg.unlock_battery_power_limit {
-                            let target_mode = if updated_cfg.power_mode_battery == 1 { 1 } else { 2 };
+                            let target_mode = if updated_cfg.power_mode_battery == 1 {
+                                1
+                            } else {
+                                2
+                            };
                             crate::log_info!("POWER_WATCHER", "DC round adapter unplugged: safely switching power mode {} -> {} (Battery mode) on Battery/Type-C", cur_mode, target_mode);
                             updated_cfg.power_mode = target_mode;
-                            crate::system::config::save_config(&updated_cfg);
-                            ec_bridge.lock().set_power_mode(target_mode);
-                            crate::update_tray_power_mode(target_mode);
-                            use tauri::Emitter;
-                            crate::system::osd_window::wake_osd_if_enabled(&app);
-                            let _ = app.emit("physical-mode-switched", target_mode);
-                            let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                            let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                            if restore_auto_power_mode(
+                                &ec_bridge,
+                                &updated_cfg,
+                                &mut mode_restore_failed,
+                            ) {
+                                crate::update_tray_power_mode(target_mode);
+                                crate::system::osd_window::wake_osd_if_enabled(&app);
+                                let _ = app.emit("physical-mode-switched", target_mode);
+                                let _ = app.emit_to("main", "physical-mode-switched", target_mode);
+                                let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                            }
                         } else {
                             crate::log_info!("POWER_WATCHER", "DC round adapter unplugged: unlock_battery_power_limit enabled, keeping current power mode {}", cur_mode);
-                            crate::system::config::save_config(&updated_cfg);
+                            let _ = crate::system::config::save_config(&updated_cfg);
                         }
-                        use tauri::Emitter;
                         let _ = app.emit("dc-status-changed", false);
                         crate::system::watcher_hub::notify_power_event("ac_disconnected");
                     } else if !last_dc && is_dc {
@@ -334,14 +345,13 @@ pub fn start_hardware_state_watcher(
                             }
                         );
                         cfg.power_mode = target_mode;
-                        crate::system::config::save_config(&cfg);
-                        ec_bridge.lock().set_power_mode(target_mode);
-                        crate::update_tray_power_mode(target_mode);
-                        use tauri::Emitter;
-                        crate::system::osd_window::wake_osd_if_enabled(&app);
-                        let _ = app.emit("physical-mode-switched", target_mode);
-                        let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                        let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                        if restore_auto_power_mode(&ec_bridge, &cfg, &mut mode_restore_failed) {
+                            crate::update_tray_power_mode(target_mode);
+                            crate::system::osd_window::wake_osd_if_enabled(&app);
+                            let _ = app.emit("physical-mode-switched", target_mode);
+                            let _ = app.emit_to("main", "physical-mode-switched", target_mode);
+                            let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                        }
                         let _ = app.emit("dc-status-changed", true);
                         crate::system::watcher_hub::notify_power_event("ac_connected");
                     }
@@ -352,37 +362,59 @@ pub fn start_hardware_state_watcher(
                         1..=4 => cfg.power_mode_ac,
                         _ => 3,
                     };
-                    if cfg.power_mode != target_mode {
-                        crate::log_info!("POWER_WATCHER", "Initial loop: DC round adapter online, aligning power mode {} -> {}", cfg.power_mode, target_mode);
+                    if cfg.power_mode != target_mode
+                        || ec_bridge.lock().get_power_mode() != target_mode
+                    {
+                        crate::log_info!(
+                            "POWER_WATCHER",
+                            "Initial loop: DC round adapter online, aligning power mode {} -> {}",
+                            cfg.power_mode,
+                            target_mode
+                        );
                         cfg.power_mode = target_mode;
-                        crate::system::config::save_config(&cfg);
-                        ec_bridge.lock().set_power_mode(target_mode);
-                        crate::update_tray_power_mode(target_mode);
-                        use tauri::Emitter;
-                        let _ = app.emit("physical-mode-switched", target_mode);
-                        let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                        let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                        if restore_auto_power_mode(&ec_bridge, &cfg, &mut mode_restore_failed) {
+                            crate::update_tray_power_mode(target_mode);
+                            let _ = app.emit("physical-mode-switched", target_mode);
+                            let _ = app.emit_to("main", "physical-mode-switched", target_mode);
+                            let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                        }
                     }
                 } else if !is_dc && !is_thin_light {
                     // Initial first loop (last_dc_line is None): Laptop running on Battery/Type-C (gaming laptops only)
                     let mut cfg = crate::system::config::load_config();
-                    if !cfg.unlock_battery_power_limit && (cfg.power_mode == 3 || cfg.power_mode == 4) {
+                    if !cfg.unlock_battery_power_limit
+                        && (cfg.power_mode == 3 || cfg.power_mode == 4)
+                    {
                         let target_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
-                        crate::log_info!("POWER_WATCHER", "Initial loop: on Battery/Type-C, safely adjusting mode {} -> {}", cfg.power_mode, target_mode);
+                        crate::log_info!(
+                            "POWER_WATCHER",
+                            "Initial loop: on Battery/Type-C, safely adjusting mode {} -> {}",
+                            cfg.power_mode,
+                            target_mode
+                        );
+                        cfg.power_mode_ac = cfg.power_mode;
                         cfg.power_mode = target_mode;
-                        crate::system::config::save_config(&cfg);
-                        ec_bridge.lock().set_power_mode(target_mode);
-                        crate::update_tray_power_mode(target_mode);
-                        use tauri::Emitter;
-                        let _ = app.emit("physical-mode-switched", target_mode);
-                        let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                        let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                        if restore_auto_power_mode(&ec_bridge, &cfg, &mut mode_restore_failed) {
+                            crate::update_tray_power_mode(target_mode);
+                            let _ = app.emit("physical-mode-switched", target_mode);
+                            let _ = app.emit_to("main", "physical-mode-switched", target_mode);
+                            let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                        }
                     }
                 }
             }
-            last_dc_line = Some(is_dc);
+            if mode_restore_failed {
+                last_dc_line = None;
+                mode_retry_after = Some((
+                    is_dc,
+                    std::time::Instant::now() + std::time::Duration::from_secs(5),
+                ));
+            } else if !retry_waiting {
+                last_dc_line = Some(is_dc);
+                mode_retry_after = None;
+            }
 
-
+            drop(_mode_operation);
             if let Some(last_ac) = last_ac_line {
                 if last_ac && !is_ac {
                     // Transition: Plugged -> Unplugged
@@ -594,4 +626,25 @@ pub fn start_hardware_state_watcher(
             }
         }
     });
+}
+
+
+fn restore_auto_power_mode(
+    ec: &crate::driver::ec_bridge::SharedEcBridge,
+    cfg: &crate::system::config::AppConfig,
+    retry: &mut bool,
+) -> bool {
+    let ec = ec.lock();
+    match ec.set_power_mode_with_config(cfg) {
+        Ok(()) => true,
+        Err(error) => {
+            *retry |= ec.get_power_mode() != cfg.power_mode;
+            crate::log_warn!(
+                "POWER_WATCHER",
+                "Automatic performance mode restore failed: {}",
+                error
+            );
+            false
+        }
+    }
 }

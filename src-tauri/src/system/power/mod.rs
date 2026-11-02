@@ -128,45 +128,19 @@ pub fn get_cpu_frequency_info() -> Option<(u32, u32, u32)> {
     }
 }
 
-static POWER_MODE_LOCK: std::sync::Mutex<Option<(u8, std::time::Instant)>> = std::sync::Mutex::new(None);
 
 /// Apply full-stack performance release mode across Windows Power Overlay, Power Plan, and Motherboard EC
-pub fn apply_full_power_mode(ui_mode: u8) {
-    let mut lock = match POWER_MODE_LOCK.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
-    if let Some((last_mode, last_time)) = *lock {
-        if last_mode == ui_mode && last_time.elapsed() < std::time::Duration::from_millis(600) {
-            crate::log_info!("POWER_MODE", "apply_full_power_mode for mode {} debounced (applied {:?} ago)", ui_mode, last_time.elapsed());
-            return;
-        }
-    }
-    *lock = Some((ui_mode, std::time::Instant::now()));
-
-    crate::log_info!("POWER_MODE", "=== Apply Full Power Mode: UI Mode {} ===", ui_mode);
-
-    // 1. Windows OS Energy Scheduler (Power Overlay Scheme)
-    apply_windows_power_overlay(ui_mode);
-
-    // 2. Hardware EC RAM Registers (PL1 / PL2 / TGP / Fan Mode / APExist)
-    apply_ec_hardware_mode(ui_mode);
-
-    // 3. OEM Official Configuration Sync (MainOption.json & Mode4_Profile.json)
-    sync_oem_main_option(ui_mode);
-    if ui_mode == 4 {
-        let cfg = crate::system::config::load_config();
-        sync_oem_mode4_profile(&cfg.custom_profile);
-    }
+pub fn apply_full_power_mode(ui_mode: u8) -> Result<(), String> {
+    let cfg = crate::system::config::load_config();
+    apply_full_power_mode_with_config(ui_mode, &cfg)
 }
 
 /// Set Windows Power Overlay Scheme slider (Best Efficiency / Balanced / Best Performance)
-pub fn apply_windows_power_overlay(ui_mode: u8) {
-    if !crate::system::config::load_config().high_perf_scheme { return; }
-    if let Err(error) = set_windows_power_overlay(ui_mode) {
-        crate::log_warn!("POWER_MODE", "Windows power overlay failed: {}", error);
+pub fn apply_windows_power_overlay(ui_mode: u8) -> Result<(), String> {
+    if !crate::system::config::load_config().high_perf_scheme {
+        return Ok(());
     }
+    set_windows_power_overlay(ui_mode)
 }
 
 /// DEPRECATED: Retained as a safe no-op to ensure backwards compatibility.
@@ -200,71 +174,56 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
         }
 
         // If OEM service is not running or takeover is active, restore all hardware state:
-        let mut is_dc_online = crate::commands::hardware_cmd::is_dc_round_plugged_in();
+        let is_dc_online = crate::commands::hardware_cmd::is_dc_round_plugged_in();
         // 启动初期电源状态防抖：若首次读取为 false，等待 250ms 重试一次，过滤开机登录阶段驱动瞬态未决
         if !is_dc_online {
             std::thread::sleep(std::time::Duration::from_millis(250));
-            is_dc_online = crate::commands::hardware_cmd::is_dc_round_plugged_in();
         }
 
         let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
 
-        let effective_power_mode = if is_thin_light {
-            // 纯核显轻薄本：完全尊重用户记忆的 power_mode (1..=3)，不执行开机强制切狂暴/强制切平衡
-            let mode = match cfg.power_mode {
-                1..=3 => cfg.power_mode,
-                _ => 2, // 默认均衡
-            };
-            crate::log_info!("MAIN", "Thin & light laptop: restoring user configured power mode {}", mode);
-            mode
-        } else if is_dc_online {
-            // 插电开机：根据 power_mode_ac 恢复 (1..=4，默认 3: 狂暴)
-            let target_mode = match cfg.power_mode_ac {
-                1..=4 => cfg.power_mode_ac,
-                _ => 3,
-            };
-            if cfg.power_mode != target_mode {
-                crate::log_info!("MAIN", "Machine booted on DC power: aligning power mode to AC preference {} (was {})", target_mode, cfg.power_mode);
-                let mut updated_cfg = cfg.clone();
-                updated_cfg.power_mode = target_mode;
-                crate::system::config::save_config(&updated_cfg);
-            }
-            target_mode
-        } else {
-            // 纯电池开机：为了电池硬件安全，采用 power_mode_battery (1: 办公, 2: 均衡，默认 2)
-            // 绝对不破坏 power_mode_ac 中的高性能设置！
-            if cfg.unlock_battery_power_limit {
-                crate::log_info!("MAIN", "Machine booted on battery with unlock_battery_power_limit active: keeping power mode {}", cfg.power_mode);
+        let cfg = {
+            let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+            let is_dc_online = crate::commands::hardware_cmd::is_dc_round_plugged_in();
+            let mut cfg = crate::system::config::load_config();
+            let effective_power_mode = if is_thin_light {
+                match cfg.power_mode {
+                    1..=3 => cfg.power_mode,
+                    _ => 2,
+                }
+            } else if is_dc_online {
+                match cfg.power_mode_ac {
+                    1..=4 => cfg.power_mode_ac,
+                    _ => 3,
+                }
+            } else if cfg.unlock_battery_power_limit {
                 cfg.power_mode
             } else {
-                let target_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
-                crate::log_info!("MAIN", "Machine booted on battery: setting power mode to battery preference {} (AC preference is {})", target_mode, cfg.power_mode_ac);
-                if cfg.power_mode != target_mode {
-                    let mut updated_cfg = cfg.clone();
-                    if updated_cfg.power_mode == 3 || updated_cfg.power_mode == 4 {
-                        updated_cfg.power_mode_ac = updated_cfg.power_mode;
-                    }
-                    updated_cfg.power_mode = target_mode;
-                    crate::system::config::save_config(&updated_cfg);
+                if cfg.power_mode >= 3 {
+                    cfg.power_mode_ac = cfg.power_mode;
                 }
-                target_mode
+                if cfg.power_mode_battery == 1 {
+                    1
+                } else {
+                    2
+                }
+            };
+            cfg.power_mode = effective_power_mode;
+            match ec_for_restore.lock().set_power_mode_with_config(&cfg) {
+                Ok(()) => {
+                    crate::system::tray::update_tray_power_mode(effective_power_mode);
+                }
+                Err(error) => crate::log_warn!(
+                    "POWER_RESTORE",
+                    "Startup performance mode restore failed: {}",
+                    error
+                ),
             }
+            cfg
         };
-
-        crate::system::tray::update_tray_power_mode(effective_power_mode);
+        let effective_power_mode = cfg.power_mode;
         if is_thin_light {
             let hal = crate::hal::get_hardware_driver();
-            let hw_mode = match effective_power_mode {
-                1 => crate::hal::HardwarePowerMode::Office,
-                2 => crate::hal::HardwarePowerMode::Balance,
-                3 => crate::hal::HardwarePowerMode::Turbo,
-                4 => crate::hal::HardwarePowerMode::Custom,
-                _ => crate::hal::HardwarePowerMode::Balance,
-            };
-            let _ = hal.set_performance_mode(hw_mode);
-            ec_for_restore.lock().set_power_mode_from_hardware(effective_power_mode);
-            crate::log_info!("POWER_RESTORE", "Thin & light startup power mode applied via HAL: {:?}", hw_mode);
-
             // Restore battery health limit via HAL if applicable
             let batt_mode = match cfg.battery_limit {
                 100 => Some(crate::hal::BatteryHealthMode::LongLife),
@@ -283,7 +242,6 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
 
         {
             let ec = ec_for_restore.lock();
-            ec.set_power_mode(effective_power_mode);
 
             // Legacy residual cleanup: earlier builds wrote 0x0770=4 or 0x0770=5 (ADDR_BATTERY_PLATFORM_OVERRIDE)
             // which breaks Fn keys on gaming laptops. The new Platform4-Gate method no longer uses this register.
@@ -407,14 +365,20 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
         }
         // Auto-heal Task Scheduler startup task to guarantee current executable path alignment & 2-second delay buffer
         crate::system::autostart::sync_autostart_target_path();
-        // Restore user preferred Windows Power Scheme if explicitly configured
-        if let Some(ref target_guid) = cfg.preferred_power_scheme {
-            if let Err(e) = ppm::set_active_windows_power_scheme(target_guid) {
-                crate::log_warn!("POWER_RESTORE", "Failed to restore preferred Windows power scheme {}: {}", target_guid, e);
+        {
+            let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+            let cfg = crate::system::config::load_config();
+            // Restore user preferred Windows Power Scheme if explicitly configured
+            if let Some(ref target_guid) = cfg.preferred_power_scheme {
+                if let Err(e) = ppm::set_active_windows_power_scheme(target_guid) {
+                    crate::log_warn!("POWER_RESTORE", "Failed to restore preferred Windows power scheme {}: {}", target_guid, e);
+                }
             }
-        }
-        if cfg.high_perf_scheme {
-            crate::system::power_mode::apply_windows_power_overlay(cfg.power_mode);
+            if cfg.high_perf_scheme {
+                if let Err(error) = crate::system::power_mode::apply_windows_power_overlay(cfg.power_mode) {
+                    crate::log_warn!("POWER_RESTORE", "Windows mode synchronization failed: {}", error);
+                }
+            }
         }
         // Water cooler module check: user manual override or physical EC detection
         let is_water_cooler = crate::system::config::is_water_cooler_enabled();
@@ -573,4 +537,39 @@ pub(crate) fn restore_ec_power_options(cfg: &crate::system::config::AppConfig) {
             crate::log_warn!("POWER_RESTORE", "Failed to restore {}: {}", option, error);
         }
     }
+}
+
+pub fn ensure_power_mode_allowed(mode: u8) -> Result<(), String> {
+    let cfg = crate::system::config::load_config();
+    crate::system::config::ensure_config_writable()?;
+    openrevo_core::hal::power_policy::validate_power_mode(
+        mode,
+        crate::commands::power_cmd::is_thin_and_light_or_pure_igpu(),
+        crate::commands::power_cmd::is_dc_round_plugged_in(),
+        cfg.unlock_battery_power_limit,
+    )
+}
+
+pub(crate) fn apply_full_power_mode_with_config(
+    ui_mode: u8,
+    cfg: &crate::system::config::AppConfig,
+) -> Result<(), String> {
+    crate::hal::power_control::apply_mode_steps(
+        || ensure_power_mode_allowed(ui_mode),
+        || {
+            if cfg.high_perf_scheme {
+                set_windows_power_overlay(ui_mode)
+            } else {
+                Ok(())
+            }
+        },
+        || ec_mode::apply_ec_hardware_mode_with_config(ui_mode, cfg),
+        || {
+            sync_oem_main_option(ui_mode)?;
+            if ui_mode == 4 {
+                sync_oem_mode4_profile(&cfg.custom_profile)?;
+            }
+            Ok(())
+        },
+    )
 }

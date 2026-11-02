@@ -1,8 +1,7 @@
 // OpenRevo - Universal Shortcut Bus Action Dispatcher
 // Executes hardware control, system automation, and cross-plugin events triggered by global shortcuts.
 
-use tauri::{AppHandle, Emitter};
-use crate::hal::traits::HardwarePowerMode;
+use tauri::{AppHandle, Emitter, Manager};
 use super::types::{ShortcutAction, ShortcutBinding};
 
 #[cfg(target_os = "windows")]
@@ -37,57 +36,22 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
 
             // 2. Cycle Power Mode (1-Office -> 2-Balance -> 3-Turbo -> 1-Office)
             ShortcutAction::CyclePowerMode => {
-                let hal = crate::hal::get_hardware_driver();
-                let mut cfg = crate::system::config::load_config();
-                let current_mode = cfg.power_mode;
-                let next_mode = match current_mode {
-                    1 => 2,
-                    2 => 3,
-                    3 => 1,
-                    _ => 1,
-                };
-                let hw_mode = match next_mode {
-                    1 => HardwarePowerMode::Office,
-                    2 => HardwarePowerMode::Balance,
-                    3 => HardwarePowerMode::Turbo,
-                    _ => HardwarePowerMode::Balance,
-                };
-                if hal.set_performance_mode(hw_mode).is_ok() {
-                    cfg.power_mode = next_mode;
-                    crate::system::config::save_config(&cfg);
-                    crate::update_tray_power_mode(next_mode);
-                    crate::log_info!("SHORTCUTS", "Cycled Power Mode: {} -> {}", current_mode, next_mode);
-                    if osd {
-                        crate::system::osd_window::show_power_mode(next_mode);
-                    }
-                    let _ = app.emit("physical-mode-switched", next_mode);
-                    let _ = app.emit_to("osd", "physical-mode-switched", next_mode);
-                    let _ = app.emit_to("main", "physical-mode-switched", next_mode);
+                let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+                let cfg = crate::system::config::load_config();
+                let high_power = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu()
+                    || crate::commands::power_cmd::is_dc_round_plugged_in()
+                    || cfg.unlock_battery_power_limit;
+                let next_mode = next_shortcut_mode(cfg.power_mode, high_power);
+                if let Err(error) = apply_shortcut_power_mode(&app, next_mode, osd) {
+                    crate::log_warn!("SHORTCUTS", "Cycle power mode failed: {}", error);
                 }
             }
 
             // 2.1 Set Power Mode directly
             ShortcutAction::SetPowerMode(target_mode) => {
-                let hal = crate::hal::get_hardware_driver();
-                let hw_mode = match target_mode {
-                    1 => HardwarePowerMode::Office,
-                    2 => HardwarePowerMode::Balance,
-                    3 => HardwarePowerMode::Turbo,
-                    4 => HardwarePowerMode::Custom,
-                    _ => HardwarePowerMode::Balance,
-                };
-                if hal.set_performance_mode(hw_mode).is_ok() {
-                    let mut cfg = crate::system::config::load_config();
-                    cfg.power_mode = target_mode;
-                    crate::system::config::save_config(&cfg);
-                    crate::update_tray_power_mode(target_mode);
-                    crate::log_info!("SHORTCUTS", "Set Power Mode: {}", target_mode);
-                    if osd {
-                        crate::system::osd_window::show_power_mode(target_mode);
-                    }
-                    let _ = app.emit("physical-mode-switched", target_mode);
-                    let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
-                    let _ = app.emit_to("main", "physical-mode-switched", target_mode);
+                let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+                if let Err(error) = apply_shortcut_power_mode(&app, target_mode, osd) {
+                    crate::log_warn!("SHORTCUTS", "Set power mode failed: {}", error);
                 }
             }
 
@@ -237,5 +201,33 @@ fn simulate_win32_key(vk: u8) {
         use windows::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP};
         keybd_event(vk, 0, KEYBD_EVENT_FLAGS(0), 0);
         keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
+    }
+}
+
+fn apply_shortcut_power_mode(app: &AppHandle, mode: u8, osd: bool) -> Result<(), String> {
+    let ec = app
+        .try_state::<crate::driver::ec_bridge::SharedEcBridge>()
+        .ok_or("Power mode action has no active hardware context")?;
+    let mut cfg = crate::system::config::load_config();
+    cfg.power_mode = mode;
+    if crate::commands::power_cmd::is_dc_round_plugged_in() {
+        cfg.power_mode_ac = mode;
+    } else {
+        cfg.power_mode_battery = mode;
+    }
+    ec.lock().set_power_mode_with_config(&cfg)?;
+    crate::update_tray_power_mode(mode);
+    if osd {
+        crate::system::osd_window::show_power_mode(mode);
+    }
+    let _ = app.emit("physical-mode-switched", mode);
+    Ok(())
+}
+
+fn next_shortcut_mode(current: u8, high_power: bool) -> u8 {
+    match current {
+        1 => 2,
+        2 if high_power => 3,
+        _ => 1,
     }
 }

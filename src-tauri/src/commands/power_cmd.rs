@@ -238,76 +238,10 @@ pub fn is_dc_round_plugged_in() -> bool {
 }
 
 #[tauri::command]
-pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
-    let is_thin_and_light = is_thin_and_light_or_pure_igpu();
-    let is_dc = is_dc_round_plugged_in();
-    let mut cfg = crate::system::config::load_config();
-    // Gaming laptops must not run Beast (3) or Custom (4) on battery/Type-C to avoid PD overcurrent trips.
-    // Thin & light laptops rely on onboard EC power envelopes (e.g. 28W/30W/35W) and are fully exempt.
-    if !is_thin_and_light && (mode == 3 || mode == 4) && !is_dc && !cfg.unlock_battery_power_limit {
-        let msg = if check_dgpu_present() {
-            "在电池或 Type-C 供电下，狂暴模式与自定义模式不可用。请连接 DC 圆口电源适配器，或在【系统】设置中开启“解除离电限制”。"
-        } else {
-            "在电池供电下，狂暴模式与自定义模式不可用。请连接电源适配器，或在【系统】设置中开启“解除离电限制”。"
-        };
-        return Err(msg.to_string());
-    }
-    let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
-    let is_tongfang_acpi_channel = crate::driver::wmi_ec::is_acpi_driver_available()
-        || crate::hal::declarative::load_matched_manifest()
-            .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
-            .unwrap_or(false);
-
-    if is_tongfang_acpi_channel {
-        // Tongfang ODM models (both Gaming laptops and Thin & Lights like Wujie 14X/15X):
-        // Must invoke apply_full_power_mode to commit physical MODE_INDEX, TRIGGER_BYTE, and PL targets!
-        ec_state.lock().set_power_mode(mode);
-    } else if is_thin_and_light || is_declarative {
-        let hal = crate::hal::get_hardware_driver();
-        let hw_mode = match mode {
-            1 => crate::hal::HardwarePowerMode::Office,
-            2 => crate::hal::HardwarePowerMode::Balance,
-            3 => crate::hal::HardwarePowerMode::Turbo,
-            4 => crate::hal::HardwarePowerMode::Custom,
-            _ => crate::hal::HardwarePowerMode::Balance,
-        };
-        if let Err(e) = hal.set_performance_mode(hw_mode) {
-            crate::log_warn!("POWER_CMD", "Direct HAL set_performance_mode failed: {}", e);
-        } else {
-            crate::log_info!("POWER_CMD", "Direct HAL applied performance mode {:?}", hw_mode);
-        }
-        ec_state.lock().set_power_mode_from_hardware(mode);
-        if mode == 4 {
-            if cfg.custom_profile.fan_isolated_output || cfg.custom_profile.fan_curve_enabled {
-                crate::driver::bld_driver_mgr::set_bld_fan_curve(
-                    cfg.custom_profile.cpu_fan_curve.clone(),
-                    cfg.custom_profile.gpu_fan_curve.clone(),
-                    cfg.custom_profile.fan_ramp_rate,
-                    cfg.custom_profile.fan_ramp_speed_ms,
-                );
-            } else if !cfg.fan_boost {
-                crate::driver::bld_driver_mgr::restore_bld_fan_auto();
-            }
-        } else if !cfg.fan_boost {
-            crate::driver::bld_driver_mgr::restore_bld_fan_auto();
-        }
-    } else {
-        ec_state.lock().set_power_mode(mode);
-    }
-    cfg.power_mode = mode;
-    if is_dc {
-        cfg.power_mode_ac = mode;
-    } else {
-        cfg.power_mode_battery = mode;
-    }
-    crate::system::config::save_config(&cfg);
-    crate::update_tray_power_mode(mode);
-    crate::system::osd_window::show_power_mode(mode);
-    crate::system::osd_window::wake_osd_if_enabled(&app);
-    let _ = app.emit("physical-mode-switched", mode);
-    let _ = app.emit_to("main", "physical-mode-switched", mode);
-    let _ = app.emit_to("osd", "physical-mode-switched", mode);
-    Ok(())
+pub async fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
+    let ec = ec_state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || set_power_mode_blocking(app, mode, ec))
+        .await.map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -1025,4 +959,30 @@ pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
     cfg.turbo_silent = silent;
     crate::system::config::save_config(&cfg);
     Ok(get_turbo_submode_state())
+}
+
+pub(crate) fn set_power_mode_blocking(
+    app: AppHandle,
+    mode: u8,
+    ec_state: SharedEcBridge,
+) -> Result<(), String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+    let mut cfg = crate::system::config::load_config();
+    crate::system::config::ensure_config_writable()?;
+    cfg.power_mode = mode;
+    if is_dc_round_plugged_in() {
+        cfg.power_mode_ac = mode;
+    } else {
+        cfg.power_mode_battery = mode;
+    }
+    ec_state.lock().set_power_mode_with_config(&cfg)?;
+    publish_power_mode(&app, mode);
+    Ok(())
+}
+
+pub(crate) fn publish_power_mode(app: &AppHandle, mode: u8) {
+    crate::update_tray_power_mode(mode);
+    crate::system::osd_window::show_power_mode(mode);
+    crate::system::osd_window::wake_osd_if_enabled(app);
+    let _ = app.emit("physical-mode-switched", mode);
 }
