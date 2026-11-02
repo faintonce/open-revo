@@ -24,10 +24,13 @@ $destInstaller = Join-Path $distDir 'setup.exe'
 $ver = '1.2.3'
 $tag = 'v1.2.3'
 ${actualStep}`;
-    execFileSync('pwsh', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    let psBin = 'pwsh';
+    try { execFileSync('where.exe', ['pwsh'], { stdio: 'ignore' }); } catch { psBin = 'powershell'; }
+    const runnerScript = psBin === 'powershell' ? script.replace('utf8NoBOM', 'utf8') : script;
+    execFileSync(psBin, ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(runnerScript, 'utf16le').toString('base64')], {
       windowsHide: true, env: { ...process.env, OPENREVO_TEST_DIST: dir, GITHUB_REPOSITORY: 'faintonce/open-revo', GITHUB_SHA: 'test-commit' },
     });
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^\uFEFF/, ''));
     assert.equal(manifest.version, '1.2.3');
     assert.equal(manifest.commit, 'test-commit');
     for (const [key, file] of [['binary_only', binary], ['installer', installer]]) {
