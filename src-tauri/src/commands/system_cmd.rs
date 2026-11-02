@@ -777,6 +777,8 @@ pub struct CustomPluginItem {
     pub watchers: Option<Vec<crate::system::watcher_hub::WatcherDefinition>>,
     pub permissions: Option<Vec<String>>,
     pub min_host_version: Option<String>,
+    #[serde(default)]
+    pub order: Option<f64>,
     pub is_compatible: bool,
     pub compatibility_notice: Option<String>,
 }
@@ -811,6 +813,8 @@ pub struct RawPluginManifest {
     pub permissions: Option<Vec<String>>,
     #[serde(default, alias = "openrevo_version", alias = "min_version")]
     pub min_host_version: Option<String>,
+    #[serde(default)]
+    pub order: Option<f64>,
 }
 
 pub fn check_version_compatibility(min_host_version: Option<&str>) -> (bool, Option<String>) {
@@ -1203,6 +1207,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 watchers: manifest.watchers.clone(),
                                 permissions: manifest.permissions.clone(),
                                 min_host_version: manifest.min_host_version.clone(),
+                                order: manifest.order,
                                 is_compatible,
                                 compatibility_notice,
                             });
@@ -1240,6 +1245,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                     watchers: None,
                     permissions: None,
                     min_host_version: None,
+                    order: None,
                     is_compatible: true,
                     compatibility_notice: None,
                 });

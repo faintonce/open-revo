@@ -213,16 +213,25 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
                 if gpu_caps.supports_gpu_tuning {
                     let actuator = crate::system::actuator::UnifiedPowerActuator::global();
-                    let db = gpu_caps.max_db_watts.clamp(5, 35) as u8;
                     let floor = gpu_caps.ctgp_floor_watts as u8;
                     let max_base = gpu_caps.base_tgp_max_watts as u8;
                     let max_offset = max_base.saturating_sub(floor);
+                    let enable_db = cfg.balanced_gpu_dynamic_boost;
+                    let db = if enable_db {
+                        gpu_caps.max_db_watts.clamp(5, 35) as u8
+                    } else {
+                        0
+                    };
                     let _ = actuator.apply_gpu_state(
                         Some(false),
-                        Some(true),
+                        Some(enable_db),
                         Some(db),
                         Some(max_offset),
-                        "Balanced Mode Factory Baseline",
+                        if enable_db {
+                            "Balanced Mode Factory Baseline (DB on)"
+                        } else {
+                            "Balanced Mode Base TGP (DB off)"
+                        },
                     );
                 }
             }
@@ -306,6 +315,13 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Turbo Fan Table
             apply_mode_fan_table(3);
+
+            // 8. Apply Turbo Submode if supported
+            if crate::system::power::turbo_submode::is_supported() {
+                if let Err(e) = crate::system::power::turbo_submode::apply_silent(cfg.turbo_silent) {
+                    crate::log_warn!("POWER_MODE", "turbo submode apply failed: {}", e);
+                }
+            }
         }
         4 => {
             // --- Custom Mode (White LED & User Custom Profile) ---

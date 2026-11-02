@@ -78,6 +78,61 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [showUnlockBatteryConfirm, setShowUnlockBatteryConfirm] = useState(false);
   const [togglingUnlockBattery, setTogglingUnlockBattery] = useState(false);
 
+  // 平衡模式 Dynamic Boost 开关（默认开，满足 14900HX 等用户平衡模式跑 3A 显卡满血需求）
+  const [balancedDbEnabled, setBalancedDbEnabled] = useState(true);
+
+  // GPU OC 默认值（设置页可改；开启 GPU OC 时生效）
+  const [gpuOcDefaults, setGpuOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
+  const [gpuOcSaveHint, setGpuOcSaveHint] = useState('');
+
+  useEffect(() => {
+    invoke<any>('get_app_config')
+      .then((cfg) => {
+        if (!cfg) return;
+        if (typeof cfg.balanced_gpu_dynamic_boost === 'boolean') {
+          setBalancedDbEnabled(cfg.balanced_gpu_dynamic_boost);
+        }
+        const core = Number(cfg.gpu_oc_core_mhz);
+        const mem = Number(cfg.gpu_oc_mem_mhz);
+        setGpuOcDefaults({
+          core: Number.isFinite(core) && core >= 0 ? core : 105,
+          mem: Number.isFinite(mem) && mem >= 0 ? mem : 500,
+        });
+      })
+      .catch(() => { });
+  }, []);
+
+  const saveGpuOcDefaults = async (core: number, mem: number) => {
+    const safeCore = Math.max(0, Math.min(250, Math.round(core)));
+    const safeMem = Math.max(0, Math.min(1000, Math.round(mem)));
+    setGpuOcDefaults({ core: safeCore, mem: safeMem });
+    try {
+      const cfg: any = await invoke('get_app_config');
+      if (!cfg) return;
+      cfg.gpu_oc_core_mhz = safeCore;
+      cfg.gpu_oc_mem_mhz = safeMem;
+      await invoke('save_app_config', { cfg });
+      setGpuOcSaveHint('已保存');
+      setTimeout(() => setGpuOcSaveHint(''), 2000);
+    } catch (e) {
+      console.warn('[Settings] save gpu oc defaults failed:', e);
+      setGpuOcSaveHint('保存失败');
+      setTimeout(() => setGpuOcSaveHint(''), 3000);
+    }
+  };
+
+  const handleToggleBalancedDb = async (enabled: boolean) => {
+    setBalancedDbEnabled(enabled);
+    try {
+      const cfg: any = await invoke('get_app_config');
+      if (!cfg) return;
+      cfg.balanced_gpu_dynamic_boost = enabled;
+      await invoke('save_app_config', { cfg });
+    } catch (e) {
+      console.warn('[Settings] save balanced_gpu_dynamic_boost failed:', e);
+    }
+  };
+
   useEffect(() => {
     if (typeof status.unlock_battery_power_limit === 'boolean') {
       setUnlockBatteryLimit(status.unlock_battery_power_limit);
@@ -1088,6 +1143,84 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* 显卡调度与超频偏好 */}
+      <div className="glass-card" style={{ marginTop: '18px' }}>
+        <h3 className="sys-section-title">GPU 调度与超频偏好</h3>
+        <div className="sys-rows">
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">平衡模式启用 GPU 动态功耗提升 (Dynamic Boost)</div>
+              <div className="sys-row-desc">
+                允许独立显卡在平衡模式下跑满出厂满血动态功耗（推荐平衡模式玩 3A 游戏的用户开启）；若关闭则限制为基础 TGP，将整机供电与散热优先让渡给 CPU。
+              </div>
+            </div>
+            <div className="sys-row-controls">
+              <RevSwitch
+                checked={balancedDbEnabled}
+                onChange={handleToggleBalancedDb}
+              />
+            </div>
+          </div>
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">快捷 GPU OC 核心频率默认偏移</div>
+              <div className="sys-row-desc">点击狂暴模式顶栏 GPU OC 开关时注入的核心频率，下次开启生效</div>
+            </div>
+            <div className="sys-row-controls">
+              <input
+                type="number"
+                min={0}
+                max={250}
+                step={5}
+                value={gpuOcDefaults.core}
+                onChange={(e) => setGpuOcDefaults((p) => ({ ...p, core: Number(e.target.value) }))}
+                onBlur={() => saveGpuOcDefaults(gpuOcDefaults.core, gpuOcDefaults.mem)}
+                style={{
+                  width: '96px',
+                  textAlign: 'right',
+                  padding: '4px 8px',
+                  background: 'var(--surface-sunken)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              />
+              <span style={{ marginLeft: '6px', color: 'var(--text-dim)', fontSize: '12px' }}>MHz</span>
+            </div>
+          </div>
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">快捷 GPU OC 显存频率默认偏移</div>
+              <div className="sys-row-desc">点击狂暴模式顶栏 GPU OC 开关时注入的显存频率，下次开启生效</div>
+            </div>
+            <div className="sys-row-controls">
+              <input
+                type="number"
+                min={0}
+                max={1000}
+                step={5}
+                value={gpuOcDefaults.mem}
+                onChange={(e) => setGpuOcDefaults((p) => ({ ...p, mem: Number(e.target.value) }))}
+                onBlur={() => saveGpuOcDefaults(gpuOcDefaults.core, gpuOcDefaults.mem)}
+                style={{
+                  width: '96px',
+                  textAlign: 'right',
+                  padding: '4px 8px',
+                  background: 'var(--surface-sunken)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              />
+              <span style={{ marginLeft: '6px', color: 'var(--text-dim)', fontSize: '12px' }}>MHz</span>
+            </div>
+          </div>
+          {gpuOcSaveHint && (
+            <div className="quick-row" style={{ color: 'var(--status-ok)', fontSize: '12px' }}>{gpuOcSaveHint}</div>
+          )}
+        </div>
+      </div>
 
       {/* 自动更新检测与安装弹窗 */}
       {showUpdateModal && updateResult && (

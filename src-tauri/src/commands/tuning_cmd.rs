@@ -1221,3 +1221,24 @@ pub fn reset_gpu_tuning(app: AppHandle) -> Result<(), String> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn apply_gpu_oc(core_mhz: i32, mem_mhz: i32) -> Result<(), String> {
+    crate::driver::nvapi::set_gpu_clock_offsets(core_mhz, mem_mhz)?;
+    let verified = crate::driver::nvapi::get_gpu_clock_offsets().unwrap_or((0, 0));
+    if verified != (core_mhz, mem_mhz) {
+        crate::log_warn!(
+            "GPU_TUNING",
+            "GPU OC readback mismatch: target=({}, {}), got=({}, {})",
+            core_mhz, mem_mhz, verified.0, verified.1
+        );
+    }
+    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+    gpu.lock().set_clock_offsets(core_mhz, mem_mhz);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_gpu_oc_state() -> Result<(i32, i32), String> {
+    Ok(crate::driver::nvapi::get_gpu_clock_offsets().unwrap_or((0, 0)))
+}

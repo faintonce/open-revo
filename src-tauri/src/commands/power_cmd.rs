@@ -1004,3 +1004,25 @@ mod power_option_tests {
         );
     }
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct TurboSubmodeState {
+    pub supported: bool,
+    pub silent: bool,
+}
+
+#[tauri::command]
+pub fn get_turbo_submode_state() -> TurboSubmodeState {
+    let supported = crate::system::power::turbo_submode::is_supported();
+    let silent = crate::system::power::turbo_submode::current_silent().unwrap_or(false);
+    TurboSubmodeState { supported, silent }
+}
+
+#[tauri::command]
+pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
+    crate::system::power::turbo_submode::apply_silent(silent)?;
+    let mut cfg = crate::system::config::load_config();
+    cfg.turbo_silent = silent;
+    crate::system::config::save_config(&cfg);
+    Ok(get_turbo_submode_state())
+}

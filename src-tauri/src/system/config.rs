@@ -169,6 +169,14 @@ pub struct AppConfig {
     pub gpu_core_offset_max: i32,
     #[serde(default = "default_gpu_mem_offset_max")]
     pub gpu_mem_offset_max: i32,
+    #[serde(default = "default_gpu_oc_core_mhz")]
+    pub gpu_oc_core_mhz: i32,
+    #[serde(default = "default_gpu_oc_mem_mhz")]
+    pub gpu_oc_mem_mhz: i32,
+    #[serde(default = "default_true")]
+    pub balanced_gpu_dynamic_boost: bool,
+    #[serde(default)]
+    pub turbo_silent: bool,
 
     // CPU Custom Tuning Bounds & Margins (Persisted in config.json)
     #[serde(default = "default_cpu_temp_target_min")]
@@ -256,6 +264,8 @@ fn default_active_profile_id() -> String {
 fn default_gpu_offset_step() -> u32 { 5 }
 fn default_gpu_core_offset_max() -> i32 { 250 }
 fn default_gpu_mem_offset_max() -> i32 { 1000 }
+fn default_gpu_oc_core_mhz() -> i32 { 105 }
+fn default_gpu_oc_mem_mhz() -> i32 { 500 }
 
 fn default_cpu_temp_target_min() -> u8 { 85 }
 fn default_cpu_temp_target_max() -> u8 { 95 }
@@ -483,6 +493,10 @@ impl Default for AppConfig {
             gpu_offset_step: default_gpu_offset_step(),
             gpu_core_offset_max: default_gpu_core_offset_max(),
             gpu_mem_offset_max: default_gpu_mem_offset_max(),
+            gpu_oc_core_mhz: default_gpu_oc_core_mhz(),
+            gpu_oc_mem_mhz: default_gpu_oc_mem_mhz(),
+            balanced_gpu_dynamic_boost: true,
+            turbo_silent: false,
             cpu_temp_target_min: default_cpu_temp_target_min(),
             cpu_temp_target_max: default_cpu_temp_target_max(),
             cpu_pl4_margin: default_cpu_pl4_margin(),

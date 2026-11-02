@@ -4,6 +4,7 @@ pub mod fan_table;
 pub mod oem_sync;
 pub mod ppm;
 pub mod presets;
+pub mod turbo_submode;
 
 pub use arbiter::{PowerArbiter, PowerIntentSource};
 pub use ec_mode::apply_ec_hardware_mode;
