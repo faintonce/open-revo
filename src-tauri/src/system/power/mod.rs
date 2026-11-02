@@ -57,22 +57,27 @@ extern "system" {
     fn GetProcAddress(h_module: *mut std::ffi::c_void, lp_proc_name: *const u8) -> *mut std::ffi::c_void;
 }
 
+use windows::core::s;
+use windows::Win32::Foundation::{FreeLibrary, HANDLE};
+use windows::Win32::System::LibraryLoader::{GetProcAddress as get_overlay_entry, LoadLibraryExA, LOAD_LIBRARY_SEARCH_SYSTEM32};
+
 type FnPowerSetActiveOverlayScheme = unsafe extern "system" fn(*const GUID) -> u32;
 
-fn set_active_overlay_scheme(guid_ptr: *const GUID) -> u32 {
+fn set_active_overlay_scheme(guid_ptr: *const GUID) -> Result<(), String> {
     unsafe {
-        let dll_name = b"powrprof.dll\0";
-        let h_mod = LoadLibraryA(dll_name.as_ptr());
-        if h_mod.is_null() {
-            return 1;
-        }
-        let fn_name = b"PowerSetActiveOverlayScheme\0";
-        let p_func = GetProcAddress(h_mod, fn_name.as_ptr());
-        if p_func.is_null() {
-            return 2;
-        }
-        let func: FnPowerSetActiveOverlayScheme = std::mem::transmute(p_func);
-        func(guid_ptr)
+        let library = LoadLibraryExA(s!("powrprof.dll"), HANDLE::default(), LOAD_LIBRARY_SEARCH_SYSTEM32)
+            .map_err(|error| format!("Cannot load the Windows power library: {}", error))?;
+        let result = (|| {
+            let entry = get_overlay_entry(library, s!("PowerSetActiveOverlayScheme"))
+                .ok_or("Windows does not expose PowerSetActiveOverlayScheme")?;
+            let apply: FnPowerSetActiveOverlayScheme = std::mem::transmute(entry);
+            let status = apply(guid_ptr);
+            if status == 0 { Ok(()) }
+            else { Err(format!("PowerSetActiveOverlayScheme failed with code {}", status)) }
+        })();
+        let released = FreeLibrary(library)
+            .map_err(|error| format!("Cannot release the Windows power library: {}", error));
+        result.and(released)
     }
 }
 
@@ -157,34 +162,9 @@ pub fn apply_full_power_mode(ui_mode: u8) {
 
 /// Set Windows Power Overlay Scheme slider (Best Efficiency / Balanced / Best Performance)
 pub fn apply_windows_power_overlay(ui_mode: u8) {
-    let cfg = crate::system::config::load_config();
-    if !cfg.high_perf_scheme {
-        crate::log_info!("POWER_MODE", "apply_windows_power_overlay skipped: high_perf_scheme link is disabled");
-        return;
-    }
-
-    let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
-    let (guid_ptr, name) = match ui_mode {
-        1 => {
-            if is_thin_light {
-                (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡-轻薄本保留硬件EC功耗)")
-            } else {
-                (&GUID_OFFICE_SAVER as *const GUID, "GUID_OFFICE_SAVER (最佳能效)")
-            }
-        }
-        2 => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
-        3 => (&GUID_TURBO_PERF as *const GUID, "GUID_TURBO_PERF (最佳性能)"),
-        4 => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
-        _ => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
-    };
-
-    let ret = set_active_overlay_scheme(guid_ptr);
-    if ret == 0 {
-        crate::log_info!("POWER_MODE", "PowerSetActiveOverlayScheme succeeded for mode {} ({})", ui_mode, name);
-        crate::log_info!("CUSTOM_TRACE", "PowerSetActiveOverlayScheme succeeded for mode {} ({})", ui_mode, name);
-    } else {
-        crate::log_warn!("POWER_MODE", "PowerSetActiveOverlayScheme failed with code {} for mode {} ({})", ret, ui_mode, name);
-        crate::log_warn!("CUSTOM_TRACE", "PowerSetActiveOverlayScheme failed with code {} for mode {} ({})", ret, ui_mode, name);
+    if !crate::system::config::load_config().high_perf_scheme { return; }
+    if let Err(error) = set_windows_power_overlay(ui_mode) {
+        crate::log_warn!("POWER_MODE", "Windows power overlay failed: {}", error);
     }
 }
 
@@ -295,6 +275,7 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
                 let _ = hal.set_battery_health(bm);
             }
 
+            restore_ec_power_options(&crate::system::config::load_config());
             crate::system::boot_trace::boot_log("RESTORE", "Thin & light startup hardware restoration completed");
             return;
         }
@@ -340,19 +321,12 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
         }
         // Heal MyFan2 fan speed table if running on legacy chassis and previously corrupted
         crate::driver::wmi_ec::heal_legacy_fan_table_if_needed();
-        // Restore AC Recovery and protect Custom Mode Q-Key White LED
-        if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY) {
-            let mut new_v = if cfg.ac_recovery_enabled { v | crate::driver::wmi_ec::AC_RECOVERY_BITMASK } else { v & !crate::driver::wmi_ec::AC_RECOVERY_BITMASK };
-            if effective_power_mode == 4 {
-                new_v |= crate::driver::wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY;
-            } else {
-                new_v &= !crate::driver::wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY;
-            }
-            crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY, new_v);
-        } else if effective_power_mode == 4 {
-            let new_v = if cfg.ac_recovery_enabled { crate::driver::wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY | crate::driver::wmi_ec::AC_RECOVERY_BITMASK } else { crate::driver::wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY };
-            crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY, new_v);
-        }
+        restore_ec_power_options(&crate::system::config::load_config());
+        crate::driver::wmi_ec::wmi_modify_ec_mask(
+            crate::driver::wmi_ec::ADDR_AC_RECOVERY,
+            crate::driver::wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY,
+            effective_power_mode == 4,
+        );
 
         if effective_power_mode == 4 {
             if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_CAMERA_CUTOFF) {
@@ -361,13 +335,6 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
                 crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_CAMERA_CUTOFF, crate::driver::wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
             }
         }
-        // Restore USB Charge while powered off (Trigger Bit 4: 0x10)
-        crate::driver::wmi_ec::wmi_modify_ec_mask(
-            crate::driver::wmi_ec::ADDR_TRIGGER_BYTE,
-            crate::driver::wmi_ec::TRIGGER_USB_CHARGE,
-            cfg.usb_charge_enabled,
-        );
-
         // Restore Win Key Lock state (Software Hook + EC TRIGGER_WINLOCK)
         let is_ultrabook = crate::hal::platform_probe::is_ultrabook();
         let supports_legacy_ec = crate::hal::platform_probe::is_tongfang_family() && !is_ultrabook;
@@ -532,5 +499,77 @@ mod tests {
         let zero_table = build_custom_fan_table(&zero_curve, &zero_curve);
         assert_eq!(zero_table.cpu_duty[0], 0);
         assert_eq!(zero_table.gpu_duty[0], 0);
+    }
+}
+
+
+pub fn set_windows_power_overlay(ui_mode: u8) -> Result<(), String> {
+    if !(1..=4).contains(&ui_mode) {
+        return Err("Invalid Windows power mode".into());
+    }
+    let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
+    let (guid_ptr, name) = match ui_mode {
+        1 => {
+            if is_thin_light {
+                (
+                    &GUID_BALANCED as *const GUID,
+                    "GUID_BALANCED (平衡-轻薄本保留硬件EC功耗)",
+                )
+            } else {
+                (
+                    &GUID_OFFICE_SAVER as *const GUID,
+                    "GUID_OFFICE_SAVER (最佳能效)",
+                )
+            }
+        }
+        2 => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
+        3 => (
+            &GUID_TURBO_PERF as *const GUID,
+            "GUID_TURBO_PERF (最佳性能)",
+        ),
+        4 => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
+        _ => (&GUID_BALANCED as *const GUID, "GUID_BALANCED (平衡)"),
+    };
+
+    set_active_overlay_scheme(guid_ptr)
+        .map_err(|error| format!("{} for mode {} ({})", error, ui_mode, name))?;
+    crate::log_info!(
+        "POWER_MODE",
+        "PowerSetActiveOverlayScheme succeeded for mode {} ({})",
+        ui_mode,
+        name
+    );
+    crate::log_info!(
+        "CUSTOM_TRACE",
+        "PowerSetActiveOverlayScheme succeeded for mode {} ({})",
+        ui_mode,
+        name
+    );
+    Ok(())
+}
+
+pub(crate) fn restore_ec_power_options(cfg: &crate::system::config::AppConfig) {
+    if let Err(error) = crate::system::config::ensure_config_writable() {
+        crate::log_warn!(
+            "POWER_RESTORE",
+            "Skipping EC power option recovery: {}",
+            error
+        );
+        return;
+    }
+    if !crate::driver::wmi_ec::is_acpi_driver_available() {
+        return;
+    }
+    for (option, enable) in [
+        ("usb_charge", cfg.usb_charge_enabled),
+        ("ac_recovery", cfg.ac_recovery_enabled),
+    ] {
+        if let Err(error) = crate::hal::power_options::apply_ec_option(
+            option,
+            enable,
+            crate::driver::wmi_ec::wmi_modify_ec_mask,
+        ) {
+            crate::log_warn!("POWER_RESTORE", "Failed to restore {}: {}", option, error);
+        }
     }
 }

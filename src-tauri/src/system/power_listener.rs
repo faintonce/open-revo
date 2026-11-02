@@ -98,6 +98,7 @@ fn handle_system_resume_pipeline(event_name: &str) {
     });
 
     let cfg = crate::system::config::load_config();
+    crate::system::power::restore_ec_power_options(&cfg);
     if let Some(ec) = GLOBAL_EC.read().clone() {
         let cfg_limit = cfg.battery_limit;
         let cfg_override = cfg.battery_hardware_limit_enabled;
