@@ -310,32 +310,10 @@ pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBrid
     Ok(())
 }
 
-#[tauri::command]
-pub fn set_fan_boost(
-    app: AppHandle,
-    enable: bool,
-    ec_state: State<'_, SharedEcBridge>,
-) -> Result<(), String> {
-    let support_flags = crate::driver::wmi_ec::get_hardware_support_flags();
-    if !support_flags.has_fan_boost {
-        crate::log_info!("POWER_CMD", "Fan boost is not supported on this platform.");
-        return Ok(());
-    }
-    ec_state.lock().set_fan_boost(enable);
-    let mut cfg = crate::system::config::load_config();
-    cfg.fan_boost = enable;
-    crate::system::config::save_config(&cfg);
-    crate::update_tray_fan_boost(enable);
-
-    crate::system::osd_window::show_fan_boost(enable);
-    crate::system::osd_window::wake_osd_if_enabled(&app);
-    let _ = app.emit("fan-boost-changed", enable);
-    let _ = app.emit_to("main", "fan-boost-changed", enable);
-    let _ = app.emit_to("osd", "fan-boost-changed", enable);
-    let _ = app.emit("physical-fan-boost-switched", enable);
-    let _ = app.emit_to("main", "physical-fan-boost-switched", enable);
-    let _ = app.emit_to("osd", "physical-fan-boost-switched", enable);
-
+#[tauri::command(async)]
+pub fn set_fan_boost(app: AppHandle, enable: bool, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
+    ec_state.lock().set_fan_boost(enable)?;
+    notify_fan_boost(&app, enable, true);
     Ok(())
 }
 
@@ -1025,4 +1003,21 @@ pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
     cfg.turbo_silent = silent;
     crate::system::config::save_config(&cfg);
     Ok(get_turbo_submode_state())
+}
+
+pub(crate) fn publish_fan_boost_state(app: &AppHandle, enable: bool) {
+    let _ = app.emit("fan-boost-changed", enable);
+    let _ = app.emit_to("main", "fan-boost-changed", enable);
+    let _ = app.emit_to("osd", "fan-boost-changed", enable);
+}
+
+pub(crate) fn notify_fan_boost(app: &AppHandle, enable: bool, show_osd: bool) {
+    if show_osd {
+        crate::system::osd_window::show_fan_boost(enable);
+        crate::system::osd_window::wake_osd_if_enabled(app);
+    }
+    publish_fan_boost_state(app, enable);
+    let _ = app.emit("physical-fan-boost-switched", enable);
+    let _ = app.emit_to("main", "physical-fan-boost-switched", enable);
+    let _ = app.emit_to("osd", "physical-fan-boost-switched", enable);
 }

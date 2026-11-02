@@ -47,11 +47,13 @@ impl MechrevoHardwareHAL for MechrevoHALImpl {
     }
 
     fn set_fan_boost(&self, active: bool) -> Result<(), HalError> {
-        let success = wmi_ec::set_fan_boost_hardware(active);
+        let success = wmi_ec::write_tongfang_fan_boost(active);
         if success {
             Ok(())
         } else {
-            Err(HalError::RegisterAccessFailed("Failed to toggle Fan Boost".to_string()))
+            Err(HalError::RegisterAccessFailed(
+                "Failed to toggle Fan Boost".to_string(),
+            ))
         }
     }
 

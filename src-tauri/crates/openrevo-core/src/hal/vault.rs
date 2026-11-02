@@ -37,3 +37,11 @@ mod tests {
         }
     }
 }
+
+pub mod fan {
+    pub const LEGACY_BOOST_ON: u8 = 0x50;
+    pub const LEGACY_BOOST_OFF: u8 = 0x10;
+    pub const TABLE_SLOTS: usize = 16;
+    pub const GPU_TABLE_WRITE_SLOTS: usize = 13;
+    pub const TABLE_CONTROL_MIN: u8 = 0xA0;
+}

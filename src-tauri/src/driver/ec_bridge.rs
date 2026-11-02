@@ -286,29 +286,40 @@ impl EcBridge {
         Instant::now() < self.cache.lock().fan_boost_cooldown_until
     }
 
-    pub fn set_fan_boost(&self, enable: bool) {
-        let support_flags = crate::driver::wmi_ec::get_hardware_support_flags();
-        if !support_flags.has_fan_boost {
-            crate::log_info!("EC_BRIDGE", "Platform does not support fan boost: ignoring request.");
-            return;
+    pub fn set_fan_boost(&self, enable: bool) -> Result<(), String> {
+        if !crate::driver::wmi_ec::get_hardware_support_flags().has_fan_boost {
+            return Err("Fan Boost is not supported on this platform".into());
         }
-        {
-            let mut c = self.cache.lock();
-            c.fan_boost = enable;
-            // Cooldown prevents background poller and event echoes from oscillating status
-            c.fan_boost_cooldown_until = Instant::now() + Duration::from_secs(3);
+        self.apply_fan_boost(enable, wmi_ec::set_fan_boost_hardware, |enable| {
+            crate::update_tray_fan_boost(enable);
+            crate::system::config::modify_config(|cfg| {
+                cfg.fan_boost = enable;
+                Ok(())
+            })
+            .map_err(|error| {
+                format!(
+                    "Fan Boost control was submitted, but saving settings failed: {}",
+                    error
+                )
+            })
+        })
+    }
+
+    fn apply_fan_boost(
+        &self,
+        enable: bool,
+        apply: impl FnOnce(bool) -> bool,
+        commit: impl FnOnce(bool) -> Result<(), String>,
+    ) -> Result<(), String> {
+        // Guard event echoes before I/O, including writes whose acknowledgement is lost.
+        self.cache.lock().fan_boost_cooldown_until = Instant::now() + Duration::from_secs(3);
+        let applied = apply(enable);
+        self.cache.lock().fan_boost_cooldown_until = Instant::now() + Duration::from_secs(3);
+        if !applied {
+            return Err("Failed to confirm the Fan Boost hardware write".into());
         }
-
-        // Proactively align user config and tray icon
-        let mut cfg = crate::system::config::load_config();
-        cfg.fan_boost = enable;
-        crate::system::config::save_config(&cfg);
-        crate::update_tray_fan_boost(enable);
-
-        // Apply fan boost to hardware driver (Tongfang WMI EC or Declarative HAL)
-        thread::spawn(move || {
-            wmi_ec::set_fan_boost_hardware(enable);
-        });
+        self.cache.lock().fan_boost = enable;
+        commit(enable)
     }
 
     pub fn set_fan_boost_from_hardware(&self, enable: bool) {
@@ -428,3 +439,7 @@ impl EcBridge {
 }
 
 pub type SharedEcBridge = Arc<Mutex<EcBridge>>;
+
+#[cfg(test)]
+#[path = "../../crates/openrevo-core/src/driver/fan_boost_tests.rs"]
+mod fan_boost_tests;

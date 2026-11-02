@@ -303,7 +303,7 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
             }
 
             ec.set_battery_limit(cfg.battery_limit);
-            ec.set_fan_boost(cfg.fan_boost);
+            if let Err(error) = ec.set_fan_boost(cfg.fan_boost) { crate::log_warn!("POWER_RESTORE", "Failed to restore Fan Boost: {}", error); }
         }
 
         // Secondary debounce: re-assert battery limit 2.5s after boot to eliminate ACPI driver race

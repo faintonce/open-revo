@@ -191,7 +191,8 @@ fn dispatch_acpi_event(
             // Fn+1 Hardware Hotkey / Fan Boost ACPI Notification (Events 167 [0xA7] and 67 [0x43])
             if last_fan_boost_time.elapsed() >= Duration::from_millis(500) {
                 *last_fan_boost_time = Instant::now();
-                let is_in_cooldown = ec_bridge.lock().is_in_fan_boost_cooldown();
+                let ec = ec_bridge.lock();
+                let is_in_cooldown = ec.is_in_fan_boost_cooldown();
                 if is_in_cooldown {
                     crate::log_info!(
                         "WMI_LISTENER",
@@ -199,7 +200,7 @@ fn dispatch_acpi_event(
                         code
                     );
                 } else {
-                    let cur_active = ec_bridge.lock().is_fan_boost();
+                    let cur_active = ec.is_fan_boost();
                     let next_state = !cur_active;
                     crate::log_info!(
                         "WMI_LISTENER",
@@ -207,19 +208,19 @@ fn dispatch_acpi_event(
                         cur_active,
                         next_state
                     );
-                    ec_bridge.lock().set_fan_boost(next_state);
-                    crate::system::osd_window::show_fan_boost(next_state);
-
-                    crate::system::osd_window::wake_osd_if_enabled(app_handle);
-                    let _ = app_handle.emit("fan-boost-changed", next_state);
-                    let _ = app_handle.emit_to("main", "fan-boost-changed", next_state);
-                    let _ = app_handle.emit_to("osd", "fan-boost-changed", next_state);
-                    let _ = app_handle.emit("physical-fan-boost-switched", next_state);
-                    let _ = app_handle.emit_to("main", "physical-fan-boost-switched", next_state);
-                    let _ = app_handle.emit_to("osd", "physical-fan-boost-switched", next_state);
+                    if let Err(error) = ec.set_fan_boost(next_state) {
+                        crate::log_warn!("WMI_LISTENER", "Fan Boost hotkey failed: {}", error);
+                        return;
+                    }
+                    drop(ec);
+                    crate::commands::power_cmd::notify_fan_boost(app_handle, next_state, true);
                 }
             } else {
-                crate::log_debug!("WMI_LISTENER", "Fn+1 hotkey event {} debounced (elapsed < 500ms)", code);
+                crate::log_debug!(
+                    "WMI_LISTENER",
+                    "Fn+1 hotkey event {} debounced (elapsed < 500ms)",
+                    code
+                );
             }
         }
         240 => {

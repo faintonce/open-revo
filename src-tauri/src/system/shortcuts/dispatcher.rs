@@ -1,7 +1,7 @@
 // OpenRevo - Universal Shortcut Bus Action Dispatcher
 // Executes hardware control, system automation, and cross-plugin events triggered by global shortcuts.
 
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use crate::hal::traits::HardwarePowerMode;
 use super::types::{ShortcutAction, ShortcutBinding};
 
@@ -18,20 +18,26 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
         match binding.action {
             // 1. Toggle Fan Boost
             ShortcutAction::ToggleFanBoost => {
-                let hal = crate::hal::get_hardware_driver();
-                let mut cfg = crate::system::config::load_config();
-                let current_boost = cfg.fan_boost;
-                let next_boost = !current_boost;
-                if hal.set_fan_boost(next_boost).is_ok() {
-                    cfg.fan_boost = next_boost;
-                    crate::system::config::save_config(&cfg);
-                    crate::log_info!("SHORTCUTS", "Toggled Fan Boost: {} -> {}", current_boost, next_boost);
-                    if osd {
-                        crate::system::osd_window::show_fan_boost(next_boost);
+                let Some(state) = app.try_state::<crate::driver::ec_bridge::SharedEcBridge>()
+                else {
+                    crate::log_error!(
+                        "SHORTCUTS",
+                        "Fan Boost action has no active hardware context"
+                    );
+                    return;
+                };
+                let next_boost = {
+                    let ec = state.lock();
+                    let next = !ec.is_fan_boost();
+                    if let Err(error) = ec.set_fan_boost(next) {
+                        crate::log_error!("SHORTCUTS", "Fan Boost action failed: {}", error);
+                        return;
                     }
-                    let _ = app.emit("fan-boost-changed", next_boost);
-                    let _ = app.emit_to("osd", "fan-boost-changed", next_boost);
-                    let _ = app.emit_to("main", "fan-boost-changed", next_boost);
+                    next
+                };
+                crate::commands::power_cmd::publish_fan_boost_state(&app, next_boost);
+                if osd {
+                    crate::system::osd_window::show_fan_boost(next_boost);
                 }
             }
 

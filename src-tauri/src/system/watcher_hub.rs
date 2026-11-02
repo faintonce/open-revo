@@ -572,16 +572,19 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
         }
         WatcherAction::SetFanBoost { enable } => {
             crate::log_info!("WATCHER_ACT", "[{}] Setting fan boost to {}", watcher_name, enable);
-            let hal = crate::hal::get_hardware_driver();
-            let mut cfg = crate::system::config::load_config();
-            if hal.set_fan_boost(*enable).is_ok() {
-                cfg.fan_boost = *enable;
-                crate::system::config::save_config(&cfg);
-                if let Some(handle) = get_app_handle() {
-                    let _ = handle.emit("fan-boost-changed", *enable);
-                    let _ = handle.emit_to("osd", "fan-boost-changed", *enable);
-                    let _ = handle.emit_to("main", "fan-boost-changed", *enable);
+            if let Some(handle) = get_app_handle() {
+                use tauri::Manager;
+                let Some(state) = handle.try_state::<crate::driver::ec_bridge::SharedEcBridge>() else {
+                    crate::log_warn!("WATCHER_HUB", "Fan Boost action has no active hardware context");
+                    return;
+                };
+                let result = state.lock().set_fan_boost(*enable);
+                match result {
+                    Ok(()) => crate::commands::power_cmd::publish_fan_boost_state(&handle, *enable),
+                    Err(error) => crate::log_warn!("WATCHER_HUB", "Fan Boost action failed: {}", error),
                 }
+            } else {
+                crate::log_warn!("WATCHER_HUB", "Fan Boost action has no active host context");
             }
         }
         WatcherAction::DelayMs { duration } => {
