@@ -75,6 +75,7 @@ fn dispatch_acpi_event(
 ) {
     match code {
         176 | 192 | 201 => {
+            let _operation = crate::hal::power_control::MODE_OPERATION.lock();
             // QKEY_MODESWITCH / OSD_FanModeSwitch (176) / SC_SwitchOC (192) / SC_CustomMode (201)
             if last_switch_time.elapsed() >= Duration::from_millis(500) {
                 *last_switch_time = Instant::now();

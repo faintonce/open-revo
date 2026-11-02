@@ -17,6 +17,8 @@ pub(super) fn apply_ec_hardware_mode_with_config(
     if !(1..=4).contains(&ui_mode) {
         return Err("Invalid power mode".into());
     }
+    // Fan Boost may change while this mode request waits for the EC lock.
+    let fan_boost_active = crate::system::config::load_config().fan_boost;
     // 0. If current driver is Declarative and DOES NOT use Tongfang ACPI kernel driver channel,
     // route performance mode application via HAL and avoid poking legacy registers.
     // If Tongfang ACPI hardware channel is available (both gaming laptops and Tongfang ultrabooks like Wujie 14X/15X),
@@ -62,10 +64,10 @@ pub(super) fn apply_ec_hardware_mode_with_config(
                         profile.fan_ramp_rate,
                         profile.fan_ramp_speed_ms,
                     );
-                } else if !config.fan_boost {
+                } else if !fan_boost_active {
                     crate::driver::bld_driver_mgr::restore_bld_fan_auto();
                 }
-            } else if !config.fan_boost {
+            } else if !fan_boost_active {
                 crate::driver::bld_driver_mgr::restore_bld_fan_auto();
             }
         }
@@ -84,7 +86,6 @@ pub(super) fn apply_ec_hardware_mode_with_config(
         current | power::AP_EXIST_BIT
     })?;
     let cfg = config;
-    let fan_boost_active = cfg.fan_boost;
 
     // Sanitize and align Fan Boost hardware state:
     // If user has NOT explicitly activated Fan Boost, ensure ADDR_FAN_BOOST_CLAMP is cleared

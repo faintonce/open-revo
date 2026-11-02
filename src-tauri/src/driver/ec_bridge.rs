@@ -283,7 +283,7 @@ impl EcBridge {
     fn apply_power_mode(
         &self,
         mode: u8,
-        apply: impl FnOnce() -> Result<(), String>,
+        apply: impl FnOnce() -> Result<(), crate::hal::power_control::ModeApplyError>,
         persist: impl FnOnce() -> Result<(), String>,
     ) -> Result<(), String> {
         if !(1..=4).contains(&mode) {
@@ -291,19 +291,31 @@ impl EcBridge {
         }
         self.cache.lock().power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
         let result = apply();
+        let confirmed = result.is_ok()
+            || result.as_ref().err().is_some_and(|error| error.hardware_confirmed);
         {
             let mut cache = self.cache.lock();
             cache.power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
-            if result.is_ok() {
+            if confirmed {
                 cache.power_mode = mode;
             }
         }
-        result?;
-        persist().map_err(|error| {
+        if confirmed {
+            crate::update_tray_power_mode(mode);
+        }
+        if !confirmed {
+            return result.map_err(|error| error.message);
+        }
+        let saved = persist().map_err(|error| {
             format!(
                 "Performance mode control was acknowledged, but saving settings failed: {error}"
             )
-        })
+        });
+        match (result, saved) {
+            (Err(sync), Err(save)) => Err(format!("{}; {}", sync.message, save)),
+            (Err(sync), Ok(())) => Err(sync.message),
+            (Ok(()), saved) => saved,
+        }
     }
 
     pub fn set_power_mode_from_hardware(&self, mode: u8) -> Result<(), String> {

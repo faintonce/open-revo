@@ -133,8 +133,9 @@ pub fn get_cpu_frequency_info() -> Option<(u32, u32, u32)> {
 
 /// Apply full-stack performance release mode across Windows Power Overlay, Power Plan, and Motherboard EC
 pub fn apply_full_power_mode(ui_mode: u8) -> Result<(), String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     let cfg = crate::system::config::load_config();
-    apply_full_power_mode_with_config(ui_mode, &cfg)
+    apply_full_power_mode_with_config(ui_mode, &cfg).map_err(|error| error.message)
 }
 
 /// Set Windows Power Overlay Scheme slider (Best Efficiency / Balanced / Best Performance)
@@ -554,7 +555,7 @@ pub fn ensure_power_mode_allowed(mode: u8) -> Result<(), String> {
 pub(crate) fn apply_full_power_mode_with_config(
     ui_mode: u8,
     cfg: &crate::system::config::AppConfig,
-) -> Result<(), String> {
+) -> Result<(), crate::hal::power_control::ModeApplyError> {
     crate::hal::power_control::apply_mode_steps(
         || ensure_power_mode_allowed(ui_mode),
         || {

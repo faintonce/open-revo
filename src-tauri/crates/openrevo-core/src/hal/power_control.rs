@@ -38,20 +38,35 @@ pub fn acknowledged(success: bool, operation: &str) -> Result<(), String> {
     }
 }
 
+#[derive(Debug)]
+pub struct ModeApplyError {
+    pub message: String,
+    pub hardware_confirmed: bool,
+}
+
 pub fn apply_mode_steps(
     validate: impl FnOnce() -> Result<(), String>,
     overlay: impl FnOnce() -> Result<(), String>,
     hardware: impl FnOnce() -> Result<(), String>,
     synchronize: impl FnOnce() -> Result<(), String>,
-) -> Result<(), String> {
+) -> Result<(), ModeApplyError> {
     let _transition = MODE_OPERATION.lock();
-    validate()?;
+    validate().map_err(|message| ModeApplyError {
+        message,
+        hardware_confirmed: false,
+    })?;
     (|| {
         overlay()?;
-        hardware()?;
-        synchronize()
+        hardware()
     })()
-    .map_err(|error| format!("性能模式切换未完成，部分设置可能已经生效：{error}"))
+    .map_err(|error| ModeApplyError {
+        message: format!("性能模式切换未完成，部分设置可能已经生效：{error}"),
+        hardware_confirmed: false,
+    })?;
+    synchronize().map_err(|error| ModeApplyError {
+        message: format!("性能模式已切换，但 OEM 配置同步失败：{error}"),
+        hardware_confirmed: true,
+    })
 }
 
 pub fn mode_index(current: u8, target: u8, logo_supported: bool) -> u8 {
@@ -95,9 +110,9 @@ mod tests {
                     Ok(())
                 }
             };
-            assert!(apply_mode_steps(next, next, next, next)
-                .unwrap_err()
-                .contains("rejected"));
+            let error = apply_mode_steps(next, next, next, next).unwrap_err();
+            assert!(error.message.contains("rejected"));
+            assert_eq!(error.hardware_confirmed, failed == 3);
             assert_eq!(calls.get(), failed + 1);
         }
         let calls = std::cell::Cell::new(0);

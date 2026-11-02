@@ -1,6 +1,8 @@
 use serde_json::Value;
 use std::path::Path;
 
+const UTF8_BOM: &[u8] = b"\xef\xbb\xbf";
+
 fn update_file(
     path: &Path,
     update: impl FnOnce(&mut Value) -> Result<(), String>,
@@ -16,7 +18,9 @@ fn update_file(
             ))
         }
     };
-    let mut value: Value = serde_json::from_slice(&bytes)
+    let has_bom = bytes.starts_with(UTF8_BOM);
+    let payload = bytes.strip_prefix(UTF8_BOM).unwrap_or(&bytes);
+    let mut value: Value = serde_json::from_slice(payload)
         .map_err(|error| format!("Invalid OEM settings {}: {error}", path.display()))?;
     if !value.is_object() {
         return Err(format!(
@@ -25,7 +29,8 @@ fn update_file(
         ));
     }
     update(&mut value)?;
-    let bytes = serde_json::to_vec_pretty(&value).map_err(|error| error.to_string())?;
+    let mut bytes = if has_bom { UTF8_BOM.to_vec() } else { Vec::new() };
+    serde_json::to_writer_pretty(&mut bytes, &value).map_err(|error| error.to_string())?;
     crate::system::config_io::atomic_write(path, &bytes)
 }
 
@@ -164,9 +169,26 @@ mod tests {
     }
 
     #[test]
+    fn regression_oem_mode_update_preserves_utf8_bom_and_plain_utf8() {
+        for prefix in [b"\xef\xbb\xbf".as_slice(), b""] {
+            let mut original = prefix.to_vec();
+            original.extend_from_slice(br#"{"OperatingMode":3,"keep":true}"#);
+            let path = fixture(&original);
+            update_file(&path, |value| update_mode(value, 1)).unwrap();
+            let written = std::fs::read(path).unwrap();
+            assert_eq!(written.starts_with(b"\xef\xbb\xbf"), !prefix.is_empty());
+            let value: Value = serde_json::from_slice(&written[prefix.len()..]).unwrap();
+            assert_eq!(value["OperatingMode"], 0);
+            assert_eq!(value["keep"], true);
+        }
+    }
+
+    #[test]
     fn regression_oem_invalid_schema_and_locked_files_keep_the_original_contents() {
         for original in [
             b"broken".as_slice(),
+            b"\xef\xbb\xbfbroken",
+            b"\xef\xbb\xbf[]",
             b"[]",
             br#"{"other":1}"#,
             br#"{"CPU":[],"GPU":{}}"#,
