@@ -489,6 +489,10 @@ pub fn run() {
         .expect("error while building OpenRevo application")
         .run(|_app_handle, event| {
             if let tauri::RunEvent::Exit = event {
+                use tauri::Manager;
+                if let Some(ec) = _app_handle.try_state::<SharedEcBridge>() {
+                    ec.lock().stop_polling();
+                }
                 println!("[OpenRevo] Process exiting. Executing clean webview shutdown and hardware safety shutdown...");
                 crate::system::webview_orchestrator::WebviewOrchestrator::global().safe_shutdown_all_subviews();
                 crate::system::tray::safe_hardware_shutdown_on_exit();
