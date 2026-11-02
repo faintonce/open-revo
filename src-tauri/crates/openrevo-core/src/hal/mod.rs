@@ -1,4 +1,5 @@
 // OpenRevo Hardware Abstraction Layer (HAL) Module
+pub mod power_options;
 
 // pub mod baolongda_guard;
 pub mod declarative;
@@ -50,5 +51,3 @@ pub fn get_hardware_hal() -> &'static dyn MechrevoHardwareHAL {
     get_hardware_driver()
 }
 
-
-pub mod power_options;
