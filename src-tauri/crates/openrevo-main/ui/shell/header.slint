@@ -1,0 +1,182 @@
+import { AppTheme } from "../theme.slint";
+
+export component DashboardHeader inherits Rectangle {
+    height: 40px;
+    background: transparent;
+
+    in-out property <string> title: "状态总览";
+    in-out property <string> subtitle: "核心硬件实时遥测与性能调控中枢";
+
+    callback toggle_theme();
+    callback collapse_to_mini();
+    callback toggle_fullscreen();
+    callback minimize_clicked();
+    callback close_clicked();
+
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 14px;
+        alignment: space-between;
+
+        // 1. Left: Page Title & Native WindowMoveArea Drag Handle
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: root.title;
+                    font-size: 13.5px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: root.subtitle;
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+        }
+
+        // 2. Center: Large Drag Region for window moving
+        WindowMoveArea {
+            horizontal-stretch: 1;
+            height: 40px;
+        }
+
+        // 3. Right: Window Control Actions
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: end;
+
+            // Palette Theme Toggle
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 5px;
+                background: t_pal.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_pal := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_theme(); }
+                }
+                Image {
+                    source: @image-url("../assets/icons/palette.svg");
+                    width: 15px;
+                    height: 15px;
+                    colorize: t_pal.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Collapse to Mini Mode
+            Rectangle {
+                border-radius: 5px;
+                background: t_mini.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+                height: 28px;
+                t_mini := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.collapse_to_mini(); }
+                }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 5px;
+                    Image {
+                        source: @image-url("../assets/icons/maximize2.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: AppTheme.text_primary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "迷你模式";
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Fullscreen / Maximize
+            Rectangle {
+                border-radius: 5px;
+                background: t_fs.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+                height: 28px;
+                t_fs := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_fullscreen(); }
+                }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 5px;
+                    Image {
+                        source: @image-url("../assets/icons/square.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: AppTheme.text_primary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "全屏";
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Minimize
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 5px;
+                background: t_min.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_min := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.minimize_clicked(); }
+                }
+                Rectangle {
+                    width: 12px;
+                    height: 1.5px;
+                    background: t_min.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Close
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 5px;
+                background: t_cls.has-hover ? #ef444430 : transparent;
+                t_cls := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.close_clicked(); }
+                }
+                Image {
+                    source: @image-url("../assets/icons/x.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: t_cls.has-hover ? #ef4444 : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+    }
+}

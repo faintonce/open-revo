@@ -1,0 +1,201 @@
+﻿import { AppTheme } from "../../theme.slint";
+
+export component DrawerBrightnessCard inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    height: 68px;
+
+    in-out property <int> brightness: 76;
+    callback change_brightness(int);
+
+    VerticalLayout {
+        padding: 7px;
+        spacing: 6px;
+
+        // Row 1: Title & Presets
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 5px;
+                Image {
+                    source: @image-url("../../assets/icons/sun.svg");
+                    width: 13px;
+                    height: 13px;
+                    colorize: #fbbf24;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "屏幕亮度:";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: brightness + "%";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #fbbf24;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Presets: 25% | 60% | 100% (Height 22px)
+            HorizontalLayout {
+                spacing: 4px;
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: t_25.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+                    height: 22px;
+                    t_25 := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { change_brightness(25); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 7px;
+                        padding-right: 7px;
+                        Text {
+                            text: "暗光 25%";
+                            font-size: 9.5px;
+                            color: AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: t_60.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+                    height: 22px;
+                    t_60 := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { change_brightness(60); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 7px;
+                        padding-right: 7px;
+                        Text {
+                            text: "室内 60%";
+                            font-size: 9.5px;
+                            color: AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: t_100.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+                    height: 22px;
+                    t_100 := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { change_brightness(100); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 7px;
+                        padding-right: 7px;
+                        Text {
+                            text: "户外 100%";
+                            font-size: 9.5px;
+                            color: AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Row 2: Full-stretch Golden Slider
+        HorizontalLayout {
+            spacing: 8px;
+            height: 26px;
+
+            // Left Dim Sun Icon
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/sun.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: AppTheme.text_muted;
+                }
+            }
+
+            // Central Slider Track (Must have horizontal-stretch: 1)
+            slider_area := Rectangle {
+                horizontal-stretch: 1;
+                height: 26px;
+
+                // Background groove track
+                Rectangle {
+                    x: 0;
+                    y: (parent.height - self.height) / 2;
+                    width: parent.width;
+                    height: 5px;
+                    border-radius: 2.5px;
+                    background: AppTheme.surface_pill;
+                    border-width: 0.5px;
+                    border-color: AppTheme.border_subtle;
+
+                    // Active golden fill
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        width: parent.width * Math.max(0.05, Math.min(1.0, brightness / 100.0));
+                        height: 100%;
+                        border-radius: 2.5px;
+                        background: #fbbf24;
+                    }
+                }
+
+                // Golden thumb with white core
+                Rectangle {
+                    x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, brightness / 100.0));
+                    y: (parent.height - self.height) / 2;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 8px;
+                    background: #ffffff;
+                    border-width: 3px;
+                    border-color: #fbbf24;
+                }
+
+                // Drag and click area
+                TouchArea {
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                            if (self.pressed) {
+                                change_brightness(Math.max(5, Math.min(100, Math.round(self.mouse-x / parent.width * 100))));
+                            }
+                        }
+                    }
+                    clicked => {
+                        change_brightness(Math.max(5, Math.min(100, Math.round(self.mouse-x / parent.width * 100))));
+                    }
+                }
+            }
+
+            // Right Bright Sun Icon
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/sun.svg");
+                    width: 15px;
+                    height: 15px;
+                    colorize: #fbbf24;
+                }
+            }
+        }
+    }
+}

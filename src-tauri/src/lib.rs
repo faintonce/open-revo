@@ -63,6 +63,10 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
         crate::log_info!("OSD", "on_power_mode_changed: mode={}", mode);
         crate::update_tray_power_mode(mode);
         crate::system::osd_window::show_power_mode(mode);
+        crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+            "action": "sync_state",
+            "power_mode": mode
+        }));
         use tauri::Emitter;
         let _ = self.app.emit("physical-mode-switched", mode);
         let _ = self.app.emit_to("main", "physical-mode-switched", mode);
@@ -72,6 +76,10 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
         crate::log_info!("OSD", "on_fan_boost_changed: enabled={}", enabled);
         crate::update_tray_fan_boost(enabled);
         crate::system::osd_window::show_fan_boost(enabled);
+        crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+            "action": "sync_state",
+            "fan_boost": enabled
+        }));
         use tauri::Emitter;
         let _ = self.app.emit("fan-boost-changed", enabled);
         let _ = self.app.emit_to("main", "fan-boost-changed", enabled);
@@ -415,6 +423,11 @@ pub fn run() {
             // Step 6.3: Enqueue OSD overlay window into WebviewOrchestrator (active only after main window confirms ready)
             crate::system::boot_trace::boot_scope("Step 6.3: OSD Orchestrator Enqueue", || {
                 crate::system::osd_window::init_osd_window(&app.handle());
+            });
+
+            // Step 6.3b: Initialize Slint native main companion if enabled
+            crate::system::boot_trace::boot_scope("Step 6.3b: Slint Main Companion", || {
+                crate::system::slint_window::ensure_slint_main_process(Some(&app.handle()));
             });
 
             // Step 6.4: Start dedicated Windows power event watcher (Sleep, Hibernate, Lid Close, Shutdown)

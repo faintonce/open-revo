@@ -1,0 +1,336 @@
+﻿import { AppTheme } from "../../theme.slint";
+
+export component DrawerLightingCard inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    height: 68px;
+
+    in-out property <string> effect_name: "极客波浪";
+    in-out property <string> color_name: "自定义";
+    in-out property <color> color_preview: #f43f5e;
+
+    callback cycle_effect();
+    callback cycle_color();
+    callback open_more();
+
+    VerticalLayout {
+        padding: 7px;
+        spacing: 6px;
+
+        // Row 1: Title & RGB Badge
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 5px;
+                Image {
+                    source: @image-url("../../assets/icons/keyboard.svg");
+                    width: 13px;
+                    height: 13px;
+                    colorize: #c084fc;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "笔记本键盘背光";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle {
+                border-radius: 3px;
+                background: #c084fc30;
+                border-width: 1px;
+                border-color: #c084fc80;
+                height: 18px;
+                HorizontalLayout {
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    Text {
+                        text: "全彩RGB";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #c084fc;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Row 2: Effect Dropdown | Color Dropdown | More (Balanced proportions)
+        HorizontalLayout {
+            spacing: 6px;
+            height: 28px;
+
+            // Effect Selector (with PopupWindow)
+            eff_btn := Rectangle {
+                horizontal-stretch: 4;
+                border-radius: 5px;
+                background: eff_ta.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                eff_ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        eff_pop.show();
+                    }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 8px;
+                    alignment: space-between;
+                    Text {
+                        text: effect_name;
+                        font-size: 10.5px;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Image {
+                        source: @image-url("../../assets/icons/chevron-down.svg");
+                        width: 8px;
+                        height: 8px;
+                        colorize: AppTheme.text_muted;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                eff_pop := PopupWindow {
+                    x: 0;
+                    y: 31px;
+                    width: 110px;
+
+                    Rectangle {
+                        background: AppTheme.surface_elevated;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+
+                        VerticalLayout {
+                            padding: 4px;
+                            spacing: 2px;
+
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_e1.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_e1 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { effect_name = "极客波浪"; cycle_effect(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "极客波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_e2.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_e2 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { effect_name = "彩虹幻彩"; cycle_effect(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "彩虹幻彩"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_e3.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_e3 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { effect_name = "单色呼吸"; cycle_effect(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "单色呼吸"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_e4.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_e4 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { effect_name = "单色常亮"; cycle_effect(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "单色常亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Color Selector (with PopupWindow)
+            col_btn := Rectangle {
+                horizontal-stretch: 4;
+                border-radius: 5px;
+                background: col_ta.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                col_ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        col_pop.show();
+                    }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 8px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 5px;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 9px;
+                                height: 9px;
+                                border-radius: 4.5px;
+                                background: color_preview;
+                            }
+                        }
+                        Text {
+                            text: color_name;
+                            font-size: 10.5px;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Image {
+                        source: @image-url("../../assets/icons/chevron-down.svg");
+                        width: 8px;
+                        height: 8px;
+                        colorize: AppTheme.text_muted;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                col_pop := PopupWindow {
+                    x: 0;
+                    y: 31px;
+                    width: 105px;
+
+                    Rectangle {
+                        background: AppTheme.surface_elevated;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+
+                        VerticalLayout {
+                            padding: 4px;
+                            spacing: 2px;
+
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_c1.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c1 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { color_preview = #f43f5e; color_name = "热血红"; cycle_color(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #f43f5e; y: (parent.height - self.height) / 2; }
+                                    Text { text: "热血红"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_c2.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c2 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { color_preview = #38bdf8; color_name = "天空蓝"; cycle_color(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #38bdf8; y: (parent.height - self.height) / 2; }
+                                    Text { text: "天空蓝"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_c3.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c3 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { color_preview = #10b981; color_name = "翡翠绿"; cycle_color(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #10b981; y: (parent.height - self.height) / 2; }
+                                    Text { text: "翡翠绿"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_c4.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c4 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { color_preview = #c084fc; color_name = "极客紫"; cycle_color(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #c084fc; y: (parent.height - self.height) / 2; }
+                                    Text { text: "极客紫"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // More / Settings (Fixed 72px width, never gets squished)
+            Rectangle {
+                width: 72px;
+                border-radius: 5px;
+                background: t_m.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                t_m := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { open_more(); }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    Image {
+                        source: @image-url("../../assets/icons/settings.svg");
+                        width: 11px;
+                        height: 11px;
+                        colorize: AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "更多";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

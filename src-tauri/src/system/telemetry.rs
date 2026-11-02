@@ -89,6 +89,7 @@ pub fn is_telemetry_active() -> bool {
     MAIN_WINDOW_VISIBLE.load(Ordering::Relaxed)
         || ACTIVE_SUBSCRIBERS.load(Ordering::Relaxed) > 0
         || crate::system::watcher_hub::has_active_telemetry_watchers()
+        || crate::system::config::load_config().main_slint_enabled
 }
 
 /// Determine whether NVIDIA dGPU queries (NVAPI) should be executed
@@ -146,6 +147,7 @@ pub fn start_telemetry_loop(
                     if !SCREEN_SUSPENDED.load(Ordering::SeqCst) && !REBOOT_FREEZE.load(Ordering::SeqCst) {
                         let _ = app.emit("hardware-state-updated", &state);
                         crate::system::watcher_hub::evaluate_telemetry_watchers(&state);
+                        crate::system::slint_window::sync_slint_telemetry(&state);
                     }
                     std::thread::sleep(Duration::from_millis(1500));
                 } else {

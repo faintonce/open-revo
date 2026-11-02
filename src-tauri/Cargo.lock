@@ -4215,10 +4215,11 @@ dependencies = [
 
 [[package]]
 name = "open-revo"
-version = "0.9.6"
+version = "0.9.7"
 dependencies = [
  "libloading 0.8.9",
  "openrevo-core",
+ "openrevo-main",
  "openrevo-osd",
  "parking_lot",
  "rhai",
@@ -4237,7 +4238,7 @@ dependencies = [
 
 [[package]]
 name = "openrevo-core"
-version = "0.9.6"
+version = "0.9.7"
 dependencies = [
  "libloading 0.8.9",
  "parking_lot",
@@ -4253,10 +4254,22 @@ dependencies = [
 
 [[package]]
 name = "openrevo-ffi"
-version = "0.9.6"
+version = "0.9.7"
 dependencies = [
  "openrevo-core",
  "serde_json",
+]
+
+[[package]]
+name = "openrevo-main"
+version = "0.1.0"
+dependencies = [
+ "openrevo-core",
+ "serde",
+ "serde_json",
+ "slint",
+ "slint-build",
+ "windows 0.58.0",
 ]
 
 [[package]]

@@ -1,0 +1,149 @@
+import { AppTheme } from "../../theme.slint";
+import { DashboardTelemetryCards } from "telemetry_cards.slint";
+import { DashboardPowerProfiles } from "power_profiles.slint";
+import { DashboardQuickActions } from "quick_actions.slint";
+import { DashboardSwitchesGrid } from "switches_grid.slint";
+
+export component DashboardOverviewView inherits Rectangle {
+    background: transparent;
+
+    // Telemetry Props
+    in-out property <int> cpu_temp: 64;
+    in-out property <int> cpu_mhz: 2392;
+    in-out property <string> cpu_watts_text: "16.8 W";
+    in-out property <int> cpu_usage: 3;
+    in-out property <string> cpu_name: "Intel Core i9-14900HX";
+
+    in-out property <int> gpu_temp: 51;
+    in-out property <int> gpu_mhz: 555;
+    in-out property <string> gpu_watts_text: "22.4 W";
+    in-out property <int> gpu_usage: 15;
+    in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+
+    in-out property <int> cpu_rpm: 2746;
+    in-out property <int> gpu_rpm: 2635;
+
+    in-out property <string> vram_text: "1.7 / 16.0 GB";
+    in-out property <int> vram_mhz: 810;
+    in-out property <int> vram_usage: 10;
+
+    // Power Profiles Props & Callbacks
+    in-out property <int> power_mode: 2;
+    in-out property <int> pl1_target: 75;
+    in-out property <int> tgp_target: 175;
+    callback set_power_mode(int);
+    callback open_custom_tuning();
+
+    // Quick Actions Props & Callbacks
+    in-out property <bool> fan_boost: false;
+    in-out property <bool> auto_min_hz: true;
+    in-out property <int> refresh_rate: 240;
+    in-out property <string> monitor_name: "京东方";
+    in-out property <[int]> rates_row1: [60, 144, 240];
+    in-out property <[int]> rates_row2: [];
+    callback toggle_fan_boost();
+    callback toggle_auto_min_hz();
+    callback switch_hz(int);
+    callback select_monitor(string);
+    callback select_monitor_index(int);
+
+    // Hardware Switches Props & Callbacks
+    in-out property <bool> wifi_enabled: true;
+    in-out property <bool> bt_enabled: true;
+    in-out property <bool> touchpad_locked: false;
+    in-out property <bool> camera_enabled: true;
+    in-out property <bool> mic_enabled: true;
+    in-out property <bool> osd_enabled: true;
+    in-out property <bool> win_locked: false;
+    in-out property <bool> fn_locked: false;
+    in-out property <bool> keep_awake: false;
+    callback toggle_wifi();
+    callback toggle_bt();
+    callback toggle_touchpad();
+    callback toggle_camera();
+    callback toggle_mic();
+    callback toggle_osd();
+    callback toggle_win_lock();
+    callback toggle_fn_lock();
+    callback toggle_keep_awake();
+    callback turn_off_screen();
+
+    VerticalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        padding-top: 14px;
+        padding-bottom: 14px;
+        spacing: 14px;
+        alignment: start;
+
+        // 1. Telemetry Cards (Height: 125px)
+        DashboardTelemetryCards {
+            cpu_temp: root.cpu_temp;
+            cpu_mhz: root.cpu_mhz;
+            cpu_watts_text: root.cpu_watts_text;
+            cpu_usage: root.cpu_usage;
+            cpu_name: root.cpu_name;
+
+            gpu_temp: root.gpu_temp;
+            gpu_mhz: root.gpu_mhz;
+            gpu_watts_text: root.gpu_watts_text;
+            gpu_usage: root.gpu_usage;
+            gpu_name: root.gpu_name;
+
+            cpu_rpm: root.cpu_rpm;
+            gpu_rpm: root.gpu_rpm;
+
+            vram_text: root.vram_text;
+            vram_mhz: root.vram_mhz;
+            vram_usage: root.vram_usage;
+        }
+
+        // 2. Power Profiles (Height: 150px)
+        DashboardPowerProfiles {
+            power_mode: root.power_mode;
+            pl1_target: root.pl1_target;
+            tgp_target: root.tgp_target;
+            set_power_mode(mode) => { root.set_power_mode(mode); }
+            open_custom_tuning => { root.open_custom_tuning(); }
+        }
+
+        // 3. Quick Actions (Height: 74px)
+        DashboardQuickActions {
+            fan_boost: root.fan_boost;
+            auto_min_hz: root.auto_min_hz;
+            refresh_rate: root.refresh_rate;
+            monitor_name: root.monitor_name;
+            rates_row1: root.rates_row1;
+            rates_row2: root.rates_row2;
+            toggle_fan_boost => { root.toggle_fan_boost(); }
+            toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
+            switch_hz(hz) => { root.switch_hz(hz); }
+            select_monitor(m) => { root.select_monitor(m); }
+            select_monitor_index(idx) => { root.select_monitor_index(idx); }
+        }
+
+        // 4. Switches Grid (Height: 125px)
+        DashboardSwitchesGrid {
+            wifi_enabled: root.wifi_enabled;
+            bt_enabled: root.bt_enabled;
+            touchpad_locked: root.touchpad_locked;
+            camera_enabled: root.camera_enabled;
+            mic_enabled: root.mic_enabled;
+            osd_enabled: root.osd_enabled;
+            win_locked: root.win_locked;
+            fn_locked: root.fn_locked;
+            keep_awake: root.keep_awake;
+
+            toggle_wifi => { root.toggle_wifi(); }
+            toggle_bt => { root.toggle_bt(); }
+            toggle_touchpad => { root.toggle_touchpad(); }
+            toggle_camera => { root.toggle_camera(); }
+            toggle_mic => { root.toggle_mic(); }
+            toggle_osd => { root.toggle_osd(); }
+            toggle_win_lock => { root.toggle_win_lock(); }
+            toggle_fn_lock => { root.toggle_fn_lock(); }
+            toggle_keep_awake => { root.toggle_keep_awake(); }
+            turn_off_screen => { root.turn_off_screen(); }
+        }
+    }
+}

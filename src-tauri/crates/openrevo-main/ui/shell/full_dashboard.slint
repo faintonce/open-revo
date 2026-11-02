@@ -1,0 +1,469 @@
+import { AppTheme } from "../theme.slint";
+import { DashboardSidebar } from "sidebar.slint";
+import { DashboardHeader } from "header.slint";
+import { DashboardOverviewView } from "../views/overview/overview_view.slint";
+import { DashboardCustomTuningView } from "../views/tuning/tuning_view.slint";
+
+export component FullDashboard inherits Rectangle {
+    background: AppTheme.bg_root;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    clip: true;
+
+    // Active Navigation Tab: 0: 概览, 1: 显卡, 2: 电源, 3: RGB, 4: 水冷, 5: 插件, 6: 系统, 7: 赞助
+    in-out property <int> active_tab: 0;
+
+    // Tuning Sub-view State
+    in-out property <bool> is_in_tuning_view: false;
+
+    // Platform Props
+    in-out property <string> cpu_vendor: "intel";
+    in-out property <string> cpu_tuning_type: "intel_pl";
+    in-out property <bool> cpu_supports_fppt: true;
+    in-out property <bool> is_bld: false;
+
+    // Telemetry Props
+    in-out property <int> cpu_temp: 64;
+    in-out property <int> cpu_mhz: 2392;
+    in-out property <string> cpu_watts_text: "16.8 W";
+    in-out property <int> cpu_usage: 3;
+    in-out property <string> cpu_name: "Intel Core i9-14900HX";
+
+    in-out property <int> gpu_temp: 51;
+    in-out property <int> gpu_mhz: 555;
+    in-out property <string> gpu_watts_text: "22.4 W";
+    in-out property <int> gpu_usage: 15;
+    in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+
+    in-out property <int> cpu_rpm: 2746;
+    in-out property <int> gpu_rpm: 2635;
+
+    in-out property <string> vram_text: "1.7 / 16.0 GB";
+    in-out property <int> vram_mhz: 810;
+    in-out property <int> vram_usage: 10;
+
+    // Power Profiles Props & Callbacks
+    in-out property <int> power_mode: 2;
+    in-out property <int> pl1_target: 75;
+    in-out property <int> tgp_target: 175;
+    callback set_power_mode(int);
+    callback open_custom_tuning();
+
+    // Quick Actions Props & Callbacks
+    in-out property <bool> fan_boost: false;
+    in-out property <bool> auto_min_hz: true;
+    in-out property <int> refresh_rate: 240;
+    in-out property <string> monitor_name: "京东方";
+    in-out property <[int]> rates_row1: [60, 144, 240];
+    in-out property <[int]> rates_row2: [];
+    callback toggle_fan_boost();
+    callback toggle_auto_min_hz();
+    callback switch_hz(int);
+    callback select_monitor(string);
+    callback select_monitor_index(int);
+
+    // Custom Tuning Profile & Hardware Params
+    in-out property <string> active_preset_name: "均衡电竞";
+    in-out property <[string]> preset_ids: ["preset_office", "preset_balanced", "preset_turbo"];
+    in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
+    in-out property <int> temp_wall: 95;
+    in-out property <bool> temp_wall_enabled: true;
+    in-out property <int> temp_wall_max: 95;
+    in-out property <int> pl1: 75;
+    in-out property <int> pl1_max: 230;
+    in-out property <int> pl2: 75;
+    in-out property <int> pl2_max: 230;
+    in-out property <int> pl4: 126;
+    in-out property <int> pl4_max: 275;
+    in-out property <bool> bios_oc_enabled: true;
+
+    in-out property <bool> super_perf: true;
+    in-out property <int> core_offset: 0;
+    in-out property <int> mem_offset: 0;
+    in-out property <bool> db_enabled: true;
+    in-out property <int> db_watts: 25;
+    in-out property <int> base_tgp: 150;
+
+    in-out property <bool> smooth_transition: true;
+    in-out property <string> smooth_time: "300ms";
+    in-out property <bool> fan_isolated_output: true;
+    in-out property <int> active_fan_tab: 0;
+    in-out property <bool> fan_linked: true;
+    in-out property <[int]> cpu_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+    in-out property <[int]> gpu_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+    in-out property <int> bld_rpm_cap: 5800;
+    in-out property <bool> bld_boost: false;
+
+    // Custom Tuning Callbacks
+    callback tuning_back_to_overview();
+    callback tuning_select_preset(string);
+    callback tuning_create_preset();
+    callback tuning_reset_preset();
+    callback tuning_rename_preset();
+    callback tuning_export_preset();
+    callback tuning_import_preset();
+    callback tuning_open_preset_dir();
+    callback tuning_delete_preset();
+
+    callback tuning_toggle_temp_wall();
+    callback tuning_change_temp_wall(int);
+    callback tuning_adjust_temp_wall_max(int);
+    callback tuning_change_pl1(int);
+    callback tuning_adjust_pl1_max(int);
+    callback tuning_change_pl2(int);
+    callback tuning_adjust_pl2_max(int);
+    callback tuning_change_pl4(int);
+    callback tuning_adjust_pl4_max(int);
+    callback tuning_toggle_bios_oc();
+
+    callback tuning_toggle_super_perf();
+    callback tuning_change_core_offset(int);
+    callback tuning_change_mem_offset(int);
+    callback tuning_toggle_db();
+    callback tuning_change_db_watts(int);
+
+    callback tuning_toggle_smooth();
+    callback tuning_toggle_isolated();
+    callback tuning_toggle_link();
+    callback tuning_select_fan_tab(int);
+    callback tuning_adjust_point(int, int);
+    callback tuning_set_point(int, int);
+    callback tuning_toggle_bld_boost();
+    callback tuning_change_bld_cap(int);
+    callback tuning_restore_bld_auto();
+
+    // Hardware Switches Props & Callbacks
+    in-out property <bool> wifi_enabled: true;
+    in-out property <bool> bt_enabled: true;
+    in-out property <bool> touchpad_locked: false;
+    in-out property <bool> camera_enabled: true;
+    in-out property <bool> mic_enabled: true;
+    in-out property <bool> osd_enabled: true;
+    in-out property <bool> win_locked: false;
+    in-out property <bool> fn_locked: false;
+    in-out property <bool> keep_awake: false;
+    callback toggle_wifi();
+    callback toggle_bt();
+    callback toggle_touchpad();
+    callback toggle_camera();
+    callback toggle_mic();
+    callback toggle_osd();
+    callback toggle_win_lock();
+    callback toggle_fn_lock();
+    callback toggle_keep_awake();
+    callback turn_off_screen();
+
+    // Window Callbacks
+    callback collapse_to_mini();
+    callback toggle_theme();
+    callback toggle_fullscreen();
+    callback minimize_clicked();
+    callback close_clicked();
+    callback open_sponsor();
+
+    HorizontalLayout {
+        // 1. Left Sidebar (Width: 200px)
+        DashboardSidebar {
+            active_tab: root.active_tab;
+            select_tab(tab_idx) => {
+                root.is_in_tuning_view = false;
+                root.active_tab = tab_idx;
+                if (tab_idx == 7) {
+                    root.open_sponsor();
+                }
+            }
+            collapse_to_mini => {
+                root.collapse_to_mini();
+            }
+        }
+
+        // 2. Right Main Work Area (Width: 920px)
+        VerticalLayout {
+            horizontal-stretch: 1;
+
+            // 2.1 Top Right Header Bar (Only visible when NOT in tuning sub-view)
+            if !root.is_in_tuning_view: DashboardHeader {
+                title: root.active_tab == 0 ? "状态总览" :
+                       (root.active_tab == 1 ? "显卡模式调控" :
+                       (root.active_tab == 2 ? "电源与性能释放" :
+                       (root.active_tab == 3 ? "RGB 灯效工坊" :
+                       (root.active_tab == 4 ? "水冷魔盒 (BLE)" :
+                       (root.active_tab == 5 ? "扩展插件中心" :
+                       (root.active_tab == 6 ? "系统通用设置" : "关于与支持作者"))))));
+                subtitle: root.active_tab == 0 ? "核心硬件实时遥测与性能调控中枢" :
+                          (root.active_tab == 1 ? "独显直连 (dGPU) / 混合模式 / 纯集显低功耗一键切换" :
+                          (root.active_tab == 2 ? "CPU / GPU 功耗墙深度解限与原厂温控策略调校" :
+                          (root.active_tab == 3 ? "电竞矩阵背光与水冷氛围灯动态联动联动" :
+                          (root.active_tab == 4 ? "外置水冷机蓝牙低功耗温控联动" :
+                          (root.active_tab == 5 ? "基于 WebView2 / Slint 微内核生态的社区扩展" :
+                          (root.active_tab == 6 ? "开机自启、原厂控制台接管与深色/亮色外观配置" : "感谢每一位机革玩家与开源贡献者的支持"))))));
+
+                toggle_theme => { root.toggle_theme(); }
+                collapse_to_mini => { root.collapse_to_mini(); }
+                toggle_fullscreen => { root.toggle_fullscreen(); }
+                minimize_clicked => { root.minimize_clicked(); }
+                close_clicked => { root.close_clicked(); }
+            }
+
+            // Divider
+            if !root.is_in_tuning_view: Rectangle {
+                height: 1px;
+                background: AppTheme.border_subtle;
+            }
+
+            // 2.2 Content Area - Overview
+            if root.active_tab == 0 && !root.is_in_tuning_view: DashboardOverviewView {
+                vertical-stretch: 1;
+
+                cpu_temp: root.cpu_temp;
+                cpu_mhz: root.cpu_mhz;
+                cpu_watts_text: root.cpu_watts_text;
+                cpu_usage: root.cpu_usage;
+                cpu_name: root.cpu_name;
+
+                gpu_temp: root.gpu_temp;
+                gpu_mhz: root.gpu_mhz;
+                gpu_watts_text: root.gpu_watts_text;
+                gpu_usage: root.gpu_usage;
+                gpu_name: root.gpu_name;
+
+                cpu_rpm: root.cpu_rpm;
+                gpu_rpm: root.gpu_rpm;
+
+                vram_text: root.vram_text;
+                vram_mhz: root.vram_mhz;
+                vram_usage: root.vram_usage;
+
+                power_mode: root.power_mode;
+                pl1_target: root.pl1_target;
+                tgp_target: root.tgp_target;
+                set_power_mode(mode) => { root.set_power_mode(mode); }
+                open_custom_tuning => {
+                    root.is_in_tuning_view = true;
+                    root.open_custom_tuning();
+                }
+
+                fan_boost: root.fan_boost;
+                auto_min_hz: root.auto_min_hz;
+                refresh_rate: root.refresh_rate;
+                monitor_name: root.monitor_name;
+                rates_row1: root.rates_row1;
+                rates_row2: root.rates_row2;
+                toggle_fan_boost => { root.toggle_fan_boost(); }
+                toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
+                switch_hz(hz) => { root.switch_hz(hz); }
+                select_monitor(m) => { root.select_monitor(m); }
+                select_monitor_index(idx) => { root.select_monitor_index(idx); }
+
+                wifi_enabled: root.wifi_enabled;
+                bt_enabled: root.bt_enabled;
+                touchpad_locked: root.touchpad_locked;
+                camera_enabled: root.camera_enabled;
+                mic_enabled: root.mic_enabled;
+                osd_enabled: root.osd_enabled;
+                win_locked: root.win_locked;
+                fn_locked: root.fn_locked;
+                keep_awake: root.keep_awake;
+
+                toggle_wifi => { root.toggle_wifi(); }
+                toggle_bt => { root.toggle_bt(); }
+                toggle_touchpad => { root.toggle_touchpad(); }
+                toggle_camera => { root.toggle_camera(); }
+                toggle_mic => { root.toggle_mic(); }
+                toggle_osd => { root.toggle_osd(); }
+                toggle_win_lock => { root.toggle_win_lock(); }
+                toggle_fn_lock => { root.toggle_fn_lock(); }
+                toggle_keep_awake => { root.toggle_keep_awake(); }
+                turn_off_screen => { root.turn_off_screen(); }
+            }
+
+            // 2.3 Content Area - Custom Tuning Sub-view
+            if root.active_tab == 0 && root.is_in_tuning_view: DashboardCustomTuningView {
+                vertical-stretch: 1;
+
+                cpu_vendor: root.cpu_vendor;
+                cpu_tuning_type: root.cpu_tuning_type;
+                cpu_supports_fppt: root.cpu_supports_fppt;
+                is_bld: root.is_bld;
+
+                cpu_temp: root.cpu_temp;
+                cpu_rpm: root.cpu_rpm;
+                cpu_watts: root.cpu_watts_text;
+                gpu_temp: root.gpu_temp;
+                gpu_rpm: root.gpu_rpm;
+                gpu_watts: root.gpu_watts_text;
+                gpu_name: root.gpu_name;
+
+                // Profiles & Presets
+                active_preset_name <=> root.active_preset_name;
+                preset_ids <=> root.preset_ids;
+                preset_names <=> root.preset_names;
+                select_preset(id) => { root.tuning_select_preset(id); }
+
+                // CPU
+                temp_wall <=> root.temp_wall;
+                temp_wall_enabled <=> root.temp_wall_enabled;
+                temp_wall_max <=> root.temp_wall_max;
+                pl1 <=> root.pl1;
+                pl1_max <=> root.pl1_max;
+                pl2 <=> root.pl2;
+                pl2_max <=> root.pl2_max;
+                pl4 <=> root.pl4;
+                pl4_max <=> root.pl4_max;
+                bios_oc_enabled <=> root.bios_oc_enabled;
+
+                // GPU
+                super_perf <=> root.super_perf;
+                core_offset <=> root.core_offset;
+                mem_offset <=> root.mem_offset;
+                db_enabled <=> root.db_enabled;
+                db_watts <=> root.db_watts;
+                base_tgp <=> root.base_tgp;
+
+                // Fan
+                smooth_transition <=> root.smooth_transition;
+                smooth_time <=> root.smooth_time;
+                fan_isolated_output <=> root.fan_isolated_output;
+                active_fan_tab <=> root.active_fan_tab;
+                fan_linked <=> root.fan_linked;
+                cpu_curve <=> root.cpu_curve;
+                gpu_curve <=> root.gpu_curve;
+                bld_rpm_cap <=> root.bld_rpm_cap;
+                bld_boost <=> root.bld_boost;
+
+                // Callbacks
+                back_to_overview => {
+                    root.is_in_tuning_view = false;
+                    root.tuning_back_to_overview();
+                }
+                create_preset => { root.tuning_create_preset(); }
+                reset_preset => { root.tuning_reset_preset(); }
+                rename_preset => { root.tuning_rename_preset(); }
+                export_preset => { root.tuning_export_preset(); }
+                import_preset => { root.tuning_import_preset(); }
+                open_preset_dir => { root.tuning_open_preset_dir(); }
+                delete_preset => { root.tuning_delete_preset(); }
+
+                // CPU
+                toggle_temp_wall => {
+                    root.tuning_toggle_temp_wall();
+                }
+                change_temp_wall(t) => {
+                    root.tuning_change_temp_wall(t);
+                }
+                adjust_temp_wall_max(delta) => {
+                    root.tuning_adjust_temp_wall_max(delta);
+                }
+                change_pl1(w) => {
+                    root.tuning_change_pl1(w);
+                }
+                adjust_pl1_max(delta) => {
+                    root.tuning_adjust_pl1_max(delta);
+                }
+                change_pl2(w) => {
+                    root.tuning_change_pl2(w);
+                }
+                adjust_pl2_max(delta) => {
+                    root.tuning_adjust_pl2_max(delta);
+                }
+                change_pl4(w) => {
+                    root.tuning_change_pl4(w);
+                }
+                adjust_pl4_max(delta) => {
+                    root.tuning_adjust_pl4_max(delta);
+                }
+                toggle_bios_oc => {
+                    root.tuning_toggle_bios_oc();
+                }
+
+                // GPU
+                toggle_super_perf => {
+                    root.tuning_toggle_super_perf();
+                }
+                change_core_offset(o) => {
+                    root.tuning_change_core_offset(o);
+                }
+                change_mem_offset(o) => {
+                    root.tuning_change_mem_offset(o);
+                }
+                toggle_db => {
+                    root.tuning_toggle_db();
+                }
+                change_db_watts(w) => {
+                    root.tuning_change_db_watts(w);
+                }
+
+                // Fan
+                toggle_smooth => {
+                    root.smooth_transition = !root.smooth_transition;
+                    root.tuning_toggle_smooth();
+                }
+                toggle_isolated => {
+                    root.fan_isolated_output = !root.fan_isolated_output;
+                    root.tuning_toggle_isolated();
+                }
+                toggle_link => {
+                    root.fan_linked = !root.fan_linked;
+                    root.tuning_toggle_link();
+                }
+                select_fan_tab(tab) => {
+                    root.active_fan_tab = tab;
+                    root.tuning_select_fan_tab(tab);
+                }
+                adjust_point(idx, delta) => {
+                    root.tuning_adjust_point(idx, delta);
+                }
+                set_point(idx, duty) => {
+                    root.tuning_set_point(idx, duty);
+                }
+                toggle_bld_boost => {
+                    root.bld_boost = !root.bld_boost;
+                    root.tuning_toggle_bld_boost();
+                }
+                change_bld_cap(rpm) => {
+                    root.bld_rpm_cap = rpm;
+                    root.tuning_change_bld_cap(rpm);
+                }
+                restore_bld_auto => {
+                    root.bld_boost = false;
+                    root.tuning_restore_bld_auto();
+                }
+            }
+
+            // Placeholder for other tabs (which will host future views or WebView2 child)
+            if root.active_tab != 0: Rectangle {
+                vertical-stretch: 1;
+                background: transparent;
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+
+                    Image {
+                        source: @image-url("../assets/icons/layers.svg");
+                        width: 48px;
+                        height: 48px;
+                        colorize: AppTheme.text_muted;
+                        horizontal-alignment: center;
+                    }
+
+                    Text {
+                        text: root.active_tab == 5 ? "扩展插件模块载入中 (WebView2 Child Container)" : "模块移植开发中...";
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        horizontal-alignment: center;
+                    }
+
+                    Text {
+                        text: "该面板将在后续微内核演进阶段开放原生 Slint 或按需唤起轻量 WebView2";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

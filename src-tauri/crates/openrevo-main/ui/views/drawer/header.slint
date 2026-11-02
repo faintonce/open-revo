@@ -1,0 +1,154 @@
+﻿import { AppTheme } from "../../theme.slint";
+
+export component DrawerHeader inherits Rectangle {
+    height: 30px;
+    background: transparent;
+
+    in-out property <int> power_mode: 2;
+
+    callback toggle_theme();
+    callback open_sponsor();
+    callback minimize_clicked();
+    callback close_clicked();
+
+    HorizontalLayout {
+        padding-left: 2px;
+        padding-right: 2px;
+        alignment: space-between;
+
+        // 【唯一官方原生拖拽手柄】：Slint 官方 WindowMoveArea，不丢失鼠标状态，不卡死事件
+        drag_handle := WindowMoveArea {
+            width: 175px;
+            height: 28px;
+
+            HorizontalLayout {
+                spacing: 7px;
+                alignment: start;
+
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/logo.png");
+                        width: 22px;
+                        height: 22px;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: "OPENREVO";
+                        font-size: 13.5px;
+                        font-weight: 800;
+                        letter-spacing: 0.8px;
+                        color: AppTheme.text_primary;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        border-radius: 4px;
+                        background: #6366f1;
+                        height: 16px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: "MINI";
+                                font-size: 9px;
+                                font-weight: 700;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 【右侧窗口功能按钮组】：完全独立，100% 灵敏响应点击与小手悬浮
+        HorizontalLayout {
+            spacing: 3px;
+            alignment: end;
+
+            // Palette (Theme Toggle)
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_pal.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_pal := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_theme(); }
+                }
+                Image {
+                    source: @image-url("../../assets/icons/palette.svg");
+                    width: 14px;
+                    height: 14px;
+                    colorize: t_pal.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Sponsor (Heart)
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_sp.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_sp := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open_sponsor(); }
+                }
+                Text {
+                    text: "♡";
+                    font-size: 14px;
+                    color: t_sp.has-hover ? #fb7185 : #f43f5e;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Minimize
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_min.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_min := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.minimize_clicked(); }
+                }
+                Rectangle {
+                    width: 10px;
+                    height: 1.5px;
+                    background: t_min.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Close (hide)
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_cls.has-hover ? #ef444430 : transparent;
+                t_cls := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.close_clicked(); }
+                }
+                Image {
+                    source: @image-url("../../assets/icons/x.svg");
+                    width: 11px;
+                    height: 11px;
+                    colorize: t_cls.has-hover ? #ef4444 : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+    }
+}

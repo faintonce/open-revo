@@ -1,6 +1,6 @@
 [package]
 name = "open-revo"
-version = "0.9.6"
+version = "0.9.7"
 description = "Lightweight Custom Control Center for Mechrevo Laptops"
 license = "GPL-3.0-or-later"
 edition = "2021"
@@ -16,6 +16,7 @@ members = [
     "crates/openrevo-core",
     "crates/openrevo-osd",
     "crates/openrevo-ffi",
+    "crates/openrevo-main",
 ]
 
 [build-dependencies]
@@ -26,6 +27,7 @@ serde_json = "1.0"
 [dependencies]
 openrevo-core = { path = "crates/openrevo-core" }
 openrevo-osd = { path = "crates/openrevo-osd" }
+openrevo-main = { path = "crates/openrevo-main" }
 tauri = { version = "2.0.0", features = ["tray-icon"] }
 tauri-plugin-autostart = "2.0.0"
 tauri-plugin-single-instance = "2.0.0"

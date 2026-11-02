@@ -202,6 +202,14 @@ pub fn restore_and_sync_window(window: &WebviewWindow) {
 
     // Step 1: Determine presentation mode and apply resize/sync while window is still hidden
     let cfg = crate::system::config::load_config();
+    if cfg.main_slint_enabled {
+        crate::system::slint_window::show_slint_window();
+    }
+    if !cfg.main_webview_enabled {
+        crate::log_info!("WINDOW", "main_webview_enabled is false; skipping WebView2 window presentation.");
+        return;
+    }
+
     let is_expanded = match cfg.wake_window_mode.as_str() {
         "full" => true,
         "mini" => false,

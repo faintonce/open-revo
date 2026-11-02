@@ -1,0 +1,164 @@
+﻿import { AppTheme } from "../../theme.slint";
+
+export component DrawerGpuCard inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    height: 76px;
+
+    in-out property <string> gpu_mode: "dgpu"; // "igpu" | "hybrid" | "dgpu"
+    in-out property <int> gpu_temp: 48;
+    in-out property <int> gpu_rpm: 2123;
+
+    callback set_gpu_mode(string);
+
+    VerticalLayout {
+        padding: 6px;
+        spacing: 6px;
+
+        // Card Header Row
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 5px;
+                Image {
+                    source: @image-url("../../assets/icons/monitor.svg");
+                    width: 13px;
+                    height: 13px;
+                    colorize: #10b981;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "显卡模式:";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: gpu_mode == "dgpu" ? "独显直连 (dGPU)" : (gpu_mode == "hybrid" ? "标准混合 (Dynamic)" : "核显模式 (iGPU)");
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #10b981;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                text: "GPU: " + gpu_temp + "°C · Fan: " + gpu_rpm + " RPM";
+                font-size: 10px;
+                font-weight: 600;
+                color: #10b981;
+                vertical-alignment: center;
+            }
+        }
+
+        // 3 Buttons Grid (Icon top, Text bottom)
+        HorizontalLayout {
+            spacing: 5px;
+
+            // 1. iGPU
+            btn_igpu := Rectangle {
+                border-radius: 6px;
+                background: gpu_mode == "igpu" ? #10b98125 : (t_igpu.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: gpu_mode == "igpu" ? 1.5px : 1px;
+                border-color: gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle;
+
+                t_igpu := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_gpu_mode("igpu"); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/cpu.svg");
+                            width: 15px;
+                            height: 15px;
+                            colorize: gpu_mode == "igpu" ? #10b981 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "纯集显";
+                        font-size: 10.5px;
+                        font-weight: gpu_mode == "igpu" ? 700 : 500;
+                        color: gpu_mode == "igpu" ? #10b981 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 2. Hybrid
+            btn_hyb := Rectangle {
+                border-radius: 6px;
+                background: gpu_mode == "hybrid" ? #10b98125 : (t_hyb.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: gpu_mode == "hybrid" ? 1.5px : 1px;
+                border-color: gpu_mode == "hybrid" ? #10b981 : AppTheme.border_subtle;
+
+                t_hyb := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_gpu_mode("hybrid"); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/repeat.svg");
+                            width: 15px;
+                            height: 15px;
+                            colorize: gpu_mode == "hybrid" ? #10b981 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "标准混合";
+                        font-size: 10.5px;
+                        font-weight: gpu_mode == "hybrid" ? 700 : 500;
+                        color: gpu_mode == "hybrid" ? #10b981 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 3. dGPU
+            btn_dgpu := Rectangle {
+                border-radius: 6px;
+                background: gpu_mode == "dgpu" ? #10b98125 : (t_dgpu.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: gpu_mode == "dgpu" ? 1.5px : 1px;
+                border-color: gpu_mode == "dgpu" ? #10b981 : AppTheme.border_subtle;
+
+                t_dgpu := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_gpu_mode("dgpu"); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/crosshair.svg");
+                            width: 15px;
+                            height: 15px;
+                            colorize: gpu_mode == "dgpu" ? #10b981 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "独显直连";
+                        font-size: 10.5px;
+                        font-weight: gpu_mode == "dgpu" ? 700 : 500;
+                        color: gpu_mode == "dgpu" ? #10b981 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -586,7 +586,8 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
     }
 
     let mut cfg = crate::system::config::load_config();
-    if cfg.active_profile_id == id {
+    if cfg.active_profile_id == id || cfg.active_profile_id.is_empty() {
+        cfg.active_profile_id = id.clone();
         cfg.custom_profile = target.profile.clone();
         cfg.cpu_temp_target_max = target.profile.cpu_temp_target.max(95);
         let fp_opt = crate::system::power_mode::get_cached_factory_power_presets();

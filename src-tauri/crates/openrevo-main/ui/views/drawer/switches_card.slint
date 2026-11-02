@@ -1,0 +1,273 @@
+﻿import { AppTheme } from "../../theme.slint";
+
+export component DrawerSwitchesCard inherits VerticalLayout {
+    spacing: 6px;
+
+    in-out property <bool> fan_boost: false;
+    in-out property <bool> camera_enabled: true;
+    in-out property <bool> mic_enabled: true;
+    in-out property <bool> win_locked: false;
+    in-out property <bool> keep_awake: false;
+    in-out property <string> custom_status_text: "🍉 吃瓜群众 🍉 已就位 👀";
+
+    callback toggle_fan_boost();
+    callback toggle_camera();
+    callback toggle_mic();
+    callback toggle_win_lock();
+    callback toggle_keep_awake();
+    callback turn_off_screen();
+
+    // 6-Grid Buttons (Height 58px, comfortable spacing)
+    HorizontalLayout {
+        spacing: 5px;
+        height: 58px;
+
+        // 1. 一键强冷
+        btn_fb := Rectangle {
+            border-radius: 6px;
+            background: fan_boost ? #38bdf825 : (t_fb.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+            border-width: fan_boost ? 1.5px : 1px;
+            border-color: fan_boost ? #38bdf8 : AppTheme.border_subtle;
+
+            t_fb := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { toggle_fan_boost(); }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/icons/fan.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: fan_boost ? #38bdf8 : AppTheme.text_secondary;
+                    }
+                }
+                Text {
+                    text: "一键强冷";
+                    font-size: 9.5px;
+                    font-weight: fan_boost ? 700 : 500;
+                    color: fan_boost ? #38bdf8 : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // 2. 摄像头
+        btn_cam := Rectangle {
+            border-radius: 6px;
+            background: camera_enabled ? #38bdf825 : (t_cam.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+            border-width: camera_enabled ? 1.5px : 1px;
+            border-color: camera_enabled ? #38bdf8 : AppTheme.border_subtle;
+
+            t_cam := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { toggle_camera(); }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/icons/camera.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: camera_enabled ? #38bdf8 : AppTheme.text_secondary;
+                    }
+                }
+                Text {
+                    text: camera_enabled ? "摄像头" : "相机已关";
+                    font-size: 9.5px;
+                    font-weight: camera_enabled ? 700 : 500;
+                    color: camera_enabled ? #38bdf8 : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // 3. 麦克风
+        btn_mic := Rectangle {
+            border-radius: 6px;
+            background: mic_enabled ? #38bdf825 : (t_mic.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+            border-width: mic_enabled ? 1.5px : 1px;
+            border-color: mic_enabled ? #38bdf8 : AppTheme.border_subtle;
+
+            t_mic := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { toggle_mic(); }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/icons/mic.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: mic_enabled ? #38bdf8 : AppTheme.text_secondary;
+                    }
+                }
+                Text {
+                    text: mic_enabled ? "麦克风" : "麦克静音";
+                    font-size: 9.5px;
+                    font-weight: mic_enabled ? 700 : 500;
+                    color: mic_enabled ? #38bdf8 : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // 4. Win键锁
+        btn_win := Rectangle {
+            border-radius: 6px;
+            background: win_locked ? #38bdf825 : (t_win.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+            border-width: win_locked ? 1.5px : 1px;
+            border-color: win_locked ? #38bdf8 : AppTheme.border_subtle;
+
+            t_win := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { toggle_win_lock(); }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/icons/lock.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: win_locked ? #38bdf8 : AppTheme.text_secondary;
+                    }
+                }
+                Text {
+                    text: win_locked ? "Win已锁" : "Win键锁";
+                    font-size: 9.5px;
+                    font-weight: win_locked ? 700 : 500;
+                    color: win_locked ? #38bdf8 : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // 5. 常亮保持
+        btn_awk := Rectangle {
+            border-radius: 6px;
+            background: keep_awake ? #38bdf825 : (t_awk.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+            border-width: keep_awake ? 1.5px : 1px;
+            border-color: keep_awake ? #38bdf8 : AppTheme.border_subtle;
+
+            t_awk := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { toggle_keep_awake(); }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/icons/coffee.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: keep_awake ? #38bdf8 : AppTheme.text_secondary;
+                    }
+                }
+                Text {
+                    text: keep_awake ? "保持常亮" : "常亮保持";
+                    font-size: 9.5px;
+                    font-weight: keep_awake ? 700 : 500;
+                    color: keep_awake ? #38bdf8 : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // 6. 关闭屏幕
+        btn_offscreen := Rectangle {
+            border-radius: 6px;
+            background: t_scr.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            t_scr := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { turn_off_screen(); }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/icons/moon.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: AppTheme.text_secondary;
+                    }
+                }
+                Text {
+                    text: "关闭屏幕";
+                    font-size: 9.5px;
+                    font-weight: 500;
+                    color: AppTheme.text_primary;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+
+    // Status Ribbon (Dynamic Custom Text with Free Emoji Support)
+    HorizontalLayout {
+        alignment: space-between;
+        padding-left: 2px;
+        padding-right: 2px;
+
+        HorizontalLayout {
+            spacing: 5px;
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/monitor.svg");
+                    width: 11px;
+                    height: 11px;
+                    colorize: AppTheme.text_muted;
+                }
+            }
+            Text {
+                text: custom_status_text;
+                font-family: "Segoe UI Emoji, Microsoft YaHei, sans-serif";
+                font-size: 10px;
+                color: AppTheme.text_muted;
+                vertical-alignment: center;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 4px;
+            Text {
+                text: "●";
+                font-size: 8px;
+                color: #10b981;
+                vertical-alignment: center;
+            }
+            Text {
+                text: "READY";
+                font-size: 9px;
+                font-weight: 700;
+                color: #10b981;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

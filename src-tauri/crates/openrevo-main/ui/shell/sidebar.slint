@@ -1,0 +1,378 @@
+import { AppTheme } from "../theme.slint";
+
+export component DashboardSidebar inherits Rectangle {
+    width: 200px;
+    background: AppTheme.surface_base;
+
+    // Right border divider
+    Rectangle {
+        x: parent.width - 1px;
+        width: 1px;
+        height: 100%;
+        background: AppTheme.border_subtle;
+    }
+
+    in-out property <int> active_tab: 0; // 0: 概览, 1: 显卡, 2: 电源, 3: RGB, 4: 水冷, 5: 插件, 6: 系统, 7: 赞助
+    in-out property <bool> is_water_connected: false;
+
+    callback select_tab(int);
+    callback collapse_to_mini();
+
+    VerticalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 10px;
+
+        // 1. Top Brand & WindowMoveArea Drag Handle
+        WindowMoveArea {
+            height: 36px;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../assets/logo.png");
+                        width: 22px;
+                        height: 22px;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: "OPENREVO";
+                        font-size: 13.5px;
+                        font-weight: 800;
+                        letter-spacing: 0.8px;
+                        color: AppTheme.text_primary;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #6366f1;
+                        height: 15px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: "PRO";
+                                font-size: 8.5px;
+                                font-weight: 800;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Navigation Items (Scrollable or Vertical Flex)
+        VerticalLayout {
+            spacing: 3px;
+
+            // Section Label: 核心硬件
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-bottom: 2px;
+                Text {
+                    text: "核心硬件";
+                    font-size: 9px;
+                    font-weight: 700;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            // Tab 0: 状态总览
+            item_0 := Rectangle {
+                height: 34px;
+                border-radius: 6px;
+                background: active_tab == 0 ? #38bdf820 : (t_0.has-hover ? AppTheme.surface_card_hover : transparent);
+                border-width: active_tab == 0 ? 1px : 0px;
+                border-color: #38bdf880;
+                t_0 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(0); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/grid.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: active_tab == 0 ? #38bdf8 : AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "状态总览";
+                        font-size: 11px;
+                        font-weight: active_tab == 0 ? 700 : 500;
+                        color: active_tab == 0 ? #38bdf8 : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Tab 1: 显卡模式
+            item_1 := Rectangle {
+                height: 34px;
+                border-radius: 6px;
+                background: active_tab == 1 ? #38bdf820 : (t_1.has-hover ? AppTheme.surface_card_hover : transparent);
+                border-width: active_tab == 1 ? 1px : 0px;
+                border-color: #38bdf880;
+                t_1 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(1); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/monitor.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: active_tab == 1 ? #38bdf8 : AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "显卡模式";
+                        font-size: 11px;
+                        font-weight: active_tab == 1 ? 700 : 500;
+                        color: active_tab == 1 ? #38bdf8 : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Tab 2: 电源管理
+            item_2 := Rectangle {
+                height: 34px;
+                border-radius: 6px;
+                background: active_tab == 2 ? #38bdf820 : (t_2.has-hover ? AppTheme.surface_card_hover : transparent);
+                border-width: active_tab == 2 ? 1px : 0px;
+                border-color: #38bdf880;
+                t_2 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(2); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/zap.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: active_tab == 2 ? #38bdf8 : AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "电源管理";
+                        font-size: 11px;
+                        font-weight: active_tab == 2 ? 700 : 500;
+                        color: active_tab == 2 ? #38bdf8 : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Tab 3: RGB 灯效工坊
+            item_3 := Rectangle {
+                height: 34px;
+                border-radius: 6px;
+                background: active_tab == 3 ? #38bdf820 : (t_3.has-hover ? AppTheme.surface_card_hover : transparent);
+                border-width: active_tab == 3 ? 1px : 0px;
+                border-color: #38bdf880;
+                t_3 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(3); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/keyboard.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: active_tab == 3 ? #38bdf8 : AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "RGB 灯效工坊";
+                        font-size: 11px;
+                        font-weight: active_tab == 3 ? 700 : 500;
+                        color: active_tab == 3 ? #38bdf8 : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Tab 4: 水冷魔盒
+            item_4 := Rectangle {
+                height: 34px;
+                border-radius: 6px;
+                background: active_tab == 4 ? #38bdf820 : (t_4.has-hover ? AppTheme.surface_card_hover : transparent);
+                border-width: active_tab == 4 ? 1px : 0px;
+                border-color: #38bdf880;
+                t_4 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(4); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/droplet.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: is_water_connected ? #06b6d4 : AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "水冷魔盒 (BLE)";
+                        font-size: 11px;
+                        font-weight: active_tab == 4 ? 700 : 500;
+                        color: active_tab == 4 ? #38bdf8 : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Divider
+            Rectangle {
+                height: 1px;
+                background: AppTheme.border_subtle;
+            }
+
+            // Section Label: 扩展生态
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-top: 4px;
+                padding-bottom: 2px;
+                Text {
+                    text: "扩展生态";
+                    font-size: 9px;
+                    font-weight: 700;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            // Tab 5: 插件中心
+            item_5 := Rectangle {
+                height: 34px;
+                border-radius: 6px;
+                background: active_tab == 5 ? #38bdf820 : (t_5.has-hover ? AppTheme.surface_card_hover : transparent);
+                border-width: active_tab == 5 ? 1px : 0px;
+                border-color: #38bdf880;
+                t_5 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(5); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/layers.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: active_tab == 5 ? #38bdf8 : AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "插件中心";
+                        font-size: 11px;
+                        font-weight: active_tab == 5 ? 700 : 500;
+                        color: active_tab == 5 ? #38bdf8 : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Spacer to push bottom items down
+        Rectangle {
+            vertical-stretch: 1;
+        }
+
+        // 3. Bottom Controls (Fixed)
+        VerticalLayout {
+            spacing: 3px;
+
+            // System Settings
+            item_6 := Rectangle {
+                height: 32px;
+                border-radius: 6px;
+                background: active_tab == 6 ? #38bdf820 : (t_6.has-hover ? AppTheme.surface_card_hover : transparent);
+                t_6 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(6); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/settings.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "系统设置";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Sponsor
+            item_7 := Rectangle {
+                height: 32px;
+                border-radius: 6px;
+                background: active_tab == 7 ? #38bdf820 : (t_7.has-hover ? AppTheme.surface_card_hover : transparent);
+                t_7 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(7); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/heart.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: #f43f5e;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "支持作者";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Collapse to Mini Mode Button
+            Rectangle {
+                height: 32px;
+                border-radius: 6px;
+                background: t_cmini.has-hover ? AppTheme.surface_pill : transparent;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+                t_cmini := TouchArea { mouse-cursor: pointer; clicked => { collapse_to_mini(); } }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    Image {
+                        source: @image-url("../assets/icons/maximize2.svg");
+                        width: 13px;
+                        height: 13px;
+                        colorize: #38bdf8;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "收起至迷你抽屉";
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        color: #38bdf8;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,396 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardTelemetryCards inherits Rectangle {
+    height: 125px;
+    background: transparent;
+
+    in-out property <int> cpu_temp: 64;
+    in-out property <int> cpu_mhz: 2392;
+    in-out property <string> cpu_watts_text: "16.8 W";
+    in-out property <int> cpu_usage: 3;
+    in-out property <string> cpu_name: "Intel Core i9-14900HX";
+
+    in-out property <int> gpu_temp: 51;
+    in-out property <int> gpu_mhz: 555;
+    in-out property <string> gpu_watts_text: "22.4 W";
+    in-out property <int> gpu_usage: 15;
+    in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+
+    in-out property <int> cpu_rpm: 2746;
+    in-out property <int> gpu_rpm: 2635;
+
+    in-out property <string> vram_text: "1.7 / 16.0 GB";
+    in-out property <int> vram_mhz: 810;
+    in-out property <int> vram_usage: 10;
+
+    HorizontalLayout {
+        spacing: 12px;
+
+        // 1. CPU 处理器状态
+        card_cpu := Rectangle {
+            background: AppTheme.surface_card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 12px;
+                alignment: space-between;
+
+                // Top: Title & Real Watts
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "CPU 处理器状态";
+                        font-size: 11.5px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: root.cpu_watts_text;
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                        Image {
+                            source: @image-url("../../assets/icons/cpu.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+
+                // Middle: Temp & MHz
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 2px;
+                        Text {
+                            text: cpu_temp;
+                            font-size: 26px;
+                            font-weight: 800;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: bottom;
+                        }
+                        Text {
+                            text: " °C";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: bottom;
+                        }
+                    }
+                    Text {
+                        text: cpu_mhz + " MHz";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: #38bdf8;
+                        vertical-alignment: bottom;
+                    }
+                }
+
+                // Bottom: Model & Usage Badge
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: cpu_name;
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: #38bdf818;
+                        border-width: 1px;
+                        border-color: #38bdf840;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: cpu_usage + "%";
+                                font-size: 9.5px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. GPU 独立显卡
+        card_gpu := Rectangle {
+            background: AppTheme.surface_card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 12px;
+                alignment: space-between;
+
+                // Top: Title & Real Watts
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "GPU 独立显卡";
+                        font-size: 11.5px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: root.gpu_watts_text;
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #10b981;
+                            vertical-alignment: center;
+                        }
+                        Image {
+                            source: @image-url("../../assets/icons/activity.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #10b981;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+
+                // Middle: Temp & MHz
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 2px;
+                        Text {
+                            text: gpu_temp;
+                            font-size: 26px;
+                            font-weight: 800;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: bottom;
+                        }
+                        Text {
+                            text: " °C";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: bottom;
+                        }
+                    }
+                    Text {
+                        text: gpu_mhz + " MHz";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: #10b981;
+                        vertical-alignment: bottom;
+                    }
+                }
+
+                // Bottom: Model & Usage Badge
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: gpu_name;
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: #10b98118;
+                        border-width: 1px;
+                        border-color: #10b98140;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: gpu_usage + "%";
+                                font-size: 9.5px;
+                                font-weight: 700;
+                                color: #10b981;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. 散热系统状态
+        card_fan := Rectangle {
+            background: AppTheme.surface_card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 12px;
+                alignment: space-between;
+
+                // Top: Title & Icon
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "散热系统状态";
+                        font-size: 11.5px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                    Image {
+                        source: @image-url("../../assets/icons/fan.svg");
+                        width: 13px;
+                        height: 13px;
+                        colorize: #38bdf8;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                // Middle: CPU Fan & GPU Fan RPM
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text { text: "CPU 扇"; font-size: 9px; color: AppTheme.text_muted; }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            Text { text: cpu_rpm; font-size: 16px; font-weight: 800; color: AppTheme.text_primary; }
+                            Text { text: " RPM"; font-size: 8.5px; color: #38bdf8; vertical-alignment: bottom; }
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text { text: "GPU 扇"; font-size: 9px; color: AppTheme.text_muted; }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            Text { text: gpu_rpm; font-size: 16px; font-weight: 800; color: AppTheme.text_primary; }
+                            Text { text: " RPM"; font-size: 8.5px; color: #38bdf8; vertical-alignment: bottom; }
+                        }
+                    }
+                }
+
+                // Bottom: Strategy Badge
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "双风扇散热";
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: #0284c718;
+                        border-width: 1px;
+                        border-color: #0284c740;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: "自动温控";
+                                font-size: 9.5px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. VRAM 显存容量
+        card_vram := Rectangle {
+            background: AppTheme.surface_card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 12px;
+                alignment: space-between;
+
+                // Top: Title & Star/Chip Icon
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "VRAM 显存容量";
+                        font-size: 11.5px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                    Image {
+                        source: @image-url("../../assets/icons/monitor.svg");
+                        width: 13px;
+                        height: 13px;
+                        colorize: #c084fc;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                // Middle: VRAM Usage & MHz
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: vram_text;
+                        font-size: 16px;
+                        font-weight: 800;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: bottom;
+                    }
+                    Text {
+                        text: vram_mhz + " MHz";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: #c084fc;
+                        vertical-alignment: bottom;
+                    }
+                }
+
+                // Bottom: Type & Usage Badge
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "专用显存 (VRAM)";
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: #c084fc18;
+                        border-width: 1px;
+                        border-color: #c084fc40;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: vram_usage + "%";
+                                font-size: 9.5px;
+                                font-weight: 700;
+                                color: #c084fc;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

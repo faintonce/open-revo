@@ -1,0 +1,42 @@
+export global AppTheme {
+    // 0: Dark (Default), 1: Light, 2: Mono (Geek High-Contrast)
+    in-out property <int> theme_mode: 0;
+
+    // Helper checks
+    out property <bool> is_dark: theme_mode != 1;
+    out property <bool> is_mono: theme_mode == 2;
+    out property <bool> is_light: theme_mode == 1;
+
+    // --- 1. Surfaces & Backgrounds ---
+    in-out property <color> bg_root: is_light ? #f3f4f6 : (is_mono ? #000000 : #0b0e14);
+    in-out property <color> surface_base: is_light ? #ffffff : (is_mono ? #0d0d0d : #10141d);
+    in-out property <color> surface_card: is_light ? #ffffff : (is_mono ? #161616 : #161b24);
+    in-out property <color> surface_card_hover: is_light ? #f9fafb : (is_mono ? #222222 : #1f2633);
+    in-out property <color> surface_pill: is_light ? #e5e7eb : (is_mono ? #262626 : #202736);
+    in-out property <color> surface_elevated: is_light ? #ffffff : (is_mono ? #1f1f1f : #1b212c);
+    in-out property <color> surface_sunken: is_light ? #e5e7eb : (is_mono ? #080808 : #080a0f);
+
+    // --- 2. Borders & Dividers ---
+    in-out property <color> border_subtle: is_light ? #e5e7eb : (is_mono ? #262626 : #1f2736);
+    in-out property <color> border_medium: is_light ? #d1d5db : (is_mono ? #3d3d3d : #2e384d);
+    in-out property <color> border_highlight: is_light ? #9ca3af : (is_mono ? #666666 : #475569);
+
+    // --- 3. Typography ---
+    in-out property <color> text_primary: is_light ? #111827 : (is_mono ? #ffffff : #f8fafc);
+    in-out property <color> text_secondary: is_light ? #4b5563 : (is_mono ? #cccccc : #cbd5e1);
+    in-out property <color> text_muted: is_light ? #9ca3af : (is_mono ? #777777 : #64748b);
+
+    // --- 4. Semantic Accents (Mode / Fans / Hardware) ---
+    in-out property <color> accent_brand: is_mono ? #ffffff : #6366f1;
+    in-out property <color> mode_office: is_mono ? #ffffff : #10b981;
+    in-out property <color> mode_balance: is_mono ? #ffffff : #3b82f6;
+    in-out property <color> mode_beast: is_mono ? #ffffff : #f43f5e;
+    in-out property <color> accent_fan: is_mono ? #ffffff : #06b6d4;
+    in-out property <color> accent_gold: is_mono ? #ffffff : #f59e0b;
+
+    // --- 5. Geometry Standards ---
+    in-out property <length> radius_xs: 4px;
+    in-out property <length> radius_sm: 6px;
+    in-out property <length> radius_md: 8px;
+    in-out property <length> radius_lg: 12px;
+}
