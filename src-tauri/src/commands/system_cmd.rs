@@ -49,6 +49,11 @@ pub struct HardwareState {
     pub model_name: String,
     pub power_presets: FactoryPowerPresets,
     pub is_dc_online: bool,
+    pub adapter_type: String,
+    pub adapter_raw: Option<u8>,
+    pub adapter_watts: Option<u16>,
+    pub battery_rate_watts: Option<f32>,
+    pub battery_cycle_count: Option<u32>,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
 }
@@ -146,6 +151,7 @@ pub fn collect_hardware_state(
 
     let cfg = crate::system::config::load_config();
 
+    let power_input = crate::system::power::battery_input::read_power_input();
     HardwareState {
         power_mode,
         fan_boost,
@@ -183,6 +189,11 @@ pub fn collect_hardware_state(
         model_name: get_machine_model(),
         power_presets: get_factory_power_presets(has_gpu),
         is_dc_online: is_dc_round_plugged_in(),
+        adapter_type: power_input.adapter_type,
+        adapter_raw: power_input.adapter_raw,
+        adapter_watts: power_input.adapter_watts,
+        battery_rate_watts: power_input.battery_rate_watts,
+        battery_cycle_count: power_input.battery_cycle_count,
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
     }
@@ -469,6 +480,11 @@ pub struct DesensitizedCapabilities {
     pub has_win_lock: bool,
     pub is_rgb_keyboard: bool,
     pub is_dc_online: bool,
+    pub adapter_type: String,
+    pub adapter_raw: Option<u8>,
+    pub adapter_watts: Option<u16>,
+    pub battery_rate_watts: Option<f32>,
+    pub battery_cycle_count: Option<u32>,
 }
 
 #[tauri::command]
@@ -596,6 +612,11 @@ pub fn export_device_diagnostic_report(
             has_win_lock: flags.has_win_lock,
             is_rgb_keyboard: flags.is_rgb_keyboard,
             is_dc_online: is_dc,
+            adapter_type: crate::system::power::battery_input::read_power_input().adapter_type,
+            adapter_raw: crate::system::power::battery_input::read_power_input().adapter_raw,
+            adapter_watts: crate::system::power::battery_input::read_power_input().adapter_watts,
+            battery_rate_watts: crate::system::power::battery_input::read_power_input().battery_rate_watts,
+            battery_cycle_count: crate::system::power::battery_input::read_power_input().battery_cycle_count,
         },
     };
 

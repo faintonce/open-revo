@@ -43,6 +43,11 @@ export interface HardwareState {
   board_name?: string;       // e.g. "XINGYAO Series-P916F-STX" or "GM6IX9B"
   power_presets?: FactoryPowerPresets; // Real hardware factory power limits from motherboard EC
   is_dc_online?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
+  adapter_type?: string;     // 圆口 / 圆口+Type-C / Type-C / 未知
+  adapter_raw?: number | null;
+  adapter_watts?: number | null;
+  battery_rate_watts?: number | null;
+  battery_cycle_count?: number | null;
   cpu_power_w?: number;      // CPU package real-time power (W)
   gpu_power_w?: number;      // GPU real-time power draw (W)
   gpu_tuning_caps?: GpuTuningCapabilities; // Multi-generation GPU tuning & DB/cTGP capabilities

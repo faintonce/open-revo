@@ -10,6 +10,11 @@ interface PowerSettingsInfo {
   battery_mode: string; // "long_life" (100) | "balance" (80) | "station" (60)
   battery_limit: number;
   battery_hardware_limit_enabled: boolean;
+  adapter_type: string;
+  adapter_raw?: number | null;
+  adapter_watts?: number | null;
+  battery_rate_watts?: number | null;
+  battery_cycle_count?: number | null;
   usb_charge_enabled: boolean;
   ac_recovery_enabled: boolean;
   high_perf_scheme: boolean;
@@ -33,6 +38,11 @@ export const PowerTuningView: React.FC = () => {
     battery_mode: 'balance',
     battery_limit: 80,
     battery_hardware_limit_enabled: false,
+    adapter_type: '未知',
+    adapter_raw: null,
+    adapter_watts: null,
+    battery_rate_watts: null,
+    battery_cycle_count: null,
     usb_charge_enabled: false,
     ac_recovery_enabled: false,
     high_perf_scheme: true,
@@ -629,8 +639,26 @@ export const PowerTuningView: React.FC = () => {
               }}
             >
               {powerInfo.is_ac_online ? <Plug className="w-3.5 h-3.5" /> : <Battery className="w-3.5 h-3.5" />}
-              <span>{powerInfo.is_ac_online ? '已连接电源适配器' : '正在使用电池供电'}</span>
+              <span>
+                {powerInfo.is_ac_online
+                  ? (() => {
+                      const barrel = powerInfo.adapter_type === '圆口' || powerInfo.adapter_type === '圆口+Type-C';
+                      const rated = barrel && powerInfo.adapter_watts
+                        ? (powerInfo.adapter_watts === 230 ? ' 230/240W' : ` ${powerInfo.adapter_watts}W`)
+                        : '';
+                      const rate = powerInfo.battery_rate_watts ?? 0;
+                      if (rate > 0) return `适配器${rated} · 充电中 ${rate}W`;
+                      return `适配器${rated}`;
+                    })()
+                  : '正在使用电池供电'}
+              </span>
             </div>
+
+            {powerInfo.battery_cycle_count != null && powerInfo.battery_cycle_count > 0 && (
+              <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
+                电池循环 {powerInfo.battery_cycle_count} 次
+              </div>
+            )}
           </div>
         </div>
       </div>

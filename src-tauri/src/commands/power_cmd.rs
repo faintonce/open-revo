@@ -11,6 +11,11 @@ pub struct PowerSettingsInfo {
     pub is_charging: bool,           // Real hardware charging state (Win32 BatteryFlag & 0x08)
     pub battery_mode: String,        // "long_life" (100) | "balance" (80) | "station" (60)
     pub battery_limit: u8,           // actual hardware limit: 100, 80, 60, etc.
+    pub adapter_type: String,
+    pub adapter_raw: Option<u8>,
+    pub adapter_watts: Option<u16>,
+    pub battery_rate_watts: Option<f32>,
+    pub battery_cycle_count: Option<u32>,
     pub battery_hardware_limit_enabled: bool,
     pub usb_charge_enabled: bool,
     pub ac_recovery_enabled: bool,
@@ -552,12 +557,18 @@ pub fn query_sleep_guard_registry_states(cfg: &crate::system::config::AppConfig)
         sleep_hibernate_30m,
     ) = query_sleep_guard_registry_states(&cfg);
 
+    let power_input = crate::system::power::battery_input::read_power_input();
     PowerSettingsInfo {
         battery_percent: percent,
         is_ac_online: is_dc,
         is_charging,
         battery_mode: mode,
         battery_limit: effective_limit,
+        adapter_type: power_input.adapter_type,
+        adapter_raw: power_input.adapter_raw,
+        adapter_watts: power_input.adapter_watts,
+        battery_rate_watts: power_input.battery_rate_watts,
+        battery_cycle_count: power_input.battery_cycle_count,
         battery_hardware_limit_enabled: cfg.battery_hardware_limit_enabled,
         usb_charge_enabled: usb_charge,
         ac_recovery_enabled: ac_recovery,
