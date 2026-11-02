@@ -7,13 +7,13 @@ use tauri::{AppHandle, Emitter};
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     keybd_event, GetAsyncKeyState, GetKeyState, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_CAPITAL,
-    VK_CONTROL, VK_LCONTROL, VK_RCONTROL, VK_LWIN, VK_MENU, VK_LMENU, VK_RMENU, VK_NUMLOCK,
-    VK_RWIN, VK_SCROLL, VK_SHIFT, VK_LSHIFT, VK_RSHIFT,
+    VK_CONTROL, VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_MENU, VK_NUMLOCK, VK_RCONTROL,
+    VK_RMENU, VK_RSHIFT, VK_RWIN, VK_SCROLL, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW,
-    TranslateMessage, UnhookWindowsHookEx, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_KEYDOWN,
-    WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, TranslateMessage,
+    UnhookWindowsHookEx, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT,
+    WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 extern "system" {
@@ -34,6 +34,94 @@ static SCROLL_STATE: AtomicBool = AtomicBool::new(false);
 static LAST_CAPS_PRESS: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_NUM_PRESS: Mutex<Option<Instant>> = Mutex::new(None);
 static LAST_SCROLL_PRESS: Mutex<Option<Instant>> = Mutex::new(None);
+
+type LockNotification = (&'static str, bool);
+static LOCK_NOTIFICATIONS: OnceLock<std::sync::mpsc::SyncSender<LockNotification>> =
+    OnceLock::new();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regression_lock_notifications_keep_order_without_blocking_the_keyboard_hook() {
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let (seen_tx, seen_rx) = std::sync::mpsc::channel();
+        let mut first = true;
+        let (sender, worker) = spawn_lock_notifier(move |event| {
+            if first {
+                first = false;
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+            }
+            seen_tx.send(event).unwrap();
+        })
+        .unwrap();
+        sender.try_send(("caps", true)).unwrap();
+        entered_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap();
+        for index in 0..64 {
+            sender.try_send(("num", index % 2 == 0)).unwrap();
+        }
+        assert!(matches!(
+            sender.try_send(("scroll", true)),
+            Err(std::sync::mpsc::TrySendError::Full(_))
+        ));
+        release_tx.send(()).unwrap();
+        drop(sender);
+        worker.join().unwrap();
+        assert_eq!(
+            seen_rx.try_iter().collect::<Vec<_>>(),
+            std::iter::once(("caps", true))
+                .chain((0..64).map(|index| ("num", index % 2 == 0)))
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+fn spawn_lock_notifier(
+    mut notify: impl FnMut(LockNotification) + Send + 'static,
+) -> std::io::Result<(
+    std::sync::mpsc::SyncSender<LockNotification>,
+    std::thread::JoinHandle<()>,
+)> {
+    // shortcut: Drop notifications when 64 are queued; coalesce states if slow OSD writes make this frequent.
+    let (sender, receiver) = std::sync::mpsc::sync_channel(64);
+    let worker = thread::Builder::new()
+        .name("lock-key-notifications".into())
+        .spawn(move || {
+            for notification in receiver {
+                notify(notification);
+            }
+        })?;
+    Ok((sender, worker))
+}
+
+fn init_lock_notifications(app: AppHandle) {
+    if LOCK_NOTIFICATIONS.get().is_some() {
+        return;
+    }
+    match spawn_lock_notifier(move |(name, locked)| {
+        crate::log_info!("HOOKS", "{} Lock toggled to {}", name, locked);
+        crate::system::osd_window::show_key_lock_toast(name, locked);
+        crate::system::osd_window::wake_osd_if_enabled(&app);
+        let event = format!("{}-lock-changed", name);
+        let _ = app.emit(&event, locked);
+        let _ = app.emit_to("main", &event, locked);
+        let _ = app.emit_to("osd", &event, locked);
+    }) {
+        Ok((sender, _worker)) => {
+            let _ = LOCK_NOTIFICATIONS.set(sender);
+        }
+        Err(error) => crate::log_error!(
+            "HOOKS",
+            "Failed to start lock notification worker: {}",
+            error
+        ),
+    }
+}
 
 /// Query true live lock key toggle state safely
 unsafe fn query_hardware_lock_state(vk: u16) -> bool {
@@ -101,7 +189,9 @@ unsafe extern "system" fn low_level_keyboard_proc(
                 let is_win = (GetAsyncKeyState(VK_LWIN.0 as i32) as u16 & 0x8000) != 0
                     || (GetAsyncKeyState(VK_RWIN.0 as i32) as u16 & 0x8000) != 0;
 
-                if crate::system::shortcuts::check_match_and_trigger(app, vk, is_ctrl, is_alt, is_shift, is_win) {
+                if crate::system::shortcuts::check_match_and_trigger(
+                    app, vk, is_ctrl, is_alt, is_shift, is_win,
+                ) {
                     return LRESULT(1);
                 }
             }
@@ -112,7 +202,7 @@ unsafe extern "system" fn low_level_keyboard_proc(
         // At this hook callback point, GetKeyState returns the state BEFORE the key toggle takes effect;
         // checking `(GetKeyState(vk) & 1) == 0` guarantees the exact new state after this toggle.
         if msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN {
-            if let Some(app) = APP_HANDLE.get() {
+            if APP_HANDLE.get().is_some() {
                 if vk == VK_CAPITAL.0 {
                     let mut last = LAST_CAPS_PRESS.lock();
                     let should_fire = match *last {
@@ -125,12 +215,9 @@ unsafe extern "system" fn low_level_keyboard_proc(
 
                         let new_val = (GetKeyState(VK_CAPITAL.0 as i32) & 1) == 0;
                         CAPS_STATE.store(new_val, Ordering::SeqCst);
-                        crate::log_info!("HOOKS", "Caps Lock toggled to {}", new_val);
-                        crate::system::osd_window::show_key_lock_toast("caps", new_val);
-                        crate::system::osd_window::wake_osd_if_enabled(app);
-                        let _ = app.emit("caps-lock-changed", new_val);
-                        let _ = app.emit_to("main", "caps-lock-changed", new_val);
-                        let _ = app.emit_to("osd", "caps-lock-changed", new_val);
+                        if let Some(sender) = LOCK_NOTIFICATIONS.get() {
+                            let _ = sender.try_send(("caps", new_val));
+                        }
                     }
                 } else if vk == VK_NUMLOCK.0 {
                     let mut last = LAST_NUM_PRESS.lock();
@@ -144,12 +231,9 @@ unsafe extern "system" fn low_level_keyboard_proc(
 
                         let new_val = (GetKeyState(VK_NUMLOCK.0 as i32) & 1) == 0;
                         NUM_STATE.store(new_val, Ordering::SeqCst);
-                        crate::log_info!("HOOKS", "Num Lock toggled to {}", new_val);
-                        crate::system::osd_window::show_key_lock_toast("num", new_val);
-                        crate::system::osd_window::wake_osd_if_enabled(app);
-                        let _ = app.emit("num-lock-changed", new_val);
-                        let _ = app.emit_to("main", "num-lock-changed", new_val);
-                        let _ = app.emit_to("osd", "num-lock-changed", new_val);
+                        if let Some(sender) = LOCK_NOTIFICATIONS.get() {
+                            let _ = sender.try_send(("num", new_val));
+                        }
                     }
                 } else if vk == VK_SCROLL.0 {
                     let mut last = LAST_SCROLL_PRESS.lock();
@@ -163,12 +247,9 @@ unsafe extern "system" fn low_level_keyboard_proc(
 
                         let new_val = (GetKeyState(VK_SCROLL.0 as i32) & 1) == 0;
                         SCROLL_STATE.store(new_val, Ordering::SeqCst);
-                        crate::log_info!("HOOKS", "Scroll Lock toggled to {}", new_val);
-                        crate::system::osd_window::show_key_lock_toast("scroll", new_val);
-                        crate::system::osd_window::wake_osd_if_enabled(app);
-                        let _ = app.emit("scroll-lock-changed", new_val);
-                        let _ = app.emit_to("main", "scroll-lock-changed", new_val);
-                        let _ = app.emit_to("osd", "scroll-lock-changed", new_val);
+                        if let Some(sender) = LOCK_NOTIFICATIONS.get() {
+                            let _ = sender.try_send(("scroll", new_val));
+                        }
                     }
                 }
             }
@@ -184,6 +265,7 @@ pub fn is_win_key_locked() -> bool {
 /// Initialize the permanent low-level keyboard hook with its dedicated message pump
 pub fn init_hooks(app: &AppHandle) {
     let _ = APP_HANDLE.set(app.clone());
+    init_lock_notifications(app.clone());
 
     // Query initial hardware toggle states
     unsafe {
@@ -229,13 +311,21 @@ fn ensure_hook_running() {
             ) {
                 Ok(h) => h,
                 Err(e) => {
-                    crate::log_error!("HOOKS", "Failed to install low-level keyboard hook: {:?}", e);
+                    crate::log_error!(
+                        "HOOKS",
+                        "Failed to install low-level keyboard hook: {:?}",
+                        e
+                    );
                     HOOK_THREAD_ID.store(0, Ordering::SeqCst);
                     return;
                 }
             };
 
-            crate::log_info!("HOOKS", "Low-level keyboard hook installed successfully (TID: {})", tid);
+            crate::log_info!(
+                "HOOKS",
+                "Low-level keyboard hook installed successfully (TID: {})",
+                tid
+            );
 
             // Win32 Message Pump for WH_KEYBOARD_LL
             let mut msg = MSG::default();
@@ -261,4 +351,3 @@ pub fn set_win_key_locked(locked: bool) {
     }
     ensure_hook_running();
 }
-

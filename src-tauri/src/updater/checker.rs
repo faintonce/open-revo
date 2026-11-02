@@ -3,9 +3,9 @@
 
 use std::time::Duration;
 use semver::Version;
-use super::types::{ReleaseManifest, UpdateCheckResult};
+use super::types::{AssetInfo, ReleaseManifest, UpdateCheckResult};
 
-pub const DEFAULT_GITHUB_URL: &str = "https://raw.githubusercontent.com/faintonce/open-revo/main/latest.json";
+pub const DEFAULT_GITHUB_URL: &str = "https://github.com/faintonce/open-revo/releases/latest/download/latest.json";
 pub const DEFAULT_GITEE_URL: &str = "https://gitee.com/faintonce/open-revo/raw/master/latest.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,8 +31,17 @@ pub fn detect_distribution_type() -> DistributionType {
 }
 
 /// Creates a standard ureq agent configured with timeouts and native TLS
-pub fn create_http_agent(timeout_ms: u64) -> ureq::Agent {
+pub fn is_local_debug_url(url: &str) -> bool {
+    cfg!(debug_assertions) && tauri::Url::parse(url).is_ok_and(|url| {
+        url.scheme() == "http" && matches!(url.host_str(), Some("127.0.0.1" | "localhost"))
+            && url.username().is_empty() && url.password().is_none()
+    })
+}
+
+pub fn create_http_agent(timeout_ms: u64, url: &str) -> ureq::Agent {
     let mut builder = ureq::builder()
+        .https_only(!is_local_debug_url(url))
+        .timeout(Duration::from_millis(timeout_ms))
         .timeout_connect(Duration::from_millis(timeout_ms))
         .timeout_read(Duration::from_millis(timeout_ms))
         .user_agent("OpenRevo-Updater");
@@ -51,7 +60,7 @@ pub fn create_http_agent(timeout_ms: u64) -> ureq::Agent {
 
 /// Single manifest fetch helper with timeout and branch fallback (master <-> main)
 fn fetch_single_manifest(url: &str, timeout_ms: u64) -> Result<ReleaseManifest, String> {
-    let agent = create_http_agent(timeout_ms);
+    let agent = create_http_agent(timeout_ms, url);
 
     let try_fetch = |target: &str| -> Result<Option<ReleaseManifest>, String> {
         let resp = match agent.get(target).call() {
@@ -160,37 +169,34 @@ pub fn race_manifest_fetch_sync(
             let _ = tx_github.send(("github".to_string(), res));
         });
 
-    // Wait for the first responder
-    let first = rx.recv_timeout(Duration::from_millis(2500))
-        .map_err(|_| "Dual-source probe timed out after 2500ms".to_string())?;
+    newest_manifest(rx, Duration::from_millis(5500))
+}
 
-    match first.1 {
-        Ok(m) => {
-            crate::log_info!("UPDATER", "{} responded first and succeeded!", first.0);
-            Ok((first.0, m))
-        }
-        Err(first_err) => {
-            let fallback_name = if first.0 == "gitee" { "github" } else { "gitee" };
-            crate::log_warn!("UPDATER", "{} fast probe failed ({}). Awaiting fallback {}...", first.0, first_err, fallback_name);
-            // Wait for the second responder
-            match rx.recv_timeout(Duration::from_millis(3000)) {
-                Ok((second_name, Ok(m))) => {
-                    crate::log_info!("UPDATER", "Fallback {} succeeded!", second_name);
-                    Ok((second_name, m))
-                }
-                Ok((second_name, Err(second_err))) => {
-                    Err(format!("Both sources failed: {} ({}), {} ({})", first.0, first_err, second_name, second_err))
-                }
-                Err(_) => {
-                    // Fallback to a single retry on the alternative with 5000ms
-                    let fallback_url = if first.0 == "gitee" { DEFAULT_GITHUB_URL } else { DEFAULT_GITEE_URL };
-                    crate::log_info!("UPDATER", "Retrying fallback {} with extended 5000ms timeout...", fallback_name);
-                    let m = fetch_single_manifest(fallback_url, 5000)?;
-                    Ok((fallback_name.to_string(), m))
+fn newest_manifest(
+    responses: std::sync::mpsc::Receiver<(String, Result<ReleaseManifest, String>)>,
+    timeout: Duration,
+) -> Result<(String, ReleaseManifest), String> {
+    let deadline = std::time::Instant::now() + timeout;
+    let mut newest: Option<(Version, String, ReleaseManifest)> = None;
+    let mut errors = Vec::new();
+    for _ in 0..2 {
+        let response = responses.recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()));
+        let (source, manifest) = match response {
+            Ok(value) => value,
+            Err(_) => { errors.push("Manifest probe timed out or disconnected".into()); break; }
+        };
+        match manifest.and_then(|manifest| {
+            Version::parse(&manifest.version).map(|version| (version, manifest)).map_err(|e| e.to_string())
+        }) {
+            Ok((version, manifest)) => {
+                if newest.as_ref().is_none_or(|(old, old_source, _)| version > *old || (version == *old && source == "github" && old_source != "github")) {
+                    newest = Some((version, source, manifest));
                 }
             }
+            Err(error) => errors.push(format!("{}: {}", source, error)),
         }
     }
+    newest.map(|(_, source, manifest)| (source, manifest)).ok_or_else(|| errors.join("; "))
 }
 
 /// Checks whether an update is available based strictly on SemVer
@@ -212,6 +218,19 @@ pub fn evaluate_update(
     remote_v > local_v
 }
 
+fn select_update_asset(manifest: &ReleaseManifest, dist_type: DistributionType) -> Result<(&'static str, &AssetInfo), String> {
+    let keys = if dist_type == DistributionType::Installer {
+        ["installer", "binary_only"]
+    } else {
+        ["binary_only", "installer"]
+    };
+    keys.into_iter().find_map(|key| {
+        manifest.assets.get(key)
+            .filter(|asset| asset.filename.to_ascii_lowercase().ends_with(".exe"))
+            .map(|asset| (key, asset))
+    }).ok_or_else(|| "No executable update asset found; archive updates are not supported".into())
+}
+
 fn check_for_updates_sync(preferred_source: Option<&str>) -> Result<UpdateCheckResult, String> {
     let (chosen_source, manifest) = race_manifest_fetch_sync(preferred_source)?;
 
@@ -222,19 +241,7 @@ fn check_for_updates_sync(preferred_source: Option<&str>) -> Result<UpdateCheckR
     let has_update = evaluate_update(local_version, local_commit, &manifest);
 
     // Pick suitable asset
-    let (asset_key, asset_info) = if dist_type == DistributionType::Installer {
-        manifest.assets.get("installer")
-            .map(|a| ("installer".to_string(), a))
-            .or_else(|| manifest.assets.get("binary_only").map(|a| ("binary_only".to_string(), a)))
-            .or_else(|| manifest.assets.get("portable").map(|a| ("portable".to_string(), a)))
-            .ok_or_else(|| "No compatible installer asset found in manifest".to_string())?
-    } else {
-        manifest.assets.get("binary_only")
-            .map(|a| ("binary_only".to_string(), a))
-            .or_else(|| manifest.assets.get("portable").map(|a| ("portable".to_string(), a)))
-            .or_else(|| manifest.assets.get("installer").map(|a| ("installer".to_string(), a)))
-            .ok_or_else(|| "No compatible portable asset found in manifest".to_string())?
-    };
+    let (asset_key, asset_info) = select_update_asset(&manifest, dist_type)?;
 
     // Pick download URL based on chosen source
     let download_url = if chosen_source == "gitee" && !asset_info.sources.gitee.is_empty() {
@@ -256,6 +263,9 @@ fn check_for_updates_sync(preferred_source: Option<&str>) -> Result<UpdateCheckR
         format!("v{}", manifest.version)
     };
 
+    let filename = asset_info.filename.clone();
+    let size = asset_info.size;
+    let sha256 = asset_info.sha256.clone();
     Ok(UpdateCheckResult {
         has_update,
         current_version: local_version.to_string(),
@@ -265,11 +275,11 @@ fn check_for_updates_sync(preferred_source: Option<&str>) -> Result<UpdateCheckR
         display_version: display_ver,
         notes: manifest.notes,
         chosen_source,
-        asset_type: asset_key,
-        filename: asset_info.filename.clone(),
+        asset_type: asset_key.to_string(),
+        filename,
         download_url,
-        size: asset_info.size,
-        sha256: asset_info.sha256.clone(),
+        size,
+        sha256,
     })
 }
 
@@ -280,6 +290,59 @@ pub async fn check_for_updates(preferred_source: Option<String>) -> Result<Updat
     })
     .await
     .map_err(|e| format!("Worker thread error: {}", e))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regression_http_update_exceptions_are_limited_to_local_debug_servers() {
+        assert_eq!(is_local_debug_url("http://127.0.0.1:8080/latest.json"), cfg!(debug_assertions));
+        for url in ["http://example.com/latest.json", "http://localhost@example.com/latest.json", "http://user@localhost:8080/latest.json", "https://localhost:8080/latest.json"] {
+            assert!(!is_local_debug_url(url));
+        }
+    }
+
+    #[test]
+    fn regression_update_probe_does_not_let_a_fast_stale_mirror_hide_newer_releases() {
+        let make = |version: &str| serde_json::from_value::<ReleaseManifest>(serde_json::json!({"version":version})).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        tx.send(("gitee".into(), Ok(make("0.9.3")))).unwrap();
+        let next = make("0.9.6");
+        let worker = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(20));
+            tx.send(("github".into(), Ok(next))).unwrap();
+        });
+        assert_eq!(newest_manifest(rx, Duration::from_secs(1)).unwrap().1.version, "0.9.6");
+        worker.join().unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        tx.send(("github".into(), Ok(make("invalid")))).unwrap();
+        tx.send(("gitee".into(), Ok(make("1.0.0-rc.1")))).unwrap();
+        assert_eq!(newest_manifest(rx, Duration::from_secs(1)).unwrap().0, "gitee");
+    }
+
+    #[test]
+    fn regression_selects_executable_updates_without_archive_fallback() {
+        let mut manifest: ReleaseManifest = serde_json::from_value(serde_json::json!({
+            "version": "1.0.0",
+            "assets": {
+                "portable": { "filename": "portable.7z", "sha256": "", "sources": {} }
+            }
+        })).unwrap();
+        assert!(select_update_asset(&manifest, DistributionType::Portable).is_err());
+        assert!(select_update_asset(&manifest, DistributionType::Installer).is_err());
+        for (key, filename) in [("binary_only", "open-revo.exe"), ("installer", "setup.exe")] {
+            manifest.assets.insert(key.into(), AssetInfo {
+                filename: filename.into(), size: 0, sha256: "a".repeat(64),
+                sources: super::super::types::SourceUrls { github: String::new(), gitee: String::new() },
+            });
+        }
+        assert_eq!(select_update_asset(&manifest, DistributionType::Portable).unwrap().0, "binary_only");
+        assert_eq!(select_update_asset(&manifest, DistributionType::Installer).unwrap().0, "installer");
+        manifest.assets.remove("binary_only");
+        assert_eq!(select_update_asset(&manifest, DistributionType::Portable).unwrap().0, "installer");
+    }
 }
 
 

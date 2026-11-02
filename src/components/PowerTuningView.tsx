@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Zap, Battery, Plug, ShieldCheck, Globe, Ban, Lock, Clock, Moon, Snowflake, Info } from 'lucide-react';
 import { RevBadge, RevSwitch } from './ui';
@@ -47,22 +47,24 @@ export const PowerTuningView: React.FC = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [controlError, setControlError] = useState<string | null>(null);
+  const busy = useRef(false);
+  const revision = useRef(0);
 
   useEffect(() => {
-    invoke<PowerSettingsInfo>('get_power_settings')
-      .then((res) => {
-        if (res) setPowerInfo(res);
-      })
-      .catch((e) => console.error('Failed to get power settings:', e));
-
-    const timer = setInterval(() => {
+    let disposed = false;
+    const refresh = () => {
+      if (busy.current) return;
+      const requestRevision = ++revision.current;
       invoke<PowerSettingsInfo>('get_power_settings')
         .then((res) => {
-          if (res) setPowerInfo(res);
+          if (!disposed && !busy.current && revision.current === requestRevision && res) setPowerInfo(res);
         })
-        .catch(() => { });
-    }, 5000);
-    return () => clearInterval(timer);
+        .catch((error) => console.error('Failed to get power settings:', error));
+    };
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    return () => { disposed = true; clearInterval(timer); };
   }, []);
 
   const handleSelectBatteryMode = async (mode: string) => {
@@ -80,24 +82,19 @@ export const PowerTuningView: React.FC = () => {
   };
 
   const handleToggleOption = async (option: 'usb_charge' | 'ac_recovery' | 'high_perf') => {
-    if (loading) return;
+    if (busy.current || loading) return;
+    busy.current = true;
+    revision.current += 1;
     setLoading(true);
-
-    const keyMap = {
-      usb_charge: 'usb_charge_enabled',
-      ac_recovery: 'ac_recovery_enabled',
-      high_perf: 'high_perf_scheme',
-    } as const;
-
-    const nextVal = !powerInfo[keyMap[option]];
-    setPowerInfo((prev) => ({ ...prev, [keyMap[option]]: nextVal }));
-
+    setControlError(null);
+    const keyMap = { usb_charge: 'usb_charge_enabled', ac_recovery: 'ac_recovery_enabled', high_perf: 'high_perf_scheme' } as const;
     try {
-      const res = await invoke<PowerSettingsInfo>('set_power_option', { option, enable: nextVal });
+      const res = await invoke<PowerSettingsInfo>('set_power_option', { option, enable: !powerInfo[keyMap[option]] });
       if (res) setPowerInfo(res);
-    } catch (e) {
-      console.error(`Failed to toggle ${option}:`, e);
+    } catch (error) {
+      setControlError('更改电源设置失败：' + String(error));
     } finally {
+      busy.current = false;
       setLoading(false);
     }
   };
@@ -172,7 +169,8 @@ export const PowerTuningView: React.FC = () => {
   };
 
   return (
-    <div className="power-view-container">
+    <div className="power-view-container" aria-busy={loading}>
+      {controlError && <p className="sys-row-desc" role="alert">{controlError}</p>}
       {/* 1. Top Header Bar with Auto Office Checkbox */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

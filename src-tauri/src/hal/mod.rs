@@ -1,4 +1,5 @@
 // OpenRevo Hardware Abstraction Layer (HAL) Module
+pub use openrevo_core::hal::power_options;
 
 // pub mod baolongda_guard;
 pub mod declarative;

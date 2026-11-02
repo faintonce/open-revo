@@ -23,5 +23,7 @@ pub async fn download_and_install_update_cmd(
     is_installer: bool,
 ) -> Result<(), String> {
     let downloaded_path = installer::download_update_asset(&app, &download_url, &expected_sha256, &filename).await?;
-    installer::apply_update(&downloaded_path, is_installer)
+    installer::apply_update(&downloaded_path, is_installer)?;
+    app.exit(0);
+    Ok(())
 }
