@@ -1,133 +1,95 @@
-# Xingyao 14 P916F-PTL
+# 星耀 14 P916F-PTL 适配说明
 
-## Supported hardware
+## 适用机型
 
-This contract covers MECHREVO `XINGYAO Series-P916F-PTL`, Intel Core Ultra
-X7 358H, BIOS 1.00. STX, LNL and other BIOS versions are outside the validated
-scope. The exact PTL contract takes priority over the older P916F wildcard.
-Manufacturer and BIOS checks apply during matching; an exact PTL identity with
-an unvalidated BIOS receives a monitoring-only contract without write actions.
-Native PM2 access independently verifies the machine identity and BIOS.
+本契约适用于机械革命 `XINGYAO Series-P916F-PTL`、Intel Core Ultra X7 358H、BIOS 1.00。
+STX、LNL 和其他 BIOS 版本尚未验证。精确匹配的 PTL 契约优先于原有 P916F 通配契约。
+匹配时同时校验制造商和 BIOS；机型匹配但 BIOS 未验证时，只启用监测能力，禁用写入操作。
+原生 PM2 后端还会独立检查机型标识和 BIOS。
 
-| Function | Backend / behavior |
+| 功能 | 后端及行为 |
 | --- | --- |
-| Office / Balance / Turbo | OEM WMI with acknowledgement and mode readback |
-| Charging limits | PM2 thresholds: 60%, 80%, or policy disabled at 100% |
-| Fan feedback and targets | Independent PM2 tachometers and target RPM |
-| Fan curves | CPU Package temperature to RPM, with protection and recovery |
-| Fan smoothing | Software backend behind the original UI controls |
-| CPU temperature | Genuine Intel package DTS through installed PawnIO |
-| CPU custom power | Opt-in Intel RAPL, 5 <= PL1 <= PL2 <= 50 W, AC required |
-| Integrated GPU telemetry | Installed Intel IGCL runtime and validated PMT layout |
+| 办公、均衡、狂暴模式 | OEM WMI，校验应答并回读实际模式 |
+| 充电上限 | PM2 阈值控制，支持 60%、80%；选择 100% 时关闭限制 |
+| 风扇读数与目标转速 | PM2 独立测速和独立 RPM 目标 |
+| 风扇曲线 | 根据 CPU 封装温度生成 RPM 目标，包含保护和恢复逻辑 |
+| 风扇平滑过渡 | 通过原有 UI 控件使用软件后端 |
+| CPU 温度 | 通过已安装的 PawnIO 读取 Intel 封装数字温度传感器 |
+| CPU 自定义功耗 | 契约声明启用 Intel RAPL，要求外接电源，范围为 5 ≤ PL1 ≤ PL2 ≤ 50 W |
+| 核显监测 | 已安装的 Intel IGCL 运行库及已验证的 PMT 数据布局 |
 
-The tuning page keeps its original layout, percentage curve editor and
-100/300/500/1000ms smoothing selector. Unsupported CPU controls remain disabled
-in their existing positions. Ratios, undervolting, PL4, temperature-wall tuning
-and discrete-GPU tuning are not implemented for this contract.
+调校页保留原有布局、百分比曲线编辑器和 100/300/500/1000ms 平滑过渡选项。
+不支持的 CPU 控件在原位置禁用。本契约暂不提供倍频、降压、PL4、温度墙和独显调校。
 
-## Runtime dependencies and attribution
+## 运行依赖与来源说明
 
-PM2 access requires an existing `inpoutx64` driver with SHA-256
-`f8965fdce668692c3785afa3559159f9a18287bc0d53abb21902895a8ecf221b`.
-CPU sensor/control access requires the installed signed PawnIO driver and
-administrator access. OpenRevo does not install these drivers or change their
-permissions. Manual fan control requires a genuine package-temperature sensor.
-Missing readings remain unavailable instead of using ACPI zones or fixed values.
+PM2 访问需要已安装的 `inpoutx64` 驱动，其 SHA-256 必须为：
 
-The unmodified signed IntelMSR module is embedded for PawnIO; its origin and
-license are recorded in `src-tauri/crates/openrevo-core/resources/pawnio/`.
-PM2 protocol attribution and the MIT license are retained in the neighboring
-`resources/ptl/` directory. Vendor firmware images and the inpout driver binary
-are not bundled. IGCL is loaded from the installed Intel graphics driver.
+`f8965fdce668692c3785afa3559159f9a18287bc0d53abb21902895a8ecf221b`
 
-## Protocol and controller behavior
+CPU 传感器及功耗控制需要已安装的签名 PawnIO 驱动和管理员权限。
+OpenRevo 不自动安装这些驱动，也不修改其访问权限。手动风扇控制要求存在有效的 CPU 封装温度读数。
+缺失的读数显示为不可用，不以 ACPI 热区温度或固定值替代。
 
-The OEM interface is `root\wmi:OemWMIMethod.OemWMIfun`, with a 64-byte input
-and 256-byte output. Read replies require status zero. Performance-mode writes
-use `03 0A mode` and acknowledge Office / Balance / Turbo with byte zero equal
-to `0x94` / `0x95` / `0x96`. Mode readback must agree within 400ms before the
-application commits the new state. A successful WMI transport alone is
-insufficient. WMI fan selectors require separate calls; on the inspected machine
-they returned zero while the motors were spinning, so production feedback uses
-coherent high/low/high PM2 tachometer reads.
+程序内嵌未经修改的签名 IntelMSR 模块供 PawnIO 使用，来源和许可证记录于
+`src-tauri/crates/openrevo-core/resources/pawnio/`。
+PM2 协议的来源说明和 MIT 许可证保留在同级 `resources/ptl/` 目录。
+仓库不附带厂商固件镜像或 inpout 驱动二进制文件。IGCL 从已安装的 Intel 显卡驱动中加载。
 
-PM2 transactions use the shared named mutex, bounded handshakes and validated
-responses. Partially sent commands are not retried. Charging updates keep the
-active-discharge boundary at 100%, verify echoes and all threshold readbacks,
-and attempt to restore the prior state on failure. These are PTL-specific
-commands, independently checked against the local EC image and live behavior.
-The implementation does not reuse Tongfang or Baolongda register maps.
+## 接口与控制行为
 
-CPU Custom mode uses the firmware Turbo mode plus software ownership of the
-RAPL limit fields. Ordinary presets select firmware modes; they do not promise
-fixed PL1/PL2 values. CPU writes preserve time windows, clamp/lock and unrelated
-bits, verify readback, and restore only fields still owned by OpenRevo. Failed
-profile persistence restores the previous profile and CPU ownership/settings.
-Live updates cannot restart a session canceled by a mode switch. AC loss,
-suspend and normal exit release CPU control; failed startup restoration falls
-back to an acknowledged Balance mode. The native backend blocks the legacy
-power-plugin companion agent to avoid competing writers.
+OEM 接口为 `root\wmi:OemWMIMethod.OemWMIfun`，输入、输出缓冲区分别为 64、256 字节。
+读取应答要求状态为零。性能模式写入使用 `03 0A mode`，办公、均衡、狂暴模式分别以第 0 字节
+`0x94`、`0x95`、`0x96` 确认。实际模式须在 400ms 内回读一致，应用才提交新状态；仅 WMI 调用成功不代表切换成功。
+WMI 风扇选择器需要分别调用。本机实测中，风扇转动时这些选择器仍返回零，因此正式读数使用 PM2 的高字节、低字节、高字节一致性采样。
 
-## Fan policy
+PM2 事务使用共享命名互斥锁、有限时长的握手和应答校验，部分发送的命令不会重试。
+设置充电上限时，主动放电阈值保持为 100%，并校验写入回显和全部阈值回读；失败时尝试恢复原状态。
+这些 PTL 专用命令已根据本机 EC 镜像和实际行为独立核对，不复用同方或宝龙达寄存器表。
 
-The native target ranges are 1200-7500 RPM for fan 0 and 1000-7500 RPM for fan 1,
-in 100-RPM steps; linked curves use the higher minimum. These are configured
-target limits, not guaranteed motor speeds. The original percentage editor maps
-25% or lower to 2200 RPM and 100% to 7500 RPM, with interpolation between them.
-This preserves legacy curve intensity rather than claiming a physical PWM
-calibration. CPU-only profile edits preserve saved RPM data.
+CPU 自定义模式采用固件狂暴模式，并由软件接管 RAPL 功耗限制字段。
+普通预设负责切换固件模式，不保证 PL1、PL2 为固定值。CPU 写入保留时间窗口、钳位、锁定及无关位，执行回读校验，退出时仅恢复仍由 OpenRevo 接管的字段。
+方案保存失败时恢复原方案及 CPU 接管状态、设置；实时修改不能重新启动已被模式切换取消的接管。
+拔电、休眠和正常退出时释放 CPU 控制；启动恢复失败时回退到经确认的均衡模式。
+原生后端会拦截旧功耗插件的配套代理，避免同时写入。
 
-Hardware ramp configuration remains unsupported (`fan_ramp_rate=false`). The
-separate `fan_software_smoothing=true` capability routes the existing ramp
-command to software: each channel moves by 100 RPM per selected interval,
-using actual monotonic elapsed time, with a three-second wait before lowering
-speed. Active checks are bounded to 100-1000ms. Legacy UI fields and the RPM
-policy are saved together and restored at startup. Configuring smoothing in
-automatic mode does not start manual control; failed saves restore prior settings.
+## 风扇策略
 
-At 85 C, increases bypass smoothing and decreases are held. At 90 C, missing
-temperature, communication failure, a scheduling gap over five seconds or suspend,
-control passes to firmware. A requested curve resumes only after temperature is
-at most 85 C and sensors/communication stay healthy for five continuous seconds.
-Explicitly disabling the curve cancels recovery. Fixed manual targets do not
-resume after faults. Targets below 2000 RPM receive two seconds of start
-assistance; persistent or repeated stalls return control to firmware.
-Curves require the process to remain running; forced termination cannot execute
-restoration.
+原生接口的风扇 0、风扇 1 目标范围分别为 1200–7500 RPM、1000–7500 RPM，步进 100 RPM；联动曲线使用较高的下限。
+这些数值是目标设置范围，不代表电机一定能够达到。原有百分比编辑器将不高于 25% 的节点映射为 2200 RPM，100% 映射为 7500 RPM，中间线性换算。
+该换算用于保留旧曲线的相对强度，并非物理 PWM 标定。只修改 CPU 参数时保留已保存的 RPM 数据。
 
-## Integrated GPU telemetry
+本机不支持可配置的硬件渐变，声明保持 `fan_ramp_rate=false`。
+独立能力 `fan_software_smoothing=true` 将原有渐变命令转交软件实现：按选定间隔为每个通道增减 100 RPM，使用单调时钟的实际经过时间计算步长，降速前等待 3 秒。
+运行中的检查间隔限定为 100–1000ms。原有 UI 字段与 RPM 策略一并保存，并在启动时恢复。
+在原厂自动模式下修改平滑设置不会启用手动控制；保存失败时恢复先前设置。
 
-`gpu_telemetry_backend: intel_igcl_pmt` is independent of discrete-GPU tuning.
-IGCL supplies supported clocks, activity and energy counters; GPU watts use
-energy/time deltas, with no value until a valid second sample. Package power is
-not double-counted with integrated-GPU power.
+温度达到 85°C 时，升速绕过平滑限制，并暂停降速。达到 90°C、读温缺失、通信异常、调度间隔超过 5 秒或系统休眠时，将控制权交回固件。
+已请求的曲线仅在温度降至不高于 85°C、传感器和通信连续正常 5 秒后恢复。
+主动关闭曲线会取消自动恢复；固定手动转速在故障后不自行恢复。
+低于 2000 RPM 的目标先获得 2 秒的 2000 RPM 起转提升；持续或反复停转时交回原厂温控。
+曲线控制依赖程序持续运行，强制结束进程时无法执行恢复操作。
 
-When IGCL has no temperature sensor, the read-only PMT fallback accepts GUID
-`0x03086000` and the validated region layout. `Container_15.GT_MAX`, bits 56-63,
-is the separate graphics temperature sensor. Unknown layouts and invalid
-readings remain unavailable. See Intel's
-[PTL telemetry definition](https://github.com/intel/Intel-PMT/blob/main/xml/PTL/0/ptl_aggregator.xml)
-and [IGCL guide](https://intel.github.io/drivers.gpu.control-library/prog.html).
+## 核显监测
 
-## Validation and remaining coverage
+`gpu_telemetry_backend: intel_igcl_pmt` 独立于独显调校能力。
+IGCL 提供驱动支持的频率、活动量及能量计数器；核显功耗由能量与时间差值计算，取得第二个有效样本前不显示功耗。
+CPU 封装功耗与核显功耗不会重复累加。
 
-Previous checks on this machine verified mode switching/readback, charging
-limits, PM2 fan control/feedback, and integrated GPU telemetry. For example,
-4000/4500 RPM targets measured 3913/4445 RPM; the HAL display agreed with PM2.
-At charge above the 80% boundary, the charging policy stopped charging while
-external power stayed online, without requesting active discharge.
+IGCL 不提供温度传感器时，只读 PMT 后备路径仅接受 GUID `0x03086000` 和已验证的数据布局。
+`Container_15.GT_MAX` 的第 56–63 位对应独立的图形温度传感器；未知布局和无效读数保持不可用。
+布局与接口依据见 Intel 的 [PTL 遥测定义](https://github.com/intel/Intel-PMT/blob/main/xml/PTL/0/ptl_aggregator.xml)
+和 [IGCL 指南](https://intel.github.io/drivers.gpu.control-library/prog.html)。
 
-Automated regression coverage uses simulated registers/transports, controller
-state tests, profile/storage tests and mocked UI commands. It covers partial
-writes, rollback, mode acknowledgements, RPM conversion, all four UI smoothing
-intervals, thermal/sensor faults, recovery and cancellation. Protocol constants
-and native access remain confined to the HAL and hardware vault.
+## 验证情况与待验证范围
 
-Native CPU power writes/load testing, complete cold-start verification of the
-1200/1000-RPM floors, software smoothing on hardware, and sustained thermal and
-sleep/wake tests remain pending. Low-speed startup verification was interrupted
-by temperature protection; it is not counted as a successful validation. The
-legacy 2200-RPM default curve remains unchanged. No hardware writes were
-performed during PR preparation. Raw experiment traces and standalone diagnostic
-probes are excluded from the integration change; the validation summary above
-retains the evidence and limits relevant to maintenance.
+此前已在本机验证性能模式切换及回读、充电上限、PM2 风扇控制及反馈、核显监测。
+例如设置 4000/4500 RPM 时读到 3913/4445 RPM，HAL 显示与 PM2 读数一致。
+电量高于 80% 上限时，充电策略停止充电、外接电源仍在线，且未请求主动放电。
+
+自动化回归覆盖模拟寄存器与传输、控制器状态、方案存储及模拟 UI 命令，包含部分写入、回滚、模式应答、RPM 换算、四档 UI 平滑间隔、温度和传感器异常、恢复及主动取消。
+协议常量与原生硬件访问仍集中在 HAL 和硬件钥匙库中。
+
+原生 CPU 功耗写入及负载测试、1200/1000 RPM 下限的完整冷启动验证、软件平滑实机验证、持续热负载和睡眠唤醒测试仍待完成。
+低速起转验证曾被温度保护中断，不计为验证成功。原有 2200 RPM 默认曲线保持不变。
+准备 PR 期间未执行硬件写入。原始实验采样和独立诊断探针不纳入本次集成改动，本文保留维护所需的验证结论及适用限制。

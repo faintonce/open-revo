@@ -120,12 +120,6 @@ Download the standalone executable from the [Releases Page](https://github.com/f
 
 ---
 
-Intel CPU temperature uses the **CPU Package digital thermal sensor**. Install the [official signed PawnIO driver](https://pawnio.eu) and run OpenRevo as administrator. Supported models can also supply CPU temperatures through their OEM interface. Missing sensor readings appear as `--`; ACPI thermal zones and fixed values are not substituted for CPU temperature. AIDA64 is not required.
-
-Xingyao 14 **P916F-PTL / BIOS 1.00** has been tested with 60%/80%/100% charge limits and independent fan RPM targets. The backend accepts 1200–7500 RPM for the main fan and 1000–7500 RPM for the secondary fan, in 100-RPM steps, with start assistance and stall protection. The original tuning page's percentage curves are converted to RPM targets and support independent or linked editing. Curves require OpenRevo to remain running. Overheating, sensor or communication faults temporarily hand control to firmware; the curve resumes after temperature is at most 85°C and readings and communications stay healthy for five seconds. Explicitly disabling the curve cancels resumption. The private interface requires an existing, hash-verified `inpoutx64` driver and never installs it automatically. See the [adaptation notes](docs/xingyao-p916f-ptl.md) for protocol evidence, dependencies and limits.
-
-This model also has native Intel PL1/PL2 custom tuning using the existing signed PawnIO driver, with runtime probing, readback, profile persistence and restoration. Ratios, undervolting, PL4 and temperature walls remain unavailable. The tuning page keeps its original UI: the backend converts percentage curves to RPM targets and implements the existing smoothing switch and millisecond selector in software. CPU power control has simulated tests but has not been tested with live writes on this machine; firmware locks and write/readback determine actual availability.
-
 ### 💻 Option 2: Build from Source
 
 #### Prerequisites
