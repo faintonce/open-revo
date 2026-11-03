@@ -594,7 +594,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   cursor: isEditingAllowed && pt.duty > minDuty ? 'pointer' : 'not-allowed',
                   transition: 'background var(--transition-fast)',
                 }}
-                title={pt.duty <= minDuty ? `已达硬件起旋最低限制 (${minDuty}%)` : `减少 1% (当前 ${pt.temp}°C: ${pt.duty}%)`}
+                title={pt.duty <= minDuty ? `已达曲线最低设置 (${minDuty}%)` : `减少 1% (当前 ${pt.temp}°C: ${pt.duty}%)`}
               >
                 <Minus className="w-2.5 h-2.5" />
               </button>
@@ -618,7 +618,11 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
             padding: '2px 4px',
           }}
         >
-          <span>{minDuty > 0 ? `最低起旋 ${minDuty}% (2200 RPM) · 滚轮微调` : '鼠标悬停滚轮微调'}</span>
+          <span>{minDuty > 0
+            ? fanBoostMode === 'direct_rpm_clamp'
+              ? `最低目标 ${minDuty}% (2200 RPM) · 滚轮微调`
+              : `最低 PWM ${minDuty}% · 实际转速以读数为准`
+            : '鼠标悬停滚轮微调'}</span>
           <span style={{ color: fanIsolated ? 'var(--color-brand)' : 'var(--text-dim)' }}>
             8 节点单调递增
           </span>

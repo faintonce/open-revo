@@ -253,11 +253,56 @@ pub fn reset_custom_profile_to_defaults() -> crate::system::config::CustomProfil
     model_default
 }
 
+pub fn uses_native_cpu_power() -> bool {
+    crate::hal::declarative::load_matched_manifest().is_some_and(|m|
+        m.capabilities.cpu_power_backend.as_deref() == Some("intel_rapl"))
+}
+
+#[tauri::command]
+pub fn get_cpu_power_status() -> Result<crate::hal::cpu_power::CpuPowerStatus, String> {
+    if !uses_native_cpu_power() { return Err("当前机型未声明独立 CPU 功耗接口".into()); }
+    Ok(crate::hal::cpu_power::status())
+}
+
+fn update_native_cpu_profile(profile: &crate::system::config::CustomProfileConfig) -> Result<(), String> {
+    crate::hal::get_hardware_driver().update_cpu_power_limits(profile.cpu_pl1_watts, profile.cpu_pl2_watts)
+        .map_err(|e| e.to_string())
+}
+
+fn commit_native_cpu_profile(
+    profile: &crate::system::config::CustomProfileConfig,
+    active_only: bool,
+    mut persist: impl FnMut() -> Result<(), String>,
+) -> Result<(), String> {
+    crate::system::config::ensure_config_writable()?;
+    crate::hal::get_hardware_driver()
+        .commit_cpu_power_profile(profile.cpu_pl1_watts, profile.cpu_pl2_watts, active_only, &mut persist)
+        .map_err(|error| error.to_string())
+}
+
+// The classic curve editor edits legacy intensity points. Keep its saved RPM
+// projection current while retaining the RPM editor's smoothing settings.
+fn sync_legacy_ptl_curve(
+    profile: &mut crate::system::config::CustomProfileConfig,
+    previous: &crate::system::config::CustomProfileConfig,
+    curve_changed: Option<bool>,
+) -> Result<(), String> {
+    if !uses_ptl_pmc() { return Ok(()); }
+    crate::system::config::sync_legacy_ptl_curve_data(profile, previous, curve_changed)
+}
+
+
 #[tauri::command]
 pub fn apply_custom_profile(
-    profile: crate::system::config::CustomProfileConfig,
+    mut profile: crate::system::config::CustomProfileConfig,
     ec_state: State<'_, SharedEcBridge>,
+    legacy_fan_curve_changed: Option<bool>,
 ) -> Result<(), String> {
+    if crate::hal::declarative::load_matched_manifest()
+        .is_some_and(|manifest| !manifest.capabilities.power_modes.iter().any(|mode| mode == "custom"))
+    {
+        return Err("当前机型仅支持固件预设性能模式".into());
+    }
     crate::log_info!(
         "CUSTOM_TRACE",
         "IPC 'apply_custom_profile' received: PL1={}W, PL2={}W, PL4={}W, TempEn={}, Temp={}°C, cTGP_En={}, cTGP_Watts={}W, DB_En={}, DB_Watts={}W, SuperPerf={}",
@@ -281,6 +326,18 @@ pub fn apply_custom_profile(
         return Err(msg.to_string());
     }
 
+    if uses_native_cpu_power() {
+        sync_legacy_ptl_curve(&mut profile, &cfg.custom_profile, legacy_fan_curve_changed)?;
+        let mut preset = crate::system::config::list_profiles().into_iter()
+            .find(|p| p.id == cfg.active_profile_id).ok_or("Active profile was not found")?;
+        preset.profile = profile.clone();
+        cfg.custom_profile = profile.clone();
+        cfg.power_mode = 4;
+        cfg.power_mode_ac = 4;
+        commit_native_cpu_profile(&profile, false, || crate::system::config::save_profile_and_config(&preset, &cfg))?;
+        ec_state.lock().set_power_mode_from_hardware(4);
+        return Ok(());
+    }
     let is_dc = is_dc_round_plugged_in();
     cfg.custom_profile = profile.clone();
     cfg.power_mode = 4;
@@ -294,7 +351,9 @@ pub fn apply_custom_profile(
     // Declarative hardware dispatch on custom profile apply
     sync_custom_profile_to_declarative_hardware(&profile);
 
-    ec_state.lock().set_power_mode(4);
+    if uses_native_cpu_power() {
+        ec_state.lock().set_power_mode_from_hardware(4);
+    } else { ec_state.lock().set_power_mode(4); }
 
     Ok(())
 }
@@ -325,6 +384,111 @@ pub fn sync_custom_profile_to_declarative_hardware(profile: &crate::system::conf
     }
 }
 
+fn fan_curve_uses_bld_controller() -> Result<bool, String> {
+    if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
+        if !manifest.capabilities.fan_custom_curve {
+            return Err("当前机型由固件自动调节风扇，手动转速和自定义曲线尚未适配".into());
+        }
+        if manifest.capabilities.uses_bld_fan_controller() {
+            return Ok(true);
+        }
+        if manifest.channels.values().any(|channel| matches!(channel, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })) {
+            return Ok(false);
+        }
+        return Err("当前机型未声明可用的风扇曲线控制通道".into());
+    }
+    if crate::hal::platform_probe::is_tongfang_family() {
+        Ok(false)
+    } else {
+        Err("当前机型未适配风扇曲线控制".into())
+    }
+}
+
+fn uses_ptl_pmc() -> bool {
+    crate::hal::declarative::load_matched_manifest().is_some_and(|manifest| manifest.uses_ptl_pmc())
+}
+
+#[tauri::command]
+pub fn get_fan_control_state() -> Result<crate::hal::fan_policy::FanControlStatus, String> {
+    if !uses_ptl_pmc() { return Err("当前机型不使用 PM2 风扇控制".into()); }
+    Ok(crate::hal::ptl_pmc::status())
+}
+
+fn save_ptl_fan_policy(curves: Option<crate::hal::fan_policy::RpmFanCurves>, enabled: Option<bool>) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    if let Some(enabled) = enabled {
+        cfg.fan_boost = false;
+        cfg.custom_profile.fan_curve_enabled = enabled;
+        cfg.custom_profile.fan_isolated_output = enabled;
+    }
+    if let Some(curves) = curves {
+        cfg.custom_profile.ptl_rpm_fan_curves = Some(curves);
+    }
+    // Startup reloads fan settings from the active profile, not the config cache.
+    let mut preset = crate::system::config::list_profiles().into_iter()
+        .find(|preset| preset.id == cfg.active_profile_id)
+        .ok_or_else(|| "找不到当前风扇方案，无法保存曲线设置".to_string())?;
+    preset.profile = cfg.custom_profile.clone();
+    crate::system::config::save_profile_and_config(&preset, &cfg)
+}
+
+#[tauri::command]
+pub fn set_manual_fan_rpm(cpu_rpm: u16, gpu_rpm: u16) -> Result<(), String> {
+    if uses_ptl_pmc() {
+        let smoothing = crate::system::config::load_config().custom_profile.ptl_rpm_curves().smoothing;
+        crate::hal::get_hardware_driver().set_rpm_fan_smoothing(smoothing).map_err(|e| e.to_string())?;
+    }
+    crate::hal::get_hardware_driver().set_manual_fan_rpm([cpu_rpm, gpu_rpm]).map_err(|e| e.to_string())?;
+    save_ptl_fan_policy(None, Some(false))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restore_fan_auto() -> Result<(), String> {
+    if !uses_ptl_pmc() { return Err("当前机型不使用 PM2 风扇控制".into()); }
+    let restored = crate::hal::get_hardware_driver().restore_fan_auto().map_err(|e| e.to_string());
+    let saved = save_ptl_fan_policy(None, Some(false));
+    restored?;
+    saved?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_software_fan_curve(curve: Vec<crate::system::config::FanCurvePoint>) -> Result<(), String> {
+    let legacy = curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+    set_rpm_fan_curves(migrate_ptl_curves(&legacy,&legacy)?)?;
+    Ok(())
+}
+
+fn migrate_ptl_curves(cpu: &[(u8,u8)], gpu: &[(u8,u8)]) -> Result<crate::hal::fan_policy::RpmFanCurves,String> {
+    let mut curves = crate::hal::fan_policy::RpmFanCurves::from_legacy(cpu,gpu)?;
+    curves.smoothing = crate::system::config::load_config().custom_profile.ptl_rpm_curves().smoothing;
+    Ok(curves)
+}
+
+#[tauri::command]
+pub fn get_rpm_fan_curves() -> Result<crate::hal::fan_policy::RpmFanCurves, String> {
+    if !uses_ptl_pmc() { return Err("当前机型不使用 PM2 转速曲线".into()); }
+    Ok(crate::system::config::load_config().custom_profile.ptl_rpm_curves())
+}
+
+#[tauri::command]
+pub fn set_rpm_fan_curves(curves: crate::hal::fan_policy::RpmFanCurves) -> Result<(), String> {
+    curves.validate()?;
+    crate::hal::get_hardware_driver().set_rpm_fan_curves(curves.clone()).map_err(|e| e.to_string())?;
+    save_ptl_fan_policy(Some(curves), Some(true))
+}
+
+#[tauri::command]
+pub fn set_rpm_fan_smoothing(smoothing: crate::hal::fan_policy::RpmSmoothing) -> Result<(), String> {
+    if !uses_ptl_pmc() { return Err("当前机型不使用 PM2 软件平滑".into()); }
+    smoothing.validate()?;
+    let mut curves = crate::system::config::load_config().custom_profile.ptl_rpm_curves();
+    curves.smoothing = smoothing;
+    crate::hal::get_hardware_driver().set_rpm_fan_smoothing(smoothing).map_err(|e| e.to_string())?;
+    save_ptl_fan_policy(Some(curves), None)
+}
+
 #[tauri::command]
 pub fn apply_fan_curve_live(
     app: AppHandle,
@@ -332,9 +496,12 @@ pub fn apply_fan_curve_live(
     cpu_curve: Vec<crate::system::config::FanCurvePoint>,
     gpu_curve: Vec<crate::system::config::FanCurvePoint>,
 ) -> Result<(), String> {
-    let is_bld_manifest = crate::hal::declarative::load_matched_manifest()
-        .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
-        .unwrap_or(false);
+    if uses_ptl_pmc() {
+        let cpu=cpu_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+        let gpu=gpu_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+        return set_rpm_fan_curves(migrate_ptl_curves(&cpu,&gpu)?);
+    }
+    let is_bld_manifest = fan_curve_uses_bld_controller()?;
 
     if is_bld_manifest {
         let cfg = crate::system::config::load_config();
@@ -371,14 +538,24 @@ pub fn toggle_fan_isolated_output(
     cpu_curve: Option<Vec<crate::system::config::FanCurvePoint>>,
     gpu_curve: Option<Vec<crate::system::config::FanCurvePoint>>,
 ) -> Result<bool, String> {
+    if uses_ptl_pmc() {
+        if enable {
+            let profile=crate::system::config::load_config().custom_profile;
+            if cpu_curve.is_none() && gpu_curve.is_none() {
+                set_rpm_fan_curves(profile.ptl_rpm_curves())?;
+            } else {
+                let cpu=cpu_curve.unwrap_or(profile.cpu_fan_curve).iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+                let gpu=gpu_curve.unwrap_or(profile.gpu_fan_curve).iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+                set_rpm_fan_curves(migrate_ptl_curves(&cpu,&gpu)?)?;
+            }
+        } else { restore_fan_auto()?; }
+        return Ok(enable);
+    }
+    let is_bld_manifest = fan_curve_uses_bld_controller()?;
     let mut cfg = crate::system::config::load_config();
     cfg.custom_profile.fan_isolated_output = enable;
     cfg.custom_profile.fan_curve_enabled = enable;
     crate::system::config::save_config(&cfg);
-
-    let is_bld_manifest = crate::hal::declarative::load_matched_manifest()
-        .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
-        .unwrap_or(false);
 
     if is_bld_manifest {
         if enable {
@@ -422,6 +599,9 @@ pub fn toggle_fan_isolated_output(
 
 #[tauri::command]
 pub fn toggle_fan_ramp_rate(enable: bool, speed_ms: Option<u16>) -> Result<bool, String> {
+    if crate::hal::declarative::load_matched_manifest().is_some_and(|m| !m.capabilities.fan_ramp_rate) {
+        return Err("当前机型尚未适配风扇渐变调节".into());
+    }
     let mut cfg = crate::system::config::load_config();
     let ms = speed_ms.unwrap_or(cfg.custom_profile.fan_ramp_speed_ms).clamp(100, 12700);
     let ok = crate::driver::wmi_ec::set_fan_ramp_rate(enable, ms);
@@ -468,6 +648,16 @@ pub fn set_active_profile_id(
     let target = profiles.into_iter().find(|p| p.id == id)
         .ok_or_else(|| format!("未找到指定的方案 ID: {}", id))?;
 
+    if uses_native_cpu_power() {
+        let mut cfg = crate::system::config::load_config();
+        cfg.active_profile_id = id;
+        cfg.custom_profile = target.profile.clone();
+        cfg.power_mode = 4;
+        cfg.power_mode_ac = 4;
+        commit_native_cpu_profile(&target.profile, false, || crate::system::config::try_save_config(&cfg))?;
+        ec_state.lock().set_power_mode_from_hardware(4);
+        return Ok(target);
+    }
     let mut cfg = crate::system::config::load_config();
     cfg.active_profile_id = id.clone();
     cfg.custom_profile = target.profile.clone();
@@ -495,9 +685,25 @@ pub fn set_active_profile_id(
 
 #[tauri::command]
 pub fn save_profile_preset(
-    preset: crate::system::config::CustomProfilePreset,
+    mut preset: crate::system::config::CustomProfilePreset,
     _ec_state: State<'_, SharedEcBridge>,
+    legacy_fan_curve_changed: Option<bool>,
 ) -> Result<(), String> {
+    if uses_native_cpu_power() {
+        let mut cfg = crate::system::config::load_config();
+        if cfg.active_profile_id == preset.id {
+            sync_legacy_ptl_curve(&mut preset.profile, &cfg.custom_profile, legacy_fan_curve_changed)?;
+            cfg.custom_profile = preset.profile.clone();
+            if crate::hal::cpu_power::is_active() {
+                commit_native_cpu_profile(&preset.profile, true, || crate::system::config::save_profile_and_config(&preset, &cfg))?;
+            } else {
+                crate::system::config::save_profile_and_config(&preset, &cfg)?;
+            }
+        } else {
+            crate::system::config::save_profile_file(&preset)?;
+        }
+        return Ok(());
+    }
     crate::system::config::save_profile_file(&preset)?;
 
     let mut cfg = crate::system::config::load_config();
@@ -553,7 +759,7 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
         let defaults = crate::system::config::get_default_builtin_presets();
         let factory = defaults.into_iter().find(|p| p.id == id)
             .ok_or_else(|| format!("未找到原厂预设: {}", id))?;
-        crate::system::config::save_profile_file(&factory)?;
+        if !uses_native_cpu_power() { crate::system::config::save_profile_file(&factory)?; }
         factory
     } else {
         let profiles = crate::system::config::list_profiles();
@@ -561,12 +767,28 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
             .ok_or_else(|| format!("未找到方案: {}", id))?;
         let default_custom = crate::system::model_engine::get_model_default_custom_profile();
         target.profile = default_custom;
-        crate::system::config::save_profile_file(&target)?;
+        if !uses_native_cpu_power() { crate::system::config::save_profile_file(&target)?; }
         target
     };
 
     let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
-    if is_declarative {
+    if uses_native_cpu_power() {
+        let cfg = crate::system::config::load_config();
+        if cfg.active_profile_id == id {
+            let mut cfg = cfg;
+            cfg.custom_profile = target.profile.clone();
+            cfg.cpu_pl1_max = None;
+            cfg.cpu_pl2_max = None;
+            if crate::hal::cpu_power::is_active() {
+                commit_native_cpu_profile(&target.profile, true, || crate::system::config::save_profile_and_config(&target, &cfg))?;
+            } else {
+                crate::system::config::save_profile_and_config(&target, &cfg)?;
+            }
+        } else {
+            crate::system::config::save_profile_file(&target)?;
+        }
+        return Ok(target);
+    } else if is_declarative {
         sync_custom_profile_to_declarative_hardware(&target.profile);
     } else {
         // Heal GPU hardware contract baseline immediately upon reset
@@ -823,6 +1045,19 @@ pub fn apply_live_custom_tweak(
 ) -> Result<(), String> {
     use crate::driver::wmi_ec;
     let cfg = crate::system::config::load_config();
+    if uses_native_cpu_power() {
+        if !crate::hal::cpu_power::is_active() { return Err("请先应用极客自定义模式，再实时调节功耗".into()); }
+        if pl1.is_some() || pl2.is_some() {
+            let current = crate::hal::cpu_power::status();
+            let p1 = pl1.or(current.pl1_watts.map(|v| v.round() as u16)).ok_or("无法读取当前 PL1")?;
+            let p2 = pl2.or(current.pl2_watts.map(|v| v.round() as u16)).ok_or("无法读取当前 PL2")?;
+            update_native_cpu_profile(&crate::system::config::CustomProfileConfig {
+                cpu_pl1_watts: p1, cpu_pl2_watts: p2, ..cfg.custom_profile
+            })?;
+        }
+        return Ok(());
+    }
+
     if !is_dc_round_plugged_in() && !cfg.unlock_battery_power_limit {
         return Ok(());
     }
@@ -1102,6 +1337,11 @@ pub fn set_bld_fan_speed_cap(
     ec_state: State<'_, SharedEcBridge>,
     rpm: u16,
 ) -> Result<(), String> {
+    if !crate::hal::declarative::load_matched_manifest()
+        .is_some_and(|m| m.capabilities.uses_bld_fan_controller())
+    {
+        return Err("当前机型未声明支持风扇转速锁定".into());
+    }
     let mut cfg = crate::system::config::load_config();
     if rpm == 0 {
         crate::driver::bld_driver_mgr::restore_bld_fan_auto();

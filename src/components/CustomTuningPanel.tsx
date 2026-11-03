@@ -9,9 +9,11 @@ import {
   BiosMenuStatus,
   AppConfig,
   GpuTuningCapabilities,
+  CpuPowerStatus,
 } from '../types/hardware';
 import { ModelCapabilities } from '../plugins/plugin_manifest';
 import { FanCurveEditor } from './tuning/FanCurveEditor';
+import { RpmFanControlPanel } from './tuning/RpmFanControlPanel';
 import { TuningToolbar } from './tuning/TuningToolbar';
 import { CpuTuningSection } from './tuning/CpuTuningSection';
 import { GpuTuningSection } from './tuning/GpuTuningSection';
@@ -33,6 +35,17 @@ export function normalizeFanCurve8(curve?: FanCurvePoint[], minDuty: number = 0)
     return DEFAULT_8_POINT_CURVE.map((p) => ({ ...p, duty: Math.max(minDuty, p.duty) }));
   }
   return curve.map((p) => ({ ...p, duty: Math.max(minDuty, p.duty) }));
+}
+
+async function persistTuningProfile(preset: CustomProfilePreset, previousJson: string, activateCpu: boolean) {
+  const previous: CustomProfileConfig | undefined = previousJson ? JSON.parse(previousJson) : undefined;
+  const cpuChanged = previous && (previous.cpu_pl1_watts !== preset.profile.cpu_pl1_watts || previous.cpu_pl2_watts !== preset.profile.cpu_pl2_watts);
+  const curveChanged = Boolean(previous && (JSON.stringify(previous.cpu_fan_curve) !== JSON.stringify(preset.profile.cpu_fan_curve) || JSON.stringify(previous.gpu_fan_curve) !== JSON.stringify(preset.profile.gpu_fan_curve)));
+  if (activateCpu && cpuChanged) {
+    await invoke('apply_custom_profile', { profile: preset.profile, legacyFanCurveChanged: curveChanged });
+  } else {
+    await invoke('save_profile_preset', { preset, legacyFanCurveChanged: curveChanged });
+  }
 }
 
 interface CustomTuningPanelProps {
@@ -108,6 +121,27 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     }
   }, [modelCaps]);
 
+  const nativeCpuPower = modelCaps?.cpu_power_backend === 'intel_rapl';
+  const [profileError, setProfileError] = useState('');
+  const [cpuPowerStatus, setCpuPowerStatus] = useState<CpuPowerStatus | null>(null);
+  const isPmcFan = modelCaps?.fan_control_mode === 'pmc_rpm_curve';
+  useEffect(() => {
+    if (capabilities) setModelCaps(capabilities);
+  }, [capabilities]);
+  useEffect(() => {
+    if (!nativeCpuPower) return;
+    let alive = true;
+    const read = async () => {
+      try {
+        const value = await invoke<CpuPowerStatus>('get_cpu_power_status');
+        if (alive) setCpuPowerStatus(value);
+      } catch (e) { if (alive) setProfileError(String(e)); }
+    };
+    void read();
+    const timer = setInterval(read, 2000);
+    return () => { alive = false; clearInterval(timer); };
+  }, [nativeCpuPower]);
+
   const [profile, setProfile] = useState<CustomProfileConfig>(DEFAULT_PROFILE);
   const [presetsList, setPresetsList] = useState<CustomProfilePreset[]>([]);
   const [defaultPresets, setDefaultPresets] = useState<CustomProfilePreset[]>([]);
@@ -162,7 +196,8 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     }
     return status.power_presets;
   }, [status.power_presets]);
-  const minPl = Math.min(15, presets?.office_pl1 || 35);
+  const minPl = nativeCpuPower ? (cpuPowerStatus?.min_watts ?? 5) : Math.min(15, presets?.office_pl1 || 35);
+  const nativeMaxPl = Math.max(minPl, cpuPowerStatus?.max_watts ?? minPl);
   const turboPl1 = presets?.turbo_pl1 || 90;
   const turboPl2 = presets?.turbo_pl2 || turboPl1;
   const turboPl4 = presets?.turbo_pl4 || (turboPl1 + 65);
@@ -179,13 +214,13 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const configTempTargetMax = appConfig?.cpu_temp_target_max ?? (Math.min(95, nativeTjMax) + tempOffset);
   const [tempTargetMax, setTempTargetMax] = useState<number>(configTempTargetMax);
 
-  const defaultMaxPl1 = turboPl1 + 25 + pl1Offset;
-  const minMaxPl1 = turboPl1 + pl1Offset;
-  const maxMaxPl1 = turboPl1 + 50 + pl1Offset;
+  const defaultMaxPl1 = nativeCpuPower ? nativeMaxPl : turboPl1 + 25 + pl1Offset;
+  const minMaxPl1 = nativeCpuPower ? minPl : turboPl1 + pl1Offset;
+  const maxMaxPl1 = nativeCpuPower ? nativeMaxPl : turboPl1 + 50 + pl1Offset;
 
-  const defaultMaxPl2 = turboPl2 + 25 + pl2Offset;
-  const minMaxPl2 = turboPl2 + pl2Offset;
-  const maxMaxPl2 = turboPl2 + 50 + pl2Offset;
+  const defaultMaxPl2 = nativeCpuPower ? nativeMaxPl : turboPl2 + 25 + pl2Offset;
+  const minMaxPl2 = nativeCpuPower ? minPl : turboPl2 + pl2Offset;
+  const maxMaxPl2 = nativeCpuPower ? nativeMaxPl : turboPl2 + 50 + pl2Offset;
 
   const defaultMaxPl4 = turboPl4 + 50 + pl4Offset;
   const minMaxPl4 = Math.max(defaultMaxPl4 - 30, turboPl2 + pl2Offset + pl4Margin);
@@ -211,6 +246,12 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   });
 
   const initialProfileRef = React.useRef<string>('');
+  const nativeCpuPowerRef = useRef(nativeCpuPower);
+  nativeCpuPowerRef.current = nativeCpuPower;
+  const modeRef = useRef(status.power_mode);
+  modeRef.current = status.power_mode;
+  const editModeRef = useRef(status.power_mode);
+
   const liveTweakDebounceRef = useRef<any>(null);
   const autoSaveDebounceRef = useRef<any>(null);
   const profileRef = useRef(profile);
@@ -235,19 +276,19 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       if (cfg) {
         let needsSave = false;
         const populatedCfg: AppConfig = { ...cfg };
-        if (populatedCfg.cpu_pl1_max == null) {
+        if (!nativeCpuPower && populatedCfg.cpu_pl1_max == null) {
           populatedCfg.cpu_pl1_max = defaultMaxPl1;
           needsSave = true;
         }
-        if (populatedCfg.cpu_pl2_max == null) {
+        if (!nativeCpuPower && populatedCfg.cpu_pl2_max == null) {
           populatedCfg.cpu_pl2_max = defaultMaxPl2;
           needsSave = true;
         }
-        if (populatedCfg.cpu_pl4_max == null) {
+        if (!nativeCpuPower && populatedCfg.cpu_pl4_max == null) {
           populatedCfg.cpu_pl4_max = defaultMaxPl4;
           needsSave = true;
         }
-        if (populatedCfg.cpu_temp_target_max == null) {
+        if (!nativeCpuPower && populatedCfg.cpu_temp_target_max == null) {
           populatedCfg.cpu_temp_target_max = 95 + tempOffset;
           needsSave = true;
         }
@@ -290,7 +331,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
         initialProfileRef.current = JSON.stringify(safeProfile);
         setProfile(safeProfile);
         // Silently restore hardware contract baseline to clear any locked DB or corrupt EC state ONLY if currently in Custom Mode
-        if (status.power_mode === 4) {
+        if (status.power_mode === 4 && !nativeCpuPower) {
           invoke('heal_gpu_power_contract', {
             superPerfEnable: safeProfile.gpu_super_perf,
             targetDbWatts: safeProfile.gpu_db_watts,
@@ -340,6 +381,8 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       return;
     }
 
+    editModeRef.current = status.power_mode;
+
     // Update preset in presetsList immediately so badges and lists stay in sync
     setPresetsList((prevList) =>
       prevList.map((p) => (p.id === activeProfileId ? { ...p, profile } : p))
@@ -355,10 +398,13 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
           ...currentPreset,
           profile,
         };
-        await invoke('save_profile_preset', { preset: updated });
+        await persistTuningProfile(updated, initialProfileRef.current,
+          nativeCpuPowerRef.current && editModeRef.current !== 4 && modeRef.current === editModeRef.current);
         initialProfileRef.current = currentJson;
+        setProfileError('');
         if (onApplied) onApplied();
       } catch (e) {
+        setProfileError(String(e));
         console.error('Failed to auto-save profile:', e);
       }
     }, 350);
@@ -370,6 +416,21 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     };
   }, [profile, activeProfileId]);
 
+  const syncSavedRpmPolicy = (saved: CustomProfileConfig) => {
+    const mergeFanPolicy = (current: CustomProfileConfig): CustomProfileConfig => ({
+      ...current,
+      ptl_rpm_fan_curves: saved.ptl_rpm_fan_curves,
+      fan_curve_enabled: saved.fan_curve_enabled,
+      fan_isolated_output: saved.fan_isolated_output,
+    });
+    // Mark only the already-persisted fan fields as saved. Pending CPU edits
+    // remain dirty and cannot overwrite a fan setting saved through this panel.
+    if (initialProfileRef.current) {
+      initialProfileRef.current = JSON.stringify(mergeFanPolicy(JSON.parse(initialProfileRef.current)));
+    }
+    setProfile(mergeFanPolicy);
+  };
+
   // Flush pending auto-save on unmount
   useEffect(() => {
     return () => {
@@ -379,9 +440,8 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
         const pList = presetsListRef.current;
         const currentPreset = pList.find((p) => p.id === pId);
         if (currentPreset && JSON.stringify(profileRef.current) !== initialProfileRef.current) {
-          invoke('save_profile_preset', {
-            preset: { ...currentPreset, profile: profileRef.current },
-          }).catch(console.error);
+          persistTuningProfile({ ...currentPreset, profile: profileRef.current }, initialProfileRef.current,
+            nativeCpuPowerRef.current && editModeRef.current !== 4 && modeRef.current === editModeRef.current).catch(console.error);
         }
       }
     };
@@ -391,7 +451,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     loadProfilesData();
 
     // Probe UEFI NVRAM hardware status directly from Motherboard SPI Flash
-    invoke<BiosMenuStatus>('get_bios_advanced_menu_status')
+    if (!nativeCpuPower) invoke<BiosMenuStatus>('get_bios_advanced_menu_status')
       .then((res) => {
         setBiosStatus(res);
         if (res.hardware_read) {
@@ -454,6 +514,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       setProfile(safeProfile);
       if (onApplied) onApplied();
     } catch (e) {
+      setProfileError(String(e));
       console.error('Failed to switch profile:', e);
     }
   };
@@ -468,6 +529,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       await loadProfilesData();
       await handleSelectProfile(newPreset.id);
     } catch (e) {
+      setProfileError(String(e));
       console.error('Failed to create profile:', e);
     }
   };
@@ -517,7 +579,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       initialProfileRef.current = JSON.stringify(safeProfile);
       setProfile(safeProfile);
       setPresetsList((prev) => prev.map((p) => (p.id === activeProfileId ? { ...res, profile: safeProfile } : p)));
-      await invoke('apply_custom_profile', { profile: safeProfile });
+      await invoke('apply_custom_profile', { profile: safeProfile, legacyFanCurveChanged: true });
       const isBld = isDirectRpmFan;
       if (safeProfile.fan_isolated_output || isBld) {
         triggerLiveFanApply(safeProfile.cpu_fan_curve, safeProfile.gpu_fan_curve);
@@ -600,6 +662,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
 
 
   const handleTempTargetChange = (rawVal: number, maxCap = tempTargetMax) => {
+    if (nativeCpuPower) return;
     const clampedVal = Math.max(tempTargetMin, Math.min(maxCap, rawVal));
     setProfile((prev) => ({ ...prev, cpu_temp_target: clampedVal }));
     if (profileRef.current.cpu_temp_target_enabled) {
@@ -650,10 +713,19 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     setMaxPl1(p1);
     setMaxPl2(p2);
     setMaxPl4(p4);
-  }, [turboPl1, turboPl2, turboPl4, pl1Offset, pl2Offset, pl4Offset, appConfig?.cpu_pl1_max, appConfig?.cpu_pl2_max, appConfig?.cpu_pl4_max]);
+  }, [turboPl1, turboPl2, turboPl4, pl1Offset, pl2Offset, pl4Offset, nativeCpuPower, nativeMaxPl, appConfig?.cpu_pl1_max, appConfig?.cpu_pl2_max, appConfig?.cpu_pl4_max]);
 
   // PL1 change auto pushes PL2 and PL4 up if exceeded
   const handlePl1Change = (rawVal: number) => {
+    if (nativeCpuPower) {
+      const max = Math.min(maxPl1, maxPl2, nativeMaxPl);
+      const value = Math.max(minPl, Math.min(max, rawVal));
+      setProfile(prev => ({ ...prev,
+        cpu_pl1_watts: value,
+        cpu_pl2_watts: Math.max(value, Math.min(max, prev.cpu_pl2_watts)),
+      }));
+      return;
+    }
     const val = Math.max(minPl, Math.min(maxPl1, rawVal));
     const nextPl2 = Math.max(val, profile.cpu_pl2_watts);
     const nextPl4 = Math.max(nextPl2 + pl4Margin, profile.cpu_pl4_watts);
@@ -668,6 +740,15 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
 
   // PL2 change pulls PL1 down if PL2 < PL1, and pushes PL4 up to preserve >= pl4Margin transient buffer
   const handlePl2Change = (rawVal: number) => {
+    if (nativeCpuPower) {
+      const max = Math.min(maxPl1, maxPl2, nativeMaxPl);
+      const value = Math.max(minPl, Math.min(max, rawVal));
+      setProfile(prev => ({ ...prev,
+        cpu_pl1_watts: Math.max(minPl, Math.min(value, prev.cpu_pl1_watts)),
+        cpu_pl2_watts: value,
+      }));
+      return;
+    }
     const val = Math.max(minPl, Math.min(maxPl2, rawVal));
     const nextPl1 = Math.min(val, profile.cpu_pl1_watts);
     const nextPl4 = Math.max(val + pl4Margin, profile.cpu_pl4_watts);
@@ -683,6 +764,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   // PL4 change: ensures PL4 is at least PL2 + pl4Margin (hardware transient safety buffer).
   // If user forces PL4 lower, smoothly pull PL2 (and PL1) down to keep PL2 <= PL4 - pl4Margin.
   const handlePl4Change = (rawVal: number) => {
+    if (nativeCpuPower) return;
     const val = Math.max(minPl + pl4Margin, Math.min(maxPl4, rawVal));
     const maxAllowedPl2 = Math.max(minPl, val - pl4Margin);
     const nextPl2 = Math.min(maxAllowedPl2, profile.cpu_pl2_watts);
@@ -746,6 +828,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
 
   // Toggle BIOS OC switch with cross-generation NVRAM hardware execution
   const handleToggleBiosOc = async () => {
+    if (nativeCpuPower) return;
     if (biosStatus?.hardware_read && !biosStatus.supported) {
       alert('当前机器主板固件或处理器未声明支持高级超频菜单 (Support=0x00)，已安全拦截！');
       return;
@@ -781,7 +864,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
 
   const triggerLiveFanApply = (cpuCurve: FanCurvePoint[], gpuCurve: FanCurvePoint[]) => {
     const isBld = isDirectRpmFan;
-    if (!isBld && status.power_mode !== 4) return;
+    if (!isBld && !isPmcFan && status.power_mode !== 4) return;
     if (liveFanDebounceRef.current) {
       clearTimeout(liveFanDebounceRef.current);
     }
@@ -848,7 +931,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const handleToggleFanIsolated = async (nextVal: boolean) => {
     const isBld = isDirectRpmFan;
     setProfile((p) => ({ ...p, fan_isolated_output: nextVal, fan_curve_enabled: nextVal }));
-    if (status.power_mode === 4 || isBld) {
+    if (status.power_mode === 4 || isBld || isPmcFan) {
       try {
         await invoke('toggle_fan_isolated_output', {
           enable: nextVal,
@@ -968,6 +1051,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
             gpuTemp={status.gpu_temp}
             gpuFanRpm={status.gpu_fan_rpm}
             gpuPowerW={status.gpu_power_w}
+            gpuPowerAvailable={status.gpu_power_available}
             gpuName={status.gpu_name}
             discreteGpu={modelCaps?.discrete_gpu}
             minPl={minPl}
@@ -1000,6 +1084,8 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
             cpuTuningType={modelCaps?.cpu_tuning_type}
             cpuSupportsFppt={modelCaps?.cpu_supports_fppt}
             cpuName={modelCaps?.cpu_name}
+            cpuPowerStatus={cpuPowerStatus}
+            controlError={profileError}
             onToggleTempTarget={(enabled) => {
               setProfile((p) => ({ ...p, cpu_temp_target_enabled: enabled }));
               triggerLiveTweak({ tempTarget: enabled ? Math.min(profile.cpu_temp_target, tempTargetMax) : tempTargetMax });
@@ -1095,7 +1181,13 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
               onToggleFanBoost={onToggleFanBoost || (() => invoke('set_fan_boost', { enable: !status.fan_boost }))}
             />
           ) : (
-            <FanCurveEditor
+            isPmcFan ? <RpmFanControlPanel
+              key={activeProfileId}
+              fan0={status.cpu_fan_rpm}
+              fan1={status.gpu_fan_rpm}
+              policyVersion={JSON.stringify([profile.ptl_rpm_fan_curves, profile.cpu_fan_curve, profile.gpu_fan_curve, profile.fan_curve_enabled])}
+              onPolicySaved={syncSavedRpmPolicy}
+            /> : <FanCurveEditor
               fanCurveTab={fanCurveTab}
               onTabChange={setFanCurveTab}
               cpuCurve={profile.cpu_fan_curve}

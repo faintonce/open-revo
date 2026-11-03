@@ -21,14 +21,15 @@ def number_value(value):
     return int(value, 0 if value.lower().startswith(("0x", "0b", "0o")) else 10)
 
 
-def non_address_number(before):
-    # Timeouts, pixel widths and VRAM sizes can equal a registered address.
+def non_address_number(before, after=""):
+    # Timeouts, dimensions, memory sizes and RPM values can equal an EC address.
     return bool(
         re.search(r"(?:from_millis|from_secs|Next|WaitForSingleObject|fetch_single_manifest|clamp|setTimeout|setInterval)\s*\([^;{}]*$", before)
         or re.search(r"\b(?:width|height)\s*(?:[<>=!]=?|:)\s*$", before)
         or re.search(r"\b\w*vram\w*\b", before, re.I)
         or re.search(r"\bebx\s*(?:>=|<=)\s*$", before)
         or re.search(r"\b\w*(?:_ms|_secs|_seconds)\b", before)
+        or re.search(r"\b(?:rpm|\w+_rpm(?:_per_sec)?|minRpm|maxRpm)\b", before + after)
     )
 
 
@@ -39,7 +40,9 @@ def scan_source(text, addresses, ioctls):
         if token.group("number"):
             value = number_value(token.group("number"))
             before = text[text.rfind("\n", 0, token.start()) + 1:token.start()]
-            if value in ioctls or (value in addresses and not non_address_number(before)):
+            line_end = text.find("\n", token.end())
+            after = text[token.end():line_end if line_end >= 0 else len(text)]
+            if value in ioctls or (value in addresses and not non_address_number(before, after)):
                 problems.add((text.count("\n", 0, token.start()) + 1, "Hardware literal must use the vault: " + token.group("number")))
         else:
             for index in range(token.start(), token.end()):

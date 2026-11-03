@@ -239,6 +239,13 @@ pub fn is_dc_round_plugged_in() -> bool {
 
 #[tauri::command]
 pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
+    let mode_key = match mode {
+        1 => "office", 2 => "balance", 3 => "turbo", 4 => "custom",
+        _ => return Err("无效的性能模式".into()),
+    };
+    if crate::hal::declarative::load_matched_manifest().is_some_and(|manifest| !manifest.capabilities.power_modes.iter().any(|supported| supported == mode_key)) {
+        return Err("当前机型未适配此性能模式".into());
+    }
     let is_thin_and_light = is_thin_and_light_or_pure_igpu();
     let is_dc = is_dc_round_plugged_in();
     let mut cfg = crate::system::config::load_config();
@@ -253,10 +260,7 @@ pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBrid
         return Err(msg.to_string());
     }
     let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
-    let is_tongfang_acpi_channel = crate::driver::wmi_ec::is_acpi_driver_available()
-        || crate::hal::declarative::load_matched_manifest()
-            .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
-            .unwrap_or(false);
+    let is_tongfang_acpi_channel = crate::hal::platform_probe::is_tongfang_family();
 
     if is_tongfang_acpi_channel {
         // Tongfang ODM models (both Gaming laptops and Thin & Lights like Wujie 14X/15X):
@@ -271,13 +275,12 @@ pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBrid
             4 => crate::hal::HardwarePowerMode::Custom,
             _ => crate::hal::HardwarePowerMode::Balance,
         };
-        if let Err(e) = hal.set_performance_mode(hw_mode) {
-            crate::log_warn!("POWER_CMD", "Direct HAL set_performance_mode failed: {}", e);
-        } else {
-            crate::log_info!("POWER_CMD", "Direct HAL applied performance mode {:?}", hw_mode);
-        }
+        hal.set_performance_mode(hw_mode).map_err(|error| error.to_string())?;
+        crate::log_info!("POWER_CMD", "Direct HAL applied performance mode {:?}", hw_mode);
         ec_state.lock().set_power_mode_from_hardware(mode);
-        if mode == 4 {
+        let uses_bld_fan = crate::hal::declarative::load_matched_manifest()
+            .is_some_and(|manifest| manifest.capabilities.uses_bld_fan_controller());
+        if uses_bld_fan && mode == 4 {
             if cfg.custom_profile.fan_isolated_output || cfg.custom_profile.fan_curve_enabled {
                 crate::driver::bld_driver_mgr::set_bld_fan_curve(
                     cfg.custom_profile.cpu_fan_curve.clone(),
@@ -288,7 +291,7 @@ pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBrid
             } else if !cfg.fan_boost {
                 crate::driver::bld_driver_mgr::restore_bld_fan_auto();
             }
-        } else if !cfg.fan_boost {
+        } else if uses_bld_fan && !cfg.fan_boost {
             crate::driver::bld_driver_mgr::restore_bld_fan_auto();
         }
     } else {
@@ -319,9 +322,12 @@ pub fn set_fan_boost(
     let support_flags = crate::driver::wmi_ec::get_hardware_support_flags();
     if !support_flags.has_fan_boost {
         crate::log_info!("POWER_CMD", "Fan boost is not supported on this platform.");
-        return Ok(());
+        return Err("当前机型尚未适配风扇强冷或手动转速控制".into());
     }
-    ec_state.lock().set_fan_boost(enable);
+    if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.uses_ptl_pmc()) {
+        crate::hal::get_hardware_driver().set_fan_boost(enable).map_err(|e| e.to_string())?;
+        ec_state.lock().set_fan_boost_from_hardware(enable);
+    } else { ec_state.lock().set_fan_boost(enable); }
     let mut cfg = crate::system::config::load_config();
     cfg.fan_boost = enable;
     crate::system::config::save_config(&cfg);
@@ -341,8 +347,8 @@ pub fn set_fan_boost(
 
 #[tauri::command]
 pub fn set_battery_limit(limit: u8, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
-    ec_state.lock().set_battery_limit(limit);
     let mut cfg = crate::system::config::load_config();
+    ec_state.lock().apply_battery_limit_checked(limit, cfg.battery_hardware_limit_enabled)?;
     cfg.battery_limit = limit;
     cfg.battery_mode = if limit >= 95 {
         "long_life".to_string()
@@ -364,9 +370,15 @@ fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
     let cfg = crate::system::config::load_config();
     let (percent, _, is_charging) = get_live_power_status();
     let is_dc = is_dc_round_plugged_in();
-    let hw_limit = ec_state.lock().get_battery_limit();
-    let effective_limit = if hw_limit > 0 { hw_limit } else { cfg.battery_limit };
-    let mode = if effective_limit >= 95 {
+    let is_ptl = crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.uses_ptl_pmc());
+    let hw_limit = if is_ptl {
+        crate::hal::ptl_pmc::battery_state().map(|s| if s.enabled { s.lower } else { 100 }).unwrap_or(0)
+    } else { ec_state.lock().get_battery_limit() };
+    let limit_supported = crate::driver::wmi_ec::get_hardware_support_flags().has_battery_limit;
+    let effective_limit = if !limit_supported { 0 } else if hw_limit > 0 || is_ptl { hw_limit } else { cfg.battery_limit };
+    let mode = if !limit_supported || effective_limit == 0 {
+        "unavailable".to_string()
+    } else if effective_limit >= 95 {
         "long_life".to_string()
     } else if effective_limit <= 65 {
         "station".to_string()
@@ -374,7 +386,11 @@ fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
         "balance".to_string()
     };
 
-    let (usb_charge, ac_recovery) = read_ec_power_options(&cfg, crate::driver::wmi_ec::wmi_read_ec);
+    let (usb_charge, ac_recovery) = if crate::hal::platform_probe::is_tongfang_family() {
+        read_ec_power_options(&cfg, crate::driver::wmi_ec::wmi_read_ec)
+    } else {
+        (cfg.usb_charge_enabled, cfg.ac_recovery_enabled)
+    };
 
 #[cfg(target_os = "windows")]
 fn get_active_power_scheme_guid() -> String {
@@ -641,15 +657,15 @@ pub fn set_battery_mode(
     let limit = match mode.as_str() {
         "long_life" => 100,
         "station" => 60,
-        _ => 80, // "balance"
+        "balance" => 80,
+        _ => return Err("无效的充电模式".into()),
     };
 
     let mut cfg = crate::system::config::load_config();
+    ec_state.lock().apply_battery_limit_checked(limit, cfg.battery_hardware_limit_enabled)?;
     cfg.battery_mode = mode.clone();
     cfg.battery_limit = limit;
     crate::system::config::save_config(&cfg);
-
-    ec_state.lock().apply_battery_limit_with_override(limit, cfg.battery_hardware_limit_enabled);
 
     Ok(get_power_settings(ec_state))
 }
@@ -659,6 +675,9 @@ pub fn set_battery_hardware_limit(
     enable: bool,
     ec_state: State<'_, SharedEcBridge>,
 ) -> Result<PowerSettingsInfo, String> {
+    if !crate::hal::platform_probe::is_tongfang_family() {
+        return Err("当前机型不支持同方电池硬件强制限制".into());
+    }
     let mut cfg = crate::system::config::load_config();
     cfg.battery_hardware_limit_enabled = enable;
     crate::system::config::save_config(&cfg);
@@ -670,6 +689,9 @@ pub fn set_battery_hardware_limit(
 
 #[tauri::command(async)]
 pub fn set_power_option(option: String, enable: bool, ec_state: State<'_, SharedEcBridge>) -> Result<PowerSettingsInfo, String> {
+    if matches!(option.as_str(), "usb_charge" | "ac_recovery") && !crate::hal::platform_probe::is_tongfang_family() {
+        return Err("当前机型未适配此 EC 电源选项".into());
+    }
     let mut cfg = crate::system::config::load_config();
     crate::system::config::ensure_config_writable()?;
     apply_power_option(&mut cfg, &option, enable, crate::driver::wmi_ec::wmi_modify_ec_mask, crate::system::power_mode::set_windows_power_overlay)?;

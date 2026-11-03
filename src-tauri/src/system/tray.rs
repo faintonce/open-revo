@@ -86,6 +86,8 @@ pub fn update_tray_log_state(_enabled: bool) {
 
 /// Graceful hardware shutdown and MCU handover on application exit.
 pub fn safe_hardware_shutdown_on_exit() {
+    if let Err(e) = crate::hal::cpu_power::shutdown() { crate::log_error!("CPU_POWER", "CPU power restoration failed: {}", e); }
+    crate::hal::ptl_pmc::shutdown();
     println!("[OpenRevo] Tray quit requested. Safely shutting down water cooler, handing over logo & keyboard to MCU...");
     crate::driver::ble_cooler::get_global_cooler().stop_and_shutdown();
     crate::driver::ite_lighting::IteLightingManager::handover_logo_on_exit();
@@ -162,6 +164,25 @@ pub fn handle_tray_menu_event(
     event_id: &str,
     ec_clone: &Arc<Mutex<EcBridge>>,
 ) {
+    let native_mode = match event_id { "mode_office" => Some(1), "mode_balance" => Some(2), "mode_beast" => Some(3), "mode_custom" => Some(4), _ => None };
+    if let Some(mode) = native_mode.filter(|_| crate::commands::tuning_cmd::uses_native_cpu_power()) {
+        let hw = match mode { 1 => crate::hal::HardwarePowerMode::Office, 2 => crate::hal::HardwarePowerMode::Balance, 3 => crate::hal::HardwarePowerMode::Turbo, _ => crate::hal::HardwarePowerMode::Custom };
+        if let Err(e) = crate::hal::get_hardware_driver().set_performance_mode(hw) {
+            crate::log_error!("CPU_POWER", "Tray mode request failed: {}", e);
+            update_tray_power_mode(ec_clone.lock().get_power_mode());
+            return;
+        }
+        ec_clone.lock().set_power_mode_from_hardware(mode);
+        let mut cfg = crate::system::config::load_config();
+        cfg.power_mode = mode;
+        if crate::commands::power_cmd::is_dc_round_plugged_in() { cfg.power_mode_ac = mode; }
+        else { cfg.power_mode_battery = mode; }
+        crate::system::config::save_config(&cfg);
+        update_tray_power_mode(mode);
+        let _ = app_handle.emit("physical-mode-switched", mode);
+        crate::system::osd_window::show_power_mode(mode);
+        return;
+    }
     match event_id {
         "mode_full_panel" => {
             crate::log_info!("TRAY", "Menu 'mode_full_panel' (完整面板) clicked");

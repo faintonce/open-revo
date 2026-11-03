@@ -3,6 +3,12 @@ pub use openrevo_core::hal::power_options;
 
 // pub mod baolongda_guard;
 pub mod declarative;
+pub use openrevo_core::hal::cpu_power;
+
+pub use openrevo_core::hal::cpu_temperature;
+pub use openrevo_core::hal::intel_gpu;
+pub use openrevo_core::hal::ptl_pmc;
+pub use openrevo_core::hal::fan_policy;
 pub mod driver_impl;
 pub mod mock;
 pub mod platform_probe;

@@ -273,6 +273,21 @@ pub fn start_hardware_state_watcher(
 
             let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
 
+            if crate::hal::cpu_power::is_active() && !crate::hal::cpu_power::ac_online() {
+                let hal = crate::hal::get_hardware_driver();
+                if let Err(e) = hal.set_performance_mode(crate::hal::HardwarePowerMode::Balance) {
+                    crate::log_error!("CPU_POWER", "Cannot release custom CPU power on battery: {}", e);
+                } else {
+                    let mut cfg = crate::system::config::load_config();
+                    cfg.power_mode = 2;
+                    crate::system::config::save_config(&cfg);
+                    ec_bridge.lock().set_power_mode_from_hardware(2);
+                    crate::system::tray::update_tray_power_mode(2);
+                    use tauri::Emitter;
+                    let _ = app.emit("physical-mode-switched", 2);
+                }
+            }
+
             if is_thin_light {
                 // Pure iGPU / Thin & Light Laptops:
                 // Completely respect user's manual power mode choice!

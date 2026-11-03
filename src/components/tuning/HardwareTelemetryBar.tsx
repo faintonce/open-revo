@@ -3,22 +3,27 @@ import { Activity } from 'lucide-react';
 
 export interface PowerWattBadgeProps {
   watts?: number;
+  available?: boolean | null;
   type: 'cpu' | 'gpu';
   isApuOrIgpu?: boolean;
 }
 
 export const PowerWattBadge: React.FC<PowerWattBadgeProps> = ({
   watts,
+  available,
   type,
   isApuOrIgpu = false,
 }) => {
   const color = type === 'cpu' ? 'var(--color-balance)' : 'var(--status-ok)';
+  const decimals = type === 'gpu' && (watts ?? 0) < 1 ? 2 : (watts ?? 0) >= 100 ? 0 : 1;
   const formatted =
-    watts !== undefined && watts > 0
-      ? `${watts >= 100 ? watts.toFixed(0) : watts.toFixed(1)} W`
-      : isApuOrIgpu && type === 'gpu'
-        ? 'APU 共享'
-        : '-- W';
+    available === false
+      ? '-- W'
+      : watts !== undefined && Number.isFinite(watts) && (watts > 0 || (available === true && watts === 0))
+        ? `${watts.toFixed(decimals)} W`
+        : isApuOrIgpu && type === 'gpu'
+          ? 'APU 共享'
+          : '-- W';
 
   return (
     <div
@@ -42,6 +47,7 @@ export interface HardwareTelemetryBarProps {
   gpuTemp?: number;
   gpuFanRpm?: number;
   gpuPowerW?: number;
+  gpuPowerAvailable?: boolean | null;
   isApuOrIgpu?: boolean;
 }
 
@@ -52,6 +58,7 @@ export const HardwareTelemetryBar: React.FC<HardwareTelemetryBarProps> = ({
   gpuTemp,
   gpuFanRpm,
   gpuPowerW,
+  gpuPowerAvailable,
   isApuOrIgpu = false,
 }) => {
   const totalPowerW = (cpuPowerW || 0) + (gpuPowerW || 0);
@@ -153,7 +160,7 @@ export const HardwareTelemetryBar: React.FC<HardwareTelemetryBarProps> = ({
             </span>
           )}
         </div>
-        <PowerWattBadge watts={gpuPowerW} type="gpu" isApuOrIgpu={isApuOrIgpu} />
+        <PowerWattBadge watts={gpuPowerW} available={gpuPowerAvailable} type="gpu" isApuOrIgpu={isApuOrIgpu} />
       </div>
     </div>
   );

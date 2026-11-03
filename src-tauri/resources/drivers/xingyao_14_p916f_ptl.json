@@ -1,0 +1,96 @@
+{
+  "$schema": "https://openrevo.org/schemas/model-driver.v1.json",
+  "id": "mechrevo_xingyao_14_p916f_ptl",
+  "name": "MECHREVO Xingyao 14 P916F-PTL (Intel Panther Lake)",
+  "version": "1.4.3",
+  "author": "OpenRevo Core Team",
+  "identity": {
+    "form_factor": "thin_light",
+    "ui_preset": "ultrabook_compact",
+    "dmi_match": {
+      "vendor": "MECHREVO",
+      "board_products": ["XINGYAO Series-P916F-PTL"],
+      "product_names": ["XINGYAO Series"],
+      "bios_versions": { "min": "1.00", "max": "1.00" }
+    }
+  },
+  "capabilities": {
+    "discrete_gpu": false,
+    "gpu_telemetry_backend": "intel_igcl_pmt",
+    "water_cooling": false,
+    "fan_custom_curve": true,
+    "fan_independent_channels": true,
+    "fan_ramp_rate": false,
+    "fan_software_smoothing": true,
+    "fan_control_mode": "pmc_rpm_curve",
+    "fan_boost_mode": "pmc_rpm",
+    "max_fan_rpm": 7500,
+    "min_fan_rpm": [1200, 1000],
+    "battery_charge_limit": true,
+    "battery_limit_mode": "pmc_threshold",
+    "cpu_vendor": "intel",
+    "cpu_tuning_type": "intel_rapl",
+    "cpu_power_backend": "intel_rapl",
+    "cpu_power_max_watts": 50,
+    "cpu_supports_fppt": false,
+    "gpu_power_tuning_mode": "none",
+    "fn_lock": true,
+    "power_modes": ["office", "balance", "turbo", "custom"],
+    "rgb_keyboard": {
+      "supported": false,
+      "type": "none",
+      "hardware_autonomous": true,
+      "hotkey_osd_only": true,
+      "sleep_timeout_supported": false,
+      "timeout_options_seconds": []
+    }
+  },
+  "channels": {
+    "pm2": { "type": "pmc_ec", "protocol": "xingyao_ptl_v1" },
+    "wmi_mailbox": {
+      "type": "wmi_mailbox",
+      "namespace": "root\\wmi",
+      "class_name": "OemWMIMethod",
+      "method_name": "OemWMIfun",
+      "buffer_sizes": { "in": 64, "out": 256 },
+      "response_status": { "offset": 0, "success": 0 }
+    }
+  },
+  "actions": {
+    "read_fan_rpm": { "channel": "pm2", "input": [] },
+    "diagnostic_cpu_fan_rpm": {
+      "channel": "wmi_mailbox",
+      "input": [2, 1, 0],
+      "parse": { "rpm": { "offset": 1, "type": "u16_le" } }
+    },
+    "diagnostic_gpu_fan_rpm": {
+      "channel": "wmi_mailbox",
+      "input": [2, 1, 1],
+      "parse": { "rpm": { "offset": 1, "type": "u16_le" } }
+    },
+    "get_power_mode": {
+      "channel": "wmi_mailbox",
+      "input": [3, 9],
+      "parse": { "mode_code": { "offset": 1, "type": "u8" } },
+      "mapping": { "1": "office", "2": "balance", "3": "turbo" }
+    },
+    "set_power_mode": {
+      "channel": "wmi_mailbox",
+      "modes": {
+        "office": [3, 10, 1],
+        "balance": [3, 10, 2],
+        "turbo": [3, 10, 3]
+      },
+      "response_status": {
+        "office": { "offset": 0, "success": 148 },
+        "balance": { "offset": 0, "success": 149 },
+        "turbo": { "offset": 0, "success": 150 }
+      }
+    },
+    "switch_fn_lock_on": { "channel": "wmi_mailbox", "input": [3, 4, 1] },
+    "switch_fn_lock_off": { "channel": "wmi_mailbox", "input": [3, 4, 0] },
+    "switch_win_lock_on": { "channel": "wmi_mailbox", "input": [3, 2, 1] },
+    "switch_win_lock_off": { "channel": "wmi_mailbox", "input": [3, 2, 0] }
+  },
+  "guardrails": { "safe_commands_only": true }
+}

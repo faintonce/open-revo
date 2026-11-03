@@ -210,11 +210,11 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
         let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
 
         let effective_power_mode = if is_thin_light {
-            // 纯核显轻薄本：完全尊重用户记忆的 power_mode (1..=3)，不执行开机强制切狂暴/强制切平衡
-            let mode = match cfg.power_mode {
-                1..=3 => cfg.power_mode,
-                _ => 2, // 默认均衡
-            };
+            // Restore Custom only when declared by the driver and AC is online.
+            let custom_supported = crate::hal::declarative::load_matched_manifest()
+                .is_some_and(|manifest| manifest.capabilities.cpu_power_backend.is_some()
+                    && manifest.capabilities.power_modes.iter().any(|mode| mode == "custom"));
+            let mode = arbiter::resolve_thin_light_boot_mode(cfg.power_mode, custom_supported, is_dc_online);
             crate::log_info!("MAIN", "Thin & light laptop: restoring user configured power mode {}", mode);
             mode
         } else if is_dc_online {
@@ -261,8 +261,27 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
                 4 => crate::hal::HardwarePowerMode::Custom,
                 _ => crate::hal::HardwarePowerMode::Balance,
             };
-            let _ = hal.set_performance_mode(hw_mode);
-            ec_for_restore.lock().set_power_mode_from_hardware(effective_power_mode);
+            let actual_mode = match hal.set_performance_mode(hw_mode) {
+                Ok(()) => effective_power_mode,
+                Err(e) => {
+                    crate::log_error!("POWER_RESTORE", "Cannot restore saved performance mode: {}", e);
+                    if let Err(e) = hal.set_performance_mode(crate::hal::HardwarePowerMode::Balance) {
+                        crate::log_error!("POWER_RESTORE", "Cannot select fallback mode: {}", e);
+                        return;
+                    }
+                    2
+                }
+            };
+            let mut restored = crate::system::config::load_config();
+            if restored.power_mode != actual_mode {
+                if restored.power_mode == 4 { restored.power_mode_ac = 4; }
+                restored.power_mode = actual_mode;
+                if let Err(error) = crate::system::config::try_save_config(&restored) {
+                    crate::log_error!("POWER_RESTORE", "Cannot persist restored mode: {}", error);
+                }
+            }
+            ec_for_restore.lock().set_power_mode_from_hardware(actual_mode);
+            crate::system::tray::update_tray_power_mode(actual_mode);
             crate::log_info!("POWER_RESTORE", "Thin & light startup power mode applied via HAL: {:?}", hw_mode);
 
             // Restore battery health limit via HAL if applicable
@@ -274,6 +293,17 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
             };
             if let Some(bm) = batt_mode {
                 let _ = hal.set_battery_health(bm);
+            }
+            if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.uses_ptl_pmc()) {
+                let curves = cfg.custom_profile.ptl_rpm_curves();
+                if let Err(e) = hal.set_rpm_fan_smoothing(curves.smoothing) {
+                    crate::log_error!("PTL_FAN", "Cannot restore software smoothing: {}", e);
+                }
+                if cfg.custom_profile.fan_curve_enabled {
+                    if let Err(e) = hal.set_rpm_fan_curves(curves) {
+                        crate::log_error!("PTL_FAN", "Cannot restore fan curve: {}", e);
+                    }
+                }
             }
 
             restore_ec_power_options(&crate::system::config::load_config());
@@ -550,6 +580,9 @@ pub fn set_windows_power_overlay(ui_mode: u8) -> Result<(), String> {
 }
 
 pub(crate) fn restore_ec_power_options(cfg: &crate::system::config::AppConfig) {
+    if !crate::hal::platform_probe::is_tongfang_family() {
+        return;
+    }
     if let Err(error) = crate::system::config::ensure_config_writable() {
         crate::log_warn!(
             "POWER_RESTORE",

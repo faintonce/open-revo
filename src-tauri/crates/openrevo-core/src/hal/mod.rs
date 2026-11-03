@@ -3,6 +3,15 @@ pub mod power_options;
 
 // pub mod baolongda_guard;
 pub mod declarative;
+pub mod cpu_power;
+mod intel_msr;
+
+pub mod cpu_temperature;
+pub mod intel_gpu;
+mod intel_pmt;
+pub mod ptl_pmc;
+pub mod fan_policy;
+pub mod fan_smoothing;
 pub mod driver_impl;
 pub mod mock;
 pub mod platform_probe;

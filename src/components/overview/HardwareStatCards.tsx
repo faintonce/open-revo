@@ -18,9 +18,10 @@ function formatCpuShort(brand?: string): string {
 }
 
 function formatGpuShort(name?: string, isPureIgpu?: boolean): string {
-  if (!name || isPureIgpu) return isPureIgpu ? 'Core Graphics (iGPU)' : 'GPU';
+  if (!name) return isPureIgpu ? 'Core Graphics (iGPU)' : 'GPU';
   let s = name
     .replace(/NVIDIA\s+GeForce\s+/gi, '')
+    .replace(/\(R\)|\(TM\)/gi, '')
     .replace(/\s+Laptop\s+GPU/gi, '')
     .trim();
   return s || 'GPU';
@@ -35,6 +36,13 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
   const isPureIgpu = capabilities ? capabilities.discrete_gpu === false : !status.gpu_name;
 
   const isApuOrIgpu = isPureIgpu;
+  const fanControl = status.fan_control;
+  const fanLabel = fanControl
+    ? fanControl.resume_pending ? '保护·待恢复'
+      : fanControl.mode === 'curve' ? '转速曲线'
+      : fanControl.mode === 'manual' ? '固定转速'
+      : fanControl.mode === 'auto' ? '原厂自动' : '恢复自动中'
+    : status.fan_boost ? '一键强冷' : '自动温控';
 
   return (
     <div className="telemetry-cards-grid" data-slot="telemetry-grid">
@@ -132,7 +140,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
             {isPureIgpu ? 'GPU 集成核心' : 'GPU 独立显卡'}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PowerWattBadge watts={status.gpu_power_w} type="gpu" isApuOrIgpu={isApuOrIgpu} />
+            <PowerWattBadge watts={status.gpu_power_w} available={status.gpu_power_available} type="gpu" isApuOrIgpu={isApuOrIgpu} />
             <Activity className={`w-4 h-4 ${isPureIgpu ? 'text-sky-400' : 'text-emerald-400'} flex-shrink-0`} />
           </div>
         </div>
@@ -140,7 +148,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '8px 0 3px 0' }}>
             <div style={{ display: 'flex', alignItems: 'baseline' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', fontWeight: 800, color: status.gpu_temp > 80 ? '#f43f5e' : '#fff', lineHeight: 1 }}>
+              <span title={status.gpu_temp_unavailable_reason || undefined} style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', fontWeight: 800, color: status.gpu_temp > 80 ? '#f43f5e' : '#fff', lineHeight: 1 }}>
                 {status.gpu_temp > 0 ? status.gpu_temp : '--'}
               </span>
               <span style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 500, marginLeft: '2px' }}>°C</span>
@@ -262,19 +270,9 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-dim)' }}>
           <span>{isPureIgpu ? (status.gpu_fan_rpm > 0 ? '双涡轮高效散热' : '智能高效散热') : '双风扇散热'}</span>
-          <span
-            style={{
-              background: status.fan_boost ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255, 255, 255, 0.07)',
-              border: status.fan_boost ? '1px solid rgba(244, 63, 94, 0.35)' : '1px solid rgba(255, 255, 255, 0.12)',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              color: status.fan_boost ? '#fb7185' : '#38bdf8',
-            }}
-          >
-            {status.fan_boost ? '一键强冷' : '自动温控'}
+          <span className="fan-control-badge" data-mode={fanControl?.resume_pending ? 'protected' : fanControl?.mode ?? (status.fan_boost ? 'boost' : 'auto')}
+            title={fanControl?.error ?? (fanControl?.mode === 'curve' || fanControl?.mode === 'manual' ? `目标 ${fanControl.target_rpm.join(' / ')} RPM` : '由固件按当前性能模式自动调速')}>
+            {fanLabel}
           </span>
         </div>
       </div>

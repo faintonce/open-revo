@@ -10,6 +10,7 @@ export interface DisplayMonitor {
 }
 
 export interface HardwareState {
+  fan_control?: RpmFanControlStatus | null;
   power_mode: number;         // 1: Office, 2: Balance, 3: Beast, 4: Custom
   fan_boost: boolean;        // true if max fan
   battery_limit: number;      // 80 or 100
@@ -17,6 +18,7 @@ export interface HardwareState {
   cpu_usage: number;         // %
   cpu_freq: number;          // MHz
   gpu_temp: number;          // °C
+  gpu_temp_unavailable_reason?: string | null;
   cpu_fan_rpm: number;       // RPM
   gpu_fan_rpm: number;       // RPM
   gpu_usage: number;         // %
@@ -45,6 +47,7 @@ export interface HardwareState {
   is_dc_online?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
   cpu_power_w?: number;      // CPU package real-time power (W)
   gpu_power_w?: number;      // GPU real-time power draw (W)
+  gpu_power_available?: boolean | null; // Distinguish valid zero watts from unavailable data
   gpu_tuning_caps?: GpuTuningCapabilities; // Multi-generation GPU tuning & DB/cTGP capabilities
 }
 
@@ -180,7 +183,27 @@ export interface FanCurvePoint {
   duty: number;
 }
 
+export interface RpmCurvePoint { temp: number; rpm: number; }
+export interface RpmSmoothing { enabled: boolean; rise_rpm_per_sec: number; fall_rpm_per_sec: number; fall_delay_secs: number; }
+export interface RpmFanCurves { fan0: RpmCurvePoint[]; fan1: RpmCurvePoint[]; linked: boolean; smoothing: RpmSmoothing; }
+export interface FanRpmLimits { minimum: [number, number]; maximum: number; step: number; startup_rpm: number; startup_secs: number; }
+export interface RpmFanControlStatus {
+  smoothing?: RpmSmoothing;
+  smoothing_active?: boolean;
+  transition_rpm?: [number, number];
+  rpm_limits?: FanRpmLimits;
+  mode: string;
+  requested_mode: string;
+  target_rpm: [number, number];
+  applied_rpm?: [number, number];
+  cpu_temperature?: number | null;
+  resume_pending: boolean;
+  recovery_remaining_secs: number;
+  error?: string | null;
+}
+
 export interface CustomProfileConfig {
+  ptl_rpm_fan_curves?: RpmFanCurves | null;
   cpu_temp_target_enabled: boolean;
   cpu_temp_target: number;
   cpu_pl1_watts: number;
@@ -261,3 +284,27 @@ export interface CpuFreqInfo {
 }
 
 
+
+export interface CpuPowerStatus {
+  backend: string;
+  available: boolean;
+  pl1_writable: boolean;
+  pl2_writable: boolean;
+  pl4_writable: boolean;
+  temperature_writable: boolean;
+  ratio_writable: boolean;
+  voltage_writable: boolean;
+  locked: boolean;
+  active: boolean;
+  overridden: boolean;
+  write_verified: boolean;
+  pl1_watts: number | null;
+  pl2_watts: number | null;
+  pl1_enabled: boolean;
+  pl2_enabled: boolean;
+  pl1_window_seconds: number | null;
+  pl2_window_seconds: number | null;
+  min_watts: number;
+  max_watts: number;
+  error: string | null;
+}

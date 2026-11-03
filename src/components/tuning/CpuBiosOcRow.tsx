@@ -5,6 +5,7 @@ export interface CpuBiosOcRowProps {
   biosStatus: BiosMenuStatus | null;
   biosOcEnabled: boolean;
   biosToggling: boolean;
+  disabled?: boolean;
   onToggleBiosOc: () => void;
 }
 
@@ -12,10 +13,11 @@ export const CpuBiosOcRow: React.FC<CpuBiosOcRowProps> = ({
   biosStatus,
   biosOcEnabled,
   biosToggling,
+  disabled = false,
   onToggleBiosOc,
 }) => {
   const isAmd = Boolean(biosStatus?.is_amd);
-  const isUnsupported = Boolean(biosStatus?.hardware_read && !biosStatus.supported);
+  const isUnsupported = disabled || Boolean(biosStatus?.hardware_read && !biosStatus.supported);
   const isDisabled = biosToggling || isAmd || isUnsupported;
 
   const descText = isAmd

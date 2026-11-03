@@ -26,6 +26,7 @@ rhai = { version = "1.19", features = ["sync", "no_module", "no_custom_syntax", 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.58"
 features = [
+    "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_Graphics_Gdi",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Input_KeyboardAndMouse",
