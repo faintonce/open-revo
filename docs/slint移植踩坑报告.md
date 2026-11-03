@@ -206,6 +206,19 @@ OpenRevo 恪守绝对原则：**严禁在运行时代码中调用 PowerShell 或
 
 ---
 
+### 4. 原生文件选择对话框非模态与后台静默弹出陷阱 (hwndOwner: 0 与重入并发)
+- **现象**：在界面点击“导入”校色文件或调教方案，文件选择窗口没有在最前面弹出，而是沉到了后台或者任务栏闪烁；主界面没有任何模态阻断（仍然可以随意点击），用户以为点击未生效多次点击，结果导致后台一瞬间打开了数个重叠的文件选择窗口。
+- **根因分析**：
+  1. **所有者句柄缺失（`hwndOwner == 0`）**：在 Win32 `comdlg32::GetOpenFileNameW` / `GetSaveFileNameW` 的参数结构体 `OPENFILENAMEW` 中，`hwndOwner` 被填为了 `0` (`NULL`)。此时 Windows 视其为无宿主的桌面级顶层独立窗口，**不会触发 Win32 原生的模态阻断机制（`EnableWindow(owner, FALSE)`）**，导致主界面不受任何约束。
+  2. **跨进程前台锁定机制（LockSetForegroundWindow）**：OpenRevo 采用 UI 伴生进程与后台宿主服务分离架构。当后台线程直接创建无主窗口时，Windows 限制后台线程抢占活动焦点，导致对话框被压在主窗口下方。
+  3. **并发调用缺少原子锁（Atomic Re-entrancy）**：异步 Runtime 收到每次 IPC 消息都会单独 `spawn` 一个独立线程执行对话框，用户连点 5 次就会并发产生 5 个 Win32 阻塞弹窗。
+- **规范与解决方案**：
+  1. **动态检索并绑定主窗口句柄**：实现 `get_openrevo_main_hwnd()`，优先嗅探活动窗口，并利用 `EnumWindows` 精确获取可见的 `"OpenRevo"` 窗口 HWND，将其作为 `hwndOwner` 传入；同时显式调用 `SetForegroundWindow` / `BringWindowToTop`。Win32 会自动在弹窗期间禁用主窗口，并在弹窗关闭后自动解封恢复焦点。
+  2. **全局原子防重入守卫**：引入 `static IS_FILE_DIALOG_ACTIVE: AtomicBool`。当已有弹窗处于激活状态时，后续点击直接拦截并忽略；使用 RAII Drop Guard 确保弹窗无论确认还是取消都能安全释放锁。
+  3. **规范 Flags 组合**：显式加入 `OFN_NOCHANGEDIR (0x8)` 防止进程工作路径被用户浏览行为篡改，加入 `OFN_EXPLORER (0x80000)` 和 `OFN_ENABLESIZING (0x800000)` 提供现代视觉交互体验。
+
+---
+
 ## 五、Slint 模块移植标准开发 Checklist
 
 在将任何新模块（如电源管理、RGB灯效、系统设置）从 Web 迁移到 Slint 时，请按顺序检查：
@@ -225,7 +238,7 @@ OpenRevo 恪守绝对原则：**严禁在运行时代码中调用 PowerShell 或
   - [ ] 下拉框、列表项是否区分了“用户界面显示名”与“底代码/驱动唯一 ID”？
   - [ ] 实时微调逻辑是否能无条件穿透并直达硬件驱动？
 - [ ] **5. 系统能力检查**
-  - [ ] 涉及文件打开/保存时，是否直接调用 Win32 原生 `comdlg32` API，杜绝慢速易死锁的 PowerShell 脚本？
+  - [ ] 涉及文件打开/保存时，是否直接调用 Win32 原生 `comdlg32` API 并绑定可见主窗口 HWND，实现原生模态阻断与防重入守卫？
   - [ ] 硬件探测、网络特征枚举与压缩解包是否 100% 遵守零 PowerShell 铁律，纯走 Win32 API？
 - [ ] **6. 门禁验证**
   - [ ] 运行 `cargo check --manifest-path src-tauri/Cargo.toml` 无编译错误与冗余 Warning。

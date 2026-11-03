@@ -699,6 +699,31 @@ pub fn import_profile_preset(
 pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str) -> Option<std::path::PathBuf> {
     use std::os::windows::ffi::OsStrExt;
     use std::ffi::OsStr;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
+
+    // Concurrency protection: ignore re-entrant clicks when dialog is already visible
+    if crate::system::slint_window::IS_FILE_DIALOG_ACTIVE.compare_exchange(false, true, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst).is_err() {
+        crate::log_warn!("DIALOG", "File dialog is already active; ignoring duplicate invocation");
+        return None;
+    }
+
+    struct DialogGuard;
+    impl Drop for DialogGuard {
+        fn drop(&mut self) {
+            crate::system::slint_window::IS_FILE_DIALOG_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    let _guard = DialogGuard;
+
+    let hwnd_owner = crate::system::slint_window::get_openrevo_main_hwnd();
+    if hwnd_owner != 0 {
+        unsafe {
+            let hwnd = HWND(hwnd_owner as *mut _);
+            let _ = SetForegroundWindow(hwnd);
+            let _ = BringWindowToTop(hwnd);
+        }
+    }
 
     #[repr(C)]
     #[allow(non_snake_case)]
@@ -738,15 +763,24 @@ pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str)
     let copy_len = default_name_w.len().min(1023);
     file_buf[..copy_len].copy_from_slice(&default_name_w[..copy_len]);
 
-    let filter_str = format!("{} (*.{})\0*.{}\0All Files (*.*)\0*.*\0\0", filter_name, filter_ext, filter_ext);
+    let spec = if filter_ext.starts_with("*.") {
+        filter_ext.to_string()
+    } else {
+        format!("*.{}", filter_ext.trim_start_matches('.'))
+    };
+
+    let filter_str = format!("{} ({})\0{}\0All Files (*.*)\0*.*\0\0", filter_name, spec, spec);
     let filter_w: Vec<u16> = filter_str.encode_utf16().collect();
 
-    let def_ext_w: Vec<u16> = OsStr::new(filter_ext).encode_wide().chain(std::iter::once(0)).collect();
+    let def_ext_w: Vec<u16> = OsStr::new(filter_ext.trim_start_matches('.')).encode_wide().chain(std::iter::once(0)).collect();
     let title_w: Vec<u16> = OsStr::new("导出配置文件").encode_wide().chain(std::iter::once(0)).collect();
+
+    // OFN_OVERWRITEPROMPT (0x2) | OFN_PATHMUSTEXIST (0x800) | OFN_NOCHANGEDIR (0x8) | OFN_EXPLORER (0x80000) | OFN_ENABLESIZING (0x800000)
+    let flags = 0x00000002 | 0x00000800 | 0x00000008 | 0x00080000 | 0x00800000;
 
     let mut ofn = OPENFILENAMEW {
         lStructSize: std::mem::size_of::<OPENFILENAMEW>() as u32,
-        hwndOwner: 0,
+        hwndOwner: hwnd_owner,
         hInstance: 0,
         lpstrFilter: filter_w.as_ptr(),
         lpstrCustomFilter: std::ptr::null_mut(),
@@ -758,7 +792,7 @@ pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str)
         nMaxFileTitle: 0,
         lpstrInitialDir: std::ptr::null(),
         lpstrTitle: title_w.as_ptr(),
-        Flags: 0x00000002 | 0x00000800 | 0x00000004,
+        Flags: flags,
         nFileOffset: 0,
         nFileExtension: 0,
         lpstrDefExt: def_ext_w.as_ptr(),

@@ -1,7 +1,92 @@
+pub static IS_FILE_DIALOG_ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(target_os = "windows")]
+pub fn get_openrevo_main_hwnd() -> isize {
+    use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetForegroundWindow, GetWindowTextW, IsWindowVisible,
+    };
+
+    unsafe {
+        // 1. If foreground window is titled OpenRevo and visible, fast-path
+        let fg = GetForegroundWindow();
+        if !fg.0.is_null() && IsWindowVisible(fg).as_bool() {
+            let mut title = [0u16; 64];
+            let len = GetWindowTextW(fg, &mut title);
+            if len > 0 {
+                let s = String::from_utf16_lossy(&title[..len as usize]);
+                if s == "OpenRevo" {
+                    return fg.0 as isize;
+                }
+            }
+        }
+
+        // 2. Enumerate top-level windows to find visible window titled "OpenRevo"
+        unsafe extern "system" fn enum_wnd_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            if IsWindowVisible(hwnd).as_bool() {
+                let mut title = [0u16; 64];
+                let len = GetWindowTextW(hwnd, &mut title);
+                if len > 0 {
+                    let s = String::from_utf16_lossy(&title[..len as usize]);
+                    if s == "OpenRevo" {
+                        let out_ptr = lparam.0 as *mut isize;
+                        *out_ptr = hwnd.0 as isize;
+                        return BOOL(0); // Stop enumeration
+                    }
+                }
+            }
+            BOOL(1) // Continue enumeration
+        }
+
+        let mut found_hwnd: isize = 0;
+        let _ = EnumWindows(Some(enum_wnd_proc), LPARAM(&mut found_hwnd as *mut _ as isize));
+        if found_hwnd != 0 {
+            return found_hwnd;
+        }
+
+        // 3. Fallback to foreground window if non-null
+        if !fg.0.is_null() {
+            return fg.0 as isize;
+        }
+
+        0
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_openrevo_main_hwnd() -> isize {
+    0
+}
+
 #[cfg(target_os = "windows")]
 pub fn open_file_dialog(filter_name: &str, filter_ext: &str) -> Option<std::path::PathBuf> {
     use std::os::windows::ffi::OsStrExt;
     use std::ffi::OsStr;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
+
+    // Concurrency protection: ignore re-entrant clicks when dialog is already visible
+    if IS_FILE_DIALOG_ACTIVE.compare_exchange(false, true, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst).is_err() {
+        crate::log_warn!("DIALOG", "File dialog is already active; ignoring duplicate invocation");
+        return None;
+    }
+
+    struct DialogGuard;
+    impl Drop for DialogGuard {
+        fn drop(&mut self) {
+            IS_FILE_DIALOG_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    let _guard = DialogGuard;
+
+    let hwnd_owner = get_openrevo_main_hwnd();
+    if hwnd_owner != 0 {
+        unsafe {
+            let hwnd = HWND(hwnd_owner as *mut _);
+            let _ = SetForegroundWindow(hwnd);
+            let _ = BringWindowToTop(hwnd);
+        }
+    }
 
     #[repr(C)]
     #[allow(non_snake_case)]
@@ -37,13 +122,35 @@ pub fn open_file_dialog(filter_name: &str, filter_ext: &str) -> Option<std::path
     }
 
     let mut file_buf = [0u16; 1024];
-    let filter_str = format!("{} (*.{})\0*.{}\0All Files (*.*)\0*.*\0\0", filter_name, filter_ext, filter_ext);
+
+    let spec = if filter_ext.starts_with("*.") {
+        filter_ext.to_string()
+    } else if filter_ext.contains(';') {
+        filter_ext.split(';')
+            .map(|s| {
+                let trimmed = s.trim();
+                if trimmed.starts_with("*.") {
+                    trimmed.to_string()
+                } else {
+                    format!("*.{}", trimmed.trim_start_matches('.'))
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(";")
+    } else {
+        format!("*.{}", filter_ext.trim_start_matches('.'))
+    };
+
+    let filter_str = format!("{} ({})\0{}\0All Files (*.*)\0*.*\0\0", filter_name, spec, spec);
     let filter_w: Vec<u16> = filter_str.encode_utf16().collect();
     let title_w: Vec<u16> = OsStr::new("选择文件").encode_wide().chain(std::iter::once(0)).collect();
 
+    // OFN_PATHMUSTEXIST (0x800) | OFN_FILEMUSTEXIST (0x1000) | OFN_NOCHANGEDIR (0x8) | OFN_EXPLORER (0x80000) | OFN_ENABLESIZING (0x800000)
+    let flags = 0x00000800 | 0x00001000 | 0x00000008 | 0x00080000 | 0x00800000;
+
     let mut ofn = OPENFILENAMEW {
         lStructSize: std::mem::size_of::<OPENFILENAMEW>() as u32,
-        hwndOwner: 0,
+        hwndOwner: hwnd_owner,
         hInstance: 0,
         lpstrFilter: filter_w.as_ptr(),
         lpstrCustomFilter: std::ptr::null_mut(),
@@ -55,7 +162,7 @@ pub fn open_file_dialog(filter_name: &str, filter_ext: &str) -> Option<std::path
         nMaxFileTitle: 0,
         lpstrInitialDir: std::ptr::null(),
         lpstrTitle: title_w.as_ptr(),
-        Flags: 0x00000800 | 0x00001000,
+        Flags: flags,
         nFileOffset: 0,
         nFileExtension: 0,
         lpstrDefExt: std::ptr::null(),
@@ -829,6 +936,18 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
             }
             sync_slint_tuning_state();
     sync_slint_display_state();
+        }
+        "tuning_import_preset" => {
+            tauri::async_runtime::spawn(async move {
+                if let Some(file_path) = open_file_dialog("JSON 调教方案", "json") {
+                    if let Ok(content) = std::fs::read_to_string(&file_path) {
+                        let fname = file_path.file_name().and_then(|n| n.to_str()).map(|s| s.to_string());
+                        let _ = crate::commands::tuning_cmd::import_profile_preset(content, fname);
+                        sync_slint_tuning_state();
+                        sync_slint_display_state();
+                    }
+                }
+            });
         }
         "tuning_export_preset" => {
             let active_id = {
