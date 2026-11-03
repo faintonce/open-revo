@@ -1,0 +1,153 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardLightingView inherits Rectangle {
+    background: transparent;
+
+    in-out property <string> kbd_effect: "极客波浪";
+    in-out property <string> kbd_color_name: "自定义";
+    in-out property <color> kbd_color_preview: #f43f5e;
+    in-out property <int> brightness: 76;
+
+    callback kbd_effect_cycled();
+    callback kbd_color_cycled();
+    callback kbd_more_clicked();
+
+    Flickable {
+        content-height: 600px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+
+            // 1. Keyboard RGB Matrix Card
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/keyboard.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #a855f7;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "RGB 键盘全彩背光调控";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    // Effects Row
+                    HorizontalLayout {
+                        spacing: 12px;
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 60px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.kbd_effect_cycled(); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 3px;
+                                    Text {
+                                        text: "当前动态灯效模式";
+                                        font-size: 10px;
+                                        color: AppTheme.text_muted;
+                                    }
+                                    Text {
+                                        text: root.kbd_effect;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_primary;
+                                    }
+                                }
+
+                                Text {
+                                    text: "点击切换 ↻";
+                                    font-size: 10px;
+                                    color: #a855f7;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 60px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.kbd_color_cycled(); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 3px;
+                                    Text {
+                                        text: "预设/自定义色彩";
+                                        font-size: 10px;
+                                        color: AppTheme.text_muted;
+                                    }
+                                    Text {
+                                        text: root.kbd_color_name;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_primary;
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 20px;
+                                    height: 20px;
+                                    border-radius: 10px;
+                                    background: root.kbd_color_preview;
+                                    border-width: 2px;
+                                    border-color: #ffffff40;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

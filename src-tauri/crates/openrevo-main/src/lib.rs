@@ -255,6 +255,9 @@ pub fn run_main_standalone() {
         }
     };
 
+    // Dynamically inject the package version from CARGO_PKG_VERSION at compile time
+    window.set_app_version(format!("v{}", env!("CARGO_PKG_VERSION")).into());
+
     let hwnd_holder: Arc<Mutex<Option<SafeHwnd>>> = Arc::new(Mutex::new(None));
     let ui_weak = window.as_weak();
     *SLINT_UI_WEAK.lock().unwrap() = Some(ui_weak.clone());

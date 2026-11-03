@@ -1,0 +1,68 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardPluginsView inherits Rectangle {
+    background: transparent;
+
+    in-out property <int> plugin_count: 0;
+    callback open_plugins_dir();
+    callback reload_plugins();
+
+    Flickable {
+        content-height: 600px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/layers.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "扩展生态与插件中枢";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    // Architecture info
+                    VerticalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "OpenRevo 支持微内核扩展机制：原生 Slint 模块与 WebView2 独立进程沙箱隔离。";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                        }
+                        Text {
+                            text: "支持社区自定义插件包、监控挂件以及按需加载的硬件功能拓展卡。";
+                            font-size: 10px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppTheme } from "../../theme.slint";
 import { DrawerHeader } from "header.slint";
 import { DrawerPowerCard } from "power_card.slint";
 import { DrawerGpuCard } from "gpu_card.slint";
@@ -17,6 +17,7 @@ export component DrawerView inherits Rectangle {
     clip: true;
 
     // --- State properties ---
+    in-out property <string> app_version: "v0.9.7";
     in-out property <int> power_mode: 4;
     in-out property <string> gpu_mode: "dgpu";
     in-out property <int> refresh_rate: 240;
@@ -76,6 +77,7 @@ export component DrawerView inherits Rectangle {
 
         // 1. Header
         DrawerHeader {
+            app_version: root.app_version;
             power_mode: root.power_mode;
             toggle_theme => { root.toggle_theme_clicked(); }
             open_sponsor => { root.open_sponsor_clicked(); }

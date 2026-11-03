@@ -1,0 +1,256 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardGpuView inherits Rectangle {
+    background: transparent;
+
+    in-out property <string> gpu_mode: "dgpu"; // "igpu" | "hybrid" | "dgpu"
+    in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+    in-out property <int> gpu_temp: 51;
+    in-out property <int> gpu_usage: 15;
+    in-out property <string> gpu_watts_text: "22.4 W";
+    in-out property <int> refresh_rate: 240;
+    in-out property <bool> auto_min_hz: true;
+    in-out property <int> brightness: 76;
+    in-out property <string> monitor_name: "京东方";
+
+    callback set_gpu_mode(string);
+    callback switch_hz(int);
+    callback toggle_auto_min_hz();
+    callback change_brightness(int);
+
+    Flickable {
+        content-height: 600px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+
+            // 1. GPU Mode MUX Switcher Card
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/monitor.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "显卡输出模式 (MUX Switch)";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        Text {
+                            text: "需要重启生效 (或高级动态切换)";
+                            font-size: 10px;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    // 3 GPU Mode Cards
+                    HorizontalLayout {
+                        spacing: 12px;
+
+                        // dGPU Direct
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 72px;
+                            border-radius: 6px;
+                            background: root.gpu_mode == "dgpu" ? #38bdf818 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.gpu_mode == "dgpu" ? #38bdf880 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_gpu_mode("dgpu"); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "独显直连 (dGPU)";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "极致电竞游戏性能 · 独显无损输出";
+                                    font-size: 9.5px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Hybrid MSHybrid
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 72px;
+                            border-radius: 6px;
+                            background: root.gpu_mode == "hybrid" ? #38bdf818 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.gpu_mode == "hybrid" ? #38bdf880 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_gpu_mode("hybrid"); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "混合输出 (Hybrid)";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: root.gpu_mode == "hybrid" ? #38bdf8 : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "均衡功耗与性能 · 自动动态分配";
+                                    font-size: 9.5px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        // iGPU Only
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 72px;
+                            border-radius: 6px;
+                            background: root.gpu_mode == "igpu" ? #38bdf818 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.gpu_mode == "igpu" ? #38bdf880 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_gpu_mode("igpu"); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "纯集显模式 (iGPU)";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: root.gpu_mode == "igpu" ? #38bdf8 : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "彻底切断独显供电 · 超长离电续航";
+                                    font-size: 9.5px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Display Tuning & Refresh Rate Card
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/monitor.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #10b981;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "内屏显示与色彩校准";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        Text {
+                            text: root.monitor_name;
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: #10b981;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    // Refresh rate buttons row
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+
+                        Text {
+                            text: "刷新率档位:";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+
+                        for hz in [60, 144, 240]: Rectangle {
+                            width: 68px;
+                            height: 28px;
+                            border-radius: 5px;
+                            background: root.refresh_rate == hz ? #10b98120 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.refresh_rate == hz ? #10b98180 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.switch_hz(hz); }
+                            }
+
+                            Text {
+                                text: hz + " Hz";
+                                font-size: 10.5px;
+                                font-weight: root.refresh_rate == hz ? 700 : 500;
+                                color: root.refresh_rate == hz ? #10b981 : AppTheme.text_primary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

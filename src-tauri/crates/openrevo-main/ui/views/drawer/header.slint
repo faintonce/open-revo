@@ -1,9 +1,10 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerHeader inherits Rectangle {
     height: 30px;
     background: transparent;
 
+    in-out property <string> app_version: "v0.9.7";
     in-out property <int> power_mode: 2;
 
     callback toggle_theme();
@@ -18,7 +19,7 @@ export component DrawerHeader inherits Rectangle {
 
         // 【唯一官方原生拖拽手柄】：Slint 官方 WindowMoveArea，不丢失鼠标状态，不卡死事件
         drag_handle := WindowMoveArea {
-            width: 175px;
+            width: 188px;
             height: 28px;
 
             HorizontalLayout {
@@ -49,16 +50,16 @@ export component DrawerHeader inherits Rectangle {
                     alignment: center;
                     Rectangle {
                         border-radius: 4px;
-                        background: #6366f1;
+                        background: AppTheme.accent_brand;
                         height: 16px;
                         HorizontalLayout {
                             padding-left: 6px;
                             padding-right: 6px;
                             Text {
-                                text: "MINI";
-                                font-size: 9px;
-                                font-weight: 700;
-                                color: #ffffff;
+                                text: root.app_version;
+                                font-size: 8.5px;
+                                font-weight: 800;
+                                color: AppTheme.tag_brand_text;
                                 vertical-alignment: center;
                             }
                         }

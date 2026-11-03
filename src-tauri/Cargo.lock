@@ -4262,7 +4262,7 @@ dependencies = [
 
 [[package]]
 name = "openrevo-main"
-version = "0.1.0"
+version = "0.9.7"
 dependencies = [
  "openrevo-core",
  "serde",

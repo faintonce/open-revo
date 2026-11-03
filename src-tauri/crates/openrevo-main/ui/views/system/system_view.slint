@@ -1,0 +1,103 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardSystemView inherits Rectangle {
+    background: transparent;
+
+    in-out property <bool> autostart: false;
+    in-out property <int> theme_mode: 0;
+    in-out property <bool> win_locked: false;
+    in-out property <bool> fn_locked: false;
+    in-out property <bool> osd_enabled: true;
+    in-out property <bool> keep_awake: false;
+
+    callback toggle_autostart();
+    callback toggle_theme();
+    callback toggle_osd();
+    callback takeover_oem();
+
+    Flickable {
+        content-height: 600px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/settings.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "系统配置与通用选项";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    // System Rows
+                    HorizontalLayout {
+                        alignment: space-between;
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "开机自启动";
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: AppTheme.text_primary;
+                            }
+                            Text {
+                                text: "系统登录时静默启动并在托盘常驻，保障温控与功耗策略平稳运行";
+                                font-size: 10px;
+                                color: AppTheme.text_muted;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 44px;
+                            height: 24px;
+                            border-radius: 12px;
+                            background: root.autostart ? #38bdf8 : AppTheme.surface_pill;
+                            y: (parent.height - self.height) / 2;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.toggle_autostart(); }
+                            }
+
+                            Rectangle {
+                                width: 18px;
+                                height: 18px;
+                                border-radius: 9px;
+                                background: #ffffff;
+                                x: root.autostart ? parent.width - 21px : 3px;
+                                y: 3px;
+                                animate x { duration: 150ms; }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -107,6 +107,9 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     if let Some(fn_l) = val.get("fn_locked").and_then(|v| v.as_bool()) {
                         ui.set_fn_locked(fn_l);
                     }
+                    if let Some(ver) = val.get("app_version").and_then(|v| v.as_str()) {
+                        ui.set_app_version(ver.into());
+                    }
                     if let Some(wifi) = val.get("wifi_enabled").and_then(|v| v.as_bool()) {
                         ui.set_wifi_enabled(wifi);
                     }

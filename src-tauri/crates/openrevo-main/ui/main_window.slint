@@ -9,6 +9,7 @@ export component MainWindow inherits Window {
 
     // Expand state: false = Mini Drawer (395x632), true = Full Dashboard (1120x760)
     in-out property <bool> is_expanded: false;
+    in-out property <string> app_version: "v0.9.7";
 
     width: is_expanded ? 1120px : 395px;
     height: is_expanded ? 760px : 632px;
@@ -182,6 +183,7 @@ export component MainWindow inherits Window {
         width: 100%;
         height: 100%;
 
+        app_version: root.app_version;
         power_mode: root.power_mode;
         gpu_mode: root.gpu_mode;
         refresh_rate: root.refresh_rate;
@@ -237,6 +239,8 @@ export component MainWindow inherits Window {
     if root.is_expanded: FullDashboard {
         width: 100%;
         height: 100%;
+
+        app_version: root.app_version;
 
         cpu_vendor: root.cpu_vendor;
         cpu_tuning_type: root.cpu_tuning_type;

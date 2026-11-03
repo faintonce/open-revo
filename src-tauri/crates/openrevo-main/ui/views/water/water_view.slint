@@ -1,0 +1,155 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardWaterView inherits Rectangle {
+    background: transparent;
+
+    in-out property <bool> is_connected: false;
+    in-out property <int> water_temp: 28;
+    in-out property <int> pump_rpm: 2400;
+    in-out property <int> fan_rpm: 1200;
+
+    callback connect_clicked();
+    callback disconnect_clicked();
+
+    Flickable {
+        content-height: 600px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/droplet.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #06b6d4;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "第二代外置水冷魔盒 (BLE 低功耗蓝牙)";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+
+                        Rectangle {
+                            height: 22px;
+                            border-radius: 4px;
+                            background: root.is_connected ? #06b6d420 : #64748b20;
+                            border-width: 1px;
+                            border-color: root.is_connected ? #06b6d480 : #64748b50;
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: root.is_connected ? "● 已连接" : "○ 未连接";
+                                    font-size: 10px;
+                                    font-weight: 700;
+                                    color: root.is_connected ? #06b6d4 : AppTheme.text_muted;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    // Water cooler telemetry row
+                    HorizontalLayout {
+                        spacing: 12px;
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 70px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "循环水温";
+                                    font-size: 10px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: root.is_connected ? (root.water_temp + " ℃") : "-- ℃";
+                                    font-size: 18px;
+                                    font-weight: 800;
+                                    color: #06b6d4;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 70px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "水泵转速";
+                                    font-size: 10px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: root.is_connected ? (root.pump_rpm + " RPM") : "-- RPM";
+                                    font-size: 18px;
+                                    font-weight: 800;
+                                    color: AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 70px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "冷排风扇";
+                                    font-size: 10px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: root.is_connected ? (root.fan_rpm + " RPM") : "-- RPM";
+                                    font-size: 18px;
+                                    font-weight: 800;
+                                    color: AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,5 +1,93 @@
 import { AppTheme } from "../theme.slint";
 
+export struct PluginItemData {
+    id: string,
+    name: string,
+}
+
+// Reusable individual navigation button
+export component SidebarNavItem inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> is_active: false;
+    in property <color> active_color: AppTheme.accent_active;
+    in property <bool> is_accent_icon: false;
+    in property <color> accent_icon_color: AppTheme.accent_heart;
+    in property <bool> has_badge: false;
+    in property <string> badge_text: "";
+    in property <color> badge_color: AppTheme.accent_fan;
+
+    callback clicked();
+
+    height: 36px;
+    border-radius: 6px;
+    background: is_active ? AppTheme.accent_active_bg : (touch.has-hover ? AppTheme.surface_card_hover : transparent);
+    border-width: is_active ? 1px : 0px;
+    border-color: AppTheme.accent_active_border;
+
+    animate background { duration: 120ms; easing: ease-out; }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    // Left active accent indicator
+    if is_active: Rectangle {
+        x: 0px;
+        y: 8px;
+        width: 3px;
+        height: parent.height - 16px;
+        border-radius: 1.5px;
+        background: active_color;
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 10px;
+        spacing: 9px;
+
+        Image {
+            source: root.icon;
+            width: 15px;
+            height: 15px;
+            colorize: root.is_active ? root.active_color : (root.is_accent_icon ? root.accent_icon_color : AppTheme.text_secondary);
+            y: (parent.height - self.height) / 2;
+        }
+
+        Text {
+            text: root.text;
+            font-size: 12.5px;
+            font-weight: root.is_active ? 700 : 500;
+            color: root.is_active ? root.active_color : (touch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+
+        if root.has_badge: Rectangle {
+            height: 17px;
+            border-radius: 4px;
+            background: root.badge_color.transparentize(82%);
+            border-width: 1px;
+            border-color: root.badge_color.transparentize(50%);
+            y: (parent.height - self.height) / 2;
+
+            HorizontalLayout {
+                padding-left: 5px;
+                padding-right: 5px;
+                Text {
+                    text: root.badge_text;
+                    font-size: 8.5px;
+                    font-weight: 700;
+                    color: root.badge_color;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+
 export component DashboardSidebar inherits Rectangle {
     width: 200px;
     background: AppTheme.surface_base;
@@ -12,22 +100,26 @@ export component DashboardSidebar inherits Rectangle {
         background: AppTheme.border_subtle;
     }
 
+    in-out property <string> app_version: "v0.9.7";
     in-out property <int> active_tab: 0; // 0: 概览, 1: 显卡, 2: 电源, 3: RGB, 4: 水冷, 5: 插件, 6: 系统, 7: 赞助
     in-out property <bool> is_water_connected: false;
+    in-out property <string> active_plugin_id: "";
+    in-out property <[PluginItemData]> plugin_items: [];
 
     callback select_tab(int);
+    callback select_plugin_tab(string);
     callback collapse_to_mini();
 
     VerticalLayout {
         padding-left: 10px;
         padding-right: 10px;
-        padding-top: 12px;
-        padding-bottom: 12px;
-        spacing: 10px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 4px;
 
-        // 1. Top Brand & WindowMoveArea Drag Handle
+        // 1. Top Brand & WindowMoveArea Drag Handle (Dynamic Version Tag via Theme Tokens)
         WindowMoveArea {
-            height: 36px;
+            height: 38px;
             HorizontalLayout {
                 spacing: 8px;
                 alignment: start;
@@ -56,16 +148,16 @@ export component DashboardSidebar inherits Rectangle {
                     alignment: center;
                     Rectangle {
                         border-radius: 3px;
-                        background: #6366f1;
-                        height: 15px;
+                        background: AppTheme.accent_brand;
+                        height: 16px;
                         HorizontalLayout {
                             padding-left: 5px;
                             padding-right: 5px;
                             Text {
-                                text: "PRO";
+                                text: root.app_version;
                                 font-size: 8.5px;
                                 font-weight: 800;
-                                color: #ffffff;
+                                color: AppTheme.tag_brand_text;
                                 vertical-alignment: center;
                             }
                         }
@@ -74,301 +166,202 @@ export component DashboardSidebar inherits Rectangle {
             }
         }
 
-        // 2. Navigation Items (Scrollable or Vertical Flex)
-        VerticalLayout {
-            spacing: 3px;
-
-            // Section Label: 核心硬件
-            HorizontalLayout {
-                padding-left: 6px;
-                padding-bottom: 2px;
-                Text {
-                    text: "核心硬件";
-                    font-size: 9px;
-                    font-weight: 700;
-                    color: AppTheme.text_muted;
-                }
-            }
-
-            // Tab 0: 状态总览
-            item_0 := Rectangle {
-                height: 34px;
-                border-radius: 6px;
-                background: active_tab == 0 ? #38bdf820 : (t_0.has-hover ? AppTheme.surface_card_hover : transparent);
-                border-width: active_tab == 0 ? 1px : 0px;
-                border-color: #38bdf880;
-                t_0 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(0); } }
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    Image {
-                        source: @image-url("../assets/icons/grid.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: active_tab == 0 ? #38bdf8 : AppTheme.text_secondary;
-                        y: (parent.height - self.height) / 2;
-                    }
-                    Text {
-                        text: "状态总览";
-                        font-size: 11px;
-                        font-weight: active_tab == 0 ? 700 : 500;
-                        color: active_tab == 0 ? #38bdf8 : AppTheme.text_primary;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
-            // Tab 1: 显卡模式
-            item_1 := Rectangle {
-                height: 34px;
-                border-radius: 6px;
-                background: active_tab == 1 ? #38bdf820 : (t_1.has-hover ? AppTheme.surface_card_hover : transparent);
-                border-width: active_tab == 1 ? 1px : 0px;
-                border-color: #38bdf880;
-                t_1 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(1); } }
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    Image {
-                        source: @image-url("../assets/icons/monitor.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: active_tab == 1 ? #38bdf8 : AppTheme.text_secondary;
-                        y: (parent.height - self.height) / 2;
-                    }
-                    Text {
-                        text: "显卡模式";
-                        font-size: 11px;
-                        font-weight: active_tab == 1 ? 700 : 500;
-                        color: active_tab == 1 ? #38bdf8 : AppTheme.text_primary;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
-            // Tab 2: 电源管理
-            item_2 := Rectangle {
-                height: 34px;
-                border-radius: 6px;
-                background: active_tab == 2 ? #38bdf820 : (t_2.has-hover ? AppTheme.surface_card_hover : transparent);
-                border-width: active_tab == 2 ? 1px : 0px;
-                border-color: #38bdf880;
-                t_2 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(2); } }
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    Image {
-                        source: @image-url("../assets/icons/zap.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: active_tab == 2 ? #38bdf8 : AppTheme.text_secondary;
-                        y: (parent.height - self.height) / 2;
-                    }
-                    Text {
-                        text: "电源管理";
-                        font-size: 11px;
-                        font-weight: active_tab == 2 ? 700 : 500;
-                        color: active_tab == 2 ? #38bdf8 : AppTheme.text_primary;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
-            // Tab 3: RGB 灯效工坊
-            item_3 := Rectangle {
-                height: 34px;
-                border-radius: 6px;
-                background: active_tab == 3 ? #38bdf820 : (t_3.has-hover ? AppTheme.surface_card_hover : transparent);
-                border-width: active_tab == 3 ? 1px : 0px;
-                border-color: #38bdf880;
-                t_3 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(3); } }
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    Image {
-                        source: @image-url("../assets/icons/keyboard.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: active_tab == 3 ? #38bdf8 : AppTheme.text_secondary;
-                        y: (parent.height - self.height) / 2;
-                    }
-                    Text {
-                        text: "RGB 灯效工坊";
-                        font-size: 11px;
-                        font-weight: active_tab == 3 ? 700 : 500;
-                        color: active_tab == 3 ? #38bdf8 : AppTheme.text_primary;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
-            // Tab 4: 水冷魔盒
-            item_4 := Rectangle {
-                height: 34px;
-                border-radius: 6px;
-                background: active_tab == 4 ? #38bdf820 : (t_4.has-hover ? AppTheme.surface_card_hover : transparent);
-                border-width: active_tab == 4 ? 1px : 0px;
-                border-color: #38bdf880;
-                t_4 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(4); } }
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    Image {
-                        source: @image-url("../assets/icons/droplet.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: is_water_connected ? #06b6d4 : AppTheme.text_secondary;
-                        y: (parent.height - self.height) / 2;
-                    }
-                    Text {
-                        text: "水冷魔盒 (BLE)";
-                        font-size: 11px;
-                        font-weight: active_tab == 4 ? 700 : 500;
-                        color: active_tab == 4 ? #38bdf8 : AppTheme.text_primary;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
-            // Divider
-            Rectangle {
-                height: 1px;
-                background: AppTheme.border_subtle;
-            }
-
-            // Section Label: 扩展生态
-            HorizontalLayout {
-                padding-left: 6px;
-                padding-top: 4px;
-                padding-bottom: 2px;
-                Text {
-                    text: "扩展生态";
-                    font-size: 9px;
-                    font-weight: 700;
-                    color: AppTheme.text_muted;
-                }
-            }
-
-            // Tab 5: 插件中心
-            item_5 := Rectangle {
-                height: 34px;
-                border-radius: 6px;
-                background: active_tab == 5 ? #38bdf820 : (t_5.has-hover ? AppTheme.surface_card_hover : transparent);
-                border-width: active_tab == 5 ? 1px : 0px;
-                border-color: #38bdf880;
-                t_5 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(5); } }
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    Image {
-                        source: @image-url("../assets/icons/layers.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: active_tab == 5 ? #38bdf8 : AppTheme.text_secondary;
-                        y: (parent.height - self.height) / 2;
-                    }
-                    Text {
-                        text: "插件中心";
-                        font-size: 11px;
-                        font-weight: active_tab == 5 ? 700 : 500;
-                        color: active_tab == 5 ? #38bdf8 : AppTheme.text_primary;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-        }
-
-        // Spacer to push bottom items down
+        // Divider below brand
         Rectangle {
-            vertical-stretch: 1;
+            height: 1px;
+            background: AppTheme.border_subtle;
         }
 
-        // 3. Bottom Controls (Fixed)
-        VerticalLayout {
-            spacing: 3px;
+        Rectangle { height: 2px; }
 
-            // System Settings
-            item_6 := Rectangle {
-                height: 32px;
+        // 2. Core Hardware Navigation Items (Top-Aligned, Pure Clean List without Section Labels)
+        VerticalLayout {
+            spacing: 2px;
+
+            SidebarNavItem {
+                text: "状态总览";
+                icon: @image-url("../assets/icons/grid.svg");
+                is_active: root.active_tab == 0 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(0);
+                }
+            }
+
+            SidebarNavItem {
+                text: "显卡模式";
+                icon: @image-url("../assets/icons/monitor.svg");
+                is_active: root.active_tab == 1 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(1);
+                }
+            }
+
+            SidebarNavItem {
+                text: "电源管理";
+                icon: @image-url("../assets/icons/zap.svg");
+                is_active: root.active_tab == 2 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(2);
+                }
+            }
+
+            SidebarNavItem {
+                text: "RGB 灯效工坊";
+                icon: @image-url("../assets/icons/keyboard.svg");
+                is_active: root.active_tab == 3 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(3);
+                }
+            }
+
+            SidebarNavItem {
+                text: "水冷魔盒 (BLE)";
+                icon: @image-url("../assets/icons/droplet.svg");
+                is_active: root.active_tab == 4 && root.active_plugin_id == "";
+                has_badge: true;
+                badge_text: root.is_water_connected ? "已连" : "未连";
+                badge_color: root.is_water_connected ? AppTheme.accent_fan : AppTheme.text_muted;
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(4);
+                }
+            }
+        }
+
+        // Divider between Hardware and Plugin Center
+        Rectangle { height: 2px; }
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+        Rectangle { height: 2px; }
+
+        // 3. Plugin Center Item
+        SidebarNavItem {
+            text: "插件中心";
+            icon: @image-url("../assets/icons/layers.svg");
+            is_active: root.active_tab == 5 && root.active_plugin_id == "";
+            clicked => {
+                root.active_plugin_id = "";
+                root.select_tab(5);
+            }
+        }
+
+        // Divider immediately following Plugin Center
+        Rectangle { height: 2px; }
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+        Rectangle { height: 2px; }
+
+        // 4. Dynamic Tab Plugins Area (Scrollable Flickable for Active Tab Plugins)
+        VerticalLayout {
+            vertical-stretch: 1;
+
+            Flickable {
+                vertical-stretch: 1;
+
+                VerticalLayout {
+                    spacing: 2px;
+                    alignment: start;
+
+                    // Dynamic Active Plugins List (Supports 20+ plugins with scrolling)
+                    for plugin in root.plugin_items: SidebarNavItem {
+                        text: plugin.name;
+                        icon: @image-url("../assets/icons/layers.svg");
+                        is_active: root.active_plugin_id == plugin.id;
+                        clicked => {
+                            root.active_plugin_id = plugin.id;
+                            root.select_plugin_tab(plugin.id);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider above bottom bar
+        Rectangle {
+            height: 1px;
+            background: AppTheme.border_subtle;
+        }
+
+        // 5. Bottom Horizontal Dual Buttons (System Settings & Sponsor)
+        HorizontalLayout {
+            height: 34px;
+            spacing: 6px;
+
+            // System Settings Button (Tab 6)
+            btn_sys := Rectangle {
+                horizontal-stretch: 1;
+                height: 34px;
                 border-radius: 6px;
-                background: active_tab == 6 ? #38bdf820 : (t_6.has-hover ? AppTheme.surface_card_hover : transparent);
-                t_6 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(6); } }
+                background: root.active_tab == 6 ? AppTheme.accent_active_bg : (t_sys.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: root.active_tab == 6 ? 1px : 0px;
+                border-color: AppTheme.accent_active_border;
+
+                t_sys := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.active_plugin_id = "";
+                        root.select_tab(6);
+                    }
+                }
+
                 HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
+                    alignment: center;
+                    spacing: 5px;
+
                     Image {
                         source: @image-url("../assets/icons/settings.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: AppTheme.text_secondary;
+                        width: 13px;
+                        height: 13px;
+                        colorize: root.active_tab == 6 ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
                         y: (parent.height - self.height) / 2;
                     }
+
                     Text {
                         text: "系统设置";
                         font-size: 11px;
-                        color: AppTheme.text_secondary;
+                        font-weight: root.active_tab == 6 ? 700 : 500;
+                        color: root.active_tab == 6 ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
                         vertical-alignment: center;
                     }
                 }
             }
 
-            // Sponsor
-            item_7 := Rectangle {
-                height: 32px;
+            // Sponsor Button (Tab 7)
+            btn_sp := Rectangle {
+                horizontal-stretch: 1;
+                height: 34px;
                 border-radius: 6px;
-                background: active_tab == 7 ? #38bdf820 : (t_7.has-hover ? AppTheme.surface_card_hover : transparent);
-                t_7 := TouchArea { mouse-cursor: pointer; clicked => { select_tab(7); } }
+                background: root.active_tab == 7 ? AppTheme.accent_heart_bg : (t_sp.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: root.active_tab == 7 ? 1px : 0px;
+                border-color: AppTheme.accent_heart_border;
+
+                t_sp := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.active_plugin_id = "";
+                        root.select_tab(7);
+                    }
+                }
+
                 HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
+                    alignment: center;
+                    spacing: 5px;
+
                     Image {
                         source: @image-url("../assets/icons/heart.svg");
-                        width: 14px;
-                        height: 14px;
-                        colorize: #f43f5e;
+                        width: 13px;
+                        height: 13px;
+                        colorize: AppTheme.accent_heart;
                         y: (parent.height - self.height) / 2;
                     }
+
                     Text {
                         text: "支持作者";
                         font-size: 11px;
-                        color: AppTheme.text_secondary;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-
-            // Collapse to Mini Mode Button
-            Rectangle {
-                height: 32px;
-                border-radius: 6px;
-                background: t_cmini.has-hover ? AppTheme.surface_pill : transparent;
-                border-width: 1px;
-                border-color: AppTheme.border_subtle;
-                t_cmini := TouchArea { mouse-cursor: pointer; clicked => { collapse_to_mini(); } }
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    Image {
-                        source: @image-url("../assets/icons/maximize2.svg");
-                        width: 13px;
-                        height: 13px;
-                        colorize: #38bdf8;
-                        y: (parent.height - self.height) / 2;
-                    }
-                    Text {
-                        text: "收起至迷你抽屉";
-                        font-size: 10.5px;
-                        font-weight: 600;
-                        color: #38bdf8;
+                        font-weight: root.active_tab == 7 ? 700 : 500;
+                        color: root.active_tab == 7 ? AppTheme.accent_heart : (t_sp.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
                         vertical-alignment: center;
                     }
                 }

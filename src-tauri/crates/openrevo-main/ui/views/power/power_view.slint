@@ -1,0 +1,292 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardPowerView inherits Rectangle {
+    background: transparent;
+
+    in-out property <int> power_mode: 2; // 1: 办公, 2: 均衡, 3: 狂暴, 4: 极客调校
+    in-out property <int> pl1_target: 75;
+    in-out property <int> tgp_target: 175;
+    in-out property <int> battery_limit: 60;
+    in-out property <bool> is_ac_online: true;
+
+    callback set_power_mode(int);
+    callback set_battery_limit(int);
+    callback open_custom_tuning();
+
+    Flickable {
+        content-height: 600px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
+
+            // 1. Power Profiles Banner & Custom Tuning Entry
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/zap.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "电源与性能释放方案 (Power Profiles)";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+
+                        // Custom Tuning Button
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: t_tune.has-hover ? #38bdf825 : #38bdf815;
+                            border-width: 1px;
+                            border-color: #38bdf850;
+
+                            t_tune := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.open_custom_tuning(); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 4px;
+                                Text {
+                                    text: "进入高级自定义调校";
+                                    font-size: 10px;
+                                    font-weight: 700;
+                                    color: #38bdf8;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    // 4 Power Modes Cards
+                    HorizontalLayout {
+                        spacing: 12px;
+
+                        // Office
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 80px;
+                            border-radius: 6px;
+                            background: root.power_mode == 1 ? #10b98118 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.power_mode == 1 ? #10b98180 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_power_mode(1); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "办公模式 (Office)";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: root.power_mode == 1 ? #10b981 : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "静音降噪 · 电池长续航";
+                                    font-size: 9.5px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Balanced
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 80px;
+                            border-radius: 6px;
+                            background: root.power_mode == 2 ? #3b82f618 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.power_mode == 2 ? #3b82f680 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_power_mode(2); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "均衡模式 (Balanced)";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: root.power_mode == 2 ? #3b82f6 : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "平衡功耗与温控 · 推荐日常";
+                                    font-size: 9.5px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Beast / Turbo
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 80px;
+                            border-radius: 6px;
+                            background: root.power_mode == 3 ? #f43f5e18 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.power_mode == 3 ? #f43f5e80 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_power_mode(3); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "狂暴模式 (Turbo)";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: root.power_mode == 3 ? #f43f5e : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "极致解限 · 风扇全速释放";
+                                    font-size: 9.5px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Custom / Geek
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 80px;
+                            border-radius: 6px;
+                            background: root.power_mode == 4 ? #a855f718 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.power_mode == 4 ? #a855f780 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_power_mode(4); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "极客调校 (Custom)";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: root.power_mode == 4 ? #a855f7 : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "自定义曲线 · 解锁硬件潜能";
+                                    font-size: 9.5px;
+                                    color: AppTheme.text_muted;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Battery Protection Thresholds Card
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../../assets/icons/zap.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #f59e0b;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "电池充电阈值保养";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: AppTheme.border_subtle;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: start;
+
+                        for limit in [60, 80, 100]: Rectangle {
+                            width: 120px;
+                            height: 48px;
+                            border-radius: 6px;
+                            background: root.battery_limit == limit ? #f59e0b1c : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.battery_limit == limit ? #f59e0b80 : AppTheme.border_subtle;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set_battery_limit(limit); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: limit == 100 ? "100% 满充" : (limit + "% 养护");
+                                    font-size: 11px;
+                                    font-weight: root.battery_limit == limit ? 700 : 500;
+                                    color: root.battery_limit == limit ? #f59e0b : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

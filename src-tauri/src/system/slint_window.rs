@@ -37,6 +37,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                     let switches = crate::system::device_switches::get_switches_state();
                     let line = format!("{}\n", serde_json::json!({
                         "action": "sync_state",
+                        "app_version": format!("v{}", env!("CARGO_PKG_VERSION")),
                         "power_mode": cfg.power_mode,
                         "gpu_mode": cfg.gpu_mode,
                         "refresh_rate": cfg.refresh_rate,

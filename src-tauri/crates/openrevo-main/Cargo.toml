@@ -1,6 +1,6 @@
 [package]
 name = "openrevo-main"
-version = "0.1.0"
+version = "0.9.7"
 edition = "2021"
 description = "Ultra-lightweight native main control center shell for OpenRevo using Slint"
 license = "GPL-3.0-or-later"

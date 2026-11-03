@@ -3,6 +3,13 @@ import { DashboardSidebar } from "sidebar.slint";
 import { DashboardHeader } from "header.slint";
 import { DashboardOverviewView } from "../views/overview/overview_view.slint";
 import { DashboardCustomTuningView } from "../views/tuning/tuning_view.slint";
+import { DashboardGpuView } from "../views/gpu/gpu_view.slint";
+import { DashboardPowerView } from "../views/power/power_view.slint";
+import { DashboardLightingView } from "../views/lighting/lighting_view.slint";
+import { DashboardWaterView } from "../views/water/water_view.slint";
+import { DashboardPluginsView } from "../views/plugins/plugins_view.slint";
+import { DashboardSystemView } from "../views/system/system_view.slint";
+import { DashboardSponsorView } from "../views/sponsor/sponsor_view.slint";
 
 export component FullDashboard inherits Rectangle {
     background: AppTheme.bg_root;
@@ -10,6 +17,9 @@ export component FullDashboard inherits Rectangle {
     border-width: 1px;
     border-color: AppTheme.border_subtle;
     clip: true;
+
+    // Application Meta
+    in-out property <string> app_version: "v0.9.7";
 
     // Active Navigation Tab: 0: 概览, 1: 显卡, 2: 电源, 3: RGB, 4: 水冷, 5: 插件, 6: 系统, 7: 赞助
     in-out property <int> active_tab: 0;
@@ -165,6 +175,7 @@ export component FullDashboard inherits Rectangle {
     HorizontalLayout {
         // 1. Left Sidebar (Width: 200px)
         DashboardSidebar {
+            app_version: root.app_version;
             active_tab: root.active_tab;
             select_tab(tab_idx) => {
                 root.is_in_tuning_view = false;
@@ -431,38 +442,64 @@ export component FullDashboard inherits Rectangle {
                 }
             }
 
-            // Placeholder for other tabs (which will host future views or WebView2 child)
-            if root.active_tab != 0: Rectangle {
+            // Tab 1: 显卡模式
+            if root.active_tab == 1: DashboardGpuView {
                 vertical-stretch: 1;
-                background: transparent;
+                gpu_mode: "dgpu";
+                gpu_name: root.gpu_name;
+                gpu_temp: root.gpu_temp;
+                gpu_usage: root.gpu_usage;
+                gpu_watts_text: root.gpu_watts_text;
+                refresh_rate: root.refresh_rate;
+                auto_min_hz: root.auto_min_hz;
+                monitor_name: root.monitor_name;
+                switch_hz(hz) => { root.switch_hz(hz); }
+                toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
+            }
 
-                VerticalLayout {
-                    alignment: center;
-                    spacing: 12px;
-
-                    Image {
-                        source: @image-url("../assets/icons/layers.svg");
-                        width: 48px;
-                        height: 48px;
-                        colorize: AppTheme.text_muted;
-                        horizontal-alignment: center;
-                    }
-
-                    Text {
-                        text: root.active_tab == 5 ? "扩展插件模块载入中 (WebView2 Child Container)" : "模块移植开发中...";
-                        font-size: 14px;
-                        font-weight: 700;
-                        color: AppTheme.text_secondary;
-                        horizontal-alignment: center;
-                    }
-
-                    Text {
-                        text: "该面板将在后续微内核演进阶段开放原生 Slint 或按需唤起轻量 WebView2";
-                        font-size: 11px;
-                        color: AppTheme.text_muted;
-                        horizontal-alignment: center;
-                    }
+            // Tab 2: 电源管理
+            if root.active_tab == 2: DashboardPowerView {
+                vertical-stretch: 1;
+                power_mode: root.power_mode;
+                pl1_target: root.pl1_target;
+                tgp_target: root.tgp_target;
+                set_power_mode(mode) => { root.set_power_mode(mode); }
+                open_custom_tuning => {
+                    root.is_in_tuning_view = true;
+                    root.active_tab = 0;
+                    root.open_custom_tuning();
                 }
+            }
+
+            // Tab 3: RGB 灯效工坊
+            if root.active_tab == 3: DashboardLightingView {
+                vertical-stretch: 1;
+            }
+
+            // Tab 4: 水冷魔盒 (BLE)
+            if root.active_tab == 4: DashboardWaterView {
+                vertical-stretch: 1;
+            }
+
+            // Tab 5: 插件中心
+            if root.active_tab == 5: DashboardPluginsView {
+                vertical-stretch: 1;
+            }
+
+            // Tab 6: 系统设置
+            if root.active_tab == 6: DashboardSystemView {
+                vertical-stretch: 1;
+                win_locked: root.win_locked;
+                fn_locked: root.fn_locked;
+                osd_enabled: root.osd_enabled;
+                keep_awake: root.keep_awake;
+                toggle_osd => { root.toggle_osd(); }
+                toggle_theme => { root.toggle_theme(); }
+            }
+
+            // Tab 7: 支持作者
+            if root.active_tab == 7: DashboardSponsorView {
+                vertical-stretch: 1;
             }
         }
     }
