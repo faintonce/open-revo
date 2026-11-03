@@ -2,24 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-.rpm-fan-panel { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
-.rpm-fan-panel > .tuning-card { display: flex; flex-direction: column; gap: var(--space-2); }
-.rpm-fan-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.rpm-fan-error, .hardware-control-error { color: var(--status-error); font-size: var(--font-size-sm); }
-.rpm-curve-editor { display: flex; flex-direction: column; gap: var(--space-2); }
-.rpm-curve-chart { width: 100%; height: auto; touch-action: none; overflow: visible; }
-.rpm-curve-grid { stroke: var(--border-subtle); stroke-dasharray: 3 3; }
-.rpm-curve-label { fill: var(--text-dim); font-size: 9px; }
-.rpm-curve-line { fill: none; stroke: var(--status-info); stroke-width: 2; }
-.rpm-curve-point { fill: var(--surface-card); stroke: var(--status-info); stroke-width: 2; cursor: ns-resize; }
-.rpm-curve-node-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: var(--space-2); }
-.rpm-curve-node { display: grid; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
-.rpm-curve-node label { display: grid; gap: var(--space-2); color: var(--text-secondary); font-size: var(--font-size-sm); }
-.rpm-curve-node input { width: 100%; min-width: 0; padding: var(--space-2); color: var(--text-primary); background: var(--surface-sunken); border: 1px solid var(--border-medium); border-radius: var(--radius-sm); }
-.rpm-curve-link { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); color: var(--text-secondary); }
-.rpm-smoothing-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-3); }
-.rpm-smoothing-options label { display: flex; flex-direction: column; gap: var(--space-2); color: var(--text-secondary); font-size: var(--font-size-sm); }
-.rpm-smoothing-options select { width: 100%; min-width: 0; }
+.hardware-control-error { color: var(--status-error); font-size: var(--font-size-sm); }
+
 .fan-control-badge { background: var(--surface-badge); border: 1px solid var(--border-medium); padding: 2px var(--space-2); border-radius: var(--radius-xs); font: 600 var(--font-size-sm) var(--font-mono); color: var(--text-secondary); }
 .fan-control-badge[data-mode="curve"], .fan-control-badge[data-mode="manual"] { color: var(--status-info); }
 .fan-control-badge[data-mode="protected"], .fan-control-badge[data-mode="recovering"] { color: var(--status-warn); }
@@ -3204,7 +3188,6 @@ body,
 
 /* Capability states reuse the original tuning controls across all themes. */
 .tuning-control-disabled { opacity: 0.45; }
-.tuning-control-error { color: var(--status-error); font-size: 11px; line-height: 1.5; }
 
 /* GCU OC 快捷胶囊（狂暴模式左上角） */
 .gpu-oc-wrap { position: relative; display: inline-flex; }

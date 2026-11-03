@@ -117,7 +117,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
   const error = controlError || (isNativePower ? cpuPowerStatus?.error : undefined);
 
   return (
-    <div className="tuning-card">
+    <div className="tuning-card" title={error || undefined}>
       {/* Header */}
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--color-balance)' }}>
@@ -142,8 +142,6 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
           当前机型为轻薄本架构，不支持自定义 CPU 功耗限制与温度墙调节。功耗由预设模式自动调度。
         </div>
       )}
-
-      {error && <div className="sys-sub-panel tuning-control-error" role="alert">{error}</div>}
 
       {/* Controls Container (dimmed & pointer-events disabled when tuning is unsupported) */}
       <div
@@ -183,8 +181,8 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                         : undefined
                     }
                   >
-                    {temperatureDisabled ? '未开放' : tempTargetEnabled ? `${effectiveTempTarget}°C` : `${tempTargetMax}°C (不限)`}
-                    {!temperatureDisabled && tempTargetEnabled && effectiveTempTarget >= 100 && ' ⚠️'}
+                    {tempTargetEnabled ? `${effectiveTempTarget}°C` : `${tempTargetMax}°C (不限)`}
+                    {tempTargetEnabled && effectiveTempTarget >= 100 && ' ⚠️'}
                   </span>
                   <button
                     type="button"
@@ -202,12 +200,12 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                       transition: 'all var(--transition-fast)',
                     }}
                   >
-                    {temperatureDisabled ? '未开放' : tempTargetEnabled ? '已开启' : '关闭'}
+                    {tempTargetEnabled ? '已开启' : '关闭'}
                   </button>
                 </div>
               </div>
 
-              {!temperatureDisabled && tempTargetEnabled && (
+              {tempTargetEnabled && (
                 <>
                   <div style={{ padding: '2px 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input

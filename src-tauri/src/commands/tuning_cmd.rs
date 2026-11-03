@@ -291,6 +291,27 @@ fn sync_legacy_ptl_curve(
     crate::system::config::sync_legacy_ptl_curve_data(profile, previous, curve_changed)
 }
 
+fn sync_native_fan_profile(
+    profile: &crate::system::config::CustomProfileConfig,
+    previous: &crate::system::config::CustomProfileConfig,
+) -> Result<(), String> {
+    if !uses_ptl_pmc() { return Ok(()); }
+    let curves = profile.ptl_rpm_curves();
+    let previous_curves = previous.ptl_rpm_curves();
+    let hal = crate::hal::get_hardware_driver();
+    if curves.smoothing != previous_curves.smoothing {
+        hal.set_rpm_fan_smoothing(curves.smoothing).map_err(|e| e.to_string())?;
+    }
+    if profile.fan_curve_enabled {
+        if !previous.fan_curve_enabled || curves != previous_curves {
+            hal.set_rpm_fan_curves(curves).map_err(|e| e.to_string())?;
+        }
+    } else if previous.fan_curve_enabled {
+        hal.restore_fan_auto().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 
 #[tauri::command]
 pub fn apply_custom_profile(
@@ -327,6 +348,7 @@ pub fn apply_custom_profile(
     }
 
     if uses_native_cpu_power() {
+        let previous = cfg.custom_profile.clone();
         sync_legacy_ptl_curve(&mut profile, &cfg.custom_profile, legacy_fan_curve_changed)?;
         let mut preset = crate::system::config::list_profiles().into_iter()
             .find(|p| p.id == cfg.active_profile_id).ok_or("Active profile was not found")?;
@@ -336,6 +358,7 @@ pub fn apply_custom_profile(
         cfg.power_mode_ac = 4;
         commit_native_cpu_profile(&profile, false, || crate::system::config::save_profile_and_config(&preset, &cfg))?;
         ec_state.lock().set_power_mode_from_hardware(4);
+        sync_native_fan_profile(&profile, &previous)?;
         return Ok(());
     }
     let is_dc = is_dc_round_plugged_in();
@@ -422,6 +445,10 @@ fn save_ptl_fan_policy(curves: Option<crate::hal::fan_policy::RpmFanCurves>, ena
         cfg.custom_profile.fan_isolated_output = enabled;
     }
     if let Some(curves) = curves {
+        cfg.custom_profile.fan_ramp_rate = curves.smoothing.enabled;
+        if let Some(ms) = curves.smoothing.step_interval_ms {
+            cfg.custom_profile.fan_ramp_speed_ms = ms;
+        }
         cfg.custom_profile.ptl_rpm_fan_curves = Some(curves);
     }
     // Startup reloads fan settings from the active profile, not the config cache.
@@ -499,7 +526,8 @@ pub fn apply_fan_curve_live(
     if uses_ptl_pmc() {
         let cpu=cpu_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
         let gpu=gpu_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
-        return set_rpm_fan_curves(migrate_ptl_curves(&cpu,&gpu)?);
+        return crate::hal::get_hardware_driver().set_rpm_fan_curves(migrate_ptl_curves(&cpu,&gpu)?)
+            .map_err(|e| e.to_string());
     }
     let is_bld_manifest = fan_curve_uses_bld_controller()?;
 
@@ -599,6 +627,29 @@ pub fn toggle_fan_isolated_output(
 
 #[tauri::command]
 pub fn toggle_fan_ramp_rate(enable: bool, speed_ms: Option<u16>) -> Result<bool, String> {
+    if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.capabilities.fan_software_smoothing) {
+        let mut cfg = crate::system::config::load_config();
+        let ms = speed_ms.unwrap_or(cfg.custom_profile.fan_ramp_speed_ms).clamp(100, 12700);
+        let mut curves = cfg.custom_profile.ptl_rpm_curves();
+        let previous = curves.smoothing;
+        curves.smoothing = crate::hal::fan_policy::RpmSmoothing::from_legacy_ramp(enable, ms);
+        let hal = crate::hal::get_hardware_driver();
+        let mut preset = crate::system::config::list_profiles().into_iter()
+            .find(|p| p.id == cfg.active_profile_id).ok_or("Active profile was not found")?;
+        cfg.custom_profile.fan_ramp_rate = enable;
+        cfg.custom_profile.fan_ramp_speed_ms = ms;
+        cfg.custom_profile.ptl_rpm_fan_curves = Some(curves.clone());
+        preset.profile = cfg.custom_profile.clone();
+        hal.set_rpm_fan_smoothing(curves.smoothing).map_err(|e| e.to_string())?;
+        if let Err(error) = crate::system::config::save_profile_and_config(&preset, &cfg) {
+            let restored = hal.set_rpm_fan_smoothing(previous).map_err(|e| e.to_string());
+            return Err(match restored {
+                Ok(()) => error,
+                Err(restore) => format!("{error}; smoothing restore failed: {restore}"),
+            });
+        }
+        return Ok(true);
+    }
     if crate::hal::declarative::load_matched_manifest().is_some_and(|m| !m.capabilities.fan_ramp_rate) {
         return Err("当前机型尚未适配风扇渐变调节".into());
     }
@@ -650,12 +701,14 @@ pub fn set_active_profile_id(
 
     if uses_native_cpu_power() {
         let mut cfg = crate::system::config::load_config();
+        let previous = cfg.custom_profile.clone();
         cfg.active_profile_id = id;
         cfg.custom_profile = target.profile.clone();
         cfg.power_mode = 4;
         cfg.power_mode_ac = 4;
         commit_native_cpu_profile(&target.profile, false, || crate::system::config::try_save_config(&cfg))?;
         ec_state.lock().set_power_mode_from_hardware(4);
+        sync_native_fan_profile(&target.profile, &previous)?;
         return Ok(target);
     }
     let mut cfg = crate::system::config::load_config();
@@ -692,6 +745,7 @@ pub fn save_profile_preset(
     if uses_native_cpu_power() {
         let mut cfg = crate::system::config::load_config();
         if cfg.active_profile_id == preset.id {
+            let previous = cfg.custom_profile.clone();
             sync_legacy_ptl_curve(&mut preset.profile, &cfg.custom_profile, legacy_fan_curve_changed)?;
             cfg.custom_profile = preset.profile.clone();
             if crate::hal::cpu_power::is_active() {
@@ -699,6 +753,7 @@ pub fn save_profile_preset(
             } else {
                 crate::system::config::save_profile_and_config(&preset, &cfg)?;
             }
+            sync_native_fan_profile(&preset.profile, &previous)?;
         } else {
             crate::system::config::save_profile_file(&preset)?;
         }
@@ -776,6 +831,7 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
         let cfg = crate::system::config::load_config();
         if cfg.active_profile_id == id {
             let mut cfg = cfg;
+            let previous = cfg.custom_profile.clone();
             cfg.custom_profile = target.profile.clone();
             cfg.cpu_pl1_max = None;
             cfg.cpu_pl2_max = None;
@@ -784,6 +840,7 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
             } else {
                 crate::system::config::save_profile_and_config(&target, &cfg)?;
             }
+            sync_native_fan_profile(&target.profile, &previous)?;
         } else {
             crate::system::config::save_profile_file(&target)?;
         }

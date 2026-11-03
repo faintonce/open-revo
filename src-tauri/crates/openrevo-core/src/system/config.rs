@@ -353,7 +353,10 @@ impl CustomProfileConfig {
         self.ptl_rpm_fan_curves.clone().unwrap_or_else(|| {
             let cpu = self.cpu_fan_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
             let gpu = self.gpu_fan_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
-            crate::hal::fan_policy::RpmFanCurves::from_legacy(&cpu,&gpu).unwrap_or_default()
+            let mut curves = crate::hal::fan_policy::RpmFanCurves::from_legacy(&cpu,&gpu).unwrap_or_default();
+            curves.smoothing = crate::hal::fan_policy::RpmSmoothing::from_legacy_ramp(
+                self.fan_ramp_rate, self.fan_ramp_speed_ms);
+            curves
         })
     }
 }
@@ -366,17 +369,22 @@ pub fn sync_legacy_ptl_curve_data(
     curve_changed: Option<bool>,
 ) -> Result<(), String> {
     match curve_changed {
-        None => return Ok(()),
-        Some(false) => {
-            profile.ptl_rpm_fan_curves = previous.ptl_rpm_fan_curves.clone();
-            return Ok(());
+        None => {}
+        Some(false) => profile.ptl_rpm_fan_curves = previous.ptl_rpm_fan_curves.clone(),
+        Some(true) => {
+            let points = |curve: &[FanCurvePoint]| curve.iter().map(|p| (p.temp, p.duty)).collect::<Vec<_>>();
+            let mut curves = crate::hal::fan_policy::RpmFanCurves::from_legacy(&points(&profile.cpu_fan_curve), &points(&profile.gpu_fan_curve))?;
+            curves.smoothing = previous.ptl_rpm_curves().smoothing;
+            profile.ptl_rpm_fan_curves = Some(curves);
         }
-        Some(true) => {}
     }
-    let points = |curve: &[FanCurvePoint]| curve.iter().map(|p| (p.temp, p.duty)).collect::<Vec<_>>();
-    let mut curves = crate::hal::fan_policy::RpmFanCurves::from_legacy(&points(&profile.cpu_fan_curve), &points(&profile.gpu_fan_curve))?;
-    curves.smoothing = previous.ptl_rpm_curves().smoothing;
-    profile.ptl_rpm_fan_curves = Some(curves);
+    if profile.fan_ramp_rate != previous.fan_ramp_rate
+        || profile.fan_ramp_speed_ms != previous.fan_ramp_speed_ms {
+        let mut curves = profile.ptl_rpm_curves();
+        curves.smoothing = crate::hal::fan_policy::RpmSmoothing::from_legacy_ramp(
+            profile.fan_ramp_rate, profile.fan_ramp_speed_ms);
+        profile.ptl_rpm_fan_curves = Some(curves);
+    }
     Ok(())
 }
 
@@ -390,7 +398,7 @@ mod legacy_ptl_curve_tests {
         let mut curves = RpmFanCurves::default();
         curves.fan0[0].rpm = 1700;
         curves.fan1 = curves.fan0.clone();
-        curves.smoothing = RpmSmoothing { enabled: true, rise_rpm_per_sec: 500, fall_rpm_per_sec: 100, fall_delay_secs: 2 };
+        curves.smoothing = RpmSmoothing { enabled: true, rise_rpm_per_sec: 500, fall_rpm_per_sec: 100, fall_delay_secs: 2, ..Default::default() };
         CustomProfileConfig { ptl_rpm_fan_curves: Some(curves), ..Default::default() }
     }
 
@@ -429,6 +437,31 @@ mod legacy_ptl_curve_tests {
         sync_legacy_ptl_curve_data(&mut edited, &previous, None).unwrap();
         assert_eq!(edited.ptl_rpm_fan_curves, supplied);
     }
+
+    #[test]
+    fn original_ui_ramp_settings_update_software_policy_without_changing_targets() {
+        let previous = saved_rpm_profile();
+        let mut edited = previous.clone();
+        edited.fan_ramp_rate = false;
+        edited.fan_ramp_speed_ms = 1000;
+        sync_legacy_ptl_curve_data(&mut edited, &previous, Some(false)).unwrap();
+        let curves = edited.ptl_rpm_curves();
+        assert_eq!(curves.fan0, previous.ptl_rpm_curves().fan0);
+        assert_eq!(curves.fan1, previous.ptl_rpm_curves().fan1);
+        assert!(!curves.smoothing.enabled);
+        assert_eq!(curves.smoothing.step_interval_ms, Some(1000));
+        let restored: CustomProfileConfig = serde_json::from_str(&serde_json::to_string(&edited).unwrap()).unwrap();
+        assert_eq!(restored.ptl_rpm_curves(), curves);
+    }
+
+    #[test]
+    fn profiles_without_explicit_rpm_data_use_the_original_ramp_fields() {
+        let mut profile = CustomProfileConfig::default();
+        profile.fan_ramp_rate = false;
+        profile.fan_ramp_speed_ms = 500;
+        assert!(!profile.ptl_rpm_curves().smoothing.enabled);
+        assert_eq!(profile.ptl_rpm_curves().smoothing.step_interval_ms, Some(500));
+    }
 }
 
 #[cfg(test)]
@@ -451,7 +484,7 @@ mod rpm_curve_tests {
     fn rpm_smoothing_roundtrips_and_legacy_rpm_profiles_receive_defaults() {
         let mut profile=CustomProfileConfig::default();
         let mut curves=crate::hal::fan_policy::RpmFanCurves::default();
-        curves.smoothing=crate::hal::fan_policy::RpmSmoothing {enabled:false,rise_rpm_per_sec:2000,fall_rpm_per_sec:500,fall_delay_secs:5};
+        curves.smoothing=crate::hal::fan_policy::RpmSmoothing {enabled:false,rise_rpm_per_sec:2000,fall_rpm_per_sec:500,fall_delay_secs:5, ..Default::default()};
         profile.ptl_rpm_fan_curves=Some(curves.clone());
         let mut value=serde_json::to_value(&profile).unwrap();
         let loaded:CustomProfileConfig=serde_json::from_value(value.clone()).unwrap();
@@ -966,7 +999,7 @@ pub fn get_default_builtin_presets() -> Vec<CustomProfilePreset> {
     // Adapt to hardware capabilities (e.g. Baolongda / non-Tongfang models)
     let (fan_ramp, fan_isolated, fan_linked, super_perf) = if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
         (
-            manifest.capabilities.fan_ramp_rate,
+            manifest.capabilities.supports_fan_smoothing(),
             manifest.capabilities.fan_independent_channels,
             !manifest.capabilities.fan_independent_channels,
             true,
@@ -1212,7 +1245,7 @@ pub fn ensure_default_profiles() {
                         modified = true;
                     }
                     if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
-                        if !manifest.capabilities.fan_ramp_rate && disk_preset.profile.fan_ramp_rate {
+                        if !manifest.capabilities.supports_fan_smoothing() && disk_preset.profile.fan_ramp_rate {
                             disk_preset.profile.fan_ramp_rate = false;
                             modified = true;
                         }

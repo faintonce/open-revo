@@ -1155,7 +1155,7 @@ pub fn generate_model_fan_curve(_temp_levels: u8) -> Vec<crate::system::config::
 /// Build a fully populated CustomProfileConfig adapted to a specific ModelProfile
 pub fn build_model_default_custom_profile(profile: &ModelProfile) -> crate::system::config::CustomProfileConfig {
     let manifest = crate::hal::declarative::load_matched_manifest();
-    let ramp_rate = manifest.as_ref().map(|m| m.capabilities.fan_ramp_rate).unwrap_or(true);
+    let ramp_rate = manifest.as_ref().map(|m| m.capabilities.supports_fan_smoothing()).unwrap_or(true);
     let isolated = manifest.as_ref().map(|m| m.capabilities.fan_independent_channels).unwrap_or(profile.fan_control_respective);
     let super_perf = true;
 

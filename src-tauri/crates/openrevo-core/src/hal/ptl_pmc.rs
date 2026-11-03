@@ -468,7 +468,14 @@ fn start_heartbeat() {
                 let epoch = Instant::now();
                 let mut last = Instant::now();
                 loop {
-                    thread::sleep(Duration::from_secs(1));
+                    let interval = {
+                        let c = controller().lock();
+                        let smoothing = c.status().smoothing;
+                        if c.needs_tick() && smoothing.enabled {
+                            smoothing.step_interval_ms.unwrap_or(1000).clamp(100, 1000)
+                        } else { 1000 }
+                    };
+                    thread::sleep(Duration::from_millis(interval as u64));
                     let gap_healthy = last.elapsed() <= Duration::from_secs(5);
                     last = Instant::now();
                     let mut c = controller().lock();

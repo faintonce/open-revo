@@ -7,6 +7,9 @@ use std::time::Duration;
 #[serde(default)]
 pub struct RpmSmoothing {
     pub enabled: bool,
+    /// Compatibility with the existing UI: one 100-RPM step per interval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_interval_ms: Option<u16>,
     pub rise_rpm_per_sec: u16,
     pub fall_rpm_per_sec: u16,
     pub fall_delay_secs: u8,
@@ -15,6 +18,7 @@ impl Default for RpmSmoothing {
     fn default() -> Self {
         Self {
             enabled: true,
+            step_interval_ms: None,
             rise_rpm_per_sec: 1500,
             fall_rpm_per_sec: 300,
             fall_delay_secs: 3,
@@ -22,8 +26,19 @@ impl Default for RpmSmoothing {
     }
 }
 impl RpmSmoothing {
+    pub fn from_legacy_ramp(enabled: bool, interval_ms: u16) -> Self {
+        Self {
+            enabled,
+            step_interval_ms: Some(interval_ms.clamp(100, 12700)),
+            ..Self::default()
+        }
+    }
+
     pub fn validate(&self) -> Result<(), String> {
-        if !(100..=5000).contains(&self.rise_rpm_per_sec)
+        if self
+            .step_interval_ms
+            .is_some_and(|ms| !(100..=12700).contains(&ms))
+            || !(100..=5000).contains(&self.rise_rpm_per_sec)
             || self.rise_rpm_per_sec % 100 != 0
             || !(100..=2000).contains(&self.fall_rpm_per_sec)
             || self.fall_rpm_per_sec % 100 != 0
@@ -120,8 +135,12 @@ impl RpmTransition {
                 )
             };
             // Keep sub-100-RPM credit across ticks; idle time and reversals cannot bank speed.
-            let unit = 100 * 1_000_000_000u128;
-            self.credit[fan] += allowed.as_nanos() * rate as u128;
+            let (credit, unit) = if let Some(interval) = settings.step_interval_ms {
+                (allowed.as_nanos(), interval as u128 * 1_000_000)
+            } else {
+                (allowed.as_nanos() * rate as u128, 100 * 1_000_000_000u128)
+            };
+            self.credit[fan] += credit;
             let steps = self.credit[fan] / unit;
             self.credit[fan] %= unit;
             let difference = current[fan].abs_diff(target[fan]) as u128;
@@ -145,6 +164,75 @@ mod tests {
     use super::*;
     fn at(seconds: u64) -> Duration {
         Duration::from_secs(seconds)
+    }
+
+    #[test]
+    fn original_ui_intervals_drive_exact_steps_in_both_directions() {
+        for interval in [100, 300, 500, 1000] {
+            let settings = RpmSmoothing {
+                fall_delay_secs: 0,
+                ..RpmSmoothing::from_legacy_ramp(true, interval)
+            };
+            settings.validate().unwrap();
+            let mut ramp = RpmTransition::default();
+            ramp.seed([2000, 4000], Duration::ZERO);
+            assert_eq!(
+                ramp.plan([4000, 2000], settings, Duration::ZERO, false),
+                [2000, 4000]
+            );
+            let boundary = Duration::from_millis(interval as u64);
+            assert_eq!(
+                ramp.plan(
+                    [4000, 2000],
+                    settings,
+                    boundary - Duration::from_millis(1),
+                    false
+                ),
+                [2000, 4000]
+            );
+            assert_eq!(
+                ramp.plan([4000, 2000], settings, boundary, false),
+                [2100, 3900]
+            );
+            assert_eq!(
+                ramp.plan([4000, 2000], settings, boundary * 3, false),
+                [2300, 3700]
+            );
+        }
+    }
+
+    #[test]
+    fn ui_interval_respects_disable_and_hot_temperature_override() {
+        let settings = RpmSmoothing::from_legacy_ramp(true, 1000);
+        let mut ramp = RpmTransition::default();
+        ramp.seed([2000, 4000], Duration::ZERO);
+        assert_eq!(
+            ramp.plan([6000, 2000], settings, Duration::ZERO, true),
+            [6000, 4000]
+        );
+        assert_eq!(
+            ramp.plan(
+                [4000, 2000],
+                RpmSmoothing {
+                    enabled: false,
+                    ..settings
+                },
+                Duration::ZERO,
+                false
+            ),
+            [4000, 2000]
+        );
+        let saved = serde_json::to_string(&settings).unwrap();
+        assert_eq!(
+            serde_json::from_str::<RpmSmoothing>(&saved).unwrap(),
+            settings
+        );
+        assert!(RpmSmoothing {
+            step_interval_ms: Some(0),
+            ..settings
+        }
+        .validate()
+        .is_err());
     }
     #[test]
     fn channels_rise_independently_and_fall_only_after_delay() {

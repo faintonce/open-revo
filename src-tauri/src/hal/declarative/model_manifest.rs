@@ -108,6 +108,10 @@ pub struct ModelCapabilities {
 }
 
 impl ModelCapabilities {
+    pub fn supports_fan_smoothing(&self) -> bool {
+        self.fan_ramp_rate || self.fan_software_smoothing
+    }
+
     pub fn uses_bld_fan_controller(&self) -> bool {
         self.fan_control_mode.as_deref() == Some("direct_rpm_clamp")
             || self.fan_boost_mode.as_deref() == Some("direct_rpm_clamp")

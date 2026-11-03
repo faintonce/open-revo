@@ -193,13 +193,13 @@ and selects Balance. Normal exit and suspend release the saved settings; startup
 and explicit OS resume attempt the saved Custom profile through the same guarded
 path. Failed startup restoration falls back to Balance rather than claiming a
 successful Custom mode. Forced process termination cannot run exit restoration.
-The tuning page retains its original CPU/GPU/fan three-column layout. The fan
-column selects the RPM editor for the declared PM2 backend and keeps the legacy
-editor for other backends. Fixed RPM, RPM curves and software smoothing share
-this column; there is no additional Overview fan entry. Unsupported controls
-remain disabled. Legacy intensity curves are still migrated to RPM when saved;
-CPU-only edits preserve the saved RPM and smoothing settings. Saving a fan policy
-updates only the fan fields in the page, preserving pending CPU edits.
+The tuning page keeps its original CPU/GPU/fan layout, labels and percentage
+curve editor. There is no additional Overview fan entry or replacement RPM
+panel. Unsupported controls remain disabled in their existing positions.
+Percentage curves are converted to RPM in the backend; the existing smoothing
+switch and millisecond selector drive software transitions. CPU-only edits
+preserve the saved RPM policy. Fan edits and CPU edits share the original
+profile save path without replacing each other's settings.
 
 The host refuses to start `openrevo-plugin-power`'s companion agent on this native
 backend. CPU writes also refuse to start while its default loopback port 18946
@@ -291,22 +291,27 @@ unavailable adjustable hardware ramp.
 
 ### Software smooth transition (2026-11-01)
 
-The PTL panel provides a software smoothing switch, independent rise/fall rates
-and a downward waiting time. It applies to both RPM curves and fixed manual
-targets. Defaults are enabled, 1500 RPM/second rising, 300 RPM/second falling,
-with a three-second wait before falling. Old profiles without smoothing fields
-receive these defaults. Settings are stored in the active profile under
-`ptl_rpm_fan_curves.smoothing` and restored at startup, including when the saved
-curve is disabled. Editing these settings in automatic mode does not activate
-manual control. The Tongfang hardware-ramp command is not used.
+The original "平滑过渡" switch and 100/300/500/1000ms selector are retained.
+On PTL they call the software backend through the existing ramp command;
+`fan_ramp_rate=false` in the hardware declaration remains accurate. The separate
+`fan_software_smoothing=true` capability enables these existing controls.
+No independent software-settings card is added and no Tongfang ramp register
+is written.
 
-The existing 1-Hz control loop limits each channel's RPM command independently
-using monotonic elapsed time, rounding movement to 100-RPM units while keeping
-fractional movement for the next update. Settings describe RPM per second,
-not a subsecond hardware command interval. Initial control and recovery from
-firmware handover start from fresh PM2 tachometer readings. Live curve edits
-with unchanged smoothing settings preserve the current transition and waiting
-time. Idle time cannot accumulate credit for a later sudden speed jump.
+The selected interval means one 100-RPM step per interval on each channel,
+with the existing three-second wait before lowering speed. Active control
+checks at the selected interval, bounded to 100–1000ms, and uses actual
+monotonic elapsed time to account for scheduling and transport latency.
+Fractional steps carry forward; idle time cannot bank a later speed jump.
+Both legacy fields (`fan_ramp_rate`, `fan_ramp_speed_ms`) and the RPM policy
+are saved in the active profile and restored at startup. Changes made in
+automatic mode configure the policy without starting manual control.
+Failed storage restores the prior software settings.
+
+The native API still accepts separate rise/fall rates for existing RPM profiles;
+profiles without explicit RPM data derive their software interval from the
+original UI fields. Initial control and recovery from firmware handover start
+from fresh tachometers. Live curve edits preserve unchanged transition timing.
 
 At 85°C or higher, requested speed increases bypass the software ramp and
 decreases are held until temperature falls. The full-speed boost command also
@@ -317,22 +322,19 @@ handover, communication failures, suspend and exit take precedence and clear
 transition state. Curve recovery still requires the existing five-second
 healthy window, then starts a fresh transition from firmware RPM.
 
-The UI reports final requested RPM, the transition command and any start
-assistance separately. Supported settings are 100–5000 RPM/second rising,
-100–2000 RPM/second falling (in 100-RPM steps), and a 0–10-second downward
-wait. Parameters are validated before activation or saving. Mocked tests cover
-rate limits, timing, independent channels, live edits, start overrides, thermal
-and sensor faults, firmware recovery and backward-compatible profile storage.
-Real-machine smoothing verification is deferred at the user's request.
+The read-only fan-status API reports requested RPM, transition commands and
+start assistance separately. Parameters are validated before activation or
+saving. Mocked tests cover all four UI intervals, rate limits, independent
+channels, live edits, start overrides, thermal/sensor faults, firmware recovery
+and profile storage. Real-machine smoothing verification remains deferred.
 
 ### RPM curve operation
 
-The overview's “手动转速与风扇曲线” button opens a dedicated control panel without
-requiring a fourth performance mode. Manual targets are independent, in
-100-RPM steps: fan 0 accepts 1200–7500 RPM and fan 1 accepts 1000–7500 RPM.
-Linked curves use the higher 1200-RPM floor. The manual sliders, curve editor
-and backend validation use the same HAL limits; the declaration also records
-both channel minima. Curves use CPU Package temperature
+The native API supports independent manual targets in 100-RPM steps: fan 0
+accepts 1200–7500 RPM and fan 1 accepts 1000–7500 RPM. Linked RPM curves use
+the higher 1200-RPM floor, recorded in the declaration. The PR adds no separate
+manual-target UI. The original percentage editor uses the conversion below.
+Backend curves use CPU Package temperature
 and issue independent RPM targets through `D7`/`D8`, with optional linking of
 both curves. Values between temperature nodes are linearly interpolated and
 rounded to 100 RPM. The 7500-RPM command ceiling is a target limit, not a
@@ -344,13 +346,13 @@ applies the requested low target. Every update checks both PM2 tachometers.
 Unexpected zero RPM triggers the same assistance on that fan only. A failed
 two-second assisted start, three seconds of persistent zero RPM at higher
 targets, or a third restart within 30 seconds hands control back to firmware.
-These timers do not block the temperature watchdog. The panel distinguishes
+These timers do not block the temperature watchdog. The status API distinguishes
 the requested target from the RPM command temporarily used for starting.
 Curve protection retains its existing five-second recovery window; fixed
 manual control returns to automatic after a fault.
 
-The panel edits RPM directly: a 40–50°C plateau at 2200 RPM requests 2200 RPM
-from each selected fan. The previous PWM curve used byte 64/255 at 25%, which
+The backend requests RPM directly: a 40–50°C plateau at 2200 RPM requests
+2200 RPM from each selected fan. The previous PWM curve used byte 64/255 at 25%, which
 measured around 3000 RPM and did not request 2200 RPM. Existing percentage
 profiles retain their temperature knots and relative intensity when migrated:
 25% or lower becomes 2200 RPM, 100% becomes 7500 RPM, with linear scaling
@@ -358,7 +360,8 @@ between them. This is a migration policy, not a physical PWM-to-RPM calibration.
 The original percentage arrays remain intact for other controllers. New curves
 are stored in `ptl_rpm_fan_curves` in the active profile file used at startup.
 
-The software curve runs at 1 Hz even while the main window is hidden. A missing
+The software curve runs in the background even while the main window is hidden,
+at the selected software interval or 1 Hz for native rate-based settings. A missing
 temperature, temperature at or above 90°C, a communication error, a scheduling
 gap longer than five seconds, or suspend temporarily hands the fans to firmware.
 The requested curve is retained and the status reports `resume_pending=true`.
@@ -373,8 +376,8 @@ Explicitly selecting factory automatic control cancels the requested curve
 before any I/O, even if that restoration attempt fails; it cannot automatically
 resume later. Shutdown and normal exit also cancel resumption. Fixed manual
 RPM targets return to automatic on faults or suspend and do not resume themselves.
-The overview badge and control panel show actual control mode, recovery state,
-CPU Package temperature and requested RPM rather than inferring mode from boost.
+The overview badge uses actual control mode rather than inferring it from boost;
+the status API also provides recovery state, package temperature and requested RPM.
 Curves therefore require OpenRevo to remain running. There is no independent
 watchdog for a process crash or forced termination; restoration cannot be
 guaranteed in that case. Actual sleep/wake cycling and sustained thermal loads

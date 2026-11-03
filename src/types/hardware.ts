@@ -184,7 +184,7 @@ export interface FanCurvePoint {
 }
 
 export interface RpmCurvePoint { temp: number; rpm: number; }
-export interface RpmSmoothing { enabled: boolean; rise_rpm_per_sec: number; fall_rpm_per_sec: number; fall_delay_secs: number; }
+export interface RpmSmoothing { enabled: boolean; step_interval_ms?: number; rise_rpm_per_sec: number; fall_rpm_per_sec: number; fall_delay_secs: number; }
 export interface RpmFanCurves { fan0: RpmCurvePoint[]; fan1: RpmCurvePoint[]; linked: boolean; smoothing: RpmSmoothing; }
 export interface FanRpmLimits { minimum: [number, number]; maximum: number; step: number; startup_rpm: number; startup_secs: number; }
 export interface RpmFanControlStatus {

@@ -13,7 +13,6 @@ import {
 } from '../types/hardware';
 import { ModelCapabilities } from '../plugins/plugin_manifest';
 import { FanCurveEditor } from './tuning/FanCurveEditor';
-import { RpmFanControlPanel } from './tuning/RpmFanControlPanel';
 import { TuningToolbar } from './tuning/TuningToolbar';
 import { CpuTuningSection } from './tuning/CpuTuningSection';
 import { GpuTuningSection } from './tuning/GpuTuningSection';
@@ -125,6 +124,11 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const [profileError, setProfileError] = useState('');
   const [cpuPowerStatus, setCpuPowerStatus] = useState<CpuPowerStatus | null>(null);
   const isPmcFan = modelCaps?.fan_control_mode === 'pmc_rpm_curve';
+  const fanUiFields = (saved: CustomProfileConfig) => isPmcFan ? {
+    fan_isolated_output: saved.fan_curve_enabled,
+    fan_ramp_rate: saved.ptl_rpm_fan_curves?.smoothing.enabled ?? saved.fan_ramp_rate,
+    fan_ramp_speed_ms: saved.ptl_rpm_fan_curves?.smoothing.step_interval_ms ?? saved.fan_ramp_speed_ms,
+  } : {};
   useEffect(() => {
     if (capabilities) setModelCaps(capabilities);
   }, [capabilities]);
@@ -324,6 +328,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
         }
         const safeProfile: CustomProfileConfig = {
           ...activePreset.profile,
+          ...fanUiFields(activePreset.profile),
           cpu_temp_target: Math.max(targetMin, Math.min(targetMax, activePreset.profile.cpu_temp_target || 95)),
           cpu_fan_curve: normalizeFanCurve8(activePreset.profile.cpu_fan_curve, minDutyFloor),
           gpu_fan_curve: normalizeFanCurve8(activePreset.profile.gpu_fan_curve, minDutyFloor),
@@ -416,21 +421,6 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     };
   }, [profile, activeProfileId]);
 
-  const syncSavedRpmPolicy = (saved: CustomProfileConfig) => {
-    const mergeFanPolicy = (current: CustomProfileConfig): CustomProfileConfig => ({
-      ...current,
-      ptl_rpm_fan_curves: saved.ptl_rpm_fan_curves,
-      fan_curve_enabled: saved.fan_curve_enabled,
-      fan_isolated_output: saved.fan_isolated_output,
-    });
-    // Mark only the already-persisted fan fields as saved. Pending CPU edits
-    // remain dirty and cannot overwrite a fan setting saved through this panel.
-    if (initialProfileRef.current) {
-      initialProfileRef.current = JSON.stringify(mergeFanPolicy(JSON.parse(initialProfileRef.current)));
-    }
-    setProfile(mergeFanPolicy);
-  };
-
   // Flush pending auto-save on unmount
   useEffect(() => {
     return () => {
@@ -506,6 +496,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       }
       const safeProfile: CustomProfileConfig = {
         ...target.profile,
+        ...fanUiFields(target.profile),
         cpu_temp_target: Math.max(targetMin, Math.min(targetMax, target.profile.cpu_temp_target || 95)),
         cpu_fan_curve: normalizeFanCurve8(target.profile.cpu_fan_curve, minDutyFloor),
         gpu_fan_curve: normalizeFanCurve8(target.profile.gpu_fan_curve, minDutyFloor),
@@ -569,6 +560,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       // 3. 构建 Profile，在出厂默认上限的约束下完好无损地恢复设定值
       const safeProfile: CustomProfileConfig = {
         ...res.profile,
+        ...fanUiFields(res.profile),
         cpu_temp_target: Math.max(tempTargetMin, Math.min(defaultTargetMax, res.profile.cpu_temp_target || 95)),
         cpu_pl1_watts: Math.max(minPl, Math.min(defaultMaxPl1, res.profile.cpu_pl1_watts)),
         cpu_pl2_watts: Math.max(minPl, Math.min(defaultMaxPl2, res.profile.cpu_pl2_watts)),
@@ -851,8 +843,16 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const liveFanDebounceRef = useRef<any>(null);
   const rampDebounceRef = useRef<any>(null);
 
-  const handleFanRampSpeedChange = (rawVal: number) => {
+  const handleFanRampSpeedChange = async (rawVal: number) => {
     const val = Math.max(100, Math.min(12700, Math.round(rawVal / 100) * 100));
+    if (isPmcFan) {
+      try {
+        await invoke('toggle_fan_ramp_rate', { enable: profile.fan_ramp_rate, speedMs: val });
+        setProfile(p => ({ ...p, fan_ramp_speed_ms: val }));
+        setProfileError('');
+      } catch (e) { setProfileError(String(e)); }
+      return;
+    }
     setProfile((p) => ({ ...p, fan_ramp_speed_ms: val }));
     if (status.power_mode === 4 && profile.fan_ramp_rate) {
       if (rampDebounceRef.current) clearTimeout(rampDebounceRef.current);
@@ -915,6 +915,14 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
 
   const handleToggleFanRampRate = async (nextVal: boolean) => {
     const isBld = isDirectRpmFan;
+    if (isPmcFan) {
+      try {
+        await invoke('toggle_fan_ramp_rate', { enable: nextVal, speedMs: profile.fan_ramp_speed_ms || 300 });
+        setProfile(p => ({ ...p, fan_ramp_rate: nextVal }));
+        setProfileError('');
+      } catch (e) { setProfileError(String(e)); }
+      return;
+    }
     setProfile((p) => ({ ...p, fan_ramp_rate: nextVal }));
     if (status.power_mode === 4 || isBld) {
       try {
@@ -1181,13 +1189,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
               onToggleFanBoost={onToggleFanBoost || (() => invoke('set_fan_boost', { enable: !status.fan_boost }))}
             />
           ) : (
-            isPmcFan ? <RpmFanControlPanel
-              key={activeProfileId}
-              fan0={status.cpu_fan_rpm}
-              fan1={status.gpu_fan_rpm}
-              policyVersion={JSON.stringify([profile.ptl_rpm_fan_curves, profile.cpu_fan_curve, profile.gpu_fan_curve, profile.fan_curve_enabled])}
-              onPolicySaved={syncSavedRpmPolicy}
-            /> : <FanCurveEditor
+            <FanCurveEditor
               fanCurveTab={fanCurveTab}
               onTabChange={setFanCurveTab}
               cpuCurve={profile.cpu_fan_curve}
@@ -1206,7 +1208,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
               fanBoostMode={modelCaps?.fan_boost_mode}
               maxRpm={modelCaps?.max_fan_rpm}
               fanIndependentChannels={modelCaps?.fan_independent_channels ?? true}
-              supportFanRampRate={modelCaps?.fan_ramp_rate ?? (capabilities?.fan_ramp_rate ?? true)}
+              supportFanRampRate={modelCaps?.fan_software_smoothing || (modelCaps?.fan_ramp_rate ?? (capabilities?.fan_ramp_rate ?? true))}
               minDuty={modelCaps?.fan_boost_mode === 'direct_rpm_clamp' ? 22 : 0}
             />
           )}

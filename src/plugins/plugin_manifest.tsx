@@ -25,6 +25,7 @@ export interface ModelCapabilities {
   fan_custom_curve?: boolean;
   fan_independent_channels?: boolean;
   fan_ramp_rate?: boolean;
+  fan_software_smoothing?: boolean;
   fan_control_mode?: 'discrete_table_16' | 'direct_rpm_clamp' | 'fixed_boost_only' | 'none' | string;
   fan_boost_mode?: 'hardware_toggle' | 'direct_rpm_clamp' | string;
   max_fan_rpm?: number;
