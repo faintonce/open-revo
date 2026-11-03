@@ -6,14 +6,20 @@ component SwitchToggle inherits Rectangle {
     in-out property <color> active_color: #10b981;
     callback toggled();
 
-    width: 36px;
+    width: 38px;
     height: 20px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+
     border-radius: 10px;
     background: checked ? active_color : AppTheme.surface_pill;
     border-width: 1px;
     border-color: checked ? active_color : AppTheme.border_medium;
+    clip: true;
 
     TouchArea {
+        width: 100%;
+        height: 100%;
         mouse-cursor: pointer;
         clicked => { root.toggled(); }
     }
@@ -23,8 +29,8 @@ component SwitchToggle inherits Rectangle {
         height: 14px;
         border-radius: 7px;
         background: #ffffff;
-        x: checked ? (parent.width - self.width - 3px) : 3px;
-        y: (parent.height - self.height) / 2;
+        x: root.checked ? (root.width - self.width - 3px) : 3px;
+        y: (root.height - self.height) / 2;
         animate x { duration: 150ms; easing: ease-out; }
     }
 }
@@ -114,7 +120,7 @@ export component DashboardPowerView inherits Rectangle {
                 background: root.sleep_auto_office ? #38bdf814 : AppTheme.surface_card;
                 border-width: 1px;
                 border-color: root.sleep_auto_office ? #38bdf860 : AppTheme.border_subtle;
-                height: 36px;
+                height: 38px;
                 y: (parent.height - self.height) / 2;
 
                 TouchArea {
@@ -124,11 +130,11 @@ export component DashboardPowerView inherits Rectangle {
 
                 HorizontalLayout {
                     padding-left: 10px;
-                    padding-right: 8px;
+                    padding-right: 10px;
                     spacing: 12px;
-                    alignment: center;
 
                     VerticalLayout {
+                        horizontal-stretch: 1;
                         alignment: center;
                         spacing: 1px;
                         Text {
@@ -147,6 +153,7 @@ export component DashboardPowerView inherits Rectangle {
                     SwitchToggle {
                         checked: root.sleep_auto_office;
                         active_color: #38bdf8;
+                        y: (parent.height - self.height) / 2;
                         toggled => { root.toggle_sleep_auto_office(); }
                     }
                 }
@@ -280,6 +287,7 @@ export component DashboardPowerView inherits Rectangle {
                             alignment: space-between;
 
                             VerticalLayout {
+                                horizontal-stretch: 1;
                                 alignment: center;
                                 spacing: 2px;
                                 HorizontalLayout {
@@ -335,6 +343,7 @@ export component DashboardPowerView inherits Rectangle {
                             alignment: space-between;
 
                             VerticalLayout {
+                                horizontal-stretch: 1;
                                 alignment: center;
                                 spacing: 2px;
                                 HorizontalLayout {
@@ -390,6 +399,7 @@ export component DashboardPowerView inherits Rectangle {
                             alignment: space-between;
 
                             VerticalLayout {
+                                horizontal-stretch: 1;
                                 alignment: center;
                                 spacing: 2px;
                                 HorizontalLayout {
@@ -450,6 +460,7 @@ export component DashboardPowerView inherits Rectangle {
                             alignment: space-between;
 
                             VerticalLayout {
+                                horizontal-stretch: 1;
                                 alignment: center;
                                 spacing: 2px;
                                 HorizontalLayout {
@@ -505,6 +516,7 @@ export component DashboardPowerView inherits Rectangle {
                             alignment: space-between;
 
                             VerticalLayout {
+                                horizontal-stretch: 1;
                                 alignment: center;
                                 spacing: 2px;
                                 HorizontalLayout {
@@ -560,6 +572,7 @@ export component DashboardPowerView inherits Rectangle {
                             alignment: space-between;
 
                             VerticalLayout {
+                                horizontal-stretch: 1;
                                 alignment: center;
                                 spacing: 2px;
                                 HorizontalLayout {
@@ -657,6 +670,7 @@ export component DashboardPowerView inherits Rectangle {
                                 SwitchToggle {
                                     checked: root.usb_charge_enabled;
                                     active_color: #38bdf8;
+                                    y: (parent.height - self.height) / 2;
                                     toggled => { root.toggle_power_option("usb_charge"); }
                                 }
                             }
@@ -699,6 +713,7 @@ export component DashboardPowerView inherits Rectangle {
                                 SwitchToggle {
                                     checked: root.ac_recovery_enabled;
                                     active_color: #38bdf8;
+                                    y: (parent.height - self.height) / 2;
                                     toggled => { root.toggle_power_option("ac_recovery"); }
                                 }
                             }
@@ -741,6 +756,7 @@ export component DashboardPowerView inherits Rectangle {
                                 SwitchToggle {
                                     checked: root.high_perf_scheme;
                                     active_color: #38bdf8;
+                                    y: (parent.height - self.height) / 2;
                                     toggled => { root.toggle_power_option("high_perf"); }
                                 }
                             }
