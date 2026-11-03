@@ -67,6 +67,12 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     if let Some(fb) = val.get("fan_boost").and_then(|v| v.as_bool()) {
                         ui.set_fan_boost(fb);
                     }
+                    if let Some(bp) = val.get("battery_percent").and_then(|v| v.as_i64()) {
+                        ui.set_battery_percent(bp as i32);
+                    }
+                    if let Some(ac) = val.get("is_ac_online").and_then(|v| v.as_bool()) {
+                        ui.set_is_ac_online(ac);
+                    }
                     if let Some(hz) = val.get("refresh_rate").and_then(|v| v.as_i64()) {
                         ui.set_refresh_rate(hz as i32);
                     }
@@ -127,6 +133,92 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     }
                     if let Some(prof_name) = val.get("active_color_profile").and_then(|v| v.as_str()) {
                         ui.set_active_color_profile(prof_name.into());
+                    }
+                    if let Some(bp) = val.get("battery_percent").and_then(|v| v.as_i64()) {
+                        ui.set_battery_percent(bp as i32);
+                    }
+                    if let Some(bm) = val.get("battery_mode").and_then(|v| v.as_str()) {
+                        ui.set_battery_mode(bm.into());
+                    }
+                    if let Some(uc) = val.get("usb_charge_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_usb_charge_enabled(uc);
+                    }
+                    if let Some(ar) = val.get("ac_recovery_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_ac_recovery_enabled(ar);
+                    }
+                    if let Some(hp) = val.get("high_perf_scheme").and_then(|v| v.as_bool()) {
+                        ui.set_high_perf_scheme(hp);
+                    }
+                    if let Some(sg) = val.get("sleep_guard_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_guard_enabled(sg);
+                    }
+                    if let Some(sdn) = val.get("sleep_disconnect_net").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_disconnect_net(sdn);
+                    }
+                    if let Some(sba) = val.get("sleep_block_away").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_block_away(sba);
+                    }
+                    if let Some(sis) = val.get("sleep_ignore_sysreq").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_ignore_sysreq(sis);
+                    }
+                    if let Some(sdw) = val.get("sleep_disable_wake_timers").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_disable_wake_timers(sdw);
+                    }
+                    if let Some(sds) = val.get("sleep_deep_sleep").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_deep_sleep(sds);
+                    }
+                    if let Some(sh) = val.get("sleep_hibernate_30m").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_hibernate_30m(sh);
+                    }
+                    if let Some(sao) = val.get("sleep_auto_office").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_auto_office(sao);
+                    }
+                }
+                "sync_power_settings" => {
+                    if let Some(bp) = val.get("battery_percent").and_then(|v| v.as_i64()) {
+                        ui.set_battery_percent(bp as i32);
+                    }
+                    if let Some(ac) = val.get("is_ac_online").and_then(|v| v.as_bool()) {
+                        ui.set_is_ac_online(ac);
+                    }
+                    if let Some(bm) = val.get("battery_mode").and_then(|v| v.as_str()) {
+                        ui.set_battery_mode(bm.into());
+                    }
+                    if let Some(bl) = val.get("battery_limit").and_then(|v| v.as_i64()) {
+                        ui.set_battery_limit(bl as i32);
+                    }
+                    if let Some(uc) = val.get("usb_charge_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_usb_charge_enabled(uc);
+                    }
+                    if let Some(ar) = val.get("ac_recovery_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_ac_recovery_enabled(ar);
+                    }
+                    if let Some(hp) = val.get("high_perf_scheme").and_then(|v| v.as_bool()) {
+                        ui.set_high_perf_scheme(hp);
+                    }
+                    if let Some(sg) = val.get("sleep_guard_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_guard_enabled(sg);
+                    }
+                    if let Some(sdn) = val.get("sleep_disconnect_net").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_disconnect_net(sdn);
+                    }
+                    if let Some(sba) = val.get("sleep_block_away").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_block_away(sba);
+                    }
+                    if let Some(sis) = val.get("sleep_ignore_sysreq").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_ignore_sysreq(sis);
+                    }
+                    if let Some(sdw) = val.get("sleep_disable_wake_timers").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_disable_wake_timers(sdw);
+                    }
+                    if let Some(sds) = val.get("sleep_deep_sleep").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_deep_sleep(sds);
+                    }
+                    if let Some(sh) = val.get("sleep_hibernate_30m").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_hibernate_30m(sh);
+                    }
+                    if let Some(sao) = val.get("sleep_auto_office").and_then(|v| v.as_bool()) {
+                        ui.set_sleep_auto_office(sao);
                     }
                 }
                 "sync_display_state" => {
@@ -257,6 +349,12 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     }
                     if let Some(fb) = val.get("fan_boost").and_then(|v| v.as_bool()) {
                         ui.set_fan_boost(fb);
+                    }
+                    if let Some(bp) = val.get("battery_percent").and_then(|v| v.as_i64()) {
+                        ui.set_battery_percent(bp as i32);
+                    }
+                    if let Some(ac) = val.get("is_ac_online").and_then(|v| v.as_bool()) {
+                        ui.set_is_ac_online(ac);
                     }
                     if let Some(hz) = val.get("refresh_rate").and_then(|v| v.as_i64()) {
                         ui.set_refresh_rate(hz as i32);

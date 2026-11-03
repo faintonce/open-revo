@@ -360,7 +360,7 @@ pub fn get_power_settings(ec_state: State<'_, SharedEcBridge>) -> PowerSettingsI
     read_power_settings(ec_state.inner())
 }
 
-fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
+pub fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
     let cfg = crate::system::config::load_config();
     let (percent, _, is_charging) = get_live_power_status();
     let is_dc = is_dc_round_plugged_in();
@@ -834,7 +834,7 @@ fn read_ec_power_options(
     (usb, ac)
 }
 
-fn apply_power_option(
+pub fn apply_power_option(
     cfg: &mut crate::system::config::AppConfig,
     option: &str,
     enable: bool,

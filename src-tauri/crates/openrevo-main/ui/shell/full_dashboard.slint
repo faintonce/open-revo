@@ -94,6 +94,29 @@ export component FullDashboard inherits Rectangle {
     callback set_power_mode(int);
     callback open_custom_tuning();
 
+    // Power & Battery Management Props & Callbacks
+    in-out property <int> battery_percent: 99;
+    in-out property <string> battery_mode: "station";
+    in-out property <bool> is_ac_online: true;
+    in-out property <int> battery_limit: 60;
+    in-out property <bool> usb_charge_enabled: false;
+    in-out property <bool> ac_recovery_enabled: false;
+    in-out property <bool> high_perf_scheme: true;
+    in-out property <bool> sleep_guard_enabled: false;
+    in-out property <bool> sleep_disconnect_net: false;
+    in-out property <bool> sleep_block_away: false;
+    in-out property <bool> sleep_ignore_sysreq: false;
+    in-out property <bool> sleep_disable_wake_timers: false;
+    in-out property <bool> sleep_deep_sleep: false;
+    in-out property <bool> sleep_hibernate_30m: false;
+    in-out property <bool> sleep_auto_office: false;
+
+    callback toggle_sleep_auto_office();
+    callback toggle_master_sleep_guard();
+    callback toggle_sleep_guard_option(string);
+    callback toggle_power_option(string);
+    callback select_battery_mode(string);
+
     // Quick Actions Props & Callbacks
     in-out property <bool> fan_boost: false;
     in-out property <bool> auto_min_hz: true;
@@ -591,15 +614,27 @@ export component FullDashboard inherits Rectangle {
             // Tab 2: 电源管理
             if root.active_tab == 2: DashboardPowerView {
                 vertical-stretch: 1;
-                power_mode: root.power_mode;
-                pl1_target: root.pl1_target;
-                tgp_target: root.tgp_target;
-                set_power_mode(mode) => { root.set_power_mode(mode); }
-                open_custom_tuning => {
-                    root.is_in_tuning_view = true;
-                    root.active_tab = 0;
-                    root.open_custom_tuning();
-                }
+                battery_percent: root.battery_percent;
+                is_ac_online: root.is_ac_online;
+                battery_mode: root.battery_mode;
+                battery_limit: root.battery_limit;
+                usb_charge_enabled: root.usb_charge_enabled;
+                ac_recovery_enabled: root.ac_recovery_enabled;
+                high_perf_scheme: root.high_perf_scheme;
+                sleep_guard_enabled: root.sleep_guard_enabled;
+                sleep_disconnect_net: root.sleep_disconnect_net;
+                sleep_block_away: root.sleep_block_away;
+                sleep_ignore_sysreq: root.sleep_ignore_sysreq;
+                sleep_disable_wake_timers: root.sleep_disable_wake_timers;
+                sleep_deep_sleep: root.sleep_deep_sleep;
+                sleep_hibernate_30m: root.sleep_hibernate_30m;
+                sleep_auto_office: root.sleep_auto_office;
+
+                toggle_sleep_auto_office => { root.toggle_sleep_auto_office(); }
+                toggle_master_sleep_guard => { root.toggle_master_sleep_guard(); }
+                toggle_sleep_guard_option(opt) => { root.toggle_sleep_guard_option(opt); }
+                toggle_power_option(opt) => { root.toggle_power_option(opt); }
+                select_battery_mode(mode) => { root.select_battery_mode(mode); }
             }
 
             // Tab 3: RGB 灯效工坊

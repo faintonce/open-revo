@@ -26,6 +26,19 @@ export component MainWindow inherits Window {
     in-out property <color> kbd_color_preview: #f43f5e;
     in-out property <int> battery_limit: 60;    // 60, 80, 100
     in-out property <bool> is_ac_online: true;
+    in-out property <int> battery_percent: 99;
+    in-out property <string> battery_mode: "station";
+    in-out property <bool> usb_charge_enabled: false;
+    in-out property <bool> ac_recovery_enabled: false;
+    in-out property <bool> high_perf_scheme: true;
+    in-out property <bool> sleep_guard_enabled: false;
+    in-out property <bool> sleep_disconnect_net: false;
+    in-out property <bool> sleep_block_away: false;
+    in-out property <bool> sleep_ignore_sysreq: false;
+    in-out property <bool> sleep_disable_wake_timers: false;
+    in-out property <bool> sleep_deep_sleep: false;
+    in-out property <bool> sleep_hibernate_30m: false;
+    in-out property <bool> sleep_auto_office: false;
 
     // Telemetry
     in-out property <int> cpu_temp: 64;
@@ -233,6 +246,12 @@ export component MainWindow inherits Window {
     callback minimize_clicked();
     callback close_clicked();
 
+    callback toggle_sleep_auto_office();
+    callback toggle_master_sleep_guard();
+    callback toggle_sleep_guard_option(string);
+    callback toggle_power_option(string);
+    callback select_battery_mode(string);
+
     // 1. Mini Drawer Mode
     if !root.is_expanded: DrawerView {
         width: 100%;
@@ -383,6 +402,28 @@ export component MainWindow inherits Window {
         tgp_target: root.tgp_target;
         set_power_mode(m) => { root.power_mode_clicked(m); }
         open_custom_tuning => { root.open_custom_tuning(); }
+
+        battery_percent: root.battery_percent;
+        is_ac_online: root.is_ac_online;
+        battery_mode: root.battery_mode;
+        battery_limit: root.battery_limit;
+        usb_charge_enabled: root.usb_charge_enabled;
+        ac_recovery_enabled: root.ac_recovery_enabled;
+        high_perf_scheme: root.high_perf_scheme;
+        sleep_guard_enabled: root.sleep_guard_enabled;
+        sleep_disconnect_net: root.sleep_disconnect_net;
+        sleep_block_away: root.sleep_block_away;
+        sleep_ignore_sysreq: root.sleep_ignore_sysreq;
+        sleep_disable_wake_timers: root.sleep_disable_wake_timers;
+        sleep_deep_sleep: root.sleep_deep_sleep;
+        sleep_hibernate_30m: root.sleep_hibernate_30m;
+        sleep_auto_office: root.sleep_auto_office;
+
+        toggle_sleep_auto_office => { root.toggle_sleep_auto_office(); }
+        toggle_master_sleep_guard => { root.toggle_master_sleep_guard(); }
+        toggle_sleep_guard_option(opt) => { root.toggle_sleep_guard_option(opt); }
+        toggle_power_option(opt) => { root.toggle_power_option(opt); }
+        select_battery_mode(m) => { root.select_battery_mode(m); }
 
         fan_boost: root.fan_boost;
         auto_min_hz: root.auto_min_hz;
