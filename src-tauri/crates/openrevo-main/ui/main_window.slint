@@ -168,6 +168,61 @@ export component MainWindow inherits Window {
     callback turn_off_screen_clicked();
     callback autostart_toggled();
     callback oem_toggled();
+    callback set_tuning_enabled(bool);
+    callback toggle_tuning_enabled();
+    callback apply_tuning_preset(string);
+    callback update_tuning_slider(string, int);
+    callback reset_tuning_preset();
+    callback import_tuning_file();
+    callback export_tuning_file();
+    callback import_color_profile();
+    callback apply_color_profile(string);
+
+    // Cloud ICC Modal Props & Callbacks
+    in-out property <bool> is_cloud_icc_modal_open: false;
+    in-out property <string> cloud_icc_panel_pnp: "未检出";
+    in-out property <string> cloud_icc_panel_sn: "(无独立面板SN)";
+    in-out property <string> cloud_icc_bios_sn: "未检出";
+    in-out property <string> cloud_icc_mac: "未检出";
+    in-out property <string> cloud_icc_arch: "识别中...";
+    in-out property <string> cloud_icc_recommended: "auto";
+    in-out property <string> cloud_icc_mode: "auto";
+    in-out property <bool> cloud_icc_is_searching: false;
+    in-out property <string> cloud_icc_status: "就绪";
+    in-out property <bool> cloud_icc_hit_found: false;
+    in-out property <string> cloud_icc_hit_file_name: "";
+    in-out property <string> cloud_icc_hit_meta: "";
+    in-out property <[string]> cloud_icc_hit_profiles: [];
+    in-out property <int> cloud_icc_selected_profile_idx: 0;
+    in-out property <string> cloud_icc_toast: "";
+
+    callback open_cloud_icc();
+    callback refresh_cloud_icc_identity();
+    callback start_cloud_icc_search(string);
+    callback apply_cloud_icc_profile(int);
+    callback apply_all_cloud_icc_profiles();
+
+
+    // Display Tuning Engine state
+    in-out property <bool> tuning_enabled: false;
+    in-out property <string> active_preset_id: "preset_vibrant";
+    in-out property <string> active_display_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <int> tuning_temp_k: 6500;
+    in-out property <int> tuning_saturation: 150;
+    in-out property <int> tuning_contrast: 100;
+    in-out property <int> tuning_gamma: 100;
+    in-out property <int> tuning_gain_r: 100;
+    in-out property <int> tuning_gain_g: 100;
+    in-out property <int> tuning_gain_b: 100;
+    in-out property <bool> tuning_is_modified: false;
+    in-out property <string> tuning_toast: "";
+
+    // Color Calibration state
+    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile_id: "default_native";
+    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
+    in-out property <bool> is_color_dirty: false;
     callback expand_dashboard_clicked();
     callback collapse_dashboard_clicked();
     callback toggle_fullscreen_clicked();
@@ -259,6 +314,62 @@ export component MainWindow inherits Window {
         gpu_watts_text: root.gpu_watts_text;
         gpu_usage: root.gpu_usage;
         gpu_name: root.gpu_name;
+        gpu_mode <=> root.gpu_mode;
+        brightness <=> root.brightness;
+        gpu_mode_clicked(m) => { root.gpu_mode_clicked(m); }
+        brightness_changed(b) => { root.brightness_changed(b); }
+
+        tuning_enabled <=> root.tuning_enabled;
+        active_display_preset_name <=> root.active_display_preset_name;
+        active_preset_id <=> root.active_preset_id;
+                tuning_temp_k <=> root.tuning_temp_k;
+        tuning_saturation <=> root.tuning_saturation;
+        tuning_contrast <=> root.tuning_contrast;
+        tuning_gamma <=> root.tuning_gamma;
+        tuning_gain_r <=> root.tuning_gain_r;
+        tuning_gain_g <=> root.tuning_gain_g;
+        tuning_gain_b <=> root.tuning_gain_b;
+        tuning_is_modified <=> root.tuning_is_modified;
+        tuning_toast <=> root.tuning_toast;
+
+        active_color_profile <=> root.active_color_profile;
+        active_color_profile_id <=> root.active_color_profile_id;
+        color_profiles_list <=> root.color_profiles_list;
+        color_profiles_ids <=> root.color_profiles_ids;
+        is_color_dirty <=> root.is_color_dirty;
+
+        set_tuning_enabled(en) => { root.set_tuning_enabled(en); }
+        toggle_tuning_enabled => { root.toggle_tuning_enabled(); }
+        apply_tuning_preset(id) => { root.apply_tuning_preset(id); }
+        update_tuning_slider(key, val) => { root.update_tuning_slider(key, val); }
+        reset_tuning_preset => { root.reset_tuning_preset(); }
+        import_tuning_file => { root.import_tuning_file(); }
+        export_tuning_file => { root.export_tuning_file(); }
+        import_color_profile => { root.import_color_profile(); }
+        apply_color_profile(p) => { root.apply_color_profile(p); }
+        is_cloud_icc_modal_open <=> root.is_cloud_icc_modal_open;
+        cloud_icc_panel_pnp: root.cloud_icc_panel_pnp;
+        cloud_icc_panel_sn: root.cloud_icc_panel_sn;
+        cloud_icc_bios_sn: root.cloud_icc_bios_sn;
+        cloud_icc_mac: root.cloud_icc_mac;
+        cloud_icc_arch: root.cloud_icc_arch;
+        cloud_icc_recommended: root.cloud_icc_recommended;
+        cloud_icc_mode: root.cloud_icc_mode;
+        cloud_icc_is_searching: root.cloud_icc_is_searching;
+        cloud_icc_status: root.cloud_icc_status;
+        cloud_icc_hit_found: root.cloud_icc_hit_found;
+        cloud_icc_hit_file_name: root.cloud_icc_hit_file_name;
+        cloud_icc_hit_meta: root.cloud_icc_hit_meta;
+        cloud_icc_hit_profiles: root.cloud_icc_hit_profiles;
+        cloud_icc_selected_profile_idx <=> root.cloud_icc_selected_profile_idx;
+        cloud_icc_toast: root.cloud_icc_toast;
+
+        open_cloud_icc => { root.open_cloud_icc(); }
+        refresh_cloud_icc_identity => { root.refresh_cloud_icc_identity(); }
+        start_cloud_icc_search(mode) => { root.start_cloud_icc_search(mode); }
+        apply_cloud_icc_profile(idx) => { root.apply_cloud_icc_profile(idx); }
+        apply_all_cloud_icc_profiles => { root.apply_all_cloud_icc_profiles(); }
+
 
         cpu_rpm: root.cpu_rpm;
         gpu_rpm: root.gpu_rpm;
@@ -306,8 +417,7 @@ export component MainWindow inherits Window {
         turn_off_screen => { root.turn_off_screen_clicked(); }
 
         // Tuning Props
-        active_preset_name <=> root.active_preset_name;
-        preset_ids <=> root.preset_ids;
+                preset_ids <=> root.preset_ids;
         preset_names <=> root.preset_names;
         temp_wall <=> root.temp_wall;
         temp_wall_enabled <=> root.temp_wall_enabled;

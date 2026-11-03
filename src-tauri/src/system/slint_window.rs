@@ -1,9 +1,92 @@
+#[cfg(target_os = "windows")]
+pub fn open_file_dialog(filter_name: &str, filter_ext: &str) -> Option<std::path::PathBuf> {
+    use std::os::windows::ffi::OsStrExt;
+    use std::ffi::OsStr;
+
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    struct OPENFILENAMEW {
+        lStructSize: u32,
+        hwndOwner: isize,
+        hInstance: isize,
+        lpstrFilter: *const u16,
+        lpstrCustomFilter: *mut u16,
+        nMaxCustFilter: u32,
+        nFilterIndex: u32,
+        lpstrFile: *mut u16,
+        nMaxFile: u32,
+        lpstrFileTitle: *mut u16,
+        nMaxFileTitle: u32,
+        lpstrInitialDir: *const u16,
+        lpstrTitle: *const u16,
+        Flags: u32,
+        nFileOffset: u16,
+        nFileExtension: u16,
+        lpstrDefExt: *const u16,
+        lCustData: isize,
+        lpfnHook: usize,
+        lpTemplateName: *const u16,
+        pvReserved: *mut std::ffi::c_void,
+        dwReserved: u32,
+        FlagsEx: u32,
+    }
+
+    #[link(name = "comdlg32")]
+    extern "system" {
+        fn GetOpenFileNameW(lpofn: *mut OPENFILENAMEW) -> i32;
+    }
+
+    let mut file_buf = [0u16; 1024];
+    let filter_str = format!("{} (*.{})\0*.{}\0All Files (*.*)\0*.*\0\0", filter_name, filter_ext, filter_ext);
+    let filter_w: Vec<u16> = filter_str.encode_utf16().collect();
+    let title_w: Vec<u16> = OsStr::new("选择文件").encode_wide().chain(std::iter::once(0)).collect();
+
+    let mut ofn = OPENFILENAMEW {
+        lStructSize: std::mem::size_of::<OPENFILENAMEW>() as u32,
+        hwndOwner: 0,
+        hInstance: 0,
+        lpstrFilter: filter_w.as_ptr(),
+        lpstrCustomFilter: std::ptr::null_mut(),
+        nMaxCustFilter: 0,
+        nFilterIndex: 1,
+        lpstrFile: file_buf.as_mut_ptr(),
+        nMaxFile: file_buf.len() as u32,
+        lpstrFileTitle: std::ptr::null_mut(),
+        nMaxFileTitle: 0,
+        lpstrInitialDir: std::ptr::null(),
+        lpstrTitle: title_w.as_ptr(),
+        Flags: 0x00000800 | 0x00001000,
+        nFileOffset: 0,
+        nFileExtension: 0,
+        lpstrDefExt: std::ptr::null(),
+        lCustData: 0,
+        lpfnHook: 0,
+        lpTemplateName: std::ptr::null(),
+        pvReserved: std::ptr::null_mut(),
+        dwReserved: 0,
+        FlagsEx: 0,
+    };
+
+    let res = unsafe { GetOpenFileNameW(&mut ofn) };
+    if res != 0 {
+        let len = file_buf.iter().position(|&c| c == 0).unwrap_or(file_buf.len());
+        use std::os::windows::ffi::OsStringExt;
+        let path_str = std::ffi::OsString::from_wide(&file_buf[..len]);
+        Some(std::path::PathBuf::from(path_str))
+    } else {
+        None
+    }
+}
+
 use std::io::{BufRead, BufReader, Write};
 use std::process::{ChildStdin, Command, Stdio};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
 static SLINT_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
+
+static LAST_CLOUD_ICC_IDENTITY: parking_lot::Mutex<Option<crate::system::cloud_icc::CloudIccIdentity>> = parking_lot::Mutex::new(None);
+static LAST_CLOUD_ICC_HIT: parking_lot::Mutex<Option<crate::system::cloud_icc::CloudIccFetchHit>> = parking_lot::Mutex::new(None);
 static SELECTED_MONITOR_INDEX: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 /// Ensure the native Slint main window companion process is spawned
@@ -65,6 +148,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
 
                 // Immediately sync tuning state to Slint companion
                 sync_slint_tuning_state();
+    sync_slint_display_state();
 
                 // Listen for stdout from companion
                 if let Some(stdout) = child.stdout.take() {
@@ -124,6 +208,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         "slint_ready" => {
             crate::log_info!("SLINT_MAIN", "Companion reported ready, sending full tuning state");
             sync_slint_tuning_state();
+    sync_slint_display_state();
         }
         "set_power_mode" => {
             if let Some(mode) = val.get("mode").and_then(|m| m.as_i64()) {
@@ -136,6 +221,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         "open_custom_tuning" => {
             crate::log_info!("SLINT_MAIN", "Requested opening custom hardware tuning view");
             sync_slint_tuning_state();
+    sync_slint_display_state();
             send_slint_ipc_message(serde_json::json!({
                 "action": "open_tuning_view"
             }));
@@ -168,24 +254,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         "select_monitor_index" => {
             if let Some(idx) = val.get("index").and_then(|i| i.as_u64()) {
                 SELECTED_MONITOR_INDEX.store(idx as usize, std::sync::atomic::Ordering::Relaxed);
-                let monitors = crate::system::display::get_all_monitors();
-                let sel_idx = idx as usize;
-                if !monitors.is_empty() {
-                    let m = if sel_idx < monitors.len() { &monitors[sel_idx] } else { &monitors[0] };
-                    let (rates_row1, rates_row2) = if m.supported_rates.len() > 5 {
-                        let mid = (m.supported_rates.len() + 1) / 2;
-                        (m.supported_rates[..mid].to_vec(), m.supported_rates[mid..].to_vec())
-                    } else {
-                        (m.supported_rates.clone(), Vec::new())
-                    };
-                    send_slint_ipc_message(serde_json::json!({
-                        "action": "telemetry",
-                        "monitor_name": m.friendly_name.clone(),
-                        "refresh_rate": m.current_hz,
-                        "rates_row1": rates_row1,
-                        "rates_row2": rates_row2,
-                    }));
-                }
+                sync_slint_display_state();
             }
         }
         "toggle_auto_min_hz" => {
@@ -247,6 +316,246 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         }
         "turn_off_screen" => {
             let _ = crate::commands::hardware_cmd::turn_off_screen();
+        }
+        "set_display_tuning_enabled" => {
+            let enabled = val.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
+            let _ = crate::commands::display_cmd::set_display_tuning_enabled(enabled);
+            sync_slint_display_state();
+        }
+        "toggle_display_tuning" => {
+            let state = crate::commands::display_cmd::get_display_tuning_state();
+            let _ = crate::commands::display_cmd::set_display_tuning_enabled(!state.enabled);
+            sync_slint_display_state();
+        }
+        "apply_display_tuning_preset" => {
+            if let Some(preset_id) = val.get("preset_id").and_then(|p| p.as_str()) {
+                let state = crate::commands::display_cmd::get_display_tuning_state();
+                if let Some(target) = state.presets.into_iter().find(|p| p.id == preset_id) {
+                    let _ = crate::commands::display_cmd::apply_display_color_preset(target);
+                }
+            }
+            sync_slint_display_state();
+        }
+        "update_display_tuning_slider" => {
+            if let (Some(key), Some(raw_val)) = (val.get("key").and_then(|k| k.as_str()), val.get("value").and_then(|v| v.as_i64())) {
+                let state = crate::commands::display_cmd::get_display_tuning_state();
+                let mut active = state.active_preset.clone();
+                match key {
+                    "temp_k" => active.color_temp_k = raw_val as u32,
+                    "saturation" => active.saturation = (raw_val as f32) / 100.0,
+                    "contrast" => active.contrast = (raw_val as f32) / 100.0,
+                    "gamma" => active.gamma = (raw_val as f32) / 100.0,
+                    "gain_r" => active.gain_r = (raw_val as f32) / 100.0,
+                    "gain_g" => active.gain_g = (raw_val as f32) / 100.0,
+                    "gain_b" => active.gain_b = (raw_val as f32) / 100.0,
+                    _ => {}
+                }
+                let _ = crate::system::display_tuning::apply_color_preset(&active);
+                let _ = crate::commands::display_cmd::apply_display_color_preset(active);
+            }
+        }
+        "reset_display_tuning_preset" => {
+            let state = crate::commands::display_cmd::get_display_tuning_state();
+            let _ = crate::commands::display_cmd::reset_color_preset_to_default(state.active_preset.id);
+            sync_slint_display_state();
+        }
+        "import_display_tuning_file" => {
+            tauri::async_runtime::spawn(async move {
+                if let Some(file_path) = open_file_dialog("JSON 调色预设", "json") {
+                    if let Ok(content) = std::fs::read_to_string(&file_path) {
+                        let fname = file_path.file_name().and_then(|n| n.to_str()).map(|s| s.to_string());
+                        let _ = crate::commands::display_cmd::import_color_preset_content(content, fname);
+                        sync_slint_display_state();
+                    }
+                }
+            });
+        }
+        "export_display_tuning_file" => {
+            tauri::async_runtime::spawn(async move {
+                let state = crate::commands::display_cmd::get_display_tuning_state();
+                let default_name = format!("{}.json", state.active_preset.id);
+                if let Some(dest) = crate::commands::tuning_cmd::save_file_dialog(&default_name, "JSON 调色预设", "json") {
+                    if let Ok(json) = serde_json::to_string_pretty(&state.active_preset) {
+                        let _ = std::fs::write(&dest, json);
+                    }
+                }
+            });
+        }
+        "import_color_profile" => {
+            tauri::async_runtime::spawn(async move {
+                if let Some(file_path) = open_file_dialog("ICC/ICM 校色文件", "icc;*.icm") {
+                    if let Ok(bytes) = std::fs::read(&file_path) {
+                        let file_name = file_path.file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("imported.icc")
+                            .to_string();
+                        let _ = crate::commands::display_cmd::import_custom_color_profile(file_name, bytes, None).await;
+                        sync_slint_display_state();
+                    }
+                }
+            });
+        }
+        "open_cloud_icc" | "refresh_cloud_icc_identity" => {
+            tauri::async_runtime::spawn(async move {
+                let id_res = tauri::async_runtime::spawn_blocking(crate::system::cloud_icc::get_cloud_icc_identity).await;
+                if let Ok(Ok(id)) = id_res {
+                    let main_mon = id.monitors.iter().find(|m| m.is_internal).or_else(|| id.monitors.first());
+                    let panel_pnp = main_mon.map(|m| m.pnp.clone()).unwrap_or_else(|| "未检出".into());
+                    let panel_sn = main_mon.map(|m| if m.panel_serial.is_empty() { "(无独立面板SN)".to_string() } else { m.panel_serial.clone() }).unwrap_or_else(|| "(无独立面板SN)".into());
+                    let mac_str = if id.mac_addresses.is_empty() { "未检出".into() } else { id.mac_addresses.join(" / ") };
+
+                    *LAST_CLOUD_ICC_IDENTITY.lock() = Some(id.clone());
+
+                    send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_cloud_icc_identity",
+                        "panel_pnp": panel_pnp,
+                        "panel_sn": panel_sn,
+                        "bios_sn": id.bios_serial,
+                        "mac_address": mac_str,
+                        "arch_name": id.arch_name,
+                        "recommended_method": id.recommended_method
+                    }));
+                }
+            });
+        }
+        "start_cloud_icc_search" => {
+            let mode = val.get("mode").and_then(|v| v.as_str()).unwrap_or("auto").to_string();
+            tauri::async_runtime::spawn(async move {
+                send_slint_ipc_message(serde_json::json!({
+                    "action": "sync_cloud_icc_searching",
+                    "is_searching": true,
+                    "status": "正在连接云端校色数据库..."
+                }));
+
+                let id = {
+                    let guard = LAST_CLOUD_ICC_IDENTITY.lock();
+                    guard.clone()
+                };
+
+                let id = match id {
+                    Some(i) => i,
+                    None => {
+                        let res = tauri::async_runtime::spawn_blocking(crate::system::cloud_icc::get_cloud_icc_identity).await;
+                        match res {
+                            Ok(Ok(i)) => {
+                                *LAST_CLOUD_ICC_IDENTITY.lock() = Some(i.clone());
+                                i
+                            }
+                            _ => {
+                                send_slint_ipc_message(serde_json::json!({
+                                    "action": "sync_cloud_icc_hit",
+                                    "hit_found": false,
+                                    "toast": "未能获取本机硬件特征指纹"
+                                }));
+                                return;
+                            }
+                        }
+                    }
+                };
+
+                let mut candidates: Vec<(String, String)> = Vec::new();
+                if mode == "50" {
+                    for c in &id.candidates_method1 { candidates.push((c.clone(), "50".into())); }
+                } else if mode == "40" {
+                    for c in &id.candidates_method2 { candidates.push((c.clone(), "40".into())); }
+                } else {
+                    for c in &id.candidates_method1 { candidates.push((c.clone(), "50".into())); }
+                    for c in &id.candidates_method2 { candidates.push((c.clone(), "40".into())); }
+                    for c in &id.candidates_fallback { candidates.push((c.clone(), "auto".into())); }
+                }
+
+                let mut hit_opt = None;
+                for (cand, meth) in candidates {
+                    let probe_res = crate::commands::display_cmd::fetch_cloud_icc_profile(cand.clone(), Some(meth), None).await;
+                    if let Ok(hit) = probe_res {
+                        if !hit.icc_profiles.is_empty() {
+                            hit_opt = Some(hit);
+                            break;
+                        }
+                    }
+                }
+
+                if let Some(hit) = hit_opt {
+                    let is_uniwill = hit.server_url.contains("uniwill");
+                    let count = hit.icc_profiles.len();
+                    let meta = format!(
+                        "包大小: {:.1} KB · 节点: {} · 内含 {} 个有效色彩配置",
+                        (hit.file_size as f64) / 1024.0,
+                        if is_uniwill { "Uniwill (40系)" } else { "Aistone (50系)" },
+                        count
+                    );
+                    let profile_names: Vec<String> = hit.icc_profiles.iter().map(|p| p.file_name.clone()).collect();
+                    *LAST_CLOUD_ICC_HIT.lock() = Some(hit.clone());
+
+                    send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_cloud_icc_hit",
+                        "hit_found": true,
+                        "file_name": hit.file_name,
+                        "meta": meta,
+                        "profiles": profile_names
+                    }));
+                } else {
+                    *LAST_CLOUD_ICC_HIT.lock() = None;
+                    send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_cloud_icc_hit",
+                        "hit_found": false,
+                        "toast": "所有候选路径均未命中，当前机型可能未在服务器留存出厂专属校色"
+                    }));
+                }
+            });
+        }
+        "apply_cloud_icc_profile" => {
+            let idx = val.get("index").and_then(|v| v.as_i64()).unwrap_or(0) as usize;
+            tauri::async_runtime::spawn(async move {
+                let target = {
+                    let guard = LAST_CLOUD_ICC_HIT.lock();
+                    guard.as_ref().and_then(|h| h.icc_profiles.get(idx).cloned())
+                };
+
+                if let Some(p) = target {
+                    let import_res = crate::commands::display_cmd::import_custom_color_profile(p.file_name.clone(), p.file_bytes, None).await;
+                    if let Ok(st) = import_res {
+                        let _ = crate::commands::display_cmd::apply_color_profile(st.active_profile_id, None).await;
+                        sync_slint_display_state();
+                        send_slint_ipc_message(serde_json::json!({
+                            "action": "cloud_icc_toast",
+                            "toast": format!("✔ 已成功应用原厂校色 [{}] 至当前显示器！", p.file_name)
+                        }));
+                    }
+                }
+            });
+        }
+        "apply_all_cloud_icc_profiles" => {
+            tauri::async_runtime::spawn(async move {
+                let profiles = {
+                    let guard = LAST_CLOUD_ICC_HIT.lock();
+                    guard.as_ref().map(|h| h.icc_profiles.clone()).unwrap_or_default()
+                };
+
+                if !profiles.is_empty() {
+                    let mut last_id = None;
+                    for p in &profiles {
+                        if let Ok(st) = crate::commands::display_cmd::import_custom_color_profile(p.file_name.clone(), p.file_bytes.clone(), None).await {
+                            last_id = Some(st.active_profile_id);
+                        }
+                    }
+                    if let Some(id) = last_id {
+                        let _ = crate::commands::display_cmd::apply_color_profile(id, None).await;
+                    }
+                    sync_slint_display_state();
+                    send_slint_ipc_message(serde_json::json!({
+                        "action": "cloud_icc_toast",
+                        "toast": format!("🎉 全部 {} 个原厂色彩配置已全量导入并同步至显卡色彩管理！", profiles.len())
+                    }));
+                }
+            });
+        }
+        "apply_color_profile" => {
+            let prof_id = val.get("profile_id").or_else(|| val.get("profile_name")).and_then(|p| p.as_str()).unwrap_or("default_native").to_string();
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::commands::display_cmd::apply_color_profile(prof_id, None).await;
+                sync_slint_display_state();
+            });
         }
         "toggle_autostart" => {
             let cfg = crate::system::config::load_config();
@@ -479,6 +788,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
                     let _ = crate::system::config::save_config(&cfg);
                 }
                 sync_slint_tuning_state();
+    sync_slint_display_state();
             }
         }
         "tuning_create_preset" => {
@@ -486,6 +796,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
             let name = format!("极客方案 {}", now);
             let _ = crate::commands::tuning_cmd::create_profile_preset(name, None, None);
             sync_slint_tuning_state();
+    sync_slint_display_state();
         }
         "tuning_reset_preset" => {
             let active_id = {
@@ -517,6 +828,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
                 }
             }
             sync_slint_tuning_state();
+    sync_slint_display_state();
         }
         "tuning_export_preset" => {
             let active_id = {
@@ -540,6 +852,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
             };
             let _ = crate::commands::tuning_cmd::delete_profile_preset(active_id);
             sync_slint_tuning_state();
+    sync_slint_display_state();
         }
         "tuning_open_preset_dir" => {
             let _ = crate::commands::tuning_cmd::open_profiles_folder();
@@ -695,4 +1008,56 @@ pub fn sync_slint_tuning_state() {
     });
 
     send_slint_ipc_message(payload);
+}
+
+
+pub fn sync_slint_display_state() {
+    let tuning_state = crate::commands::display_cmd::get_display_tuning_state();
+    let calib_state = crate::system::color_calibration::get_color_calibration_state(None);
+
+    let monitors = crate::system::display::get_all_monitors();
+    let sel_idx = SELECTED_MONITOR_INDEX.load(std::sync::atomic::Ordering::Relaxed);
+    let (monitor_name, curr_hz, supported_rates) = if !monitors.is_empty() {
+        let m = if sel_idx < monitors.len() { &monitors[sel_idx] } else { &monitors[0] };
+        (m.friendly_name.clone(), m.current_hz, m.supported_rates.clone())
+    } else {
+        ("京东方 (主屏)".to_string(), 240, vec![60, 144, 240])
+    };
+
+    let (rates_row1, rates_row2) = if supported_rates.len() > 4 {
+        let mid = (supported_rates.len() + 1) / 2;
+        (supported_rates[..mid].to_vec(), supported_rates[mid..].to_vec())
+    } else {
+        (supported_rates.clone(), Vec::new())
+    };
+
+    let mut profiles_list: Vec<String> = Vec::new();
+    let mut profiles_ids: Vec<String> = Vec::new();
+    for p in &calib_state.profiles {
+        profiles_list.push(p.name.clone());
+        profiles_ids.push(p.id.clone());
+    }
+
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_display_state",
+        "tuning_enabled": tuning_state.enabled,
+        "active_preset_id": tuning_state.active_preset.id,
+        "active_preset_name": tuning_state.active_preset.name,
+        "tuning_temp_k": tuning_state.active_preset.color_temp_k,
+        "tuning_saturation": (tuning_state.active_preset.saturation * 100.0).round() as i64,
+        "tuning_contrast": (tuning_state.active_preset.contrast * 100.0).round() as i64,
+        "tuning_gamma": (tuning_state.active_preset.gamma * 100.0).round() as i64,
+        "tuning_gain_r": (tuning_state.active_preset.gain_r * 100.0).round() as i64,
+        "tuning_gain_g": (tuning_state.active_preset.gain_g * 100.0).round() as i64,
+        "tuning_gain_b": (tuning_state.active_preset.gain_b * 100.0).round() as i64,
+        "tuning_is_modified": false,
+        "active_color_profile": calib_state.active_profile_name,
+        "active_color_profile_id": calib_state.active_profile_id,
+        "color_profiles_list": profiles_list,
+        "color_profiles_ids": profiles_ids,
+        "monitor_name": monitor_name,
+        "refresh_rate": curr_hz,
+        "rates_row1": rates_row1,
+        "rates_row2": rates_row2,
+    }));
 }

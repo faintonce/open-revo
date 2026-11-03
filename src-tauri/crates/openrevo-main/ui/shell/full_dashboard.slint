@@ -45,6 +45,40 @@ export component FullDashboard inherits Rectangle {
     in-out property <string> gpu_watts_text: "22.4 W";
     in-out property <int> gpu_usage: 15;
     in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+    in-out property <string> gpu_mode: "dgpu";
+    in-out property <int> brightness: 76;
+    callback gpu_mode_clicked(string);
+    callback brightness_changed(int);
+    callback set_tuning_enabled(bool);
+    callback toggle_tuning_enabled();
+    callback apply_tuning_preset(string);
+    callback update_tuning_slider(string, int);
+    callback reset_tuning_preset();
+    callback import_tuning_file();
+    callback export_tuning_file();
+    callback import_color_profile();
+    callback apply_color_profile(string);
+
+    // Display Tuning Engine state
+    in-out property <bool> tuning_enabled: false;
+    in-out property <string> active_preset_id: "preset_vibrant";
+    in-out property <string> active_display_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <int> tuning_temp_k: 6500;
+    in-out property <int> tuning_saturation: 150;
+    in-out property <int> tuning_contrast: 100;
+    in-out property <int> tuning_gamma: 100;
+    in-out property <int> tuning_gain_r: 100;
+    in-out property <int> tuning_gain_g: 100;
+    in-out property <int> tuning_gain_b: 100;
+    in-out property <bool> tuning_is_modified: false;
+    in-out property <string> tuning_toast: "";
+
+    // Color Calibration state
+    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile_id: "default_native";
+    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
+    in-out property <bool> is_color_dirty: false;
 
     in-out property <int> cpu_rpm: 2746;
     in-out property <int> gpu_rpm: 2635;
@@ -171,6 +205,31 @@ export component FullDashboard inherits Rectangle {
     callback minimize_clicked();
     callback close_clicked();
     callback open_sponsor();
+
+    // Cloud ICC Modal Props & Callbacks
+    in-out property <bool> is_cloud_icc_modal_open: false;
+    in-out property <string> cloud_icc_panel_pnp: "未检出";
+    in-out property <string> cloud_icc_panel_sn: "(无独立面板SN)";
+    in-out property <string> cloud_icc_bios_sn: "未检出";
+    in-out property <string> cloud_icc_mac: "未检出";
+    in-out property <string> cloud_icc_arch: "识别中...";
+    in-out property <string> cloud_icc_recommended: "auto";
+    in-out property <string> cloud_icc_mode: "auto";
+    in-out property <bool> cloud_icc_is_searching: false;
+    in-out property <string> cloud_icc_status: "就绪";
+    in-out property <bool> cloud_icc_hit_found: false;
+    in-out property <string> cloud_icc_hit_file_name: "";
+    in-out property <string> cloud_icc_hit_meta: "";
+    in-out property <[string]> cloud_icc_hit_profiles: [];
+    in-out property <int> cloud_icc_selected_profile_idx: 0;
+    in-out property <string> cloud_icc_toast: "";
+
+    callback open_cloud_icc();
+    callback refresh_cloud_icc_identity();
+    callback start_cloud_icc_search(string);
+    callback apply_cloud_icc_profile(int);
+    callback apply_all_cloud_icc_profiles();
+
 
     HorizontalLayout {
         // 1. Left Sidebar (Width: 200px)
@@ -445,16 +504,88 @@ export component FullDashboard inherits Rectangle {
             // Tab 1: 显卡模式
             if root.active_tab == 1: DashboardGpuView {
                 vertical-stretch: 1;
-                gpu_mode: "dgpu";
+                gpu_mode: root.gpu_mode;
                 gpu_name: root.gpu_name;
+                cpu_name: root.cpu_name;
                 gpu_temp: root.gpu_temp;
                 gpu_usage: root.gpu_usage;
                 gpu_watts_text: root.gpu_watts_text;
+                brightness: root.brightness;
                 refresh_rate: root.refresh_rate;
                 auto_min_hz: root.auto_min_hz;
                 monitor_name: root.monitor_name;
+                rates_row1: root.rates_row1;
+                rates_row2: root.rates_row2;
+
+                tuning_enabled: root.tuning_enabled;
+                active_preset_id: root.active_preset_id;
+                active_preset_name: root.active_display_preset_name;
+                tuning_temp_k: root.tuning_temp_k;
+                tuning_saturation: root.tuning_saturation;
+                tuning_contrast: root.tuning_contrast;
+                tuning_gamma: root.tuning_gamma;
+                tuning_gain_r: root.tuning_gain_r;
+                tuning_gain_g: root.tuning_gain_g;
+                tuning_gain_b: root.tuning_gain_b;
+                tuning_is_modified: root.tuning_is_modified;
+                tuning_toast: root.tuning_toast;
+
+                active_color_profile: root.active_color_profile;
+                active_color_profile_id: root.active_color_profile_id;
+                color_profiles_list: root.color_profiles_list;
+                color_profiles_ids: root.color_profiles_ids;
+                is_color_dirty: root.is_color_dirty;
+
+                set_gpu_mode(mode, restart) => {
+                    root.gpu_mode = mode;
+                    root.gpu_mode_clicked(mode);
+                }
+                change_brightness(b) => {
+                    root.brightness = b;
+                    root.brightness_changed(b);
+                }
                 switch_hz(hz) => { root.switch_hz(hz); }
                 toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
+                select_monitor(m) => { root.select_monitor(m); }
+                select_monitor_index(idx) => { root.select_monitor_index(idx); }
+                set_tuning_enabled(en) => {
+                    root.tuning_enabled = en;
+                    root.set_tuning_enabled(en);
+                }
+                toggle_tuning_enabled => { root.toggle_tuning_enabled(); }
+                apply_tuning_preset(id) => {
+                    root.active_preset_id = id;
+                    root.apply_tuning_preset(id);
+                }
+                update_tuning_slider(key, val) => { root.update_tuning_slider(key, val); }
+                reset_tuning_preset => { root.reset_tuning_preset(); }
+                import_tuning_file => { root.import_tuning_file(); }
+                export_tuning_file => { root.export_tuning_file(); }
+                import_color_profile => { root.import_color_profile(); }
+                apply_color_profile(p) => { root.apply_color_profile(p); }
+                is_cloud_icc_modal_open <=> root.is_cloud_icc_modal_open;
+                cloud_icc_panel_pnp: root.cloud_icc_panel_pnp;
+                cloud_icc_panel_sn: root.cloud_icc_panel_sn;
+                cloud_icc_bios_sn: root.cloud_icc_bios_sn;
+                cloud_icc_mac: root.cloud_icc_mac;
+                cloud_icc_arch: root.cloud_icc_arch;
+                cloud_icc_recommended: root.cloud_icc_recommended;
+                cloud_icc_mode: root.cloud_icc_mode;
+                cloud_icc_is_searching: root.cloud_icc_is_searching;
+                cloud_icc_status: root.cloud_icc_status;
+                cloud_icc_hit_found: root.cloud_icc_hit_found;
+                cloud_icc_hit_file_name: root.cloud_icc_hit_file_name;
+                cloud_icc_hit_meta: root.cloud_icc_hit_meta;
+                cloud_icc_hit_profiles: root.cloud_icc_hit_profiles;
+                cloud_icc_selected_profile_idx <=> root.cloud_icc_selected_profile_idx;
+                cloud_icc_toast: root.cloud_icc_toast;
+
+                open_cloud_icc => { root.open_cloud_icc(); }
+                refresh_cloud_icc_identity => { root.refresh_cloud_icc_identity(); }
+                start_cloud_icc_search(mode) => { root.start_cloud_icc_search(mode); }
+                apply_cloud_icc_profile(idx) => { root.apply_cloud_icc_profile(idx); }
+                apply_all_cloud_icc_profiles => { root.apply_all_cloud_icc_profiles(); }
+
             }
 
             // Tab 2: 电源管理

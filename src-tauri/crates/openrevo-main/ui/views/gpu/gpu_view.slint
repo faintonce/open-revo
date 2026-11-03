@@ -1,251 +1,1259 @@
 import { AppTheme } from "../../theme.slint";
+import { DisplayTuningModal } from "display_tuning_modal.slint";
+import { CloudIccModal } from "cloud_icc_modal.slint";
 
 export component DashboardGpuView inherits Rectangle {
     background: transparent;
 
-    in-out property <string> gpu_mode: "dgpu"; // "igpu" | "hybrid" | "dgpu"
+    // GPU mode: "dgpu" | "hybrid" | "igpu"
+    in-out property <string> gpu_mode: "dgpu";
     in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+    in-out property <string> cpu_name: "Intel Core i9-14900HX";
     in-out property <int> gpu_temp: 51;
     in-out property <int> gpu_usage: 15;
     in-out property <string> gpu_watts_text: "22.4 W";
+
+    // Brightness: 0 - 100
+    in-out property <int> brightness: 76;
+
+    // Display & Refresh Rate
+    in-out property <string> monitor_name: "京东方 (主屏)";
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
-    in-out property <int> brightness: 76;
-    in-out property <string> monitor_name: "京东方";
+    in-out property <[int]> rates_row1: [60, 144, 240];
+    in-out property <[int]> rates_row2: [];
 
-    callback set_gpu_mode(string);
+    // Display Tuning Engine state
+    in-out property <bool> tuning_enabled: true;
+    in-out property <string> active_preset_id: "preset_vibrant";
+    in-out property <string> active_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <int> tuning_temp_k: 6500;
+    in-out property <int> tuning_saturation: 150;
+    in-out property <int> tuning_contrast: 100;
+    in-out property <int> tuning_gamma: 100;
+    in-out property <int> tuning_gain_r: 100;
+    in-out property <int> tuning_gain_g: 100;
+    in-out property <int> tuning_gain_b: 100;
+    in-out property <bool> tuning_is_modified: false;
+    in-out property <string> tuning_toast: "";
+
+    // Internal Modal Visibility
+    in-out property <bool> is_tuning_modal_open: false;
+
+    // MUX Switch Confirm Dialog State
+    in-out property <bool> show_switch_confirm: false;
+    in-out property <string> pending_mode: "dgpu";
+    in-out property <string> pending_title: "独显直连";
+
+    // Color Calibration state
+    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile_id: "default_native";
+    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
+    in-out property <bool> is_color_dirty: false;
+    // Cloud ICC Modal State
+    in-out property <bool> is_cloud_icc_modal_open: false;
+    in-out property <string> cloud_icc_panel_pnp: "未检出";
+    in-out property <string> cloud_icc_panel_sn: "(无独立面板SN)";
+    in-out property <string> cloud_icc_bios_sn: "未检出";
+    in-out property <string> cloud_icc_mac: "未检出";
+    in-out property <string> cloud_icc_arch: "识别中...";
+    in-out property <string> cloud_icc_recommended: "auto";
+    in-out property <string> cloud_icc_mode: "auto";
+    in-out property <bool> cloud_icc_is_searching: false;
+    in-out property <string> cloud_icc_status: "就绪";
+    in-out property <bool> cloud_icc_hit_found: false;
+    in-out property <string> cloud_icc_hit_file_name: "";
+    in-out property <string> cloud_icc_hit_meta: "";
+    in-out property <[string]> cloud_icc_hit_profiles: [];
+    in-out property <int> cloud_icc_selected_profile_idx: 0;
+    in-out property <string> cloud_icc_toast: "";
+
+    callback open_cloud_icc();
+    callback refresh_cloud_icc_identity();
+    callback start_cloud_icc_search(string);
+    callback apply_cloud_icc_profile(int);
+    callback apply_all_cloud_icc_profiles();
+
+
+    // Callbacks
+    callback set_tuning_enabled(bool);
+    callback set_gpu_mode(string, bool); // mode, restart_immediately
+    callback change_brightness(int);
     callback switch_hz(int);
     callback toggle_auto_min_hz();
-    callback change_brightness(int);
+    callback select_monitor(string);
+    callback select_monitor_index(int);
+    callback toggle_tuning_enabled();
+    callback apply_tuning_preset(string);
+    callback update_tuning_slider(string, int);
+    callback reset_tuning_preset();
+    callback import_tuning_file();
+    callback export_tuning_file();
+    callback apply_color_profile(string);
+    callback import_color_profile();
+    callback delete_color_profile();
 
-    Flickable {
-        content-height: 600px;
+    VerticalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        padding-top: 14px;
+        padding-bottom: 14px;
+        spacing: 10px;
+        alignment: start;
 
-        VerticalLayout {
-            padding: 16px;
-            spacing: 14px;
+        // =========================================================================
+        // 1. MUX Switch Top Header & Architecture Banner (卡片 1)
+        // =========================================================================
+        Rectangle {
+            border-radius: 8px;
+            background: AppTheme.surface_card;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
 
-            // 1. GPU Mode MUX Switcher Card
-            Rectangle {
-                border-radius: 8px;
-                background: AppTheme.surface_card;
-                border-width: 1px;
-                border-color: AppTheme.border_subtle;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
 
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
+                // Row 1: Title + Hardware Spec Badge
+                HorizontalLayout {
+                    alignment: space-between;
 
                     HorizontalLayout {
                         spacing: 8px;
-                        Image {
-                            source: @image-url("../../assets/icons/monitor.svg");
-                            width: 16px;
-                            height: 16px;
-                            colorize: #38bdf8;
-                            y: (parent.height - self.height) / 2;
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/monitor.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: #38bdf8;
+                            }
                         }
-                        Text {
-                            text: "显卡输出模式 (MUX Switch)";
-                            font-size: 13px;
-                            font-weight: 700;
-                            color: AppTheme.text_primary;
-                            vertical-alignment: center;
-                        }
-                        Rectangle { horizontal-stretch: 1; }
-                        Text {
-                            text: "需要重启生效 (或高级动态切换)";
-                            font-size: 10px;
-                            color: AppTheme.text_muted;
-                            vertical-alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: "显卡模式 (双显三模)";
+                                font-size: 13px;
+                                font-weight: 800;
+                                color: AppTheme.text_primary;
+                            }
+                            Text {
+                                text: "主板硬件级 MUX 物理切换 · 由 BIOS POST 或高级动态 PCIe 链路与物理开关控制";
+                                font-size: 10px;
+                                color: AppTheme.text_muted;
+                            }
                         }
                     }
 
+                    // Right: CPU + GPU chip badge
                     Rectangle {
-                        height: 1px;
-                        background: AppTheme.border_subtle;
+                        height: 26px;
+                        border-radius: 5px;
+                        background: AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 6px;
+                            Image {
+                                source: @image-url("../../assets/icons/cpu.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #60a5fa;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: root.gpu_name + " · " + root.cpu_name;
+                                font-size: 10.5px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Row 2: Sub-banner with Shield badge
+                Rectangle {
+                    height: 30px;
+                    border-radius: 6px;
+                    background: AppTheme.is_light ? #f3f4f6 : #0d121c;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: space-between;
+
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: "主板原生硬件 MUX 切换架构";
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: "· 物理通道直通信号开关，保证杜绝降频与转接损耗";
+                                font-size: 10px;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Image {
+                                source: @image-url("../../assets/icons/shield.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "HARDWARE MUX LINK";
+                                font-size: 9.5px;
+                                font-weight: 800;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Row 3: 3 MUX Mode Big Cards
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    // 1. dGPU Card
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 135px;
+                        border-radius: 8px;
+                        background: root.gpu_mode == "dgpu" ? #38bdf815 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.gpu_mode == "dgpu" ? #38bdf8aa : AppTheme.border_subtle;
+
+                        VerticalLayout {
+                            padding: 12px;
+                            alignment: space-between;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Rectangle {
+                                    width: 30px;
+                                    height: 30px;
+                                    border-radius: 6px;
+                                    background: root.gpu_mode == "dgpu" ? #38bdf825 : transparent;
+                                    border-width: 1px;
+                                    border-color: root.gpu_mode == "dgpu" ? #38bdf860 : AppTheme.border_subtle;
+                                    Image {
+                                        source: @image-url("../../assets/icons/zap.svg");
+                                        width: 15px;
+                                        height: 15px;
+                                        colorize: #38bdf8;
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                }
+
+                                if root.gpu_mode == "dgpu": Rectangle {
+                                    height: 20px;
+                                    border-radius: 4px;
+                                    background: #38bdf825;
+                                    border-width: 1px;
+                                    border-color: #38bdf870;
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: "✔ 硬件生效中";
+                                            font-size: 9.5px;
+                                            font-weight: 700;
+                                            color: #38bdf8;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: "独立显卡物理直连内屏幕。避开核显中转，发挥极致电竞帧率与超低显示延迟。";
+                                font-size: 9.5px;
+                                color: AppTheme.text_muted;
+                                wrap: word-wrap;
+                            }
+
+                            Rectangle {
+                                height: 28px;
+                                border-radius: 5px;
+                                background: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.surface_card;
+                                border-width: 1px;
+                                border-color: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.border_subtle;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if (root.gpu_mode != "dgpu") {
+                                            root.pending_mode = "dgpu";
+                                            root.pending_title = "独显直连 (dGPU)";
+                                            root.show_switch_confirm = true;
+                                        }
+                                    }
+                                }
+                                Text {
+                                    text: "独显直连";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: root.gpu_mode == "dgpu" ? #000000 : AppTheme.text_primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
                     }
 
-                    // 3 GPU Mode Cards
-                    HorizontalLayout {
-                        spacing: 12px;
+                    // 2. Hybrid Card
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 135px;
+                        border-radius: 8px;
+                        background: root.gpu_mode == "hybrid" ? #a855f718 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.gpu_mode == "hybrid" ? #a855f7aa : AppTheme.border_subtle;
 
-                        // dGPU Direct
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            height: 72px;
-                            border-radius: 6px;
-                            background: root.gpu_mode == "dgpu" ? #38bdf818 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.gpu_mode == "dgpu" ? #38bdf880 : AppTheme.border_subtle;
+                        VerticalLayout {
+                            padding: 12px;
+                            alignment: space-between;
 
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.set_gpu_mode("dgpu"); }
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Rectangle {
+                                    width: 30px;
+                                    height: 30px;
+                                    border-radius: 6px;
+                                    background: root.gpu_mode == "hybrid" ? #a855f725 : transparent;
+                                    border-width: 1px;
+                                    border-color: root.gpu_mode == "hybrid" ? #a855f760 : AppTheme.border_subtle;
+                                    Image {
+                                        source: @image-url("../../assets/icons/layers.svg");
+                                        width: 15px;
+                                        height: 15px;
+                                        colorize: #c084fc;
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                }
+
+                                if root.gpu_mode == "hybrid": Rectangle {
+                                    height: 20px;
+                                    border-radius: 4px;
+                                    background: #a855f725;
+                                    border-width: 1px;
+                                    border-color: #a855f770;
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: "✔ 硬件生效中";
+                                            font-size: 9.5px;
+                                            font-weight: 700;
+                                            color: #c084fc;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
                             }
 
-                            VerticalLayout {
-                                alignment: center;
-                                spacing: 4px;
-                                Text {
-                                    text: "独显直连 (dGPU)";
-                                    font-size: 12px;
-                                    font-weight: 700;
-                                    color: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.text_primary;
-                                    horizontal-alignment: center;
+                            Text {
+                                text: "轻量任务核显输出保证续航，复杂 3D 渲染与电竞游戏时自动介入独显加速。";
+                                font-size: 9.5px;
+                                color: AppTheme.text_muted;
+                                wrap: word-wrap;
+                            }
+
+                            Rectangle {
+                                height: 28px;
+                                border-radius: 5px;
+                                background: root.gpu_mode == "hybrid" ? #a855f7 : AppTheme.surface_card;
+                                border-width: 1px;
+                                border-color: root.gpu_mode == "hybrid" ? #a855f7 : AppTheme.border_subtle;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if (root.gpu_mode != "hybrid") {
+                                            root.pending_mode = "hybrid";
+                                            root.pending_title = "混合输出 (Hybrid)";
+                                            root.show_switch_confirm = true;
+                                        }
+                                    }
                                 }
                                 Text {
-                                    text: "极致电竞游戏性能 · 独显无损输出";
-                                    font-size: 9.5px;
-                                    color: AppTheme.text_muted;
+                                    text: "混合输出";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: root.gpu_mode == "hybrid" ? #ffffff : AppTheme.text_primary;
                                     horizontal-alignment: center;
+                                    vertical-alignment: center;
                                 }
                             }
                         }
+                    }
 
-                        // Hybrid MSHybrid
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            height: 72px;
-                            border-radius: 6px;
-                            background: root.gpu_mode == "hybrid" ? #38bdf818 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.gpu_mode == "hybrid" ? #38bdf880 : AppTheme.border_subtle;
+                    // 3. iGPU Card
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 135px;
+                        border-radius: 8px;
+                        background: root.gpu_mode == "igpu" ? #10b98118 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.gpu_mode == "igpu" ? #10b981aa : AppTheme.border_subtle;
 
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.set_gpu_mode("hybrid"); }
+                        VerticalLayout {
+                            padding: 12px;
+                            alignment: space-between;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Rectangle {
+                                    width: 30px;
+                                    height: 30px;
+                                    border-radius: 6px;
+                                    background: root.gpu_mode == "igpu" ? #10b98125 : transparent;
+                                    border-width: 1px;
+                                    border-color: root.gpu_mode == "igpu" ? #10b98160 : AppTheme.border_subtle;
+                                    Image {
+                                        source: @image-url("../../assets/icons/zap-off.svg");
+                                        width: 15px;
+                                        height: 15px;
+                                        colorize: #34d399;
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                }
+
+                                if root.gpu_mode == "igpu": Rectangle {
+                                    height: 20px;
+                                    border-radius: 4px;
+                                    background: #10b98125;
+                                    border-width: 1px;
+                                    border-color: #10b98170;
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: "✔ 硬件生效中";
+                                            font-size: 9.5px;
+                                            font-weight: 700;
+                                            color: #34d399;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
                             }
 
-                            VerticalLayout {
-                                alignment: center;
-                                spacing: 4px;
+                            Text {
+                                text: "彻底切断独显供电与 PCIe 供电链路开关，消除独显待机功耗，超长离电续航。";
+                                font-size: 9.5px;
+                                color: AppTheme.text_muted;
+                                wrap: word-wrap;
+                            }
+
+                            Rectangle {
+                                height: 28px;
+                                border-radius: 5px;
+                                background: root.gpu_mode == "igpu" ? #10b981 : AppTheme.surface_card;
+                                border-width: 1px;
+                                border-color: root.gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if (root.gpu_mode != "igpu") {
+                                            root.pending_mode = "igpu";
+                                            root.pending_title = "纯集显模式 (iGPU)";
+                                            root.show_switch_confirm = true;
+                                        }
+                                    }
+                                }
                                 Text {
-                                    text: "混合输出 (Hybrid)";
-                                    font-size: 12px;
+                                    text: "核显模式";
+                                    font-size: 11px;
                                     font-weight: 700;
-                                    color: root.gpu_mode == "hybrid" ? #38bdf8 : AppTheme.text_primary;
+                                    color: root.gpu_mode == "igpu" ? #000000 : AppTheme.text_primary;
                                     horizontal-alignment: center;
-                                }
-                                Text {
-                                    text: "均衡功耗与性能 · 自动动态分配";
-                                    font-size: 9.5px;
-                                    color: AppTheme.text_muted;
-                                    horizontal-alignment: center;
-                                }
-                            }
-                        }
-
-                        // iGPU Only
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            height: 72px;
-                            border-radius: 6px;
-                            background: root.gpu_mode == "igpu" ? #38bdf818 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.gpu_mode == "igpu" ? #38bdf880 : AppTheme.border_subtle;
-
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.set_gpu_mode("igpu"); }
-                            }
-
-                            VerticalLayout {
-                                alignment: center;
-                                spacing: 4px;
-                                Text {
-                                    text: "纯集显模式 (iGPU)";
-                                    font-size: 12px;
-                                    font-weight: 700;
-                                    color: root.gpu_mode == "igpu" ? #38bdf8 : AppTheme.text_primary;
-                                    horizontal-alignment: center;
-                                }
-                                Text {
-                                    text: "彻底切断独显供电 · 超长离电续航";
-                                    font-size: 9.5px;
-                                    color: AppTheme.text_muted;
-                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
                                 }
                             }
                         }
                     }
                 }
             }
+        }
 
-            // 2. Display Tuning & Refresh Rate Card
-            Rectangle {
-                border-radius: 8px;
-                background: AppTheme.surface_card;
-                border-width: 1px;
-                border-color: AppTheme.border_subtle;
+        // =========================================================================
+        // 2. Brightness Control Row (卡片 2)
+        // =========================================================================
+        Rectangle {
+            height: 46px;
+            border-radius: 8px;
+            background: AppTheme.surface_card;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
 
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 12px;
 
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Image {
-                            source: @image-url("../../assets/icons/monitor.svg");
-                            width: 16px;
-                            height: 16px;
-                            colorize: #10b981;
-                            y: (parent.height - self.height) / 2;
+                // Left Icon + Title
+                HorizontalLayout {
+                    spacing: 10px;
+                    width: 180px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 28px;
+                            height: 28px;
+                            border-radius: 6px;
+                            background: #f59e0b20;
+                            border-width: 1px;
+                            border-color: #f59e0b50;
+                            Image {
+                                source: @image-url("../../assets/icons/sun.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: #f59e0b;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
                         }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 1px;
                         Text {
-                            text: "内屏显示与色彩校准";
-                            font-size: 13px;
+                            text: "屏幕亮度调节";
+                            font-size: 12px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
-                            vertical-alignment: center;
                         }
-                        Rectangle { horizontal-stretch: 1; }
                         Text {
-                            text: root.monitor_name;
-                            font-size: 11px;
-                            font-weight: 600;
-                            color: #10b981;
-                            vertical-alignment: center;
+                            text: "当前亮度: " + root.brightness + "%";
+                            font-size: 9.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+                }
+
+                // Center: Golden Slider Track
+                HorizontalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 8px;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/sun.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: AppTheme.text_muted;
                         }
                     }
 
+                    // Slider Area
                     Rectangle {
-                        height: 1px;
-                        background: AppTheme.border_subtle;
+                        horizontal-stretch: 1;
+                        height: 22px;
+
+                        // 完整的底槽轨道，显式设置 x: 0; width: parent.width;
+                        Rectangle {
+                            x: 0;
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            height: 4px;
+                            background: AppTheme.surface_pill;
+                            border-radius: 2px;
+
+                            // 填充激活金色条
+                            Rectangle {
+                                x: 0;
+                                y: 0;
+                                width: parent.width * Math.max(0.0, Math.min(1.0, root.brightness / 100.0));
+                                height: 100%;
+                                background: #fbbf24;
+                                border-radius: 2px;
+                            }
+                        }
+
+                        // 白芯金圈 Thumb
+                        Rectangle {
+                            x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, root.brightness / 100.0));
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: #ffffff;
+                            border-width: 3px;
+                            border-color: #fbbf24;
+                        }
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            pointer-event(event) => {
+                                if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                    if (self.pressed) {
+                                        root.change_brightness(Math.max(5, Math.min(100, Math.round(self.mouse-x / parent.width * 100))));
+                                    }
+                                }
+                            }
+                            clicked => {
+                                root.change_brightness(Math.max(5, Math.min(100, Math.round(self.mouse-x / parent.width * 100))));
+                            }
+                        }
                     }
 
-                    // Refresh rate buttons row
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/sun.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #fbbf24;
+                        }
+                    }
+                }
+
+                // Right Quick Buttons (25% | 60% | 100%)
+                HorizontalLayout {
+                    spacing: 5px;
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            spacing: 5px;
+                            for q_val in [25, 60, 100]: Rectangle {
+                                width: 38px;
+                                height: 24px;
+                                border-radius: 4px;
+                                background: root.brightness == q_val ? #fbbf2425 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.brightness == q_val ? #fbbf2480 : AppTheme.border_subtle;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.change_brightness(q_val); }
+                                }
+                                Text {
+                                    text: q_val + "%";
+                                    font-size: 10px;
+                                    font-weight: root.brightness == q_val ? 700 : 500;
+                                    color: root.brightness == q_val ? #fbbf24 : AppTheme.text_secondary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // 3. Display Tuning Row (卡片 3)
+        // =========================================================================
+        Rectangle {
+            height: 46px;
+            border-radius: 8px;
+            background: AppTheme.surface_card;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                alignment: space-between;
+
+                // Left Icon + Title
+                HorizontalLayout {
+                    spacing: 10px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 28px;
+                            height: 28px;
+                            border-radius: 6px;
+                            background: root.tuning_enabled ? #ec489920 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.tuning_enabled ? #ec489950 : AppTheme.border_subtle;
+                            Image {
+                                source: @image-url("../../assets/icons/palette.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: root.tuning_enabled ? #f472b6 : AppTheme.text_muted;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 1px;
+                        Text {
+                            text: "屏幕色彩增强 (Display Tuning)";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                        }
+                        Text {
+                            text: root.tuning_enabled ? ("当前方案: " + root.active_preset_name) : "当前状态: 已关闭 (原厂直出)";
+                            font-size: 9.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+                }
+
+                // Right Controls: [调色控制] Button + Pill Toggle Switch
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    // Open Modal Button
+                    if root.tuning_enabled: VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 5px;
+                            background: #ec489922;
+                            border-width: 1px;
+                            border-color: #ec489980;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.is_tuning_modal_open = true; }
+                            }
+                            HorizontalLayout {
+                                padding-left: 9px;
+                                padding-right: 9px;
+                                spacing: 5px;
+                                Image {
+                                    source: @image-url("../../assets/icons/sliders-horizontal.svg");
+                                    width: 12px;
+                                    height: 12px;
+                                    colorize: #f472b6;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "调色控制";
+                                    font-size: 10.5px;
+                                    font-weight: 700;
+                                    color: #f472b6;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // Pill Toggle
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 38px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: root.tuning_enabled ? #ec4899 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.tuning_enabled ? #ec4899 : AppTheme.border_medium;
+
+                            Rectangle {
+                                x: root.tuning_enabled ? parent.width - self.width - 2px : 2px;
+                                y: (parent.height - self.height) / 2;
+                                width: 14px;
+                                height: 14px;
+                                border-radius: 7px;
+                                background: #ffffff;
+                            }
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.tuning_enabled = !root.tuning_enabled;
+                                    root.set_tuning_enabled(root.tuning_enabled);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // 4. Color Management Row (卡片 4)
+        // =========================================================================
+        Rectangle {
+            height: 46px;
+            border-radius: 8px;
+            background: AppTheme.surface_card;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                alignment: space-between;
+
+                // Left Icon + Title
+                HorizontalLayout {
+                    spacing: 10px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 28px;
+                            height: 28px;
+                            border-radius: 6px;
+                            background: #0284c720;
+                            border-width: 1px;
+                            border-color: #0284c750;
+                            Image {
+                                source: @image-url("../../assets/icons/crosshair.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: #38bdf8;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 1px;
+                        Text {
+                            text: "屏幕色彩校正 (Color Management)";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                        }
+                        Text {
+                            text: "当前方案: " + root.active_color_profile + " · " + root.monitor_name;
+                            font-size: 9.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+                }
+
+                // Right Controls: Profile Dropdown + Apply + Import
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            spacing: 6px;
+
+                            // Profile Selector Capsule with PopupWindow
+                            prof_pill := Rectangle {
+                                height: 26px;
+                                border-radius: 5px;
+                                background: t_prof.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: AppTheme.border_subtle;
+
+                                t_prof := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { prof_popup.show(); }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.active_color_profile;
+                                        font-size: 10.5px;
+                                        color: AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                    Image {
+                                        source: @image-url("../../assets/icons/chevron-down.svg");
+                                        width: 10px;
+                                        height: 10px;
+                                        colorize: AppTheme.text_muted;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                }
+
+                                prof_popup := PopupWindow {
+                                    x: 0px;
+                                    y: 28px;
+                                    width: 180px;
+
+                                    Rectangle {
+                                        background: AppTheme.surface_elevated;
+                                        border-radius: 6px;
+                                        border-width: 1px;
+                                        border-color: AppTheme.border_medium;
+                                        drop-shadow-blur: 8px;
+                                        drop-shadow-color: #00000080;
+
+                                        VerticalLayout {
+                                            padding: 4px;
+                                            spacing: 2px;
+
+                                            for p_name[idx] in root.color_profiles_list: Rectangle {
+                                                height: 26px;
+                                                border-radius: 4px;
+                                                background: pt.has-hover ? AppTheme.surface_pill : transparent;
+                                                pt := TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => {
+                                                        root.active_color_profile = p_name;
+                                                        if (idx < root.color_profiles_ids.length) {
+                                                            root.active_color_profile_id = root.color_profiles_ids[idx];
+                                                        }
+                                                        root.is_color_dirty = true;
+                                                    }
+                                                }
+                                                HorizontalLayout {
+                                                    padding-left: 8px;
+                                                    padding-right: 8px;
+                                                    Text {
+                                                        text: p_name;
+                                                        font-size: 10px;
+                                                        color: root.active_color_profile == p_name ? #38bdf8 : AppTheme.text_primary;
+                                                        vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Apply Button
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 5px;
+                                background: root.is_color_dirty ? #0284c725 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.is_color_dirty ? #0284c780 : AppTheme.border_subtle;
+                                opacity: root.is_color_dirty ? 1.0 : 0.5;
+                                TouchArea {
+                                    mouse-cursor: root.is_color_dirty ? pointer : default;
+                                    clicked => {
+                                        if (root.is_color_dirty) {
+                                            root.is_color_dirty = false;
+                                            root.apply_color_profile(root.active_color_profile_id);
+                                        }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    spacing: 4px;
+                                    Text {
+                                        text: "应用";
+                                        font-size: 10.5px;
+                                        font-weight: 600;
+                                        color: root.is_color_dirty ? #38bdf8 : AppTheme.text_muted;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // Import Button
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 5px;
+                                background: #0284c718;
+                                border-width: 1px;
+                                border-color: #0284c760;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.import_color_profile(); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    spacing: 4px;
+                                    Image {
+                                        source: @image-url("../../assets/icons/upload.svg");
+                                        width: 11px;
+                                        height: 11px;
+                                        colorize: #38bdf8;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "导入";
+                                        font-size: 10.5px;
+                                        font-weight: 600;
+                                        color: #38bdf8;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            // Cloud ICC Button
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 5px;
+                                background: #38bdf818;
+                                border-width: 1px;
+                                border-color: #38bdf860;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.is_cloud_icc_modal_open = true;
+                                        root.open_cloud_icc();
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    spacing: 4px;
+                                    Image {
+                                        source: @image-url("../../assets/icons/crosshair.svg");
+                                        width: 11px;
+                                        height: 11px;
+                                        colorize: #38bdf8;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "原厂校色";
+                                        font-size: 10.5px;
+                                        font-weight: 600;
+                                        color: #38bdf8;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // 5. 内屏显示器切换与刷新率档位 (卡片 5，纯粹的显示器与刷新率控制)
+        // =========================================================================
+        Rectangle {
+            height: root.rates_row2.length > 0 ? 74px : 48px;
+            background: AppTheme.surface_card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                alignment: space-between;
+
+                // Left: Icon + Label + Monitor Dropdown Pill
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: start;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/monitor.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: #38bdf8;
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+
+                        Text {
+                            text: "内屏显示与刷新率";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                        }
+
+                        // Monitor Dropdown Pill with PopupWindow
+                        mon_btn := Rectangle {
+                            border-radius: 4px;
+                            background: t_mon.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_subtle;
+                            height: 18px;
+
+                            t_mon := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { mon_popup.show(); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 5px;
+                                padding-right: 5px;
+                                spacing: 4px;
+
+                                Image {
+                                    source: @image-url("../../assets/icons/monitor.svg");
+                                    width: 9px;
+                                    height: 9px;
+                                    colorize: AppTheme.text_muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                Text {
+                                    text: root.monitor_name;
+                                    font-size: 9px;
+                                    color: AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+
+                                Image {
+                                    source: @image-url("../../assets/icons/chevron-down.svg");
+                                    width: 7px;
+                                    height: 7px;
+                                    colorize: AppTheme.text_muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+
+                            mon_popup := PopupWindow {
+                                x: 0px;
+                                y: 20px;
+                                width: 170px;
+
+                                Rectangle {
+                                    background: AppTheme.surface_elevated;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: AppTheme.border_medium;
+                                    drop-shadow-blur: 8px;
+                                    drop-shadow-color: #00000080;
+
+                                    VerticalLayout {
+                                        padding: 4px;
+                                        spacing: 2px;
+
+                                        // Item 0: 主屏
+                                        Rectangle {
+                                            height: 26px;
+                                            border-radius: 4px;
+                                            background: t_m0.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_m0 := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => {
+                                                    root.monitor_name = "京东方 (主屏)";
+                                                    root.select_monitor("京东方 (主屏)");
+                                                    root.select_monitor_index(0);
+                                                }
+                                            }
+                                            HorizontalLayout {
+                                                padding-left: 8px;
+                                                padding-right: 8px;
+                                                Text {
+                                                    text: "京东方 (内置主屏)";
+                                                    font-size: 10px;
+                                                    color: AppTheme.text_primary;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+
+                                        // Item 1: 外接副屏
+                                        Rectangle {
+                                            height: 26px;
+                                            border-radius: 4px;
+                                            background: t_m1.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_m1 := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => {
+                                                    root.monitor_name = "外接副屏";
+                                                    root.select_monitor("外接副屏");
+                                                    root.select_monitor_index(1);
+                                                }
+                                            }
+                                            HorizontalLayout {
+                                                padding-left: 8px;
+                                                padding-right: 8px;
+                                                Text {
+                                                    text: "外接副屏 / 扩展显示器";
+                                                    font-size: 10px;
+                                                    color: AppTheme.text_secondary;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Right: Supported Refresh Rates Rows (Row 1 + Row 2 for high refresh rate monitors)
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+
                     HorizontalLayout {
-                        spacing: 10px;
-                        alignment: start;
+                        spacing: 5px;
+                        alignment: end;
 
                         Text {
                             text: "刷新率档位:";
-                            font-size: 11px;
+                            font-size: 10.5px;
                             color: AppTheme.text_secondary;
                             vertical-alignment: center;
                         }
 
-                        for hz in [60, 144, 240]: Rectangle {
-                            width: 68px;
-                            height: 28px;
-                            border-radius: 5px;
-                            background: root.refresh_rate == hz ? #10b98120 : AppTheme.surface_pill;
+                        for rate in root.rates_row1: Rectangle {
+                            border-radius: 4px;
+                            background: root.refresh_rate == rate ? #38bdf825 : AppTheme.surface_pill;
                             border-width: 1px;
-                            border-color: root.refresh_rate == hz ? #10b98180 : AppTheme.border_subtle;
-
+                            border-color: root.refresh_rate == rate ? #38bdf8 : AppTheme.border_subtle;
+                            height: 22px;
                             TouchArea {
                                 mouse-cursor: pointer;
-                                clicked => { root.switch_hz(hz); }
+                                clicked => { root.switch_hz(rate); }
                             }
+                            HorizontalLayout {
+                                padding-left: 7px;
+                                padding-right: 7px;
+                                Text {
+                                    text: rate + " Hz";
+                                    font-size: 10px;
+                                    font-weight: root.refresh_rate == rate ? 700 : 500;
+                                    color: root.refresh_rate == rate ? #38bdf8 : AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
 
-                            Text {
-                                text: hz + " Hz";
-                                font-size: 10.5px;
-                                font-weight: root.refresh_rate == hz ? 700 : 500;
-                                color: root.refresh_rate == hz ? #10b981 : AppTheme.text_primary;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
+                    if root.rates_row2.length > 0: HorizontalLayout {
+                        spacing: 5px;
+                        alignment: end;
+
+                        for rate in root.rates_row2: Rectangle {
+                            border-radius: 4px;
+                            background: root.refresh_rate == rate ? #38bdf825 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.refresh_rate == rate ? #38bdf8 : AppTheme.border_subtle;
+                            height: 22px;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.switch_hz(rate); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 7px;
+                                padding-right: 7px;
+                                Text {
+                                    text: rate + " Hz";
+                                    font-size: 10px;
+                                    font-weight: root.refresh_rate == rate ? 700 : 500;
+                                    color: root.refresh_rate == rate ? #38bdf8 : AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
                             }
                         }
                     }
@@ -253,4 +1261,226 @@ export component DashboardGpuView inherits Rectangle {
             }
         }
     }
+
+    // =========================================================================
+    // 6. Switch Confirmation Modal (显卡模式切换确认对话框)
+    // =========================================================================
+    if root.show_switch_confirm: Rectangle {
+        background: #000000aa;
+        TouchArea { }
+
+        Rectangle {
+            width: 420px;
+            height: 210px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: AppTheme.is_light ? #ffffff : #111726;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #38bdf860;
+            clip: true;
+
+            VerticalLayout {
+                padding: 18px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    Image {
+                        source: @image-url("../../assets/icons/shield.svg");
+                        width: 20px;
+                        height: 20px;
+                        colorize: #38bdf8;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "切换显卡输出模式";
+                        font-size: 14px;
+                        font-weight: 800;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Text {
+                    text: "即将切换主板硬件 MUX 至【" + root.pending_title + "】。\n\n配置写入 UEFI NVRAM 后需要重启电脑以生效物理链路。请选择是否立即重启电脑？";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                    wrap: word-wrap;
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+
+                    // Cancel
+                    Rectangle {
+                        width: 70px;
+                        height: 28px;
+                        border-radius: 5px;
+                        background: AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.show_switch_confirm = false; }
+                        }
+                        Text {
+                            text: "取消";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Save Only
+                    Rectangle {
+                        width: 110px;
+                        height: 28px;
+                        border-radius: 5px;
+                        background: AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.show_switch_confirm = false;
+                                root.set_gpu_mode(root.pending_mode, false);
+                            }
+                        }
+                        Text {
+                            text: "仅写入稍后重启";
+                            font-size: 11px;
+                            color: AppTheme.text_primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Reboot Now
+                    Rectangle {
+                        width: 100px;
+                        height: 28px;
+                        border-radius: 5px;
+                        background: #0284c7;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.show_switch_confirm = false;
+                                root.set_gpu_mode(root.pending_mode, true);
+                            }
+                        }
+                        Text {
+                            text: "立即重启电脑";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #ffffff;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 7. Fullscreen Display Tuning Engine Modal (二级全屏沉浸式页面)
+    // =========================================================================
+    if root.is_tuning_modal_open: DisplayTuningModal {
+        is_open: root.is_tuning_modal_open;
+        tuning_enabled: root.tuning_enabled;
+        active_preset_id <=> root.active_preset_id;
+        cur_temp_k <=> root.tuning_temp_k;
+        cur_saturation <=> root.tuning_saturation;
+        cur_contrast <=> root.tuning_contrast;
+        cur_gamma <=> root.tuning_gamma;
+        cur_gain_r <=> root.tuning_gain_r;
+        cur_gain_g <=> root.tuning_gain_g;
+        cur_gain_b <=> root.tuning_gain_b;
+        is_modified <=> root.tuning_is_modified;
+        toast_message: root.tuning_toast;
+
+        close => { root.is_tuning_modal_open = false; }
+        select_preset(id) => {
+            root.active_preset_id = id;
+            root.active_preset_name = id == "preset_vibrant" ? "多彩鲜艳 (Vibrant)" :
+                                     (id == "preset_internet" ? "互联网/办公 (Internet)" :
+                                     (id == "preset_video" ? "电影娱乐 (Video)" :
+                                     (id == "preset_eyecare" ? "防蓝光护眼 (Eyecare)" :
+                                     (id == "preset_cinema" ? "影院震撼 (Cinema)" : "标准出厂 (Standard)"))));
+            root.apply_tuning_preset(id);
+        }
+        change_temp_k(val) => {
+            root.tuning_temp_k = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("temp_k", val);
+        }
+        change_saturation(val) => {
+            root.tuning_saturation = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("saturation", val);
+        }
+        change_contrast(val) => {
+            root.tuning_contrast = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("contrast", val);
+        }
+        change_gamma(val) => {
+            root.tuning_gamma = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gamma", val);
+        }
+        change_gain_r(val) => {
+            root.tuning_gain_r = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gain_r", val);
+        }
+        change_gain_g(val) => {
+            root.tuning_gain_g = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gain_g", val);
+        }
+        change_gain_b(val) => {
+            root.tuning_gain_b = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gain_b", val);
+        }
+        reset_preset => {
+            root.tuning_is_modified = false;
+            root.reset_tuning_preset();
+        }
+        import_json => { root.import_tuning_file(); }
+        export_json => { root.export_tuning_file(); }
+    }
+
+    if root.is_cloud_icc_modal_open: CloudIccModal {
+        is_open: true;
+        panel_pnp: root.cloud_icc_panel_pnp;
+        panel_sn: root.cloud_icc_panel_sn;
+        bios_sn: root.cloud_icc_bios_sn;
+        mac_address: root.cloud_icc_mac;
+        arch_name: root.cloud_icc_arch;
+        recommended_method: root.cloud_icc_recommended;
+        selected_mode: root.cloud_icc_mode;
+        is_searching: root.cloud_icc_is_searching;
+        status_text: root.cloud_icc_status;
+        hit_found: root.cloud_icc_hit_found;
+        hit_file_name: root.cloud_icc_hit_file_name;
+        hit_meta: root.cloud_icc_hit_meta;
+        hit_profiles: root.cloud_icc_hit_profiles;
+        selected_profile_idx: root.cloud_icc_selected_profile_idx;
+        toast_msg: root.cloud_icc_toast;
+
+        close => { root.is_cloud_icc_modal_open = false; }
+        refresh_identity => { root.refresh_cloud_icc_identity(); }
+        start_search(mode) => {
+            root.cloud_icc_mode = mode;
+            root.start_cloud_icc_search(mode);
+        }
+        apply_profile(idx) => { root.apply_cloud_icc_profile(idx); }
+        apply_all_profiles => { root.apply_all_cloud_icc_profiles(); }
+    }
+
 }

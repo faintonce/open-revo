@@ -318,6 +318,54 @@ pub fn run_main_standalone() {
         }
     });
 
+    // Display Tuning & Color Management
+    let ui_tuning_en = ui_weak.clone();
+    window.on_set_tuning_enabled(move |en| {
+        ipc::send_action_to_host("set_display_tuning_enabled", serde_json::json!({ "enabled": en }));
+        if let Some(ui) = ui_tuning_en.upgrade() {
+            ui.set_tuning_enabled(en);
+        }
+    });
+    window.on_toggle_tuning_enabled(move || {
+        ipc::send_action_to_host("toggle_display_tuning", serde_json::json!({}));
+    });
+    window.on_apply_tuning_preset(move |id| {
+        ipc::send_action_to_host("apply_display_tuning_preset", serde_json::json!({ "preset_id": id.as_str() }));
+    });
+    window.on_update_tuning_slider(move |key, val| {
+        ipc::send_action_to_host("update_display_tuning_slider", serde_json::json!({ "key": key.as_str(), "value": val }));
+    });
+    window.on_reset_tuning_preset(move || {
+        ipc::send_action_to_host("reset_display_tuning_preset", serde_json::json!({}));
+    });
+    window.on_import_tuning_file(move || {
+        ipc::send_action_to_host("import_display_tuning_file", serde_json::json!({}));
+    });
+    window.on_export_tuning_file(move || {
+        ipc::send_action_to_host("export_display_tuning_file", serde_json::json!({}));
+    });
+    window.on_import_color_profile(move || {
+        ipc::send_action_to_host("import_color_profile", serde_json::json!({}));
+    });
+    window.on_open_cloud_icc(move || {
+        ipc::send_action_to_host("open_cloud_icc", serde_json::json!({}));
+    });
+    window.on_refresh_cloud_icc_identity(move || {
+        ipc::send_action_to_host("refresh_cloud_icc_identity", serde_json::json!({}));
+    });
+    window.on_start_cloud_icc_search(move |mode| {
+        ipc::send_action_to_host("start_cloud_icc_search", serde_json::json!({ "mode": mode.as_str() }));
+    });
+    window.on_apply_cloud_icc_profile(move |idx| {
+        ipc::send_action_to_host("apply_cloud_icc_profile", serde_json::json!({ "index": idx }));
+    });
+    window.on_apply_all_cloud_icc_profiles(move || {
+        ipc::send_action_to_host("apply_all_cloud_icc_profiles", serde_json::json!({}));
+    });
+    window.on_apply_color_profile(move |prof| {
+        ipc::send_action_to_host("apply_color_profile", serde_json::json!({ "profile_id": prof.as_str() }));
+    });
+
     // 6. Keyboard Lighting
     window.on_kbd_effect_cycled(move || {
         ipc::send_action_to_host("cycle_kbd_effect", serde_json::json!({}));
