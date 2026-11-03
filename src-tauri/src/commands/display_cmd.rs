@@ -344,24 +344,29 @@ pub fn get_miniled_status() -> Result<bool, String> {
     Ok(cfg.miniled_enabled)
 }
 
+pub fn set_miniled_hardware_state(enabled: bool) -> bool {
+    let cmd = if enabled {
+        crate::hal::vault::miniled::CMD_MINILED_ON
+    } else {
+        crate::hal::vault::miniled::CMD_MINILED_OFF
+    };
+
+    let ok = crate::driver::wmi_mulong::mulong_exec_raw(cmd);
+    if ok {
+        write_oem_miniled_registry(enabled);
+    }
+    ok
+}
+
 #[tauri::command]
 pub async fn set_miniled_status(enabled: bool) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let cmd = if enabled {
-            crate::hal::vault::miniled::CMD_MINILED_ON
-        } else {
-            crate::hal::vault::miniled::CMD_MINILED_OFF
-        };
-
-        let ok = crate::driver::wmi_mulong::mulong_exec_raw(cmd);
+        let ok = set_miniled_hardware_state(enabled);
 
         if ok {
             let mut cfg = crate::system::config::load_config();
             cfg.miniled_enabled = enabled;
             crate::system::config::save_config(&cfg);
-
-            // Sync with OEM registry so official control center UI stays coherent
-            write_oem_miniled_registry(enabled);
 
             crate::log_info!("MINILED", "MiniLED local dimming toggled to: {}", enabled);
             Ok(enabled)

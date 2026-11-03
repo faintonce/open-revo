@@ -449,6 +449,28 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
             crate::driver::ite_streamer::IteStreamerController::init_from_saved_config();
         }
 
+
+        // Restore MiniLED local dimming state after display driver & DWM handshake settles (2.5s delay + retry)
+        if cfg.miniled_enabled {
+            std::thread::spawn(move || {
+                // Wait 2500ms for GPU driver modeset & eDP link handshake to complete
+                std::thread::sleep(std::time::Duration::from_millis(2500));
+
+                let mut ok = crate::commands::display_cmd::set_miniled_hardware_state(true);
+                if !ok {
+                    // Secondary debounce: retry after 1000ms in case WMI/ACPI bridge was queueing
+                    std::thread::sleep(std::time::Duration::from_millis(1000));
+                    ok = crate::commands::display_cmd::set_miniled_hardware_state(true);
+                }
+
+                if ok {
+                    crate::log_info!("POWER_RESTORE", "Startup successfully restored MiniLED local dimming: ENABLED");
+                } else {
+                    crate::log_warn!("POWER_RESTORE", "Startup failed to restore MiniLED local dimming after debounced retry");
+                }
+            });
+        }
+
         crate::log_info!("LIGHTING", "Startup lighting presets successfully restored to hardware & BetterRGB Streamer");
         crate::system::boot_trace::boot_log("RESTORE", "Startup hardware & lighting restoration completed successfully");
     });
