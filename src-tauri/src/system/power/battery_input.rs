@@ -260,6 +260,56 @@ fn battery_device_paths() -> Vec<Vec<u16>> {
     paths
 }
 
+/// SYSTEM_BATTERY_STATE（NtPowerInformation SystemBatteryState）
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+struct SystemBatteryState {
+    ac_on_line: u8,
+    battery_present: u8,
+    charging: u8,
+    discharging: u8,
+    spare: [u8; 3],
+    tag: u8,
+    max_capacity: u32,
+    remaining_capacity: u32,
+    rate: i32,
+    estimated_time: u32,
+    default_alert1: u32,
+    default_alert2: u32,
+}
+
+extern "system" {
+    fn CallNtPowerInformation(
+        information_level: u32,
+        input_buffer: *mut core::ffi::c_void,
+        input_buffer_length: u32,
+        output_buffer: *mut core::ffi::c_void,
+        output_buffer_length: u32,
+    ) -> i32;
+}
+
+/// 通过 SystemBatteryState 读取当前充放功率（mW，充电为正）。
+fn read_rate_via_nt_power_information() -> Option<f32> {
+    const SYSTEM_BATTERY_STATE_LEVEL: u32 = 5;
+    let mut state = SystemBatteryState::default();
+    let size = core::mem::size_of::<SystemBatteryState>() as u32;
+    let status = unsafe {
+        CallNtPowerInformation(
+            SYSTEM_BATTERY_STATE_LEVEL,
+            core::ptr::null_mut(),
+            0,
+            &mut state as *mut SystemBatteryState as *mut core::ffi::c_void,
+            size,
+        )
+    };
+    if status != 0 || state.battery_present == 0 {
+        return None;
+    }
+    if state.rate > 0 {
+        return Some(((state.rate as f32 / 1000.0) * 10.0).round() / 10.0);
+    }
+    Some(0.0)
+}
 /// 读电池当前充放功率（W）。只返回充电时的正值；读不到返回 None。
 pub fn read_battery_rate_watts() -> Option<f32> {
     for path in battery_device_paths() {
@@ -317,14 +367,13 @@ pub fn read_battery_rate_watts() -> Option<f32> {
                     if watts > 0.0 {
                         return Some((watts * 10.0).round() / 10.0);
                     }
-                    return Some(0.0);
                 }
                 continue;
             }
             let _ = bat_CloseHandle(handle);
         }
     }
-    None
+    read_rate_via_nt_power_information()
 }
 
 /// 读电池循环次数：优先电池 IOCTL，读不到/为 0 时用 powercfg 电池报告兜底（仅一次，缓存）。
