@@ -55,6 +55,11 @@ export component SystemSwitchesCard inherits Rectangle {
     in-out property <bool> is_checking_update: false;
     callback check_for_updates();
 
+    // 9. Classic WebView2 Frontend Switch
+    in-out property <bool> use_classic_webview: false;
+    callback toggle_classic_webview(bool);
+    callback restart_openrevo();
+
     border-radius: 8px;
     background: AppTheme.surface_card;
     border-width: 1px;
@@ -129,6 +134,105 @@ export component SystemSwitchesCard inherits Rectangle {
                         x: root.autostart ? parent.width - 21px : 3px;
                         y: 3px;
                         animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 1b: 使用经典 WebView2 前端
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "使用经典 WebView2 前端";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: root.use_classic_webview ? #f59e0b20 : #10b98120;
+                        border-width: 1px;
+                        border-color: root.use_classic_webview ? #f59e0b60 : #10b98160;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.use_classic_webview ? "WEBVIEW2" : "SLINT 原生";
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: root.use_classic_webview ? #f59e0b : #10b981;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "默认使用 Slint 原生渲染引擎（低内存、零延迟）。开启后切换回经典 Web 前端（需要重启生效）";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+
+                    Rectangle {
+                        border-radius: 4px;
+                        background: t_rst_btn.has-hover ? #38bdf835 : #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 24px;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text {
+                                text: "重启生效";
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                        t_rst_btn := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.restart_openrevo(); }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 44px;
+                        height: 24px;
+                        border-radius: 12px;
+                        background: root.use_classic_webview ? #38bdf8 : AppTheme.surface_pill;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.toggle_classic_webview(!root.use_classic_webview); }
+                        }
+
+                        Rectangle {
+                            width: 18px;
+                            height: 18px;
+                            border-radius: 9px;
+                            background: #ffffff;
+                            x: root.use_classic_webview ? parent.width - 21px : 3px;
+                            y: 3px;
+                            animate x { duration: 150ms; }
+                        }
                     }
                 }
             }

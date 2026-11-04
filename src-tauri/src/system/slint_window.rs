@@ -206,7 +206,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
     }
 
     let cfg = crate::system::config::load_config();
-    if !cfg.main_slint_enabled {
+    if cfg.use_classic_webview {
         return;
     }
 
@@ -273,6 +273,9 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "unlock_battery_limit": cfg.unlock_battery_power_limit,
                         "wake_window_mode": crate::commands::window_cmd::get_wake_window_mode(),
                         "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
+                        "use_classic_webview": cfg.use_classic_webview,
+                        "full_window_x": cfg.full_window_x,
+                        "full_window_y": cfg.full_window_y,
                         "osd_config": {
                             "enabled": switches.osd,
                             "theme": cfg.osd_theme,
@@ -356,6 +359,14 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
     crate::log_info!("SLINT_MAIN", "Received action from Slint UI: {}", action);
 
     match action {
+        "save_full_window_pos" => {
+            if let (Some(x), Some(y)) = (
+                val.get("x").and_then(|v| v.as_i64()),
+                val.get("y").and_then(|v| v.as_i64()),
+            ) {
+                crate::commands::window_cmd::save_full_window_pos(x as i32, y as i32);
+            }
+        }
         "slint_ready" => {
             crate::log_info!("SLINT_MAIN", "Companion reported ready, sending full states");
             sync_slint_tuning_state();
@@ -1073,6 +1084,21 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
                 let _ = crate::commands::window_cmd::set_mini_auto_hide(en);
             }
         }
+        "set_classic_webview" => {
+            if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.use_classic_webview = en;
+                crate::system::config::save_config(&cfg);
+                crate::log_info!("SLINT_MAIN", "use_classic_webview updated to: {}", en);
+            }
+        }
+        "restart_openrevo" => {
+            crate::log_info!("SLINT_MAIN", "Restart requested from Slint UI");
+            if let Ok(exe) = std::env::current_exe() {
+                let _ = std::process::Command::new(exe).spawn();
+            }
+            std::process::exit(0);
+        }
         "open_user_data_dir" => {
             let _ = crate::commands::system_cmd::open_user_data_dir();
         }
@@ -1625,6 +1651,22 @@ pub fn show_slint_window() {
 
 pub fn hide_slint_window() {
     send_slint_ipc_message(serde_json::json!({ "action": "hide" }));
+}
+
+static LAST_SLINT_TOGGLE: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+pub fn toggle_slint_window() {
+    let mut last = match LAST_SLINT_TOGGLE.lock() {
+        Ok(l) => l,
+        Err(p) => p.into_inner(),
+    };
+    if let Some(t) = *last {
+        if t.elapsed() < std::time::Duration::from_millis(300) {
+            return;
+        }
+    }
+    *last = Some(std::time::Instant::now());
+    send_slint_ipc_message(serde_json::json!({ "action": "toggle" }));
 }
 
 pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) {

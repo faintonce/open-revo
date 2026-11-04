@@ -42,6 +42,11 @@ export component DashboardSystemView inherits Rectangle {
     in-out property <bool> mini_auto_hide: true;
     callback toggle_mini_auto_hide(bool);
 
+    // 5b. Classic WebView2 Frontend Switch
+    in-out property <bool> use_classic_webview: false;
+    callback toggle_classic_webview(bool);
+    callback restart_openrevo();
+
     // 6. User Data Directory
     in-out property <UserDataDirInfo> data_dir_info: {
         path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
@@ -109,6 +114,10 @@ export component DashboardSystemView inherits Rectangle {
 
             mini_auto_hide: root.mini_auto_hide;
             toggle_mini_auto_hide(en) => { root.toggle_mini_auto_hide(en); }
+
+            use_classic_webview: root.use_classic_webview;
+            toggle_classic_webview(en) => { root.toggle_classic_webview(en); }
+            restart_openrevo => { root.restart_openrevo(); }
 
             data_dir_info: root.data_dir_info;
             open_user_data_dir => { root.open_user_data_dir(); }

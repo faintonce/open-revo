@@ -9,15 +9,18 @@ use windows::Win32::Graphics::Dwm::{
     DwmExtendFrameIntoClientArea, DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE,
     DWMWCP_ROUND,
 };
-use windows::Win32::Graphics::Gdi::InvalidateRect;
+use windows::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, InvalidateRect, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTOPRIMARY,
+};
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::Controls::MARGINS;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallWindowProcW, EnumThreadWindows, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect,
-    IsIconic, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWLP_WNDPROC, GWL_EXSTYLE,
-    SC_MINIMIZE, SC_RESTORE, SM_CXSCREEN, SM_CYSCREEN, SWP_FRAMECHANGED, SWP_NOACTIVATE,
-    SWP_NOZORDER, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WA_INACTIVE, WM_ACTIVATE,
-    WM_SYSCOMMAND, WM_WINDOWPOSCHANGED, WNDPROC, WS_EX_APPWINDOW,
+    CallWindowProcW, EnumThreadWindows, GetWindowLongPtrW, GetWindowRect,
+    IsIconic, SetWindowLongPtrW, SetWindowPos, ShowWindow,
+    GWLP_WNDPROC, GWL_EXSTYLE, SC_MINIMIZE, SC_RESTORE,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOZORDER, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
+    SW_RESTORE, WA_INACTIVE, WM_ACTIVATE, WM_EXITSIZEMOVE, WM_SYSCOMMAND,
+    WM_WINDOWPOSCHANGED, WNDPROC, WS_EX_APPWINDOW,
 };
 
 pub mod ipc;
@@ -38,6 +41,8 @@ impl SafeHwnd {
 static PREV_WNDPROC: Mutex<WNDPROC> = Mutex::new(None);
 static WAS_MINIMIZED: AtomicBool = AtomicBool::new(false);
 static SLINT_UI_WEAK: Mutex<Option<slint::Weak<MainWindow>>> = Mutex::new(None);
+pub static HWND_HOLDER: Mutex<Option<SafeHwnd>> = Mutex::new(None);
+pub static SAVED_FULL_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 
 fn do_redraw_pass(hwnd: HWND) {
     unsafe {
@@ -80,7 +85,7 @@ fn do_redraw_pass(hwnd: HWND) {
     }
 }
 
-fn trigger_full_redraw(hwnd: HWND) {
+pub fn trigger_full_redraw(hwnd: HWND) {
     do_redraw_pass(hwnd);
 
     // Re-trigger after 25ms to ensure Windows DWM animation and geometry restoration is fully settled
@@ -129,6 +134,22 @@ unsafe extern "system" fn subclass_wnd_proc(
                 return ret;
             }
         }
+        WM_EXITSIZEMOVE => {
+            let is_expanded = if let Ok(guard) = SLINT_UI_WEAK.lock() {
+                guard.as_ref().and_then(|w| w.upgrade()).map(|ui| ui.get_is_expanded()).unwrap_or(false)
+            } else {
+                false
+            };
+            if is_expanded {
+                let mut rect = RECT::default();
+                if unsafe { GetWindowRect(hwnd, &mut rect) }.is_ok() {
+                    let x = rect.left;
+                    let y = rect.top;
+                    *SAVED_FULL_POS.lock().unwrap() = Some((x, y));
+                    ipc::send_action_to_host("save_full_window_pos", serde_json::json!({ "x": x, "y": y }));
+                }
+            }
+        }
         _ => {}
     }
 
@@ -144,7 +165,7 @@ extern "system" fn enum_thread_wnd_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
     }
 }
 
-fn find_thread_hwnd() -> Option<HWND> {
+pub fn find_thread_hwnd() -> Option<HWND> {
     unsafe {
         let tid = GetCurrentThreadId();
         let mut target_hwnd: Option<HWND> = None;
@@ -194,28 +215,67 @@ fn apply_window_decorations(hwnd: HWND) {
     }
 }
 
-fn resize_native_window(hwnd: HWND, target_w: i32, target_h: i32) {
+pub fn align_mini_drawer_to_tray(hwnd: HWND, target_w: i32, target_h: i32) {
     unsafe {
-        let mut rect = RECT::default();
-        if GetWindowRect(hwnd, &mut rect).is_ok() {
-            let mut left = rect.left;
-            let mut top = rect.top;
-
-            let screen_w = GetSystemMetrics(SM_CXSCREEN);
-            let screen_h = GetSystemMetrics(SM_CYSCREEN);
-
-            if left + target_w > screen_w {
-                left = (screen_w - target_w - 20).max(10);
-            }
-            if top + target_h > screen_h {
-                top = (screen_h - target_h - 40).max(10);
-            }
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+        let mut mi = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if GetMonitorInfoW(monitor, &mut mi).as_bool() {
+            let rc = mi.rcWork;
+            let mut rect = RECT::default();
+            let (real_w, real_h) = if GetWindowRect(hwnd, &mut rect).is_ok() && (rect.right - rect.left) > 100 {
+                (rect.right - rect.left, rect.bottom - rect.top)
+            } else {
+                (target_w, target_h)
+            };
+            let margin = 16;
+            let x = rc.right - real_w - margin;
+            let y = rc.bottom - real_h - margin;
 
             let _ = SetWindowPos(
                 hwnd,
                 HWND(std::ptr::null_mut()),
-                left,
-                top,
+                x,
+                y,
+                real_w,
+                real_h,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
+    }
+}
+
+pub fn expand_native_window(hwnd: HWND, target_w: i32, target_h: i32, saved_pos: Option<(i32, i32)>) {
+    unsafe {
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+        let mut mi = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if GetMonitorInfoW(monitor, &mut mi).as_bool() {
+            let rc = mi.rcWork;
+            let screen_w = rc.right - rc.left;
+            let screen_h = rc.bottom - rc.top;
+
+            let (target_x, target_y) = if let Some((sx, sy)) = saved_pos {
+                let overlap_x = (sx + target_w).min(rc.right) - sx.max(rc.left);
+                let overlap_y = (sy + target_h).min(rc.bottom) - sy.max(rc.top);
+                if overlap_x >= 200 && overlap_y >= 100 {
+                    (sx, sy)
+                } else {
+                    (rc.left + (screen_w - target_w) / 2, rc.top + (screen_h - target_h) / 2)
+                }
+            } else {
+                (rc.left + (screen_w - target_w) / 2, rc.top + (screen_h - target_h) / 2)
+            };
+
+            let _ = SetWindowPos(
+                hwnd,
+                HWND(std::ptr::null_mut()),
+                target_x,
+                target_y,
                 target_w,
                 target_h,
                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
@@ -223,6 +283,7 @@ fn resize_native_window(hwnd: HWND, target_w: i32, target_h: i32) {
         }
     }
 }
+
 
 fn apply_monotonic_fan_rule(curve: &mut [i32], idx: usize, target_duty: i32, min_duty: i32) {
     if idx >= curve.len() {
@@ -1093,6 +1154,18 @@ pub fn run_main_standalone() {
         }
     });
 
+    let ui_cb = ui_weak.clone();
+    window.on_toggle_classic_webview(move |en| {
+        ipc::send_action_to_host("set_classic_webview", serde_json::json!({ "enabled": en }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_use_classic_webview(en);
+        }
+    });
+
+    window.on_restart_openrevo(move || {
+        ipc::send_action_to_host("restart_openrevo", serde_json::json!({}));
+    });
+
     window.on_open_user_data_dir(move || {
         ipc::send_action_to_host("open_user_data_dir", serde_json::json!({}));
     });
@@ -1151,7 +1224,8 @@ pub fn run_main_standalone() {
     let ui_expand = ui_weak.clone();
     window.on_expand_dashboard_clicked(move || {
         if let Some(h) = *hwnd_expand.lock().unwrap() {
-            resize_native_window(h.to_hwnd(), 1120, 760);
+            let saved = *SAVED_FULL_POS.lock().unwrap();
+            expand_native_window(h.to_hwnd(), 1120, 760, saved);
         }
         if let Some(ui) = ui_expand.upgrade() {
             ui.set_is_expanded(true);
@@ -1163,7 +1237,7 @@ pub fn run_main_standalone() {
     let ui_collapse = ui_weak.clone();
     window.on_collapse_dashboard_clicked(move || {
         if let Some(h) = *hwnd_collapse.lock().unwrap() {
-            resize_native_window(h.to_hwnd(), 395, 632);
+            align_mini_drawer_to_tray(h.to_hwnd(), 395, 632);
         }
         if let Some(ui) = ui_collapse.upgrade() {
             ui.set_is_expanded(false);
@@ -1205,10 +1279,21 @@ pub fn run_main_standalone() {
     });
 
     let hwnd_close = hwnd_holder.clone();
+    let ui_close = ui_weak.clone();
     window.on_close_clicked(move || {
         if let Some(h) = *hwnd_close.lock().unwrap() {
             unsafe {
-                let _ = ShowWindow(h.to_hwnd(), SW_HIDE);
+                let hwnd = h.to_hwnd();
+                if let Some(ui) = ui_close.upgrade() {
+                    if ui.get_is_expanded() {
+                        let mut rect = RECT::default();
+                        if GetWindowRect(hwnd, &mut rect).is_ok() {
+                            *SAVED_FULL_POS.lock().unwrap() = Some((rect.left, rect.top));
+                            ipc::send_action_to_host("save_full_window_pos", serde_json::json!({ "x": rect.left, "y": rect.top }));
+                        }
+                    }
+                }
+                let _ = ShowWindow(hwnd, SW_HIDE);
             }
         }
     });
@@ -1814,10 +1899,25 @@ pub fn run_main_standalone() {
     });
 
     let _ = window.show();
+
+    // Synchronously capture HWND and configure visibility/position immediately
+    let hwnd_setup = hwnd_holder.clone();
+    if let Some(hwnd) = find_thread_hwnd() {
+        apply_window_decorations(hwnd);
+        let safe = SafeHwnd(hwnd.0 as isize);
+        *hwnd_setup.lock().unwrap() = Some(safe);
+        *HWND_HOLDER.lock().unwrap() = Some(safe);
+        align_mini_drawer_to_tray(hwnd, 395, 632);
+        if !std::env::args().any(|a| a == "--visible") {
+            unsafe {
+                let _ = ShowWindow(hwnd, SW_HIDE);
+            }
+        }
+    }
+
     ipc::send_action_to_host("slint_ready", serde_json::json!({}));
 
-    // Setup window handles and DWM styles
-    let hwnd_setup = hwnd_holder.clone();
+    // Setup window handles and DWM styles fallback timer
     let timer = slint::Timer::default();
     let applied = Arc::new(Mutex::new(false));
     let applied_clone = applied.clone();
@@ -1830,7 +1930,15 @@ pub fn run_main_standalone() {
             if !*done {
                 if let Some(hwnd) = find_thread_hwnd() {
                     apply_window_decorations(hwnd);
-                    *hwnd_setup.lock().unwrap() = Some(SafeHwnd(hwnd.0 as isize));
+                    let safe = SafeHwnd(hwnd.0 as isize);
+                    *hwnd_setup.lock().unwrap() = Some(safe);
+                    *HWND_HOLDER.lock().unwrap() = Some(safe);
+                    align_mini_drawer_to_tray(hwnd, 395, 632);
+                    if !std::env::args().any(|a| a == "--visible") {
+                        unsafe {
+                            let _ = ShowWindow(hwnd, SW_HIDE);
+                        }
+                    }
                     *done = true;
                 }
             }

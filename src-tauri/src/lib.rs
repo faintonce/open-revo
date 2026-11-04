@@ -171,8 +171,13 @@ pub fn run() {
     let single_instance_plugin = crate::system::boot_trace::boot_scope("Step 5: SingleInstance Plugin", || {
         tauri_plugin_single_instance::init(|app, argv, _cwd| {
             crate::system::boot_trace::boot_log("SINGLE_INST", &format!("Another instance attempted launch with args: {:?}", argv));
-            if let Some(window) = crate::system::window::ensure_window_alive(app) {
-                crate::system::window::restore_and_sync_window(&window);
+            let cfg = crate::system::config::load_config();
+            if cfg.use_classic_webview {
+                if let Some(window) = crate::system::window::ensure_window_alive(app) {
+                    crate::system::window::restore_and_sync_window(&window);
+                }
+            } else {
+                crate::system::slint_window::show_slint_window();
             }
         })
     });
@@ -253,6 +258,9 @@ pub fn run() {
             commands::hardware_cmd::set_keyboard_sleep_timeout,
             commands::hardware_cmd::get_app_config,
             commands::hardware_cmd::save_app_config,
+            commands::hardware_cmd::get_classic_webview,
+            commands::hardware_cmd::set_classic_webview,
+            commands::hardware_cmd::restart_app,
             commands::hardware_cmd::get_device_switches,
             commands::hardware_cmd::set_device_switch,
             commands::hardware_cmd::get_gpu_mode_info,
@@ -410,10 +418,15 @@ pub fn run() {
 
             // Step 6.1: Initialize main WebviewWindow (positioning above taskbar)
             crate::system::boot_trace::boot_scope("Step 6.1: Main Window Positioning", || {
-                if let Some(window) = app.get_webview_window("main") {
-                    crate::system::window::init_main_window(&window);
+                let cfg = crate::system::config::load_config();
+                if cfg.use_classic_webview {
+                    if let Some(window) = crate::system::window::ensure_window_alive(&app.handle()) {
+                        crate::system::window::init_main_window(&window);
+                    } else {
+                        crate::log_error!("WINDOW", "CRITICAL: 'main' WebviewWindow was NOT created during setup!");
+                    }
                 } else {
-                    crate::log_error!("WINDOW", "CRITICAL: 'main' WebviewWindow was NOT created by Tauri during setup!");
+                    crate::log_info!("WINDOW", "Slint native UI mode active; skipping 'main' WebviewWindow creation.");
                 }
             });
 

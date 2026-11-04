@@ -89,7 +89,7 @@ pub fn is_telemetry_active() -> bool {
     MAIN_WINDOW_VISIBLE.load(Ordering::Relaxed)
         || ACTIVE_SUBSCRIBERS.load(Ordering::Relaxed) > 0
         || crate::system::watcher_hub::has_active_telemetry_watchers()
-        || crate::system::config::load_config().main_slint_enabled
+        || !crate::system::config::load_config().use_classic_webview
 }
 
 /// Determine whether NVIDIA dGPU queries (NVAPI) should be executed

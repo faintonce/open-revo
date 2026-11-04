@@ -198,6 +198,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub cpu_tjmax: Option<u8>,
 
+    // Main UI Frontend Launch Selectors (false: Slint Native [default], true: Classic WebView2)
+    #[serde(default)]
+    pub use_classic_webview: bool,
+
     // Startup Window Visibility (Diagnosability override: CLI --visible or config.json)
     #[serde(default)]
     pub launch_visible: bool,
@@ -484,6 +488,7 @@ impl Default for AppConfig {
 
             custom_profile: CustomProfileConfig::default(),
             active_profile_id: default_active_profile_id(),
+            use_classic_webview: false,
             launch_visible: false,
             gpu_offset_step: default_gpu_offset_step(),
             gpu_core_offset_max: default_gpu_core_offset_max(),

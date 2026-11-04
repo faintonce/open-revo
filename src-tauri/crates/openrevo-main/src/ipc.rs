@@ -1,6 +1,5 @@
 use std::io::{BufRead, Write};
 use crate::{MainWindow, PowerSchemeItem, UpdateResultData};
-use slint::ComponentHandle;
 
 pub fn start_ipc_listener(ui_weak: slint::Weak<MainWindow>) {
     std::thread::Builder::new()
@@ -218,6 +217,15 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     if let Some(mah) = val.get("mini_auto_hide").and_then(|v| v.as_bool()) {
                         ui.set_mini_auto_hide(mah);
                     }
+                    if let Some(cw) = val.get("use_classic_webview").and_then(|v| v.as_bool()) {
+                        ui.set_use_classic_webview(cw);
+                    }
+                    if let (Some(x), Some(y)) = (
+                        val.get("full_window_x").and_then(|v| v.as_i64()),
+                        val.get("full_window_y").and_then(|v| v.as_i64()),
+                    ) {
+                        *crate::SAVED_FULL_POS.lock().unwrap() = Some((x as i32, y as i32));
+                    }
                     if let Some(osd_obj) = val.get("osd_config").and_then(|v| v.as_object()) {
                         let mut cfg = ui.get_osd_config();
                         if let Some(en) = osd_obj.get("enabled").and_then(|v| v.as_bool()) { cfg.enabled = en; }
@@ -296,6 +304,15 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     }
                     if let Some(mah) = val.get("mini_auto_hide").and_then(|v| v.as_bool()) {
                         ui.set_mini_auto_hide(mah);
+                    }
+                    if let Some(cw) = val.get("use_classic_webview").and_then(|v| v.as_bool()) {
+                        ui.set_use_classic_webview(cw);
+                    }
+                    if let (Some(x), Some(y)) = (
+                        val.get("full_window_x").and_then(|v| v.as_i64()),
+                        val.get("full_window_y").and_then(|v| v.as_i64()),
+                    ) {
+                        *crate::SAVED_FULL_POS.lock().unwrap() = Some((x as i32, y as i32));
                     }
                     if let Some(osd_obj) = val.get("osd_config").and_then(|v| v.as_object()) {
                         let mut cfg = ui.get_osd_config();
@@ -465,10 +482,74 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     }
                 }
                 "show" => {
-                    let _ = ui.show();
+                    let mut hwnd_opt = *crate::HWND_HOLDER.lock().unwrap();
+                    if hwnd_opt.is_none() {
+                        if let Some(h) = crate::find_thread_hwnd() {
+                            let safe = crate::SafeHwnd(h.0 as isize);
+                            *crate::HWND_HOLDER.lock().unwrap() = Some(safe);
+                            hwnd_opt = Some(safe);
+                        }
+                    }
+                    if let Some(h) = hwnd_opt {
+                        unsafe {
+                            use windows::Win32::UI::WindowsAndMessaging::{
+                                SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
+                            };
+                            let hwnd = h.to_hwnd();
+                            let _ = ShowWindow(hwnd, SW_RESTORE);
+                            let _ = ShowWindow(hwnd, SW_SHOW);
+                            let _ = SetForegroundWindow(hwnd);
+                            crate::trigger_full_redraw(hwnd);
+                        }
+                    }
                 }
                 "hide" => {
-                    let _ = ui.hide();
+                    if let Some(h) = *crate::HWND_HOLDER.lock().unwrap() {
+                        unsafe {
+                            use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
+                            let _ = ShowWindow(h.to_hwnd(), SW_HIDE);
+                        }
+                    }
+                }
+                "toggle" => {
+                    let mut hwnd_opt = *crate::HWND_HOLDER.lock().unwrap();
+                    if hwnd_opt.is_none() {
+                        if let Some(h) = crate::find_thread_hwnd() {
+                            let safe = crate::SafeHwnd(h.0 as isize);
+                            *crate::HWND_HOLDER.lock().unwrap() = Some(safe);
+                            hwnd_opt = Some(safe);
+                        }
+                    }
+                    if let Some(h) = hwnd_opt {
+                        unsafe {
+                            use windows::Win32::UI::WindowsAndMessaging::{
+                                IsIconic, IsWindowVisible, SetForegroundWindow, ShowWindow, SW_HIDE,
+                                SW_RESTORE, SW_SHOW,
+                            };
+                            let hwnd = h.to_hwnd();
+                            if IsWindowVisible(hwnd).as_bool() && !IsIconic(hwnd).as_bool() {
+                                let _ = ShowWindow(hwnd, SW_HIDE);
+                            } else {
+                                let _ = ShowWindow(hwnd, SW_RESTORE);
+                                let _ = ShowWindow(hwnd, SW_SHOW);
+                                let _ = SetForegroundWindow(hwnd);
+                                crate::trigger_full_redraw(hwnd);
+                            }
+                        }
+                    }
+                }
+                "expand_dashboard" => {
+                    ui.set_is_expanded(true);
+                    if let Some(h) = *crate::HWND_HOLDER.lock().unwrap() {
+                        let saved = *crate::SAVED_FULL_POS.lock().unwrap();
+                        crate::expand_native_window(h.to_hwnd(), 1120, 760, saved);
+                    }
+                }
+                "collapse_dashboard" => {
+                    ui.set_is_expanded(false);
+                    if let Some(h) = *crate::HWND_HOLDER.lock().unwrap() {
+                        crate::align_mini_drawer_to_tray(h.to_hwnd(), 395, 632);
+                    }
                 }
                 "open_tuning_view" => {
                     ui.set_is_in_tuning_view(true);

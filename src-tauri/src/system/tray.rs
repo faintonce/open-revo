@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use std::sync::{Arc, OnceLock};
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
-    tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter,
 };
 
@@ -296,14 +296,14 @@ pub fn handle_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
     match event {
         TrayIconEvent::Click {
             button: MouseButton::Left,
-            ..
-        }
-        | TrayIconEvent::DoubleClick {
-            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
             ..
         } => {
             let app = tray.app_handle();
-            if let Some(window) = crate::system::window::ensure_window_alive(app) {
+            let cfg = crate::system::config::load_config();
+            if !cfg.use_classic_webview {
+                crate::system::slint_window::toggle_slint_window();
+            } else if let Some(window) = crate::system::window::ensure_window_alive(app) {
                 crate::log_info!(
                     "TRAY",
                     "Left click triggered. Current state: is_visible={:?}, is_minimized={:?}",
@@ -313,6 +313,18 @@ pub fn handle_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
                 crate::system::window::restore_and_sync_window(&window);
             } else {
                 crate::log_error!("TRAY", "CRITICAL: Unable to obtain or resurrect 'main' WebviewWindow on tray click!");
+            }
+        }
+        TrayIconEvent::DoubleClick {
+            button: MouseButton::Left,
+            ..
+        } => {
+            let app = tray.app_handle();
+            let cfg = crate::system::config::load_config();
+            if !cfg.use_classic_webview {
+                crate::system::slint_window::show_slint_window();
+            } else if let Some(window) = crate::system::window::ensure_window_alive(app) {
+                crate::system::window::restore_and_sync_window(&window);
             }
         }
         _ => {}

@@ -74,6 +74,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
   const [wakeWindowMode, setWakeWindowMode] = useState<'remember' | 'mini' | 'full'>('remember');
   const [miniAutoHide, setMiniAutoHide] = useState(true);
+  const [useClassicWebview, setUseClassicWebview] = useState(false);
+  const [showRestartHint, setShowRestartHint] = useState(false);
   const [unlockBatteryLimit, setUnlockBatteryLimit] = useState(!!status.unlock_battery_power_limit);
   const [showUnlockBatteryConfirm, setShowUnlockBatteryConfirm] = useState(false);
   const [togglingUnlockBattery, setTogglingUnlockBattery] = useState(false);
@@ -184,6 +186,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         }
       })
       .catch(() => { });
+
+    invoke<boolean>('get_classic_webview')
+      .then((val) => {
+        if (typeof val === 'boolean') {
+          setUseClassicWebview(val);
+        }
+      })
+      .catch(() => { });
   }, []);
 
   const handleUpdateWakeMode = async (mode: 'remember' | 'mini' | 'full') => {
@@ -201,6 +211,24 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       await invoke('set_mini_auto_hide', { enabled });
     } catch (e) {
       console.error('Failed to set mini drawer auto hide:', e);
+    }
+  };
+
+  const handleToggleClassicWebview = async (enabled: boolean) => {
+    setUseClassicWebview(enabled);
+    setShowRestartHint(true);
+    try {
+      await invoke('set_classic_webview', { enabled });
+    } catch (e) {
+      console.error('Failed to set classic webview:', e);
+    }
+  };
+
+  const handleRestartApp = async () => {
+    try {
+      await invoke('restart_app');
+    } catch (e) {
+      console.error('Failed to restart app:', e);
     }
   };
 
@@ -628,6 +656,37 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <RevSwitch
                 checked={miniAutoHide}
                 onChange={handleToggleMiniAutoHide}
+              />
+            </div>
+          </div>
+
+          {/* 使用经典 WebView2 前端 */}
+          <div className="quick-row" style={{ alignItems: 'center' }}>
+            <div>
+              <div className="sys-row-label">
+                <span>使用经典 WebView2 前端</span>
+                <RevBadge variant={useClassicWebview ? 'accent' : 'info'}>
+                  {useClassicWebview ? 'WebView2 (经典)' : 'Slint 原生 (默认)'}
+                </RevBadge>
+              </div>
+              <div className="sys-row-desc">
+                切换主界面与 OSD 提示的前端渲染引擎。默认采用极低资源开销的 Slint 原生 GUI；开启时恢复使用经典 WebView2 网页渲染前端 (修改后重启生效)
+              </div>
+            </div>
+            <div className="sys-row-controls">
+              {showRestartHint && (
+                <button
+                  type="button"
+                  onClick={handleRestartApp}
+                  className="toggle-btn active-cyan"
+                  title="立即重启 OpenRevo 载入新前端引擎"
+                >
+                  立即重启生效
+                </button>
+              )}
+              <RevSwitch
+                checked={useClassicWebview}
+                onChange={handleToggleClassicWebview}
               />
             </div>
           </div>

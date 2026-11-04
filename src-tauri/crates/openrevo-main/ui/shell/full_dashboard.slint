@@ -74,6 +74,10 @@ export component FullDashboard inherits Rectangle {
     in-out property <bool> mini_auto_hide: true;
     callback toggle_mini_auto_hide(bool);
 
+    in-out property <bool> use_classic_webview: false;
+    callback toggle_classic_webview(bool);
+    callback restart_openrevo();
+
     in-out property <UserDataDirInfo> data_dir_info: {
         path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
         mode: "appdata"
@@ -1085,6 +1089,10 @@ export component FullDashboard inherits Rectangle {
 
                 mini_auto_hide: root.mini_auto_hide;
                 toggle_mini_auto_hide(en) => { root.toggle_mini_auto_hide(en); }
+
+                use_classic_webview: root.use_classic_webview;
+                toggle_classic_webview(en) => { root.toggle_classic_webview(en); }
+                restart_openrevo => { root.restart_openrevo(); }
 
                 data_dir_info: root.data_dir_info;
                 show_clear_confirm <=> root.show_clear_confirm;
