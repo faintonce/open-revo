@@ -71,6 +71,88 @@
 
 ---
 
+### 5. HorizontalLayout 交叉轴默认置顶导致子元素贴顶（垂直不居中）
+- **现象**：在水平操作栏、方向键行或调色盘行中，文字垂直居中了，但图标、圆点色块或按钮紧贴在整行上边缘（y=0），无论给子元素写 y: (parent.height - self.height) / 2; 还是在父 HorizontalLayout 写 lignment: center; 都无效。
+- **根因**：
+  1. 在 Slint 的 HorizontalLayout 容器内，**子元素的 y: 绝对坐标会被布局引擎强制重置忽略**。
+  2. HorizontalLayout { alignment: center; } 控制的是**主轴（水平方向）**的对齐方式，并不是交叉轴（垂直方向）的居中！
+  3. 当子元素具有固定 height 且低于父行高时，Slint 默认将其定位在交叉轴顶部（y: 0）。
+- **规范**：
+  若子元素要在 HorizontalLayout 内部实现绝对垂直居中，**必须外层包裹一个辅助的 VerticalLayout { alignment: center; ... }**。
+
+---
+
+### 6. 下拉菜单/浮层层级遮挡陷阱（局部 Stacking Context 隔离）与 PopupWindow 唯一标准解法
+- **历史高频踩坑现象**：多次出现下拉菜单（Dropdown Menu）弹出的浮层，被下方的另一个卡片组件直接切断、盖在下面（例如导航栏里的熄灯下拉列表被紧接着的迎宾仪式卡片遮挡）。
+- **致命认知误区（为什么手写浮层 + z 属性必崩）**：
+  1. **局部堆叠上下文（Local Stacking Context）限制**：Slint 采用油画家算法（Painter's Algorithm）。在垂直布局 `VerticalLayout` 中，兄弟组件按照自上而下的声明顺序依次绘制。
+  2. 先绘制的兄弟组件（如组件 A）即便在内部给绝对定位的浮层写了 `z: 100` 或 `z: 9999`，**该 z 属性的作用域被死死局限在组件 A 自身的内部**！
+  3. 当父容器继续渲染下一个兄弟组件（如组件 B）时，组件 B 作为一个独立的全新堆叠上下文，会**无条件覆盖在组件 A 及其所有子内容之上**！
+  4. 试图通过在子组件内部写全屏透明 `TouchArea` 配合绝对定位 `Rectangle` 做 Dropdown，一旦跨出子组件的物理高度，**在架构上必定被后续兄弟节点遮挡**。
+- **唯一标准解法：使用 Slint 内置原语 `PopupWindow`**：
+  - Slint 专门提供了语言级原语 `PopupWindow`，用于处理下拉菜单、右键菜单和 Tooltip。
+  - **全窗口升维机制**：`PopupWindow` 在底层由 Slint 引擎直接提升至**整个顶层窗口的专属 Overlay 树**，彻底脱离父级和兄弟组件的 Stacking Context 约束，**绝对不可能被任何后续兄弟卡片遮挡**！
+  - **原生 Dismiss 行为**：自带窗口外部点击自动回收关闭机制，无需手写全局覆盖的透明 TouchArea。
+- **标准范式代码（复制即用）**：
+  ```slint
+  // 1. 触发器宿主（父级建议使用相对定位容器）
+  trigger_pill := Rectangle {
+      height: 30px;
+      TouchArea {
+          mouse-cursor: pointer;
+          clicked => {
+              // 触发原生弹出
+              my_popup.show();
+          }
+      }
+
+      // 2. 挂载原生 PopupWindow（x/y 相对于 trigger_pill）
+      my_popup := PopupWindow {
+          // 右对齐或者左对齐
+          x: parent.width - self.width;
+          y: parent.height + 4px;
+          width: 140px;
+
+          Rectangle {
+              background: AppTheme.surface_card;
+              border-radius: AppTheme.radius_md;
+              border-width: 1px;
+              border-color: AppTheme.border_medium;
+              drop-shadow-blur: 16px;
+              drop-shadow-color: #000000c0;
+              drop-shadow-offset-y: 6px;
+
+              VerticalLayout {
+                  padding: 5px;
+                  spacing: 3px;
+
+                  // 列表项
+                  Rectangle {
+                      height: 28px;
+                      border-radius: AppTheme.radius_xs;
+                      background: item_touch.has-hover ? AppTheme.surface_pill : transparent;
+                      item_touch := TouchArea {
+                          mouse-cursor: pointer;
+                          clicked => {
+                              root.selected_value = 10;
+                              root.value_changed(10);
+                              // 点击选项后 PopupWindow 会自动隐去
+                          }
+                      }
+                      HorizontalLayout {
+                          padding-left: 10px;
+                          padding-right: 10px;
+                          Text { text: "10 分钟 (默认)"; font-size: 11px; vertical-alignment: center; }
+                      }
+                  }
+              }
+          }
+      }
+  }
+  ```
+
+---
+
 ## 二、状态绑定与组件通信陷阱
 
 ### 1. 弹窗与主视图之间的数据单向只读隔离（`:` vs `<=>`）
@@ -168,6 +250,41 @@
   如果用户在主界面未主动开开关，但直接进入调色弹窗拖拽微调，后端的硬件下发就会被整层拦截。
 - **纠正准则**：
   **“用户拖动滑块的操作本身，即代表显式的开启意图”**。在处理滑块微调与预设选择时，自动置 `cfg.enabled = true`，并无条件直接触发底层 `apply_color_preset`，实现 0-latency 毫秒级反馈。
+
+---
+
+### 3. 闲置熄灯（Idle Dimmer）在单区 RGB/EC 通道下的“反噬死锁”与标志位污染陷阱
+- **现象**：
+  在独立 ITE 8291 USB 芯片的逐键 RGB 机型上工作完美，但在单区 RGB（Single-Zone RGB）或单色白光机型上，闲置超时熄灯后，一旦用户敲击键盘或移动鼠标，键盘背光无法自动唤醒点亮（“一睡不醒”）；用户必须手动进入软件界面，先把背光开关“关”一次再“开”一次才能重新点亮。
+- **根因分析**：
+  1. **驱动层灭灯无脑冲刷全局睡眠标志位（根本死锁源）**：
+     在 `sleep_watcher.rs` 的超时后台工作线程中，当系统闲置时长达到预设分钟后，执行 `mgr.is_sleeping.swap(true)` 将全局状态机标记为“睡眠中”，随后调用 `mgr.turn_off_all()` 熄灭所有灯效。
+     `turn_off_all()` 在单区 RGB / 白光模式下，会调用底层的 `apply_single_zone_ec(false, ...)` 或 `apply_keyboard(false, ...)`。
+     致命缺陷在于：底层硬件通道函数的入口无脑执行了：
+     ```rust
+     self.is_sleeping.store(false, Ordering::SeqCst); // 致命：灭灯动作反手将睡眠标志篡改回了 false！
+     ```
+     导致单区 RGB 刚执行完关灯指令，全局 `is_sleeping` 标志就被驱动函数自身强行清零为 `false`！
+     随后当用户移动鼠标产生系统输入活动时，`sleep_watcher` 尝试通过原子唤醒守卫：
+     ```rust
+     if mgr.is_sleeping.swap(false, Ordering::SeqCst) {
+         mgr.restore_all(); // 永远不会被执行！因为标志位早已被内部篡改为 false！
+     }
+     ```
+     `swap(false)` 取出的值已经是 `false`，导致 `restore_all()` 被彻底跳过！系统陷入“硬件背光已关闭，但状态机认为未处于睡眠中”的假死锁，只能依靠用户手动点击界面开关绕过睡眠恢复流程强行写硬件。
+  2. **EC 寄存器位污染与单白光锁死**：
+     单区全彩 RGB 依赖 `ADDR_BACKLIGHT_WHITE` 寄存器。其 Bit 0 为 `1` 时锁定单色白光逻辑，为 `0` 时开启全彩 RGB 模式；Bit 1 为 `1` 表示切断背光供电，为 `0` 表示背光供电使能。原驱动在开启单区 RGB 时仅做了 `&= !0x02`（解除了供电切断），未清除 Bit 0，导致部分单区 RGB 固件在唤醒时被锁死在纯白光模式下无法调色。
+  3. **调光逻辑寄存器混淆**：
+     在唤醒或微调呼吸模式时，原代码误将 `ADDR_FAN_ISOLATED` 常量当作呼吸控制寄存器写入，未向 `ADDR_RGB_CONTROL` 写入正确的呼吸清零指令。
+- **架构级解决方案与纠正准则**：
+  1. **状态机单向主权法则**：
+     底层的物理通道执行函数（如 `apply_single_zone_ec`、`apply_monochrome_white_ec`、`apply_four_zone_keyboard`、`apply_keyboard`）**严禁在灭灯分支（`!enabled || brightness == 0`）中篡改 `is_sleeping` 标志位**！
+     只有当用户或上层业务显式以开启姿态调用开灯（`enabled && brightness > 0`）时，才允许执行 `is_sleeping.store(false)`。
+  2. **终极状态断言守卫**：
+     在 `turn_off_all()` 函数执行完毕的最后一步，显式补充全局守卫断言：
+     `self.is_sleeping.store(true, Ordering::SeqCst);`，彻底阻断任何底层驱动可能带来的状态回写污染。
+  3. **严格遵循 HAL 钥匙库常量规范**：
+     单区 RGB 开灯时统一执行 `&= !0x03` 同时解除供电阻断与单白光锁定；呼吸状态清零严格引用 `ADDR_RGB_CONTROL` 登记常量，严禁魔法数字或常量名错挂。
 
 ---
 

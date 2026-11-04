@@ -80,6 +80,94 @@ export component FullDashboard inherits Rectangle {
     in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
     in-out property <bool> is_color_dirty: false;
 
+    // Lighting Studio Properties
+    in-out property <int> lighting_sub_tab: 0;
+    in-out property <bool> has_lightbar: true;
+    in-out property <bool> has_hinge: false;
+    in-out property <bool> has_logo: true;
+    in-out property <string> kb_hw_desc: "ITE 8291 原生 RGB 控制器 (21633 固件 1610)";
+    in-out property <string> lb_hw_desc: "ITE Lightbar4 控制器 (048D:7001)";
+    in-out property <string> hinge_hw_desc: "转轴氛围流光硬件";
+    in-out property <string> logo_hw_desc: "全彩发光徽标控制器";
+    in-out property <bool> is_ec_logo: false;
+
+    in-out property <int> sleep_minutes: 10;
+    in-out property <bool> ceremony_enabled: true;
+    in-out property <bool> is_previewing_ceremony: false;
+    in-out property <bool> lighting_save_success: false;
+
+    in-out property <bool> kb_enabled: true;
+    in-out property <int> kb_engine: 1;
+    in-out property <int> kb_fps: 30;
+    in-out property <int> kb_effect: 101;
+    in-out property <int> kb_direction: 0;
+    in-out property <int> kb_brightness: 3;
+    in-out property <int> kb_speed: 2;
+    in-out property <string> kb_color_hex: "#6366F1";
+    in-out property <color> kb_color: #6366f1;
+
+    in-out property <bool> lb_enabled: true;
+    in-out property <int> lb_effect: 3;
+    in-out property <int> lb_brightness: 3;
+    in-out property <int> lb_speed: 2;
+    in-out property <string> lb_color_hex: "#00FFFF";
+    in-out property <color> lb_color: #00ffff;
+
+    in-out property <bool> hinge_enabled: true;
+    in-out property <int> hinge_effect: 1;
+    in-out property <int> hinge_brightness: 3;
+    in-out property <int> hinge_speed: 2;
+    in-out property <string> hinge_color_hex: "#00FFFF";
+    in-out property <color> hinge_color: #00ffff;
+
+    in-out property <bool> logo_enabled: true;
+    in-out property <int> logo_effect: 1;
+    in-out property <int> logo_brightness: 3;
+    in-out property <string> logo_color_hex: "#00FFFF";
+    in-out property <color> logo_color: #00ffff;
+
+    in-out property <bool> topology_override_enabled: false;
+    in-out property <int> topology_kb_idx: 0;
+    in-out property <int> topology_lb_idx: 0;
+    in-out property <int> topology_ambient_idx: 0;
+    in-out property <int> topology_logo_idx: 0;
+
+    // Lighting Studio Callbacks
+    callback set_lighting_sleep_timer(int);
+    callback toggle_ceremony();
+    callback preview_ceremony();
+    callback save_lighting_as_startup();
+    callback reset_lighting_defaults(int);
+
+    callback toggle_kb_enabled();
+    callback set_kb_engine(int);
+    callback set_kb_fps(int);
+    callback set_kb_effect(int);
+    callback set_kb_direction(int);
+    callback set_kb_brightness(int);
+    callback set_kb_speed(int);
+    callback set_kb_color(string, color);
+
+    callback toggle_lb_enabled();
+    callback set_lb_effect(int);
+    callback set_lb_brightness(int);
+    callback set_lb_speed(int);
+    callback set_lb_color(string, color);
+
+    callback toggle_hinge_enabled();
+    callback set_hinge_effect(int);
+    callback set_hinge_brightness(int);
+    callback set_hinge_speed(int);
+    callback set_hinge_color(string, color);
+
+    callback toggle_logo_enabled();
+    callback set_logo_effect(int);
+    callback set_logo_brightness(int);
+    callback set_logo_color(string, color);
+
+    callback apply_lighting_topology(bool, int, int, int, int);
+    callback reset_lighting_topology();
+
     in-out property <int> cpu_rpm: 2746;
     in-out property <int> gpu_rpm: 2635;
 
@@ -640,6 +728,92 @@ export component FullDashboard inherits Rectangle {
             // Tab 3: RGB 灯效工坊
             if root.active_tab == 3: DashboardLightingView {
                 vertical-stretch: 1;
+
+                sub_tab <=> root.lighting_sub_tab;
+                has_lightbar: root.has_lightbar;
+                has_hinge: root.has_hinge;
+                has_logo: root.has_logo;
+                kb_hw_desc: root.kb_hw_desc;
+                lb_hw_desc: root.lb_hw_desc;
+                hinge_hw_desc: root.hinge_hw_desc;
+                logo_hw_desc: root.logo_hw_desc;
+                is_ec_logo: root.is_ec_logo;
+
+                sleep_minutes <=> root.sleep_minutes;
+                ceremony_enabled <=> root.ceremony_enabled;
+                is_previewing_ceremony: root.is_previewing_ceremony;
+                save_success: root.lighting_save_success;
+
+                kb_enabled <=> root.kb_enabled;
+                kb_engine <=> root.kb_engine;
+                kb_fps <=> root.kb_fps;
+                kb_effect <=> root.kb_effect;
+                kb_direction <=> root.kb_direction;
+                kb_brightness <=> root.kb_brightness;
+                kb_speed <=> root.kb_speed;
+                kb_color_hex <=> root.kb_color_hex;
+                kb_color <=> root.kb_color;
+
+                lb_enabled <=> root.lb_enabled;
+                lb_effect <=> root.lb_effect;
+                lb_brightness <=> root.lb_brightness;
+                lb_speed <=> root.lb_speed;
+                lb_color_hex <=> root.lb_color_hex;
+                lb_color <=> root.lb_color;
+
+                hinge_enabled <=> root.hinge_enabled;
+                hinge_effect <=> root.hinge_effect;
+                hinge_brightness <=> root.hinge_brightness;
+                hinge_speed <=> root.hinge_speed;
+                hinge_color_hex <=> root.hinge_color_hex;
+                hinge_color <=> root.hinge_color;
+
+                logo_enabled <=> root.logo_enabled;
+                logo_effect <=> root.logo_effect;
+                logo_brightness <=> root.logo_brightness;
+                logo_color_hex <=> root.logo_color_hex;
+                logo_color <=> root.logo_color;
+
+                topology_override_enabled <=> root.topology_override_enabled;
+                topology_kb_idx <=> root.topology_kb_idx;
+                topology_lb_idx <=> root.topology_lb_idx;
+                topology_ambient_idx <=> root.topology_ambient_idx;
+                topology_logo_idx <=> root.topology_logo_idx;
+
+                set_sleep_timer(mins) => { root.set_lighting_sleep_timer(mins); }
+                toggle_ceremony => { root.toggle_ceremony(); }
+                preview_ceremony => { root.preview_ceremony(); }
+                save_as_startup => { root.save_lighting_as_startup(); }
+                reset_defaults(tab) => { root.reset_lighting_defaults(tab); }
+
+                toggle_kb_enabled => { root.toggle_kb_enabled(); }
+                set_kb_engine(eng) => { root.set_kb_engine(eng); }
+                set_kb_fps(fps) => { root.set_kb_fps(fps); }
+                set_kb_effect(eff) => { root.set_kb_effect(eff); }
+                set_kb_direction(dir) => { root.set_kb_direction(dir); }
+                set_kb_brightness(b) => { root.set_kb_brightness(b); }
+                set_kb_speed(s) => { root.set_kb_speed(s); }
+                set_kb_color(hex, c) => { root.set_kb_color(hex, c); }
+
+                toggle_lb_enabled => { root.toggle_lb_enabled(); }
+                set_lb_effect(eff) => { root.set_lb_effect(eff); }
+                set_lb_brightness(b) => { root.set_lb_brightness(b); }
+                set_lb_speed(s) => { root.set_lb_speed(s); }
+                set_lb_color(hex, c) => { root.set_lb_color(hex, c); }
+
+                toggle_hinge_enabled => { root.toggle_hinge_enabled(); }
+                set_hinge_effect(eff) => { root.set_hinge_effect(eff); }
+                set_hinge_brightness(b) => { root.set_hinge_brightness(b); }
+                set_hinge_speed(s) => { root.set_hinge_speed(s); }
+                set_hinge_color(hex, c) => { root.set_hinge_color(hex, c); }
+
+                toggle_logo_enabled => { root.toggle_logo_enabled(); }
+                set_logo_effect(eff) => { root.set_logo_effect(eff); }
+                set_logo_brightness(b) => { root.set_logo_brightness(b); }
+                set_logo_color(hex, c) => { root.set_logo_color(hex, c); }
+
+                apply_topology(en, kb, lb, amb, logo) => { root.apply_lighting_topology(en, kb, lb, amb, logo); }
+                reset_topology => { root.reset_lighting_topology(); }
             }
 
             // Tab 4: 水冷魔盒 (BLE)

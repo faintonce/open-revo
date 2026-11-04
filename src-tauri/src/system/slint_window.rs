@@ -343,6 +343,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
             sync_slint_tuning_state();
             sync_slint_display_state();
             sync_slint_power_state();
+            sync_slint_lighting_state();
         }
         "toggle_sleep_auto_office" => {
             if let Some(enable) = val.get("enable").and_then(|v| v.as_bool()) {
@@ -1075,6 +1076,207 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         "tuning_open_preset_dir" => {
             let _ = crate::commands::tuning_cmd::open_profiles_folder();
         }
+        "apply_keyboard_lighting_patch" => {
+            if let Some(app) = app {
+                let enabled = val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                let effect = val.get("effect").and_then(|v| v.as_i64()).unwrap_or(101) as u8;
+                let brightness = val.get("brightness").and_then(|v| v.as_i64()).unwrap_or(3) as u8;
+                let speed = val.get("speed").and_then(|v| v.as_i64()).unwrap_or(2) as u8;
+                let direction = val.get("direction").and_then(|v| v.as_i64()).unwrap_or(0) as u8;
+                let color = val.get("color").and_then(|v| v.as_str()).unwrap_or("#6366F1").to_string();
+                let engine = val.get("engine").and_then(|v| v.as_str()).map(|s| s.to_string());
+                let fps = val.get("fps").and_then(|v| v.as_i64()).map(|f| f as u32);
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+
+                let _ = crate::commands::lighting_cmd::apply_keyboard_lighting(
+                    app.clone(),
+                    enabled,
+                    effect,
+                    brightness,
+                    speed,
+                    direction,
+                    color,
+                    engine,
+                    fps,
+                    Some(effect),
+                    Some(effect),
+                    None,
+                    None,
+                    lm,
+                );
+                sync_slint_lighting_state();
+            }
+        }
+        "apply_lightbar_lighting" => {
+            if let Some(app) = app {
+                let enabled = val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                let effect = val.get("effect").and_then(|v| v.as_i64()).unwrap_or(3) as u8;
+                let brightness = val.get("brightness").and_then(|v| v.as_i64()).unwrap_or(3) as u8;
+                let speed = val.get("speed").and_then(|v| v.as_i64()).unwrap_or(2) as u8;
+                let color = val.get("color").and_then(|v| v.as_str()).unwrap_or("#00FFFF").to_string();
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::apply_lightbar_lighting(
+                    enabled,
+                    effect,
+                    brightness,
+                    speed,
+                    color,
+                    lm,
+                );
+                sync_slint_lighting_state();
+            }
+        }
+        "apply_hinge_lighting" => {
+            if let Some(app) = app {
+                let enabled = val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                let effect = val.get("effect").and_then(|v| v.as_i64()).unwrap_or(1) as u8;
+                let brightness = val.get("brightness").and_then(|v| v.as_i64()).unwrap_or(3) as u8;
+                let speed = val.get("speed").and_then(|v| v.as_i64()).unwrap_or(2) as u8;
+                let color = val.get("color").and_then(|v| v.as_str()).unwrap_or("#00FFFF").to_string();
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::apply_hinge_lighting(
+                    enabled,
+                    effect,
+                    brightness,
+                    speed,
+                    color,
+                    lm,
+                );
+                sync_slint_lighting_state();
+            }
+        }
+        "apply_logo_lighting" => {
+            if let Some(app) = app {
+                let enabled = val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                let effect = val.get("effect").and_then(|v| v.as_i64()).unwrap_or(1) as u8;
+                let brightness = val.get("brightness").and_then(|v| v.as_i64()).unwrap_or(3) as u8;
+                let color = val.get("color").and_then(|v| v.as_str()).unwrap_or("#00FFFF").to_string();
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::apply_logo_lighting(
+                    enabled,
+                    effect,
+                    brightness,
+                    color,
+                    lm,
+                );
+                sync_slint_lighting_state();
+            }
+        }
+        "set_lighting_sleep_timer" => {
+            if let (Some(app), Some(minutes)) = (app, val.get("minutes").and_then(|v| v.as_i64())) {
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::set_lighting_sleep_timer(minutes as u8, lm);
+                sync_slint_lighting_state();
+            }
+        }
+        "set_ceremony_enabled" => {
+            if let (Some(app), Some(enabled)) = (app, val.get("enabled").and_then(|v| v.as_bool())) {
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::set_ceremony_enabled(enabled, lm);
+                sync_slint_lighting_state();
+            }
+        }
+        "trigger_lighting_welcome" => {
+            if let Some(app) = app {
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::trigger_lighting_welcome(lm);
+            }
+        }
+        "save_current_lighting_as_startup" => {
+            if let Some(app) = app {
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::save_current_lighting_as_startup(lm);
+                sync_slint_lighting_state();
+            }
+        }
+        "reset_lighting_defaults" => {
+            if let Some(app) = app {
+                let tab = val.get("sub_tab").and_then(|v| v.as_i64()).unwrap_or(0);
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                match tab {
+                    0 => {
+                        let _ = crate::commands::lighting_cmd::apply_keyboard_lighting(
+                            app.clone(),
+                            true,
+                            3,
+                            3,
+                            2,
+                            0,
+                            "#6366F1".to_string(),
+                            Some("hardware".to_string()),
+                            Some(30),
+                            Some(101),
+                            Some(101),
+                            None,
+                            None,
+                            lm,
+                        );
+                    }
+                    1 => {
+                        let _ = crate::commands::lighting_cmd::apply_lightbar_lighting(
+                            true,
+                            3,
+                            3,
+                            2,
+                            "#00FFFF".to_string(),
+                            lm,
+                        );
+                    }
+                    2 => {
+                        let _ = crate::commands::lighting_cmd::apply_hinge_lighting(
+                            true,
+                            1,
+                            3,
+                            2,
+                            "#00FFFF".to_string(),
+                            lm,
+                        );
+                    }
+                    _ => {
+                        let _ = crate::commands::lighting_cmd::apply_logo_lighting(
+                            true,
+                            1,
+                            3,
+                            "#00FFFF".to_string(),
+                            lm,
+                        );
+                    }
+                }
+                sync_slint_lighting_state();
+            }
+        }
+        "set_streamer_fps" => {
+            if let (Some(app), Some(fps)) = (app, val.get("fps").and_then(|v| v.as_i64())) {
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::set_streamer_fps(fps as u32, lm);
+                sync_slint_lighting_state();
+            }
+        }
+        "apply_lighting_hardware_override" => {
+            if let Some(app) = app {
+                if let Some(ov_json) = val.get("override_cfg") {
+                    if let Ok(cfg) = serde_json::from_value::<crate::driver::ite_lighting::LightingHardwareOverride>(ov_json.clone()) {
+                        let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                        let _ = crate::commands::lighting_cmd::apply_lighting_hardware_override(cfg, lm, app.clone());
+                        sync_slint_lighting_state();
+                    }
+                }
+            }
+        }
+        "reset_lighting_hardware_override" => {
+            if let Some(app) = app {
+                let default_ov = crate::driver::ite_lighting::LightingHardwareOverride {
+                    enabled: false,
+                    keyboard: "auto".into(),
+                    front_bar: "auto".into(),
+                    ambient: "auto".into(),
+                    logo: "auto".into(),
+                };
+                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+                let _ = crate::commands::lighting_cmd::apply_lighting_hardware_override(default_ov, lm, app.clone());
+                sync_slint_lighting_state();
+            }
+        }
         _ => {}
     }
 }
@@ -1334,6 +1536,51 @@ pub fn sync_slint_power_state() {
             "sleep_deep_sleep": cfg.sleep_deep_sleep,
             "sleep_hibernate_30m": cfg.sleep_hibernate_30m,
             "sleep_auto_office": cfg.sleep_auto_office,
+        }));
+    }
+}
+
+pub fn sync_slint_lighting_state() {
+    let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
+    if let Some(app) = app_opt {
+        let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+        let st = crate::commands::lighting_cmd::get_lighting_status(lm.clone());
+        send_slint_ipc_message(serde_json::json!({
+            "action": "sync_lighting_state",
+            "sleep_minutes": st.sleep_minutes,
+            "ceremony_enabled": st.ceremony_enabled,
+            "kb_enabled": st.kb_enabled,
+            "kb_effect": if st.kb_engine == "streamer" { st.streamer_effect } else { st.kb_effect },
+            "kb_brightness": st.kb_brightness,
+            "kb_speed": st.kb_speed,
+            "kb_direction": st.kb_direction,
+            "kb_color": st.kb_color,
+            "kb_engine": st.kb_engine,
+            "kb_fps": st.kb_fps,
+            "lb_enabled": st.lb_enabled,
+            "lb_effect": st.lb_effect,
+            "lb_brightness": st.lb_brightness,
+            "lb_speed": st.lb_speed,
+            "lb_color": st.lb_color,
+            "hinge_enabled": st.hinge_enabled,
+            "hinge_effect": st.hinge_effect,
+            "hinge_brightness": st.hinge_brightness,
+            "hinge_speed": st.hinge_speed,
+            "hinge_color": st.hinge_color,
+            "logo_enabled": st.logo_enabled,
+            "logo_effect": st.logo_effect,
+            "logo_brightness": st.logo_brightness,
+            "logo_color": st.logo_color,
+        }));
+
+        let hw = crate::commands::lighting_cmd::get_keyboard_hardware_info(lm);
+        send_slint_ipc_message(serde_json::json!({
+            "action": "sync_lighting_hardware_info",
+            "has_front_lightbar": hw.has_front_lightbar || hw.has_ite7001,
+            "has_hinge": hw.has_hinge,
+            "has_logo": hw.has_logo,
+            "is_ec_logo": hw.is_ec_logo,
+            "description": hw.description,
         }));
     }
 }

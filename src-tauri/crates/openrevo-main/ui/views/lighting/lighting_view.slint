@@ -1,153 +1,232 @@
 import { AppTheme } from "../../theme.slint";
+import { LightingNavBar } from "lighting_nav_bar.slint";
+import { LightingCeremonyBar } from "lighting_ceremony_bar.slint";
+import { KeyboardLightingView } from "keyboard_view.slint";
+import { LightbarView } from "lightbar_view.slint";
+import { AmbientLightingView } from "ambient_view.slint";
+import { LogoLightingView } from "logo_view.slint";
+import { LightingTopologyModal } from "topology_modal.slint";
 
 export component DashboardLightingView inherits Rectangle {
     background: transparent;
 
-    in-out property <string> kbd_effect: "极客波浪";
-    in-out property <string> kbd_color_name: "自定义";
-    in-out property <color> kbd_color_preview: #f43f5e;
-    in-out property <int> brightness: 76;
+    // Sub navigation tab (0: 键盘, 1: 灯条, 2: 氛围, 3: LOGO)
+    in-out property <int> sub_tab: 0;
 
-    callback kbd_effect_cycled();
-    callback kbd_color_cycled();
-    callback kbd_more_clicked();
+    // Hardware presence flags
+    in property <bool> has_lightbar: true;
+    in property <bool> has_hinge: false;
+    in property <bool> has_logo: true;
+    in property <string> kb_hw_desc: "ITE 8291 原生 RGB 控制器 (21633 固件 1610)";
+    in property <string> lb_hw_desc: "ITE Lightbar4 控制器 (048D:7001)";
+    in property <string> hinge_hw_desc: "转轴氛围流光硬件";
+    in property <string> logo_hw_desc: "全彩发光徽标控制器";
+    in property <bool> is_ec_logo: false;
 
-    Flickable {
-        content-height: 600px;
+    // Global settings
+    in-out property <int> sleep_minutes: 10;
+    in-out property <bool> ceremony_enabled: true;
+    in property <bool> is_previewing_ceremony: false;
+    in property <bool> save_success: false;
 
-        VerticalLayout {
-            padding: 16px;
-            spacing: 14px;
+    // Keyboard state
+    in-out property <bool> kb_enabled: true;
+    in-out property <int> kb_engine: 1; // 0: hardware, 1: streamer, 2: custom
+    in-out property <int> kb_fps: 30;
+    in-out property <int> kb_effect: 101;
+    in-out property <int> kb_direction: 0;
+    in-out property <int> kb_brightness: 3;
+    in-out property <int> kb_speed: 2;
+    in-out property <string> kb_color_hex: "#6366F1";
+    in-out property <color> kb_color: #6366f1;
 
-            // 1. Keyboard RGB Matrix Card
-            Rectangle {
-                border-radius: 8px;
-                background: AppTheme.surface_card;
-                border-width: 1px;
-                border-color: AppTheme.border_subtle;
+    // Lightbar state
+    in-out property <bool> lb_enabled: true;
+    in-out property <int> lb_effect: 3;
+    in-out property <int> lb_brightness: 3;
+    in-out property <int> lb_speed: 2;
+    in-out property <string> lb_color_hex: "#00FFFF";
+    in-out property <color> lb_color: #00ffff;
 
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
+    // Hinge / Ambient state
+    in-out property <bool> hinge_enabled: true;
+    in-out property <int> hinge_effect: 1;
+    in-out property <int> hinge_brightness: 3;
+    in-out property <int> hinge_speed: 2;
+    in-out property <string> hinge_color_hex: "#00FFFF";
+    in-out property <color> hinge_color: #00ffff;
 
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Image {
-                            source: @image-url("../../assets/icons/keyboard.svg");
-                            width: 16px;
-                            height: 16px;
-                            colorize: #a855f7;
-                            y: (parent.height - self.height) / 2;
-                        }
-                        Text {
-                            text: "RGB 键盘全彩背光调控";
-                            font-size: 13px;
-                            font-weight: 700;
-                            color: AppTheme.text_primary;
-                            vertical-alignment: center;
-                        }
-                    }
+    // Logo state
+    in-out property <bool> logo_enabled: true;
+    in-out property <int> logo_effect: 1;
+    in-out property <int> logo_brightness: 3;
+    in-out property <string> logo_color_hex: "#00FFFF";
+    in-out property <color> logo_color: #00ffff;
 
-                    Rectangle {
-                        height: 1px;
-                        background: AppTheme.border_subtle;
-                    }
+    // Topology modal state
+    in-out property <bool> topology_modal_open: false;
+    in-out property <bool> topology_override_enabled: false;
+    in-out property <int> topology_kb_idx: 0;
+    in-out property <int> topology_lb_idx: 0;
+    in-out property <int> topology_ambient_idx: 0;
+    in-out property <int> topology_logo_idx: 0;
 
-                    // Effects Row
-                    HorizontalLayout {
-                        spacing: 12px;
+    // Callbacks to Host
+    callback set_sleep_timer(int);
+    callback toggle_ceremony();
+    callback preview_ceremony();
+    callback save_as_startup();
+    callback reset_defaults(int); // by sub_tab
 
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            height: 60px;
-                            border-radius: 6px;
-                            background: AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: AppTheme.border_subtle;
+    // Keyboard callbacks
+    callback toggle_kb_enabled();
+    callback set_kb_engine(int);
+    callback set_kb_fps(int);
+    callback set_kb_effect(int);
+    callback set_kb_direction(int);
+    callback set_kb_brightness(int);
+    callback set_kb_speed(int);
+    callback set_kb_color(string, color);
 
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.kbd_effect_cycled(); }
-                            }
+    // Lightbar callbacks
+    callback toggle_lb_enabled();
+    callback set_lb_effect(int);
+    callback set_lb_brightness(int);
+    callback set_lb_speed(int);
+    callback set_lb_color(string, color);
 
-                            HorizontalLayout {
-                                padding-left: 14px;
-                                padding-right: 14px;
-                                alignment: space-between;
+    // Ambient callbacks
+    callback toggle_hinge_enabled();
+    callback set_hinge_effect(int);
+    callback set_hinge_brightness(int);
+    callback set_hinge_speed(int);
+    callback set_hinge_color(string, color);
 
-                                VerticalLayout {
-                                    alignment: center;
-                                    spacing: 3px;
-                                    Text {
-                                        text: "当前动态灯效模式";
-                                        font-size: 10px;
-                                        color: AppTheme.text_muted;
-                                    }
-                                    Text {
-                                        text: root.kbd_effect;
-                                        font-size: 12px;
-                                        font-weight: 700;
-                                        color: AppTheme.text_primary;
-                                    }
-                                }
+    // Logo callbacks
+    callback toggle_logo_enabled();
+    callback set_logo_effect(int);
+    callback set_logo_brightness(int);
+    callback set_logo_color(string, color);
 
-                                Text {
-                                    text: "点击切换 ↻";
-                                    font-size: 10px;
-                                    color: #a855f7;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
+    // Topology callbacks
+    callback apply_topology(bool, int, int, int, int);
+    callback reset_topology();
 
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            height: 60px;
-                            border-radius: 6px;
-                            background: AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: AppTheme.border_subtle;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 14px;
+        alignment: start;
 
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.kbd_color_cycled(); }
-                            }
+        // 1. Device Navigation Bar
+        LightingNavBar {
+            sub_tab <=> root.sub_tab;
+            has_lightbar: root.has_lightbar;
+            has_hinge: root.has_hinge;
+            has_logo: root.has_logo;
+            sleep_minutes <=> root.sleep_minutes;
+            sleep_minutes_selected(mins) => { root.set_sleep_timer(mins); }
+        }
 
-                            HorizontalLayout {
-                                padding-left: 14px;
-                                padding-right: 14px;
-                                alignment: space-between;
+        // 2. Global Ceremony & Actions Bar
+        LightingCeremonyBar {
+            ceremony_enabled <=> root.ceremony_enabled;
+            is_previewing: root.is_previewing_ceremony;
+            save_success: root.save_success;
+            toggle_ceremony => { root.toggle_ceremony(); }
+            preview_ceremony => { root.preview_ceremony(); }
+            save_as_startup => { root.save_as_startup(); }
+            reset_defaults => { root.reset_defaults(root.sub_tab); }
+            open_topology_modal => { root.topology_modal_open = true; }
+        }
 
-                                VerticalLayout {
-                                    alignment: center;
-                                    spacing: 3px;
-                                    Text {
-                                        text: "预设/自定义色彩";
-                                        font-size: 10px;
-                                        color: AppTheme.text_muted;
-                                    }
-                                    Text {
-                                        text: root.kbd_color_name;
-                                        font-size: 12px;
-                                        font-weight: 700;
-                                        color: AppTheme.text_primary;
-                                    }
-                                }
+        // 3. SubView Switcher
+        if root.sub_tab == 0 : KeyboardLightingView {
+            kb_enabled <=> root.kb_enabled;
+            kb_engine <=> root.kb_engine;
+            kb_fps <=> root.kb_fps;
+            kb_effect <=> root.kb_effect;
+            kb_direction <=> root.kb_direction;
+            kb_brightness <=> root.kb_brightness;
+            kb_speed <=> root.kb_speed;
+            kb_color_hex <=> root.kb_color_hex;
+            kb_color <=> root.kb_color;
+            hw_desc: root.kb_hw_desc;
 
-                                Rectangle {
-                                    width: 20px;
-                                    height: 20px;
-                                    border-radius: 10px;
-                                    background: root.kbd_color_preview;
-                                    border-width: 2px;
-                                    border-color: #ffffff40;
-                                    y: (parent.height - self.height) / 2;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            toggle_enabled => { root.toggle_kb_enabled(); }
+            select_engine(eng) => { root.set_kb_engine(eng); }
+            select_fps(fps) => { root.set_kb_fps(fps); }
+            select_effect(eff) => { root.set_kb_effect(eff); }
+            select_direction(dir) => { root.set_kb_direction(dir); }
+            change_brightness(b) => { root.set_kb_brightness(b); }
+            change_speed(s) => { root.set_kb_speed(s); }
+            change_color(hex, c) => { root.set_kb_color(hex, c); }
+        }
+
+        if root.sub_tab == 1 : LightbarView {
+            lb_enabled <=> root.lb_enabled;
+            lb_effect <=> root.lb_effect;
+            lb_brightness <=> root.lb_brightness;
+            lb_speed <=> root.lb_speed;
+            lb_color_hex <=> root.lb_color_hex;
+            lb_color <=> root.lb_color;
+            hw_desc: root.lb_hw_desc;
+
+            toggle_enabled => { root.toggle_lb_enabled(); }
+            select_effect(eff) => { root.set_lb_effect(eff); }
+            change_brightness(b) => { root.set_lb_brightness(b); }
+            change_speed(s) => { root.set_lb_speed(s); }
+            change_color(hex, c) => { root.set_lb_color(hex, c); }
+        }
+
+        if root.sub_tab == 2 : AmbientLightingView {
+            hinge_enabled <=> root.hinge_enabled;
+            hinge_effect <=> root.hinge_effect;
+            hinge_brightness <=> root.hinge_brightness;
+            hinge_speed <=> root.hinge_speed;
+            hinge_color_hex <=> root.hinge_color_hex;
+            hinge_color <=> root.hinge_color;
+            hw_desc: root.hinge_hw_desc;
+
+            toggle_enabled => { root.toggle_hinge_enabled(); }
+            select_effect(eff) => { root.set_hinge_effect(eff); }
+            change_brightness(b) => { root.set_hinge_brightness(b); }
+            change_speed(s) => { root.set_hinge_speed(s); }
+            change_color(hex, c) => { root.set_hinge_color(hex, c); }
+        }
+
+        if root.sub_tab == 3 : LogoLightingView {
+            logo_enabled <=> root.logo_enabled;
+            logo_effect <=> root.logo_effect;
+            logo_brightness <=> root.logo_brightness;
+            logo_color_hex <=> root.logo_color_hex;
+            logo_color <=> root.logo_color;
+            hw_desc: root.logo_hw_desc;
+            is_ec_logo: root.is_ec_logo;
+
+            toggle_enabled => { root.toggle_logo_enabled(); }
+            select_effect(eff) => { root.set_logo_effect(eff); }
+            change_brightness(b) => { root.set_logo_brightness(b); }
+            change_color(hex, c) => { root.set_logo_color(hex, c); }
+        }
+    }
+
+    // 4. Modal Layer
+    if root.topology_modal_open : LightingTopologyModal {
+        is_open <=> root.topology_modal_open;
+        override_enabled <=> root.topology_override_enabled;
+        kb_type_idx <=> root.topology_kb_idx;
+        lightbar_type_idx <=> root.topology_lb_idx;
+        ambient_type_idx <=> root.topology_ambient_idx;
+        logo_type_idx <=> root.topology_logo_idx;
+
+        close => { root.topology_modal_open = false; }
+        apply_topology(en, kb, lb, amb, logo) => {
+            root.topology_modal_open = false;
+            root.apply_topology(en, kb, lb, amb, logo);
+        }
+        reset_topology => {
+            root.topology_modal_open = false;
+            root.reset_topology();
         }
     }
 }

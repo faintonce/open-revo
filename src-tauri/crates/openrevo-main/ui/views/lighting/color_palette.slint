@@ -1,0 +1,257 @@
+import { AppTheme } from "../../theme.slint";
+
+export component ColorPaletteRow inherits Rectangle {
+    in-out property <string> active_color_hex: "#6366F1";
+    in-out property <color> active_color: #6366f1;
+    in property <string> label_text: "定制主色调:";
+
+    callback color_selected(string, color);
+
+    height: 48px;
+    background: AppTheme.surface_sunken;
+    border-radius: AppTheme.radius_md;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: space-between;
+
+        // Left: Label + 8 Preset Color Dots (Vertically Centered)
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 14px;
+                alignment: start;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: center;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/palette.svg");
+                            width: 15px;
+                            height: 15px;
+                            colorize: AppTheme.accent_brand;
+                        }
+                    }
+                    Text {
+                        text: root.label_text;
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // 8 Preset Color Dots (20px diameter, with Vertical Center wrappers)
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+
+                    // 1. Cyan #00FFFF
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #00ffff;
+                            border-width: (root.active_color_hex == "#00FFFF" || root.active_color_hex == "#00ffff") ? 2px : 0px;
+                            border-color: #ffffff;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#00FFFF";
+                                    root.active_color = #00ffff;
+                                    root.color_selected("#00FFFF", #00ffff);
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Purple #6366F1
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #6366f1;
+                            border-width: (root.active_color_hex == "#6366F1" || root.active_color_hex == "#6366f1") ? 2px : 0px;
+                            border-color: #ffffff;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#6366F1";
+                                    root.active_color = #6366f1;
+                                    root.color_selected("#6366F1", #6366f1);
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Green #10B981
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #10b981;
+                            border-width: (root.active_color_hex == "#10B981" || root.active_color_hex == "#10b981") ? 2px : 0px;
+                            border-color: #ffffff;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#10B981";
+                                    root.active_color = #10b981;
+                                    root.color_selected("#10B981", #10b981);
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. Red #EF4444
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #ef4444;
+                            border-width: (root.active_color_hex == "#EF4444" || root.active_color_hex == "#ef4444") ? 2px : 0px;
+                            border-color: #ffffff;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#EF4444";
+                                    root.active_color = #ef4444;
+                                    root.color_selected("#EF4444", #ef4444);
+                                }
+                            }
+                        }
+                    }
+
+                    // 5. Amber #F59E0B
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #f59e0b;
+                            border-width: (root.active_color_hex == "#F59E0B" || root.active_color_hex == "#f59e0b") ? 2px : 0px;
+                            border-color: #ffffff;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#F59E0B";
+                                    root.active_color = #f59e0b;
+                                    root.color_selected("#F59E0B", #f59e0b);
+                                }
+                            }
+                        }
+                    }
+
+                    // 6. Pink #EC4899
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #ec4899;
+                            border-width: (root.active_color_hex == "#EC4899" || root.active_color_hex == "#ec4899") ? 2px : 0px;
+                            border-color: #ffffff;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#EC4899";
+                                    root.active_color = #ec4899;
+                                    root.color_selected("#EC4899", #ec4899);
+                                }
+                            }
+                        }
+                    }
+
+                    // 7. Blue #3B82F6
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #3b82f6;
+                            border-width: (root.active_color_hex == "#3B82F6" || root.active_color_hex == "#3b82f6") ? 2px : 0px;
+                            border-color: #ffffff;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#3B82F6";
+                                    root.active_color = #3b82f6;
+                                    root.color_selected("#3B82F6", #3b82f6);
+                                }
+                            }
+                        }
+                    }
+
+                    // 8. White #FFFFFF
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: #ffffff;
+                            border-width: (root.active_color_hex == "#FFFFFF" || root.active_color_hex == "#ffffff") ? 2px : 1px;
+                            border-color: (root.active_color_hex == "#FFFFFF" || root.active_color_hex == "#ffffff") ? #38bdf8 : #666666;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.active_color_hex = "#FFFFFF";
+                                    root.active_color = #ffffff;
+                                    root.color_selected("#FFFFFF", #ffffff);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right: Active Color Chip & HEX (Vertically Centered)
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 4px;
+                        background: root.active_color;
+                        border-width: 1px;
+                        border-color: #ffffff50;
+                    }
+                }
+
+                Text {
+                    text: root.active_color_hex;
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

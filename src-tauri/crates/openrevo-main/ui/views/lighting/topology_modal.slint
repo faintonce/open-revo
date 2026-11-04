@@ -1,0 +1,469 @@
+import { AppTheme } from "../../theme.slint";
+
+export component LightingTopologyModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+
+    // Override settings
+    in-out property <bool> override_enabled: false;
+    in-out property <int> kb_type_idx: 0; // 0: 自动嗅探, 1: 单键全彩RGB, 2: 4分区RGB, 3: 单区全彩RGB, 4: 单色白光, 5: 无背光
+    in-out property <int> lightbar_type_idx: 0; // 0: 自动嗅探, 1: 强制启用 (Coastline), 2: 强制停用
+    in-out property <int> ambient_type_idx: 0; // 0: 自动嗅探, 1: 强制尾部出风口, 2: 强制停用
+    in-out property <int> logo_type_idx: 0; // 0: 自动嗅探, 1: 字母全彩徽标, 2: 盾形呼吸徽标, 3: 强制停用
+
+    callback close();
+    callback apply_topology(bool, int, int, int, int);
+    callback reset_topology();
+
+    background: #000000bd;
+
+    // Prevent background clicks
+    TouchArea { }
+
+    Rectangle {
+        width: Math.min(parent.width - 48px, 620px);
+        height: Math.min(parent.height - 40px, 460px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #0f1522f5;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #38bdf845;
+        clip: true;
+
+        VerticalLayout {
+            // 1. Header
+            Rectangle {
+                height: 52px;
+                background: AppTheme.is_light ? #f8fafc : #131b2e;
+
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: center;
+
+                        Image {
+                            source: @image-url("../../assets/icons/cpu.svg");
+                            width: 18px;
+                            height: 18px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+
+                            Text {
+                                text: "模具与物理灯效设备拓扑纠偏";
+                                font-size: 14px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                            }
+                            Text {
+                                text: "当模具硬件自动探测存在误判时，可在此手动锁定真实物理硬件设备";
+                                font-size: 11px;
+                                color: AppTheme.text_muted;
+                            }
+                        }
+                    }
+
+                    // Close Button
+                    Rectangle {
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 14px;
+                        background: AppTheme.surface_pill;
+                        y: (parent.height - self.height) / 2;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.close(); }
+                        }
+
+                        Image {
+                            source: @image-url("../../assets/icons/x.svg");
+                            width: 14px;
+                            height: 14px;
+                            colorize: AppTheme.text_muted;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+            // 2. Body Settings
+            VerticalLayout {
+                padding: 16px;
+                spacing: 14px;
+
+                // Master Override Switch
+                Rectangle {
+                    height: 40px;
+                    border-radius: AppTheme.radius_md;
+                    background: root.override_enabled ? #0284c715 : AppTheme.surface_sunken;
+                    border-width: 1px;
+                    border-color: root.override_enabled ? #0284c7 : AppTheme.border_subtle;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        alignment: space-between;
+
+                        Text {
+                            text: "启用强制拓扑覆盖 (覆盖系统默认自适应探测)";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+
+                        // Toggle
+                        Rectangle {
+                            width: 44px;
+                            height: 22px;
+                            border-radius: 11px;
+                            background: root.override_enabled ? #0284c7 : AppTheme.surface_pill;
+                            y: (parent.height - self.height) / 2;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.override_enabled = !root.override_enabled; }
+                            }
+
+                            Rectangle {
+                                width: 18px;
+                                height: 18px;
+                                border-radius: 9px;
+                                background: #ffffff;
+                                x: root.override_enabled ? 24px : 2px;
+                                y: 2px;
+                                animate x { duration: 150ms; }
+                            }
+                        }
+                    }
+                }
+
+                // Field 1: Keyboard Hardware
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+
+                    Text {
+                        text: "键盘物理规格:";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.kb_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.kb_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 0; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.kb_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.kb_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 1; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "单键RGB"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.kb_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.kb_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 2; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "4分区RGB"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.kb_type_idx == 3 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.kb_type_idx == 3 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 3; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "单区RGB"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 3 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.kb_type_idx == 4 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.kb_type_idx == 4 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 4; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "单色白光"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 4 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+                    }
+                }
+
+                // Field 2: Front Lightbar
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+
+                    Text {
+                        text: "前沿海岸灯条:";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.lightbar_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.lightbar_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.lightbar_type_idx = 0; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.lightbar_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.lightbar_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.lightbar_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.lightbar_type_idx = 1; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制启用"; font-size: 11px; font-weight: 600; color: root.lightbar_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.lightbar_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.lightbar_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.lightbar_type_idx = 2; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制停用"; font-size: 11px; font-weight: 600; color: root.lightbar_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+                    }
+                }
+
+                // Field 3: Ambient
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+
+                    Text {
+                        text: "尾部出风口/转轴氛围:";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.ambient_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.ambient_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.ambient_type_idx = 0; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.ambient_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.ambient_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.ambient_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.ambient_type_idx = 1; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制尾部出风口"; font-size: 11px; font-weight: 600; color: root.ambient_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.ambient_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.ambient_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.ambient_type_idx = 2; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制停用"; font-size: 11px; font-weight: 600; color: root.ambient_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+                    }
+                }
+
+                // Field 4: LOGO
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+
+                    Text {
+                        text: "A面 LOGO 徽标:";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.logo_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.logo_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 0; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.logo_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.logo_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 1; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "字母全彩"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.logo_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.logo_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 2; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "盾形呼吸"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.logo_type_idx == 3 ? #0284c725 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.logo_type_idx == 3 ? #0284c7 : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 3; } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制停用"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 3 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+                    }
+                }
+            }
+
+            Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+            // 3. Footer Actions
+            Rectangle {
+                height: 48px;
+                background: AppTheme.is_light ? #f8fafc : #131b2e;
+
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    alignment: space-between;
+
+                    // Reset
+                    Rectangle {
+                        height: 28px;
+                        border-radius: AppTheme.radius_sm;
+                        background: AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        y: (parent.height - self.height) / 2;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.reset_topology(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 4px;
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/rotate-ccw.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: AppTheme.text_muted;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "恢复默认探测";
+                                font-size: 11px;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Save / Apply
+                    Rectangle {
+                        height: 28px;
+                        border-radius: AppTheme.radius_sm;
+                        background: #0284c7;
+                        y: (parent.height - self.height) / 2;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.apply_topology(
+                                    root.override_enabled,
+                                    root.kb_type_idx,
+                                    root.lightbar_type_idx,
+                                    root.ambient_type_idx,
+                                    root.logo_type_idx
+                                );
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            spacing: 5px;
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/check.svg");
+                                width: 13px;
+                                height: 13px;
+                                colorize: #ffffff;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "保存并生效拓扑";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
