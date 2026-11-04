@@ -1,5 +1,5 @@
 import { AppTheme } from "../theme.slint";
-import { DashboardSidebar } from "sidebar.slint";
+import { DashboardSidebar, PluginItemData } from "sidebar.slint";
 import { DashboardHeader } from "header.slint";
 import { DashboardOverviewView } from "../views/overview/overview_view.slint";
 import { DashboardCustomTuningView } from "../views/tuning/tuning_view.slint";
@@ -8,7 +8,7 @@ import { DashboardPowerView } from "../views/power/power_view.slint";
 import { DashboardLightingView } from "../views/lighting/lighting_view.slint";
 import { DashboardWaterView } from "../views/water/water_view.slint";
 import { WaterCoolerDeviceItem } from "../views/water/cooler_types.slint";
-import { DashboardPluginsView } from "../views/plugins/plugins_view.slint";
+import { DashboardPluginsView, CustomPluginItem } from "../views/plugins/plugins_view.slint";
 import { DashboardSystemView } from "../views/system/system_view.slint";
 import { DashboardSponsorView } from "../views/sponsor/sponsor_view.slint";
 
@@ -24,6 +24,24 @@ export component FullDashboard inherits Rectangle {
 
     // Active Navigation Tab: 0: 概览, 1: 显卡, 2: 电源, 3: RGB, 4: 水冷, 5: 插件, 6: 系统, 7: 赞助
     in-out property <int> active_tab: 0;
+
+    // Builtin Module Visibility & Custom Plugins
+    in-out property <bool> is_overview_enabled: true;
+    in-out property <bool> is_gpu_enabled: true;
+    in-out property <bool> is_tuning_enabled: true;
+    in-out property <bool> is_lighting_enabled: true;
+    in-out property <bool> is_water_enabled: true;
+    in-out property <[CustomPluginItem]> custom_plugins: [];
+    in-out property <string> active_plugin_id: "";
+    in-out property <[PluginItemData]> plugin_items: [];
+
+    callback select_plugin_tab(string);
+    callback launch_plugin_window(string);
+    callback open_plugin_dir(string);
+    callback toggle_builtin_module(string, bool);
+    callback toggle_custom_plugin(string, bool);
+    callback open_plugins_dir();
+    callback reload_plugins();
 
     // Tuning Sub-view State
     in-out property <bool> is_in_tuning_view: false;
@@ -399,13 +417,27 @@ export component FullDashboard inherits Rectangle {
         DashboardSidebar {
             app_version: root.app_version;
             active_tab: root.active_tab;
+            active_plugin_id <=> root.active_plugin_id;
+            plugin_items: root.plugin_items;
             is_water_connected: root.is_water_connected;
+            is_overview_enabled: root.is_overview_enabled;
+            is_gpu_enabled: root.is_gpu_enabled;
+            is_tuning_enabled: root.is_tuning_enabled;
+            is_lighting_enabled: root.is_lighting_enabled;
+            is_water_enabled: root.is_water_enabled;
             select_tab(tab_idx) => {
+                root.active_plugin_id = "";
                 root.is_in_tuning_view = false;
                 root.active_tab = tab_idx;
+                root.select_plugin_tab("");
                 if (tab_idx == 7) {
                     root.open_sponsor();
                 }
+            }
+            select_plugin_tab(p_id) => {
+                root.is_in_tuning_view = false;
+                root.active_plugin_id = p_id;
+                root.select_plugin_tab(p_id);
             }
             collapse_to_mini => {
                 root.collapse_to_mini();
@@ -418,20 +450,22 @@ export component FullDashboard inherits Rectangle {
 
             // 2.1 Top Right Header Bar (Only visible when NOT in tuning sub-view)
             if !root.is_in_tuning_view: DashboardHeader {
-                title: root.active_tab == 0 ? "状态总览" :
+                title: root.active_plugin_id != "" ? "扩展插件面板" :
+                       (root.active_tab == 0 ? "状态总览" :
                        (root.active_tab == 1 ? "显卡模式调控" :
                        (root.active_tab == 2 ? "电源与性能释放" :
                        (root.active_tab == 3 ? "RGB 灯效工坊" :
                        (root.active_tab == 4 ? "水冷魔盒 (BLE)" :
                        (root.active_tab == 5 ? "扩展插件中心" :
-                       (root.active_tab == 6 ? "系统通用设置" : "关于与支持作者"))))));
-                subtitle: root.active_tab == 0 ? "核心硬件实时遥测与性能调控中枢" :
+                       (root.active_tab == 6 ? "系统通用设置" : "关于与支持作者")))))));
+                subtitle: root.active_plugin_id != "" ? ("当前活跃第三方扩展: " + root.active_plugin_id) :
+                          (root.active_tab == 0 ? "核心硬件实时遥测与性能调控中枢" :
                           (root.active_tab == 1 ? "独显直连 (dGPU) / 混合模式 / 纯集显低功耗一键切换" :
                           (root.active_tab == 2 ? "CPU / GPU 功耗墙深度解限与原厂温控策略调校" :
                           (root.active_tab == 3 ? "电竞矩阵背光与水冷氛围灯动态联动联动" :
                           (root.active_tab == 4 ? "外置水冷机蓝牙低功耗温控联动" :
                           (root.active_tab == 5 ? "基于 WebView2 / Slint 微内核生态的社区扩展" :
-                          (root.active_tab == 6 ? "开机自启、原厂控制台接管与深色/亮色外观配置" : "感谢每一位机革玩家与开源贡献者的支持"))))));
+                          (root.active_tab == 6 ? "开机自启、原厂控制台接管与深色/亮色外观配置" : "感谢每一位机革玩家与开源贡献者的支持")))))));
 
                 toggle_theme => { root.toggle_theme(); }
                 collapse_to_mini => { root.collapse_to_mini(); }
@@ -447,7 +481,7 @@ export component FullDashboard inherits Rectangle {
             }
 
             // 2.2 Content Area - Overview
-            if root.active_tab == 0 && !root.is_in_tuning_view: DashboardOverviewView {
+            if root.active_tab == 0 && !root.is_in_tuning_view && root.active_plugin_id == "": DashboardOverviewView {
                 vertical-stretch: 1;
 
                 cpu_temp: root.cpu_temp;
@@ -666,7 +700,7 @@ export component FullDashboard inherits Rectangle {
             }
 
             // Tab 1: 显卡模式
-            if root.active_tab == 1: DashboardGpuView {
+            if root.active_tab == 1 && root.active_plugin_id == "": DashboardGpuView {
                 vertical-stretch: 1;
                 gpu_mode: root.gpu_mode;
                 gpu_name: root.gpu_name;
@@ -753,7 +787,7 @@ export component FullDashboard inherits Rectangle {
             }
 
             // Tab 2: 电源管理
-            if root.active_tab == 2: DashboardPowerView {
+            if root.active_tab == 2 && root.active_plugin_id == "": DashboardPowerView {
                 vertical-stretch: 1;
                 battery_percent: root.battery_percent;
                 is_ac_online: root.is_ac_online;
@@ -779,7 +813,7 @@ export component FullDashboard inherits Rectangle {
             }
 
             // Tab 3: RGB 灯效工坊
-            if root.active_tab == 3: DashboardLightingView {
+            if root.active_tab == 3 && root.active_plugin_id == "": DashboardLightingView {
                 vertical-stretch: 1;
 
                 sub_tab <=> root.lighting_sub_tab;
@@ -870,7 +904,7 @@ export component FullDashboard inherits Rectangle {
             }
 
             // Tab 4: 水冷魔盒 (BLE)
-            if root.active_tab == 4: DashboardWaterView {
+            if root.active_tab == 4 && root.active_plugin_id == "": DashboardWaterView {
                 vertical-stretch: 1;
 
                 is_connected: root.is_water_connected;
@@ -934,12 +968,23 @@ export component FullDashboard inherits Rectangle {
             }
 
             // Tab 5: 插件中心
-            if root.active_tab == 5: DashboardPluginsView {
+            if root.active_tab == 5 && root.active_plugin_id == "": DashboardPluginsView {
                 vertical-stretch: 1;
+                is_overview_enabled <=> root.is_overview_enabled;
+                is_gpu_enabled <=> root.is_gpu_enabled;
+                is_tuning_enabled <=> root.is_tuning_enabled;
+                is_lighting_enabled <=> root.is_lighting_enabled;
+                is_water_enabled <=> root.is_water_enabled;
+                custom_plugins <=> root.custom_plugins;
+
+                toggle_builtin_module(id, en) => { root.toggle_builtin_module(id, en); }
+                toggle_custom_plugin(id, en) => { root.toggle_custom_plugin(id, en); }
+                open_plugins_dir => { root.open_plugins_dir(); }
+                reload_plugins => { root.reload_plugins(); }
             }
 
             // Tab 6: 系统设置
-            if root.active_tab == 6: DashboardSystemView {
+            if root.active_tab == 6 && root.active_plugin_id == "": DashboardSystemView {
                 vertical-stretch: 1;
                 win_locked: root.win_locked;
                 fn_locked: root.fn_locked;
@@ -950,8 +995,291 @@ export component FullDashboard inherits Rectangle {
             }
 
             // Tab 7: 支持作者
-            if root.active_tab == 7: DashboardSponsorView {
+            if root.active_tab == 7 && root.active_plugin_id == "": DashboardSponsorView {
                 vertical-stretch: 1;
+            }
+
+            // Custom Active Plugin Workspace View
+            if root.active_plugin_id != "": Rectangle {
+                vertical-stretch: 1;
+                background: #0c1017;
+
+                VerticalLayout {
+                    spacing: 0px;
+                    padding: 0px;
+                    // Top Action Strip for Active Embedded Plugin
+                    Rectangle {
+                        height: 38px;
+                        background: AppTheme.surface_card;
+
+                        // Bottom border line
+                        Rectangle {
+                            y: parent.height - 1px;
+                            height: 1px;
+                            background: AppTheme.border_subtle;
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            alignment: space-between;
+
+                            // Left: Plugin Info Pill
+                            HorizontalLayout {
+                                alignment: start;
+                                spacing: 8px;
+
+                                Image {
+                                    source: @image-url("../assets/icons/layers.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: AppTheme.accent_active;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                Text {
+                                    text: "扩展视窗";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+
+                                // Plugin ID Pill
+                                Rectangle {
+                                    height: 20px;
+                                    border-radius: 4px;
+                                    background: AppTheme.accent_active.with-alpha(0.12);
+                                    border-width: 1px;
+                                    border-color: AppTheme.accent_active.with-alpha(0.25);
+                                    y: (parent.height - self.height) / 2;
+
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: root.active_plugin_id;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                            color: AppTheme.accent_active;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // Sandboxed / Running Badge
+                                Rectangle {
+                                    height: 20px;
+                                    border-radius: 4px;
+                                    background: AppTheme.surface_pill;
+                                    border-width: 1px;
+                                    border-color: AppTheme.border_subtle;
+                                    y: (parent.height - self.height) / 2;
+
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        spacing: 4px;
+
+                                        Rectangle {
+                                            width: 6px;
+                                            height: 6px;
+                                            border-radius: 3px;
+                                            background: #10b981;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+
+                                        Text {
+                                            text: "沙箱运行中";
+                                            font-size: 10.5px;
+                                            font-weight: 500;
+                                            color: AppTheme.text_muted;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Right: Compact Action Buttons
+                            HorizontalLayout {
+                                alignment: end;
+                                spacing: 8px;
+
+                                // Launch Popout Window
+                                Rectangle {
+                                    height: 26px;
+                                    border-radius: 6px;
+                                    background: t_launch.has-hover ? AppTheme.accent_active.darker(10%) : AppTheme.accent_active;
+                                    border-width: 1px;
+                                    border-color: AppTheme.accent_active_border;
+                                    y: (parent.height - self.height) / 2;
+
+                                    animate background { duration: 100ms; }
+
+                                    t_launch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.launch_plugin_window(root.active_plugin_id);
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        spacing: 5px;
+
+                                        Image {
+                                            source: @image-url("../assets/icons/maximize2.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: #ffffff;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+
+                                        Text {
+                                            text: "独立视窗";
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                            color: #ffffff;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // Open Plugin Dir
+                                Rectangle {
+                                    height: 26px;
+                                    border-radius: 6px;
+                                    background: t_dir.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                                    border-width: 1px;
+                                    border-color: t_dir.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+                                    y: (parent.height - self.height) / 2;
+
+                                    animate background { duration: 100ms; }
+
+                                    t_dir := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.open_plugin_dir(root.active_plugin_id);
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        spacing: 5px;
+
+                                        Image {
+                                            source: @image-url("../assets/icons/folder.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: AppTheme.text_secondary;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+
+                                        Text {
+                                            text: "插件目录";
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                            color: AppTheme.text_secondary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // Reload Plugin
+                                Rectangle {
+                                    height: 26px;
+                                    border-radius: 6px;
+                                    background: t_reload.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                                    border-width: 1px;
+                                    border-color: t_reload.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+                                    y: (parent.height - self.height) / 2;
+
+                                    animate background { duration: 100ms; }
+
+                                    t_reload := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.reload_plugins();
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        spacing: 5px;
+
+                                        Image {
+                                            source: @image-url("../assets/icons/refresh-cw.svg");
+                                            width: 11px;
+                                            height: 11px;
+                                            colorize: AppTheme.text_secondary;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+
+                                        Text {
+                                            text: "重新加载";
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                            color: AppTheme.text_secondary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // Return to Plugins Tab
+                                Rectangle {
+                                    height: 26px;
+                                    border-radius: 6px;
+                                    background: t_back.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                                    border-width: 1px;
+                                    border-color: t_back.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+                                    y: (parent.height - self.height) / 2;
+
+                                    animate background { duration: 100ms; }
+
+                                    t_back := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.active_plugin_id = "";
+                                            root.active_tab = 5;
+                                            root.select_plugin_tab("");
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        spacing: 5px;
+
+                                        Image {
+                                            source: @image-url("../assets/icons/arrow-left.svg");
+                                            width: 11px;
+                                            height: 11px;
+                                            colorize: AppTheme.text_muted;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+
+                                        Text {
+                                            text: "返回列表";
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                            color: AppTheme.text_muted;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Embedded Area Host (Clean dark backdrop for WebView2 child)
+                    Rectangle {
+                        vertical-stretch: 1;
+                        background: #0c1017;
+                    }
+                }
             }
         }
     }

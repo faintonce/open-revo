@@ -2,6 +2,8 @@ import { AppTheme } from "theme.slint";
 import { DrawerView } from "views/drawer/drawer_view.slint";
 import { FullDashboard } from "shell/full_dashboard.slint";
 import { WaterCoolerDeviceItem } from "views/water/cooler_types.slint";
+import { CustomPluginItem } from "views/plugins/plugins_view.slint";
+import { PluginItemData } from "shell/sidebar.slint";
 
 export component MainWindow inherits Window {
     title: "OpenRevo";
@@ -78,6 +80,24 @@ export component MainWindow inherits Window {
     in-out property <bool> osd_enabled: true;
     in-out property <bool> win_locked: false;
     in-out property <bool> fn_locked: false;
+
+    // Builtin Module Visibility & Custom Plugins
+    in-out property <bool> is_overview_enabled: true;
+    in-out property <bool> is_gpu_enabled: true;
+    in-out property <bool> is_tuning_enabled: true;
+    in-out property <bool> is_lighting_enabled: true;
+    in-out property <bool> is_water_enabled: true;
+    in-out property <[CustomPluginItem]> custom_plugins: [];
+    in-out property <string> active_plugin_id: "";
+    in-out property <[PluginItemData]> plugin_items: [];
+
+    callback select_plugin_tab(string);
+    callback launch_plugin_window(string);
+    callback open_plugin_dir(string);
+    callback toggle_builtin_module(string, bool);
+    callback toggle_custom_plugin(string, bool);
+    callback open_plugins_dir();
+    callback reload_plugins();
     in-out property <bool> keep_awake: false;
     in-out property <bool> autostart: false;
     in-out property <string> custom_status_text: "🍉 吃瓜群众 🍉 已就位 👀";
@@ -455,6 +475,23 @@ export component MainWindow inherits Window {
         height: 100%;
 
         app_version: root.app_version;
+
+        is_overview_enabled <=> root.is_overview_enabled;
+        is_gpu_enabled <=> root.is_gpu_enabled;
+        is_tuning_enabled <=> root.is_tuning_enabled;
+        is_lighting_enabled <=> root.is_lighting_enabled;
+        is_water_enabled <=> root.is_water_enabled;
+        custom_plugins <=> root.custom_plugins;
+        active_plugin_id <=> root.active_plugin_id;
+        plugin_items: root.plugin_items;
+
+        select_plugin_tab(p_id) => { root.select_plugin_tab(p_id); }
+        launch_plugin_window(p_id) => { root.launch_plugin_window(p_id); }
+        open_plugin_dir(p_id) => { root.open_plugin_dir(p_id); }
+        toggle_builtin_module(id, en) => { root.toggle_builtin_module(id, en); }
+        toggle_custom_plugin(id, en) => { root.toggle_custom_plugin(id, en); }
+        open_plugins_dir => { root.open_plugins_dir(); }
+        reload_plugins => { root.reload_plugins(); }
 
         cpu_vendor: root.cpu_vendor;
         cpu_tuning_type: root.cpu_tuning_type;

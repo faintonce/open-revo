@@ -346,6 +346,69 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
             sync_slint_power_state();
             sync_slint_lighting_state();
             sync_slint_water_state(None, None);
+            sync_slint_plugins_state();
+        }
+        "toggle_builtin_module" => {
+            if let Some(id) = val.get("id").and_then(|v| v.as_str()) {
+                if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
+                    let mut cfg = crate::system::config::load_config();
+                    cfg.module_toggles.insert(id.to_string(), enabled);
+                    let _ = crate::system::config::save_config(&cfg);
+
+                    if id == "water" {
+                        let _ = crate::commands::cooler_cmd::set_water_cooler_enabled(enabled);
+                    }
+                    sync_slint_plugins_state();
+                }
+            }
+        }
+        "toggle_custom_plugin" => {
+            if let Some(id) = val.get("id").and_then(|v| v.as_str()) {
+                if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
+                    let _ = crate::commands::system_cmd::set_custom_plugin_enabled(id.to_string(), enabled);
+                    sync_slint_plugins_state();
+                }
+            }
+        }
+        "open_plugins_dir" => {
+            let _ = crate::commands::system_cmd::open_plugins_dir();
+        }
+        "reload_plugins" => {
+            sync_slint_plugins_state();
+        }
+        "collapse_dashboard" => {
+            if let Some(app) = app {
+                hide_embedded_webview(app);
+            }
+        }
+        "select_plugin_tab" => {
+            if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
+                crate::log_info!("SLINT_MAIN", "User switched to plugin tab: '{}'", pid);
+                if let Some(app) = app {
+                    if pid.is_empty() {
+                        hide_embedded_webview(app);
+                    } else {
+                        attach_or_switch_embedded_webview(app, pid);
+                    }
+                }
+            }
+        }
+        "open_custom_widget" => {
+            if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
+                if let Some(app) = app {
+                    let app_clone = app.clone();
+                    let pid_string = pid.to_string();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = crate::system::widget_manager::open_custom_widget(app_clone, pid_string).await;
+                    });
+                }
+            }
+        }
+        "open_plugin_dir" => {
+            if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
+                let p_dir = crate::commands::system_cmd::find_plugin_dir(pid);
+                let _ = std::process::Command::new("explorer").arg(p_dir).spawn();
+            }
         }
         "toggle_sleep_auto_office" => {
             if let Some(enable) = val.get("enable").and_then(|v| v.as_bool()) {
@@ -1786,4 +1849,191 @@ pub fn sync_slint_water_state(opt_cpu: Option<i32>, opt_gpu: Option<i32>) {
         "curve_duties": curve_duties,
         "live_fan_duty": live_fan,
     }));
+}
+
+pub fn sync_slint_plugins_state() {
+    let toggles = crate::system::config::get_module_toggles();
+
+    // 1. Sync Builtin Module Toggles
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_state",
+        "module_toggles": {
+            "overview": toggles.get("overview").copied().unwrap_or(true),
+            "gpu": toggles.get("gpu").copied().unwrap_or(true),
+            "tuning": toggles.get("tuning").copied().unwrap_or(true),
+            "lighting": toggles.get("lighting").copied().unwrap_or(true),
+            "water": toggles.get("water").copied().unwrap_or(true),
+        }
+    }));
+
+    // 2. Scan Disk and Sync Custom Plugins
+    if let Ok(plugins) = crate::commands::system_cmd::get_custom_plugins() {
+        let list: Vec<serde_json::Value> = plugins.into_iter().map(|p| {
+            let tag = match p.plugin_type.as_str() {
+                "service" => "后台守护".to_string(),
+                "tab" => "独立面板".to_string(),
+                "widget" => "桌面组件".to_string(),
+                "skin" => "主题皮肤".to_string(),
+                "background" => "壁纸扩展".to_string(),
+                other => other.to_string(),
+            };
+            let min_ver = p.min_host_version.map(|v| format!("v{}+", v)).unwrap_or_default();
+            serde_json::json!({
+                "id": p.id,
+                "name": p.name,
+                "version": if p.version.starts_with('v') { p.version } else { format!("v{}", p.version) },
+                "author": p.author,
+                "description": p.description,
+                "plugin_type": p.plugin_type,
+                "enabled": p.enabled,
+                "tag": tag,
+                "min_version": min_ver,
+                "dir_name": p.dir_name,
+            })
+        }).collect();
+
+        send_slint_ipc_message(serde_json::json!({
+            "action": "sync_custom_plugins",
+            "plugins": list,
+        }));
+    }
+}
+
+const EMBEDDED_LABEL: &str = "embedded_plugin_host";
+
+fn calc_embedded_geometry(parent_hwnd: windows::Win32::Foundation::HWND) -> (i32, i32, i32, i32) {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
+
+    let mut rect = RECT::default();
+    unsafe {
+        let _ = GetClientRect(parent_hwnd, &mut rect);
+    }
+    let total_w = rect.right - rect.left;
+    let total_h = rect.bottom - rect.top;
+
+    if total_w <= 0 || total_h <= 0 {
+        return (200, 79, 920, 681);
+    }
+
+    // Slint full dashboard design base: 1120 x 760
+    // Sidebar width: 200px
+    // Header height: 40px
+    // Header divider: 1px
+    // Plugin action strip height: 38px (total top offset = 79px)
+    let scale_x = total_w as f64 / 1120.0;
+    let scale_y = total_h as f64 / 760.0;
+
+    let target_x = (200.0 * scale_x).round() as i32;
+    let target_y = (79.0 * scale_y).round() as i32;
+    let target_w = (total_w - target_x).max(100);
+    let target_h = (total_h - target_y).max(100);
+
+    (target_x, target_y, target_w, target_h)
+}
+
+pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
+    use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongW, SetParent, SetWindowLongW, SetWindowPos, ShowWindow,
+        GWL_EXSTYLE, GWL_STYLE, HWND_TOP, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_SHOW,
+        WS_CAPTION, WS_CHILD, WS_EX_APPWINDOW, WS_EX_WINDOWEDGE, WS_POPUP, WS_THICKFRAME,
+    };
+
+    let parent_hwnd_raw = get_openrevo_main_hwnd();
+    if parent_hwnd_raw == 0 {
+        crate::log_warn!("EMBEDDED_WEBVIEW", "Cannot locate Slint main window HWND");
+        return;
+    }
+    let parent_hwnd = HWND(parent_hwnd_raw as *mut _);
+    let (target_x, target_y, target_w, target_h) = calc_embedded_geometry(parent_hwnd);
+
+    // If window already exists, switch hash, update global id and broadcast switch event
+    if let Some(win) = app.get_webview_window(EMBEDDED_LABEL) {
+        let script = format!(
+            "window.__OPENREVO_WIDGET_ID__ = '{0}'; window.location.hash = '#/widget/{0}'; window.dispatchEvent(new CustomEvent('openrevo-switch-widget', {{ detail: {{ pluginId: '{0}' }} }}));",
+            plugin_id
+        );
+        let _ = win.eval(&script);
+        let _ = win.set_size(tauri::PhysicalSize::new(target_w as u32, target_h as u32));
+        if let Ok(child_hwnd_raw) = win.hwnd() {
+            let child_hwnd = HWND(child_hwnd_raw.0 as *mut _);
+            unsafe {
+                let _ = ShowWindow(child_hwnd, SW_SHOW);
+                let _ = SetWindowPos(
+                    child_hwnd,
+                    HWND_TOP,
+                    target_x,
+                    target_y,
+                    target_w,
+                    target_h,
+                    SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW,
+                );
+            }
+        }
+        return;
+    }
+
+    // Otherwise, create the child WebviewWindow lazily
+    let target_url = WebviewUrl::App(format!("index.html?window=widget&id={}", plugin_id).into());
+    let init_script = format!(
+        "window.__OPENREVO_WIDGET_ID__ = '{}'; window.location.hash = '#/widget/{}'; if(document.documentElement) document.documentElement.style.backgroundColor='#0c1017';",
+        plugin_id, plugin_id
+    );
+
+    let builder = WebviewWindowBuilder::new(app, EMBEDDED_LABEL, target_url)
+        .title("OpenRevo Embedded Plugin")
+        .inner_size(920.0, 674.0)
+        .resizable(false)
+        .decorations(false)
+        .transparent(false)
+        .skip_taskbar(true)
+        .initialization_script(&init_script)
+        .visible(false);
+
+    if let Ok(win) = builder.build() {
+        let _ = win.set_size(tauri::PhysicalSize::new(target_w as u32, target_h as u32));
+        if let Ok(child_hwnd_raw) = win.hwnd() {
+            let child_hwnd = HWND(child_hwnd_raw.0 as *mut _);
+            unsafe {
+                let style = GetWindowLongW(child_hwnd, GWL_STYLE) as u32;
+                let remove_mask = WS_POPUP.0 | WS_CAPTION.0 | WS_THICKFRAME.0;
+                let new_style = ((style & !remove_mask) | WS_CHILD.0) as i32;
+                let _ = SetWindowLongW(child_hwnd, GWL_STYLE, new_style);
+
+                let ex_style = GetWindowLongW(child_hwnd, GWL_EXSTYLE) as u32;
+                let remove_ex = WS_EX_APPWINDOW.0 | WS_EX_WINDOWEDGE.0;
+                let new_ex_style = (ex_style & !remove_ex) as i32;
+                let _ = SetWindowLongW(child_hwnd, GWL_EXSTYLE, new_ex_style);
+
+                let _ = SetParent(child_hwnd, parent_hwnd);
+                let _ = SetWindowPos(
+                    child_hwnd,
+                    HWND_TOP,
+                    target_x,
+                    target_y,
+                    target_w,
+                    target_h,
+                    SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+                );
+                let _ = ShowWindow(child_hwnd, SW_SHOW);
+            }
+        }
+    }
+}
+
+pub fn hide_embedded_webview(app: &AppHandle) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
+    use tauri::Manager;
+
+    if let Some(win) = app.get_webview_window(EMBEDDED_LABEL) {
+        if let Ok(child_hwnd_raw) = win.hwnd() {
+            let child_hwnd = HWND(child_hwnd_raw.0 as *mut _);
+            unsafe {
+                let _ = ShowWindow(child_hwnd, SW_HIDE);
+            }
+        }
+    }
 }

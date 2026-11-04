@@ -106,6 +106,13 @@ export component DashboardSidebar inherits Rectangle {
     in-out property <string> active_plugin_id: "";
     in-out property <[PluginItemData]> plugin_items: [];
 
+    // Builtin Module Visibility Toggles
+    in-out property <bool> is_overview_enabled: true;
+    in-out property <bool> is_gpu_enabled: true;
+    in-out property <bool> is_tuning_enabled: true;
+    in-out property <bool> is_lighting_enabled: true;
+    in-out property <bool> is_water_enabled: true;
+
     callback select_tab(int);
     callback select_plugin_tab(string);
     callback collapse_to_mini();
@@ -178,7 +185,7 @@ export component DashboardSidebar inherits Rectangle {
         VerticalLayout {
             spacing: 2px;
 
-            SidebarNavItem {
+            if root.is_overview_enabled: SidebarNavItem {
                 text: "状态总览";
                 icon: @image-url("../assets/icons/grid.svg");
                 is_active: root.active_tab == 0 && root.active_plugin_id == "";
@@ -188,7 +195,7 @@ export component DashboardSidebar inherits Rectangle {
                 }
             }
 
-            SidebarNavItem {
+            if root.is_gpu_enabled: SidebarNavItem {
                 text: "显卡模式";
                 icon: @image-url("../assets/icons/monitor.svg");
                 is_active: root.active_tab == 1 && root.active_plugin_id == "";
@@ -198,7 +205,7 @@ export component DashboardSidebar inherits Rectangle {
                 }
             }
 
-            SidebarNavItem {
+            if root.is_tuning_enabled: SidebarNavItem {
                 text: "电源管理";
                 icon: @image-url("../assets/icons/zap.svg");
                 is_active: root.active_tab == 2 && root.active_plugin_id == "";
@@ -208,7 +215,7 @@ export component DashboardSidebar inherits Rectangle {
                 }
             }
 
-            SidebarNavItem {
+            if root.is_lighting_enabled: SidebarNavItem {
                 text: "RGB 灯效工坊";
                 icon: @image-url("../assets/icons/keyboard.svg");
                 is_active: root.active_tab == 3 && root.active_plugin_id == "";
@@ -218,7 +225,7 @@ export component DashboardSidebar inherits Rectangle {
                 }
             }
 
-            SidebarNavItem {
+            if root.is_water_enabled: SidebarNavItem {
                 text: "水冷魔盒 (BLE)";
                 icon: @image-url("../assets/icons/droplet.svg");
                 is_active: root.active_tab == 4 && root.active_plugin_id == "";

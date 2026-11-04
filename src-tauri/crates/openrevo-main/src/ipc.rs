@@ -138,6 +138,23 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     if let Some(text) = val.get("custom_status_text").or_else(|| val.get("model_name")).and_then(|v| v.as_str()) {
                         ui.set_custom_status_text(text.into());
                     }
+                    if let Some(toggles) = val.get("module_toggles").and_then(|v| v.as_object()) {
+                        if let Some(en) = toggles.get("overview").and_then(|v| v.as_bool()) {
+                            ui.set_is_overview_enabled(en);
+                        }
+                        if let Some(en) = toggles.get("gpu").and_then(|v| v.as_bool()) {
+                            ui.set_is_gpu_enabled(en);
+                        }
+                        if let Some(en) = toggles.get("tuning").and_then(|v| v.as_bool()) {
+                            ui.set_is_tuning_enabled(en);
+                        }
+                        if let Some(en) = toggles.get("lighting").and_then(|v| v.as_bool()) {
+                            ui.set_is_lighting_enabled(en);
+                        }
+                        if let Some(en) = toggles.get("water").and_then(|v| v.as_bool()) {
+                            ui.set_is_water_enabled(en);
+                        }
+                    }
                     if let Some(en) = val.get("tuning_enabled").and_then(|v| v.as_bool()) {
                         ui.set_tuning_enabled(en);
                     }
@@ -799,6 +816,47 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                             });
                         }
                         ui.set_water_devices(slint::ModelRc::new(slint::VecModel::from(list)));
+                    }
+                }
+                "sync_custom_plugins" => {
+                    if let Some(arr) = val.get("plugins").and_then(|v| v.as_array()) {
+                        let mut list = Vec::new();
+                        for p in arr {
+                            let id = p.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let version = p.get("version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let author = p.get("author").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let description = p.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let plugin_type = p.get("plugin_type").and_then(|v| v.as_str()).unwrap_or("service").to_string();
+                            let enabled = p.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+                            let tag = p.get("tag").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let min_version = p.get("min_version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let dir_name = p.get("dir_name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                            list.push(crate::CustomPluginItem {
+                                id: id.into(),
+                                name: name.into(),
+                                version: version.into(),
+                                author: author.into(),
+                                description: description.into(),
+                                plugin_type: plugin_type.into(),
+                                enabled,
+                                tag: tag.into(),
+                                min_version: min_version.into(),
+                                dir_name: dir_name.into(),
+                            });
+                        }
+                        let mut tab_items = Vec::new();
+                        for p in &list {
+                            if p.enabled && p.plugin_type == "tab" {
+                                tab_items.push(crate::PluginItemData {
+                                    id: p.id.clone(),
+                                    name: p.name.clone(),
+                                });
+                            }
+                        }
+                        ui.set_plugin_items(slint::ModelRc::new(slint::VecModel::from(tab_items)));
+                        ui.set_custom_plugins(slint::ModelRc::new(slint::VecModel::from(list)));
                     }
                 }
                 _ => {}
