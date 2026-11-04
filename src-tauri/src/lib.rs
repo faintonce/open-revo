@@ -264,6 +264,7 @@ pub fn run() {
             commands::hardware_cmd::reset_custom_profile_to_defaults,
             commands::hardware_cmd::apply_custom_profile,
             commands::hardware_cmd::apply_fan_curve_live,
+            commands::hardware_cmd::apply_fan_curve_linked,
             commands::hardware_cmd::toggle_fan_isolated_output,
             commands::hardware_cmd::toggle_fan_ramp_rate,
             commands::hardware_cmd::toggle_fan_curve_control,

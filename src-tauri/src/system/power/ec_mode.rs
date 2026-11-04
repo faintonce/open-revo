@@ -491,22 +491,41 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::set_custom_mode_ec(true);
             wmi_ec::set_fan_ramp_rate(profile.fan_ramp_rate, profile.fan_ramp_speed_ms);
             
+            // 联动通道机型（无独显薄本）：manifest 声明 fan_independent_channels = false。
+            // 这类机器没有可用的第二通道温度源（0x044F 恒为 0），一旦 0x07C5 bit7 被置起，
+            // EC 会用 GPU 表驱动副扇，而 GPU 表永远停在第 0 档（duty 必须为 0x00），副扇从此不转。
+            // 所以隔离位必须保持清除，两把扇都跟随 CPU 表。切模式 / 应用方案 / 唤醒恢复都会走这里，
+            // 只在实时下发命令里清位是不够的。
+            let linked_channels = !crate::hal::declarative::load_matched_manifest()
+                .map(|m| m.capabilities.fan_independent_channels)
+                .unwrap_or(true);
+
             // If custom fan isolated output / curve is enabled in profile, build and apply user curve; otherwise default to turbo fan table
             // If Fan Boost is active, do not latch curve into EC RAM to preserve full speed!
             if !fan_boost_active {
-                if profile.fan_isolated_output || profile.fan_curve_enabled {
+                // 单通道机型 UI 上没有「启用曲线」开关，面板里显示的那条曲线就是用户意图，
+                // 所以这里把 linked_channels 也算作启用，避免切一次模式就退回固件表。
+                if profile.fan_isolated_output || profile.fan_curve_enabled || linked_channels {
                     if wmi_ec::is_legacy_dual_mode_ec() {
                         crate::log_warn!("POWER_MODE", "Legacy Dual-Mode chassis does not support RamFan1p5 RAM curve injection, bypassing to protect fan FSM");
                     } else {
-                        // Assert ADDR_FAN_ISOLATED Bit 7 (Fan Independent Output / Custom Fan Table Active)
-                        wmi_ec::set_fan_isolated_output(true);
+                        // 独立通道机型：Assert ADDR_FAN_ISOLATED Bit 7（主副扇各走各的表）
+                        // 联动通道机型：保持清除，副扇继续跟随 CPU 表
+                        wmi_ec::set_fan_isolated_output(!linked_channels);
 
-                        let custom_table = build_custom_fan_table(&profile.cpu_fan_curve, &profile.gpu_fan_curve);
+                        let (cpu_curve, gpu_curve) = if linked_channels {
+                            (&profile.cpu_fan_curve, &profile.cpu_fan_curve)
+                        } else {
+                            (&profile.cpu_fan_curve, &profile.gpu_fan_curve)
+                        };
+                        let custom_table = build_custom_fan_table(cpu_curve, gpu_curve);
                         apply_fan_table_to_ec(&custom_table);
 
                         crate::log_info!(
                             "POWER_MODE",
-                            "Custom Fan Curve Activated: CustomMode asserted, FanIsolated asserted, ramp rate set, duties written to RAM"
+                            "Custom Fan Curve Activated: CustomMode asserted, FanIsolated={} (linked_channels={}), ramp rate set, duties written to RAM",
+                            !linked_channels,
+                            linked_channels
                         );
                     }
                 } else {
