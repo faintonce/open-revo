@@ -288,6 +288,25 @@
 
 ---
 
+### 4. BLE 水冷魔盒自适应重连与零开销广播监听陷阱（开机离线与重连资源矛盾）
+- **现象**：
+  早期版本采用死循环无限重连，导致设备关机或不在身边时，Windows WinRT 栈持续阻塞、蓝牙射频持续广播扫描（引发蓝牙鼠标飘移、蓝牙耳机丢帧爆音）且 CPU 频繁唤醒；后续为了节约资源改为开机探测几次失败即放弃重试，但这导致用户若稍晚通电水冷机或拔插后，软件无法感知，用户必须去界面手动点击“立即直连”。
+- **根因剖析**：
+  1. **WinRT 阻塞特性**：对已配对但离线的设备调用 `BluetoothLEDevice::FromBluetoothAddressAsync` 与 `GetGattServices...` 时，Windows BLE 协议栈会陷入 10~15 秒的内部超时阻塞。
+  2. **状态机断点**：一次性重试耗尽后没有提供保底的被动捕获机制，造成状态机与物理设备状态脱节。
+- **最佳实践：双模自适应 + BLE 广播被动嗅探架构（Active Burst ➡️ Passive Standby）**：
+  1. **主动冲刺阶段（Active Burst）**：
+     开机、唤醒或用户点击“连接”时，启动快速直接探测（连续 3~4 次，间隔 2s ➡️ 3s ➡️ 4s，总耗时约 15s），若水冷机已在通电状态可瞬间（< 1s）直连。
+  2. **零功耗被动广播监听驻留（Passive Advertisement Standby）**：
+     若主动冲刺未命中，**严禁死循环轮询，也严禁彻底放弃**。而是无缝转入 Windows 原生 `BluetoothLEAdvertisementWatcher`（采用 `BluetoothLEScanningMode::Passive`）：
+     - **0% CPU、0 射频发射**：被动接收空中广播，不干扰任何蓝牙音频/外设；
+     - **通电毫秒级自愈**：用户通电水冷机瞬间，水冷芯片广播出自身的 MAC / 设备名（`COOLING` / `LCT` / `CS_`），Windows OS 硬件回调瞬间击发 `Received` 事件；
+     - **即刻唤醒重连**：被动监听器收到广播后瞬间唤醒 supervisor 线程，并在 500ms 内完成 NUS 服务解析与 `sw` 握手，真正做到“通电即连、完全无感”。
+  3. **慢心跳兜底（Heartbeat Pulse）**：
+     在被动监听期间，以 45 秒长周期执行一次轻量校验，防范极个别老旧蓝牙网卡丢弃空中广播包的情况。
+
+---
+
 ## 四、平台与 Windows 原生调用陷阱
 
 ### 1. 彻底根绝 PowerShell 铁律与纯 Win32 API 替换模式
@@ -333,6 +352,56 @@ OpenRevo 恪守绝对原则：**严禁在运行时代码中调用 PowerShell 或
   1. **动态检索并绑定主窗口句柄**：实现 `get_openrevo_main_hwnd()`，优先嗅探活动窗口，并利用 `EnumWindows` 精确获取可见的 `"OpenRevo"` 窗口 HWND，将其作为 `hwndOwner` 传入；同时显式调用 `SetForegroundWindow` / `BringWindowToTop`。Win32 会自动在弹窗期间禁用主窗口，并在弹窗关闭后自动解封恢复焦点。
   2. **全局原子防重入守卫**：引入 `static IS_FILE_DIALOG_ACTIVE: AtomicBool`。当已有弹窗处于激活状态时，后续点击直接拦截并忽略；使用 RAII Drop Guard 确保弹窗无论确认还是取消都能安全释放锁。
   3. **规范 Flags 组合**：显式加入 `OFN_NOCHANGEDIR (0x8)` 防止进程工作路径被用户浏览行为篡改，加入 `OFN_EXPLORER (0x80000)` 和 `OFN_ENABLESIZING (0x800000)` 提供现代视觉交互体验。
+
+---
+
+### 7. 动态数组越界返回 0 导致坐标塌缩与 Path 乱飞绘制“三角区域”陷阱
+- **现象**：温控曲线控制面板中，折线图从最右侧节点突然斜拉一条贯穿画布的斜线飞回左下角（30°C / 0%），同时底部的半透明渐变阴影闭合异常，将整个画布右半部分涂成一个怪异的三角形楔形区域。
+- **根因分析**：
+  1. **Slint 动态数组下标越界静默返回默认值（0）**：在 Slint 标记语言中，读取 `array[idx]` 越界时**不会抛异常或闪退，而是静默返回该类型的零值（0）**。
+  2. 历史配置或预设中曲线节点数量可能只有 5 个（如 `config.json` 早期保存的 `cooler_curve_points` 长度为 5），当 Slint 代码以 6 节点硬编码取 `root.curve_temps[5]` 和 `root.curve_duties[5]` 时，获取到 `temp = 0`，`duty = 0`。
+  3. **映射函数 clamp 边界映射**：映射函数 `temp_to_x(t)` 将低于 30°C 的温度 clamp 到 0.0，导致 `x5` 塌缩到左边界 `pad_l`（对应 30°C）；同时 `duty_to_y(0)` 将 0% 映射到最底部 `floor_y`。
+  4. **Path 连线穿透**：连续折线 `Path` 从 `x4`（88°C, 100%）连线到 `x5`（30°C, 0%），直接在画布上拉出一条对角线；且渐变填充在底部 `Close {}` 时形成翻转交叉多边形，渲染出巨大的三角怪异区域。
+- **三层立体防御黄金规范**：
+  1. **Slint 纯函数安全解包器（Layer 1）**：
+     在 Slint 画布内部封装 `get_pt_temp(idx)` 与 `get_pt_duty(idx)` 纯函数，越界时自动继承末尾节点趋势递增（如 `last_temp + 3`），严禁任何坐标直接访问裸下标。
+  2. **IPC 传输层规范化补齐（Layer 2）**：
+     在 `ipc.rs` 反序列化 `curve_temps` 与 `curve_duties` 时，若长度不足 6 个，统一自动 padding 填充平滑补齐至 6 个节点。
+  3. **后端状态同步层标准化（Layer 3）**：
+     在 `slint_window.rs` 的 `sync_slint_water_state` 中对任意长度的 `curve_points` 做安全对齐，确保跨进程派发的数据结构 100% 具备标准的 6 节点规范。
+
+---
+
+### 8. VerticalLayout 默认均分剩余高度导致卡片异常纵向拉伸陷阱
+- **现象**：水冷页面中，顶部的 4 块硬件监控数据卡片（水流状态、核心温度、水泵工况、风扇转速）和 4 块散热预设卡片变得奇高无比（高约 150px~200px），卡片内部上下留下巨大的漆黑空隙，而本应作为主角的温控曲线折线图却被压缩得很扁。
+- **根因分析**：
+  1. Slint 的 `VerticalLayout` 在窗口有多余纵向高度（如 1120x760 分辨率减去各元素基本高度后多出约 300px）时，**会根据子元素的 `vertical-stretch` 比例进行高度分配**。
+  2. 当子组件（如 `CoolerHeaderTelemetry` 和 `CoolerPresetCards`）未显式声明 `vertical-stretch: 0` 时，Slint 默认将其视作弹性伸缩容器，将多余的几百像素均匀拉伸这些信息卡片。
+- **规范与解决方案**：
+  - **信息展示类与固定控制类面板**（指标卡片、预设卡片、手动控制与灯效条）：**强制显式声明 `vertical-stretch: 0;`**，高度由内容自适应紧凑锁定（指标卡 52px，预设卡 68px，手动条 64px）。
+  - **图形/画布类主操作区**（温控曲线面板）：**强制显式声明 `vertical-stretch: 1;`**，并且内部的 `chart_canvas` 声明 `vertical-stretch: 1; min-height: 160px;`，让交互图表优雅撑满剩余的黄金操作区域。
+
+---
+
+### 9. 后台定时轮询（Background Polling）与前台手柄拖拽（Drag Event）状态冲突导致的回弹与微卡顿陷阱
+- **现象**：在拖拽水冷曲线节点或水泵阈值双杆时，手柄移动不跟手，有时会发生肉眼可见的“卡顿”和“瞬时回弹”，手感远不如性能自定义风扇曲线面板流畅。
+- **根因分析**：
+  1. **后台 1000ms 监控心跳强行覆写未提交状态**：
+     硬件监控主循环（`sync_slint_overview_state`）每 1 秒触发一次。历史实现中在监控循环末尾无差别调用了 `sync_slint_water_state`，将后端的旧配置（未 commit 的水泵启停阈值、旧曲线点）每秒强推一次给伴生进程。
+  2. 伴生进程的 `ipc.rs` 在收到 `sync_water_cooler` 时，直接无脑执行 `ui.set_water_pump_start_temp(...)` 与 `ui.set_water_curve_temps(...)`。当用户拖住手柄持续 2 秒时，中途必然遭遇 1~2 次后端旧状态的覆盖，手柄瞬间被拉回原位；随着鼠标微移触发下一次 `moved`，手柄又强行跳到鼠标新坐标，形成极具违和感的“回弹”与抽搐。
+  3. **冗余数据驱动与 ModelRc 重建风暴**：
+     在 `window.on_set_water_curve_point` 中，无论计算后的离散整数值是否改变，每一个鼠标像素位移都强制重新构造 `slint::ModelRc<slint::VecModel>` 并赋值，频繁触发 UI 依赖图全面重算。
+  4. **全画布 TouchArea 碰撞判定粗糙**：
+     仅靠 X 坐标绝对值划分水泵手柄与曲线节点，当节点温度与水泵阈值相近时发生判定抢占，导致拖拽目标误判。
+- **标准化防撕裂架构规范**：
+  1. **前台拖拽原子互斥标志位（`is_curve_dragging`）**：
+     在 Slint 画布 `TouchArea` 按下（`down`）时置 `is_dragging = true`，松手（`up` / `cancel`）时置 `false`。
+  2. **IPC 入站隔离守卫**：
+     在 `ipc.rs` 中执行过滤拦截：若 `ui.get_is_water_curve_dragging() == true`，**绝对严禁**覆写曲线节点及阈值等静态配置属性，仅放行实时温度、转速、水流状态等动态遥测指标。
+  3. **值未变短路守卫（No-op Short Circuit）**：
+     在回调中增加 `if temps[i] == clamped_temp && duties[i] == clamped_duty { return; }`，过滤掉 80% 的亚像素微移无意义模型重构。
+  4. **欧氏/曼哈顿距离加权命中树**：
+     优先检测是否精准点击节点圆心（阈值 20px），其次检测水泵杆横向范围（16px），彻底消除重叠区域判定互斥抖动。
 
 ---
 

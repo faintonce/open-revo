@@ -1,6 +1,7 @@
 import { AppTheme } from "theme.slint";
 import { DrawerView } from "views/drawer/drawer_view.slint";
 import { FullDashboard } from "shell/full_dashboard.slint";
+import { WaterCoolerDeviceItem } from "views/water/cooler_types.slint";
 
 export component MainWindow inherits Window {
     title: "OpenRevo";
@@ -324,6 +325,57 @@ export component MainWindow inherits Window {
 
     callback apply_lighting_topology(bool, int, int, int, int);
     callback reset_lighting_topology();
+
+    // Water Cooler Props & Callbacks
+    in-out property <bool> is_water_connected: false;
+    in-out property <bool> is_water_connecting: false;
+    in-out property <bool> is_water_pairing: false;
+    in-out property <bool> is_water_priming: false;
+    in-out property <string> water_mac_address: "";
+    in-out property <bool> water_flow_ok: true;
+    in-out property <int> water_meter_state: 1;
+    in-out property <int> water_pump_tier: 2;
+    in-out property <int> water_pump_voltage: 7;
+    in-out property <int> water_fan_duty: 37;
+    in-out property <int> water_pump_rpm: 2400;
+    in-out property <int> water_fan_rpm: 1200;
+    in-out property <string> water_strategy: "smart";
+    in-out property <string> water_curve_template: "standard";
+    in-out property <[int]> water_curve_temps: [45, 55, 65, 80, 90, 95];
+    in-out property <[int]> water_curve_duties: [0, 35, 50, 60, 75, 100];
+    in-out property <int> water_pump_start_temp: 55;
+    in-out property <int> water_pump_turbo_temp: 90;
+    in-out property <int> water_live_fan_duty: 0;
+    in-out property <bool> is_water_curve_dragging: false;
+    in-out property <bool> water_led_on: true;
+    in-out property <int> water_led_mode: 2;
+    in-out property <int> water_led_r: 0;
+    in-out property <int> water_led_g: 128;
+    in-out property <int> water_led_b: 0;
+    in-out property <bool> is_water_device_modal_open: false;
+    in-out property <bool> is_water_scanning_devices: false;
+    in-out property <[WaterCoolerDeviceItem]> water_devices: [];
+    in-out property <string> water_modal_error_msg: "";
+
+    callback connect_water_cooler();
+    callback disconnect_water_cooler();
+    callback pair_water_cooler();
+    callback fill_water_cooler();
+    callback reset_water_cooler();
+    callback update_water_strategy(string);
+    callback set_water_cooler_speed(int, int);
+    callback set_water_curve_point(int, int, int);
+    callback commit_water_curve();
+    callback water_pump_thresholds_changing(int, int);
+    callback commit_water_pump_thresholds(int, int);
+    callback apply_water_curve_template(string);
+    callback set_water_led_enabled(bool);
+    callback set_water_led_mode(int);
+    callback set_water_led_color(int, int, int);
+    callback open_water_device_selector();
+    callback close_water_device_selector();
+    callback refresh_water_devices();
+    callback select_water_device(string);
     callback expand_dashboard_clicked();
     callback collapse_dashboard_clicked();
     callback toggle_fullscreen_clicked();
@@ -768,5 +820,62 @@ export component MainWindow inherits Window {
 
         apply_lighting_topology(en, kb, lb, amb, logo) => { root.apply_lighting_topology(en, kb, lb, amb, logo); }
         reset_lighting_topology => { root.reset_lighting_topology(); }
+
+        // Water Cooler (BLE)
+        is_water_connected: root.is_water_connected;
+        is_water_connecting: root.is_water_connecting;
+        is_water_pairing: root.is_water_pairing;
+        is_water_priming: root.is_water_priming;
+        water_mac_address: root.water_mac_address;
+        water_flow_ok: root.water_flow_ok;
+        water_meter_state: root.water_meter_state;
+        water_pump_tier: root.water_pump_tier;
+        water_pump_voltage: root.water_pump_voltage;
+        water_fan_duty: root.water_fan_duty;
+        water_pump_rpm: root.water_pump_rpm;
+        water_fan_rpm: root.water_fan_rpm;
+
+        water_strategy: root.water_strategy;
+        water_curve_template: root.water_curve_template;
+        water_curve_temps <=> root.water_curve_temps;
+        water_curve_duties <=> root.water_curve_duties;
+        water_pump_start_temp <=> root.water_pump_start_temp;
+        water_pump_turbo_temp <=> root.water_pump_turbo_temp;
+        water_live_fan_duty: root.water_live_fan_duty;
+        is_water_curve_dragging <=> root.is_water_curve_dragging;
+
+        water_led_on: root.water_led_on;
+        water_led_mode: root.water_led_mode;
+        water_led_r: root.water_led_r;
+        water_led_g: root.water_led_g;
+        water_led_b: root.water_led_b;
+
+        is_water_device_modal_open <=> root.is_water_device_modal_open;
+        is_water_scanning_devices: root.is_water_scanning_devices;
+        water_devices: root.water_devices;
+        water_modal_error_msg: root.water_modal_error_msg;
+
+        connect_water_cooler => { root.connect_water_cooler(); }
+        disconnect_water_cooler => { root.disconnect_water_cooler(); }
+        pair_water_cooler => { root.pair_water_cooler(); }
+        fill_water_cooler => { root.fill_water_cooler(); }
+        reset_water_cooler => { root.reset_water_cooler(); }
+
+        update_water_strategy(strat) => { root.update_water_strategy(strat); }
+        set_water_cooler_speed(tier, fan) => { root.set_water_cooler_speed(tier, fan); }
+        set_water_curve_point(idx, t, d) => { root.set_water_curve_point(idx, t, d); }
+        commit_water_curve => { root.commit_water_curve(); }
+        water_pump_thresholds_changing(st, tb) => { root.water_pump_thresholds_changing(st, tb); }
+        commit_water_pump_thresholds(st, tb) => { root.commit_water_pump_thresholds(st, tb); }
+        apply_water_curve_template(tpl) => { root.apply_water_curve_template(tpl); }
+
+        set_water_led_enabled(en) => { root.set_water_led_enabled(en); }
+        set_water_led_mode(m) => { root.set_water_led_mode(m); }
+        set_water_led_color(r, g, b) => { root.set_water_led_color(r, g, b); }
+
+        open_water_device_selector => { root.open_water_device_selector(); }
+        close_water_device_selector => { root.close_water_device_selector(); }
+        refresh_water_devices => { root.refresh_water_devices(); }
+        select_water_device(mac) => { root.select_water_device(mac); }
     }
 }

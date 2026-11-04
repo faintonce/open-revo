@@ -279,6 +279,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                 sync_slint_tuning_state();
                 sync_slint_display_state();
                 sync_slint_power_state();
+                sync_slint_water_state(None, None);
 
                 // Listen for stdout from companion
                 if let Some(stdout) = child.stdout.take() {
@@ -344,6 +345,7 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
             sync_slint_display_state();
             sync_slint_power_state();
             sync_slint_lighting_state();
+            sync_slint_water_state(None, None);
         }
         "toggle_sleep_auto_office" => {
             if let Some(enable) = val.get("enable").and_then(|v| v.as_bool()) {
@@ -523,6 +525,112 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         }
         "turn_off_screen" => {
             let _ = crate::commands::hardware_cmd::turn_off_screen();
+        }
+
+        // ==========================================
+        // Water Cooler (BLE) Actions
+        // ==========================================
+        "start_water_cooler" => {
+            let pump_v = val.get("pump_v").and_then(|v| v.as_i64()).map(|v| v as u8);
+            let fan_d = val.get("fan_d").and_then(|v| v.as_i64()).map(|v| v as u8);
+            let _ = crate::commands::cooler_cmd::start_water_cooler(pump_v, fan_d);
+            sync_slint_water_state(None, None);
+        }
+        "stop_water_cooler" => {
+            let _ = crate::commands::cooler_cmd::stop_water_cooler();
+            sync_slint_water_state(None, None);
+        }
+        "pair_water_cooler" => {
+            std::thread::spawn(|| {
+                let _ = crate::commands::cooler_cmd::pair_water_cooler();
+                sync_slint_water_state(None, None);
+            });
+        }
+        "fill_water_cooler" => {
+            let _ = crate::commands::cooler_cmd::fill_water_cooler();
+            sync_slint_water_state(None, None);
+        }
+        "reset_water_cooler" => {
+            let _ = crate::commands::cooler_cmd::reset_water_cooler();
+            sync_slint_water_state(None, None);
+        }
+        "set_water_cooler_strategy" => {
+            let strat = val.get("strategy").and_then(|v| v.as_str()).unwrap_or("smart").to_string();
+            let curve = if let Some(arr) = val.get("curve").and_then(|v| v.as_array()) {
+                let mut pts = Vec::new();
+                for item in arr {
+                    let temp = item.get("temp").and_then(|v| v.as_i64()).unwrap_or(55) as u8;
+                    let fan_duty = item.get("fan_duty").and_then(|v| v.as_i64()).unwrap_or(50) as u8;
+                    let pump_voltage = item.get("pump_voltage").and_then(|v| v.as_i64()).unwrap_or(2) as u8;
+                    pts.push(crate::system::config::CoolerCurvePoint {
+                        temp,
+                        fan_duty,
+                        pump_voltage,
+                    });
+                }
+                Some(pts)
+            } else {
+                None
+            };
+            let _ = crate::commands::cooler_cmd::set_water_cooler_strategy(strat, curve);
+            sync_slint_water_state(None, None);
+        }
+        "set_water_cooler_speed" => {
+            let pump_v = val.get("pump_v").and_then(|v| v.as_i64()).map(|v| v as u8);
+            let fan_d = val.get("fan_d").and_then(|v| v.as_i64()).map(|v| v as u8);
+            let _ = crate::commands::cooler_cmd::set_water_cooler_speed(pump_v, fan_d);
+            sync_slint_water_state(None, None);
+        }
+        "set_water_cooler_pump_thresholds" => {
+            let st = val.get("start_temp").and_then(|v| v.as_i64()).unwrap_or(55) as u8;
+            let tb = val.get("turbo_temp").and_then(|v| v.as_i64()).unwrap_or(90) as u8;
+            let _ = crate::commands::cooler_cmd::set_water_cooler_pump_thresholds(st, tb);
+            sync_slint_water_state(None, None);
+        }
+        "set_water_cooler_led" => {
+            let on = val.get("on").and_then(|v| v.as_bool()).unwrap_or(true);
+            let mode = val.get("mode").and_then(|v| v.as_i64()).unwrap_or(2) as u8;
+            let r = val.get("r").and_then(|v| v.as_i64()).unwrap_or(0) as u8;
+            let g = val.get("g").and_then(|v| v.as_i64()).unwrap_or(128) as u8;
+            let b = val.get("b").and_then(|v| v.as_i64()).unwrap_or(0) as u8;
+            let _ = crate::commands::cooler_cmd::set_water_cooler_led(on, r, g, b, mode);
+            sync_slint_water_state(None, None);
+        }
+        "scan_water_cooler_devices" => {
+            std::thread::spawn(|| {
+                match crate::commands::cooler_cmd::scan_water_cooler_devices() {
+                    Ok(devs) => {
+                        let current_mac = crate::driver::ble_cooler::get_global_cooler().get_telemetry().mac_address;
+                        let json_devs: Vec<serde_json::Value> = devs.into_iter().map(|d| {
+                            let is_curr = !current_mac.is_empty() && d.mac_address.eq_ignore_ascii_case(&current_mac);
+                            serde_json::json!({
+                                "name": d.name,
+                                "mac_address": d.mac_address,
+                                "rssi": d.rssi,
+                                "is_paired": d.is_paired,
+                                "is_current": is_curr,
+                            })
+                        }).collect();
+                        send_slint_ipc_message(serde_json::json!({
+                            "action": "sync_water_cooler_devices",
+                            "devices": json_devs,
+                        }));
+                    }
+                    Err(e) => {
+                        send_slint_ipc_message(serde_json::json!({
+                            "action": "sync_water_cooler_devices",
+                            "devices": [],
+                            "error_msg": e,
+                        }));
+                    }
+                }
+            });
+        }
+        "select_water_cooler" => {
+            if let Some(mac) = val.get("mac").and_then(|v| v.as_str()) {
+                let _ = crate::commands::cooler_cmd::select_water_cooler(mac.to_string());
+                sync_slint_water_state(None, None);
+            }
         }
         "set_display_tuning_enabled" => {
             let enabled = val.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
@@ -1357,6 +1465,8 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "power_mode": state.power_mode,
         "fan_boost": state.fan_boost,
     }));
+
+    sync_slint_water_state(Some(state.cpu_temp as i32), Some(state.gpu_temp as i32));
 }
 
 pub fn sync_slint_tuning_state() {
@@ -1583,4 +1693,97 @@ pub fn sync_slint_lighting_state() {
             "description": hw.description,
         }));
     }
+}
+
+pub fn sync_slint_water_state(opt_cpu: Option<i32>, opt_gpu: Option<i32>) {
+    let cooler = crate::driver::ble_cooler::get_global_cooler();
+    let tel = cooler.get_telemetry();
+
+    let (curve_temps, curve_duties) = if !tel.curve_points.is_empty() {
+        let mut pts = tel.curve_points.clone();
+        pts.sort_by_key(|p| p.temp);
+        while pts.len() < 6 {
+            let last = pts.last().cloned().unwrap();
+            pts.push(crate::system::config::CoolerCurvePoint {
+                temp: (last.temp + 4).min(100),
+                fan_duty: last.fan_duty,
+                pump_voltage: last.pump_voltage,
+            });
+        }
+        if pts.len() > 6 {
+            pts.truncate(6);
+        }
+        let t: Vec<i32> = pts.iter().map(|p| p.temp as i32).collect();
+        let d: Vec<i32> = pts.iter().map(|p| p.fan_duty as i32).collect();
+        (t, d)
+    } else {
+        (vec![45, 55, 65, 80, 90, 95], vec![0, 35, 50, 60, 75, 100])
+    };
+
+    let cpu = opt_cpu.unwrap_or(55);
+    let gpu = opt_gpu.unwrap_or(45);
+    let max_temp = cpu.max(gpu);
+
+    let live_fan = if tel.strategy == "quiet" {
+        40
+    } else if tel.strategy == "balance" {
+        65
+    } else if tel.strategy == "performance" {
+        100
+    } else if tel.strategy == "custom" {
+        tel.fan_duty as i32
+    } else {
+        // "smart" interpolation
+        if max_temp < tel.pump_start_temp as i32 {
+            0
+        } else if tel.curve_points.is_empty() {
+            40
+        } else if max_temp <= tel.curve_points[0].temp as i32 {
+            tel.curve_points[0].fan_duty as i32
+        } else if max_temp >= tel.curve_points.last().unwrap().temp as i32 {
+            tel.curve_points.last().unwrap().fan_duty as i32
+        } else {
+            let mut interp = tel.curve_points[0].fan_duty as i32;
+            for i in 0..tel.curve_points.len() - 1 {
+                let t1 = tel.curve_points[i].temp as i32;
+                let t2 = tel.curve_points[i + 1].temp as i32;
+                if max_temp >= t1 && max_temp <= t2 {
+                    let d1 = tel.curve_points[i].fan_duty as i32;
+                    let d2 = tel.curve_points[i + 1].fan_duty as i32;
+                    if t2 > t1 {
+                        interp = d1 + (max_temp - t1) * (d2 - d1) / (t2 - t1);
+                    } else {
+                        interp = d1;
+                    }
+                    break;
+                }
+            }
+            interp
+        }
+    };
+
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_water_cooler_state",
+        "connected": tel.connected,
+        "is_flow_ok": tel.is_flow_ok,
+        "meter_state": tel.meter_state,
+        "pump_voltage": tel.pump_voltage,
+        "pump_tier": tel.pump_tier,
+        "fan_duty": tel.fan_duty,
+        "pump_rpm": tel.pump_rpm,
+        "fan_rpm": if tel.connected { (live_fan as f64 * 32.0) as i32 } else { 0 },
+        "is_priming": tel.is_priming,
+        "led_on": tel.led_on,
+        "led_r": tel.led_r,
+        "led_g": tel.led_g,
+        "led_b": tel.led_b,
+        "led_mode": tel.led_mode,
+        "mac_address": tel.mac_address,
+        "strategy": tel.strategy,
+        "pump_start_temp": tel.pump_start_temp,
+        "pump_turbo_temp": tel.pump_turbo_temp,
+        "curve_temps": curve_temps,
+        "curve_duties": curve_duties,
+        "live_fan_duty": live_fan,
+    }));
 }
