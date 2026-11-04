@@ -642,13 +642,17 @@ export const PowerTuningView: React.FC = () => {
               <span>
                 {powerInfo.is_ac_online
                   ? (() => {
-                      const barrel = powerInfo.adapter_type === '圆口' || powerInfo.adapter_type === '圆口+Type-C';
-                      const rated = barrel && powerInfo.adapter_watts
-                        ? (powerInfo.adapter_watts === 230 ? ' 230/240W' : ` ${powerInfo.adapter_watts}W`)
+                      const type = powerInfo.adapter_type;
+                      const isTypeC = type.includes('Type-C');
+                      const isBarrel = type === '圆口';
+                      const watts = powerInfo.adapter_watts;
+                      const rated = watts
+                        ? (isBarrel && watts === 230 ? ' 230/240W' : ` ${watts}W`)
                         : '';
+                      const label = isTypeC ? `Type-C适配器${rated}` : `适配器${rated}`;
                       const rate = powerInfo.battery_rate_watts ?? 0;
-                      if (rate > 0) return `适配器${rated} · 充电中 ${rate}W`;
-                      return `适配器${rated}`;
+                      if (rate > 0) return `${label} · 充电中 ${rate}W`;
+                      return label;
                     })()
                   : '正在使用电池供电'}
               </span>

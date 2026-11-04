@@ -33,14 +33,17 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
           <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: status.is_dc_online ? '#34d399' : '#fbbf24' }} />
           {(() => {
             if (!status.is_dc_online) return '电池供电';
-            const type = status.adapter_type;
-            const barrel = type === '圆口' || type === '圆口+Type-C';
-            const rated = barrel && status.adapter_watts
-              ? (status.adapter_watts === 230 ? ' 230/240W' : ` ${status.adapter_watts}W`)
+            const type = status.adapter_type || '';
+            const isTypeC = type.includes('Type-C');
+            const isBarrel = type === '圆口';
+            const watts = status.adapter_watts;
+            const rated = watts
+              ? (isBarrel && watts === 230 ? ' 230/240W' : ` ${watts}W`)
               : '';
+            const label = isTypeC ? `Type-C适配器${rated}` : `适配器${rated}`;
             const rate = status.battery_rate_watts ?? 0;
-            if (rate > 0) return `适配器${rated} · 充电 ${rate}W`;
-            return `适配器${rated}`;
+            if (rate > 0) return `${label} · 充电 ${rate}W`;
+            return label;
           })()}
         </div>
       </div>

@@ -162,33 +162,79 @@ pub fn read_adapter_type() -> String {
 
 /// 适配器额定功率编码的原始 EC 值（用于显示 "(EC 0xXX)"）
 pub fn read_adapter_raw() -> Option<u8> {
+    let primary = wmi_ec::wmi_read_ec(wmi_ec::ADDR_ADAPTER_WATTS).unwrap_or(0);
+    if primary > 0 {
+        return Some(primary);
+    }
+    wmi_ec::wmi_read_ec(wmi_ec::ADDR_ADAPTER_WATTS_ALT).filter(|v| *v > 0)
+}
+
+
+
+/// 圆口适配器额定功率编码原始值（用于显示/兜底）。
+pub fn read_adapter_rated_raw() -> Option<u8> {
     wmi_ec::wmi_read_ec(wmi_ec::ADDR_ADAPTER_RATED_WATTS)
 }
 
-
-
-/// 适配器额定功率（W）。ADDR_ADAPTER_RATED_WATTS 的 bit3~6 编码，未识别返回 None。
+/// 圆口适配器额定功率（W）：ADDR_ADAPTER_RATED_WATTS 的 bit3~6 编码，未识别返回 None。
 pub fn read_adapter_rated_watts() -> Option<u16> {
     let raw = wmi_ec::wmi_read_ec(wmi_ec::ADDR_ADAPTER_RATED_WATTS)?;
     let code = raw & 0x78;
-    let watts = match code {
-        0x00 => 330,
-        0x08 => 230,
-        0x10 => 180,
-        0x18 => 150,
-        0x20 => 120,
-        0x28 => 90,
-        0x30 => 65,
-        0x38 => 40,
-        0x40 => 280,
-        0x48 => 210,
-        0x50 => 250,
-        0x58 => 420,
-        _ => return None,
-    };
-    Some(watts)
+    match code {
+        0x00 => Some(330),
+        0x08 => Some(230),
+        0x10 => Some(180),
+        0x18 => Some(150),
+        0x20 => Some(120),
+        0x28 => Some(90),
+        0x30 => Some(65),
+        0x38 => Some(40),
+        0x40 => Some(280),
+        0x48 => Some(210),
+        0x50 => Some(250),
+        0x58 => Some(420),
+        _ => None,
+    }
+}
+/// 连续读 3 次（间隔 100ms），取一致值；值 > 0 才算有效。
+fn read_stable_watts(addr: u16) -> Option<u16> {
+    let mut last: i32 = -1;
+    let mut same = 0;
+    for _ in 0..3 {
+        let value = wmi_ec::wmi_read_ec(addr).map(|v| v as i32).unwrap_or(-1);
+        if value == last {
+            same += 1;
+        } else {
+            last = value;
+            same = 1;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    if same >= 2 && last > 0 {
+        Some(last as u16)
+    } else {
+        None
+    }
 }
 
+/// 适配器瓦数（W）：0x7CD 为主，读不到再读 0x7CE；结果缓存 1.5 秒避免每次轮询都阻塞。
+pub fn read_adapter_watts() -> Option<u16> {
+    static CACHE: std::sync::OnceLock<std::sync::Mutex<(std::time::Instant, Option<u16>)>> = std::sync::OnceLock::new();
+    let cache = CACHE.get_or_init(|| {
+        std::sync::Mutex::new((std::time::Instant::now() - std::time::Duration::from_secs(10), None))
+    });
+    {
+        let guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.0.elapsed() < std::time::Duration::from_millis(1500) {
+            return guard.1;
+        }
+    }
+    let watts = read_stable_watts(wmi_ec::ADDR_ADAPTER_WATTS)
+        .or_else(|| read_stable_watts(wmi_ec::ADDR_ADAPTER_WATTS_ALT));
+    let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+    *guard = (std::time::Instant::now(), watts);
+    watts
+}
 fn battery_device_paths() -> Vec<Vec<u16>> {
     let mut paths = Vec::new();
     unsafe {
@@ -529,18 +575,31 @@ pub fn read_power_input() -> PowerInputInfo {
     // 只有供电类型字节能明确识别出圆口 / Type-C 时，才信任额定功率与电池充电功率；
     // 宝龙达模具不提供 ADDR_POWER_STATUS/ADDR_ADAPTER_RATED_WATTS，读到的 0x00 不能当成 330W 适配器，
     // 此时全部返回未知，由界面回落到原「已连接电源适配器」文案。
-    let adapter_type = read_adapter_type();
-    let adapter_known = adapter_type != "未知";
-    let barrel = adapter_type == "圆口" || adapter_type == "圆口+Type-C";
-    // 适配器瓦数以 EC ADDR_ADAPTER_RATED_WATTS 为准（适配器索引 只是同一索引的另一种表示）；
-    // ADDR_BATTERY_LIMIT_UP 在多数同方机型上是充电上限，不能当适配器瓦数用。
-    // Type-C 暂时不显示瓦数，只显示类型（等实际机型验证完成后再放开）。
-    let (adapter_raw, adapter_watts) = if adapter_known && barrel {
-        (read_adapter_raw(), read_adapter_rated_watts())
+    let adapter_type_raw = read_adapter_type();
+    // 圆口：瓦数在 ADDR_ADAPTER_RATED_WATTS 的 bit3~6 编码；
+    // Type-C：瓦数直接读 0x7CD / 0x7CE（不同机型位置不同，取非 0）。
+    let mut adapter_type = adapter_type_raw.clone();
+    let (adapter_raw, adapter_watts) = if adapter_type_raw.contains("Type-C") {
+        let watts = read_adapter_watts();
+        (read_adapter_raw(), watts.or_else(read_adapter_rated_watts))
+    } else if adapter_type_raw == "圆口" {
+        (read_adapter_rated_raw(), read_adapter_rated_watts())
     } else {
-        (None, None)
+        // 类型未知：能读到 Type-C 瓦数就当 Type-C，否则尝试圆口编码
+        let tc_watts = read_adapter_watts();
+        if tc_watts.is_some() {
+            adapter_type = "Type-C".to_string();
+            (read_adapter_raw(), tc_watts)
+        } else {
+            (read_adapter_rated_raw(), read_adapter_rated_watts())
+        }
     };
-    let battery_rate_watts = if adapter_known { read_battery_rate_watts() } else { None };
+    let adapter_known = adapter_type != "未知";
+    let battery_rate_watts = if adapter_known || adapter_watts.is_some() {
+        read_battery_rate_watts()
+    } else {
+        None
+    };
     let battery_cycle_count = read_battery_cycle_count();
     PowerInputInfo {
         adapter_raw,
