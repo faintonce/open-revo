@@ -222,6 +222,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                     let floor = gpu_caps.ctgp_floor_watts as u8;
                     let max_base = gpu_caps.base_tgp_max_watts as u8;
                     let max_offset = max_base.saturating_sub(floor);
+                    // 默认关闭：平衡档风扇转速较低，保留 DB 会让显卡高温、影响寿命；需要时可在设置里手动开启
                     let enable_db = cfg.balanced_gpu_dynamic_boost;
                     let db = if enable_db {
                         gpu_caps.max_db_watts.clamp(5, 35) as u8
