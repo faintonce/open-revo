@@ -708,6 +708,20 @@ impl GpuBridge {
                 let sleep_ms = if consecutive_failures > 1 { 4000 } else { 1500 };
                 thread::sleep(Duration::from_millis(sleep_ms));
 
+                #[cfg(windows)]
+                if let Some(sample) = super::nvml_telemetry::read_single_gpu() {
+                    *gpu_name.lock() = sample.name;
+                    inner.core_freq.store(sample.graphics_mhz, Ordering::SeqCst);
+                    inner.mem_freq.store(sample.memory_mhz, Ordering::SeqCst);
+                    inner.temp.store(sample.temperature_c, Ordering::SeqCst);
+                    inner.usage.store(sample.usage_percent, Ordering::SeqCst);
+                    inner.vram_mb.store(sample.total_bytes / (1024 * 1024), Ordering::SeqCst);
+                    inner.vram_used_mb.store(sample.used_bytes / (1024 * 1024), Ordering::SeqCst);
+                    inner.power_dw.store((sample.power_mw + 50) / 100, Ordering::SeqCst);
+                    consecutive_failures = 0;
+                    continue;
+                }
+
                 // Execute nvidia-smi with CREATE_NO_WINDOW for real-time telemetry
                 let output = Command::new("nvidia-smi")
                     .creation_flags(CREATE_NO_WINDOW)
