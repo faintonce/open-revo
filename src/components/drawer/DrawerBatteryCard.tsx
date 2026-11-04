@@ -30,9 +30,10 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
           </span>
         </div>
         <div className="m-header-right" style={{ color: 'var(--theme-bat)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: status.is_dc_online ? '#34d399' : '#fbbf24' }} />
+          <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: (status.is_ac_online ?? status.is_dc_online) ? '#34d399' : '#fbbf24' }} />
           {(() => {
-            if (!status.is_dc_online) return '电池供电';
+            const acOnline = status.is_ac_online ?? status.is_dc_online;
+            if (!acOnline) return '电池供电';
             const type = status.adapter_type || '';
             const isTypeC = type.includes('Type-C');
             const isBarrel = type === '圆口';

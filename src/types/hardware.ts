@@ -43,6 +43,7 @@ export interface HardwareState {
   board_name?: string;       // e.g. "XINGYAO Series-P916F-STX" or "GM6IX9B"
   power_presets?: FactoryPowerPresets; // Real hardware factory power limits from motherboard EC
   is_dc_online?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
+  is_ac_online?: boolean;    // true if any AC power (includes Type-C PD)
   adapter_type?: string;     // 圆口 / 圆口+Type-C / Type-C / 未知
   adapter_raw?: number | null;
   adapter_watts?: number | null;

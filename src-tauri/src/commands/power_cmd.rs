@@ -367,8 +367,8 @@ pub fn get_power_settings(ec_state: State<'_, SharedEcBridge>) -> PowerSettingsI
 
 fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
     let cfg = crate::system::config::load_config();
-    let (percent, _, is_charging) = get_live_power_status();
-    let is_dc = is_dc_round_plugged_in();
+    // 是否接电以系统电源状态为准（C 口供电时 EC 圆口位不会置位）
+    let (percent, is_ac_online, is_charging) = get_live_power_status();
     let hw_limit = ec_state.lock().get_battery_limit();
     let effective_limit = if hw_limit > 0 { hw_limit } else { cfg.battery_limit };
     let mode = if effective_limit >= 95 {
@@ -560,7 +560,7 @@ pub fn query_sleep_guard_registry_states(cfg: &crate::system::config::AppConfig)
     let power_input = crate::system::power::battery_input::read_power_input();
     PowerSettingsInfo {
         battery_percent: percent,
-        is_ac_online: is_dc,
+        is_ac_online,
         is_charging,
         battery_mode: mode,
         battery_limit: effective_limit,

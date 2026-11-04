@@ -49,6 +49,8 @@ pub struct HardwareState {
     pub model_name: String,
     pub power_presets: FactoryPowerPresets,
     pub is_dc_online: bool,
+    /// 是否接着电源（系统 ACLineStatus，含 Type-C）
+    pub is_ac_online: bool,
     pub adapter_type: String,
     pub adapter_raw: Option<u8>,
     pub adapter_watts: Option<u16>,
@@ -189,6 +191,7 @@ pub fn collect_hardware_state(
         model_name: get_machine_model(),
         power_presets: get_factory_power_presets(has_gpu),
         is_dc_online: is_dc_round_plugged_in(),
+        is_ac_online: crate::commands::power_cmd::get_live_power_status().1,
         adapter_type: power_input.adapter_type,
         adapter_raw: power_input.adapter_raw,
         adapter_watts: power_input.adapter_watts,
@@ -480,6 +483,8 @@ pub struct DesensitizedCapabilities {
     pub has_win_lock: bool,
     pub is_rgb_keyboard: bool,
     pub is_dc_online: bool,
+    /// 是否接着电源（系统 ACLineStatus，含 Type-C）
+    pub is_ac_online: bool,
     pub adapter_type: String,
     pub adapter_raw: Option<u8>,
     pub adapter_watts: Option<u16>,
@@ -612,6 +617,7 @@ pub fn export_device_diagnostic_report(
             has_win_lock: flags.has_win_lock,
             is_rgb_keyboard: flags.is_rgb_keyboard,
             is_dc_online: is_dc,
+            is_ac_online: crate::commands::power_cmd::get_live_power_status().1,
             adapter_type: crate::system::power::battery_input::read_power_input().adapter_type,
             adapter_raw: crate::system::power::battery_input::read_power_input().adapter_raw,
             adapter_watts: crate::system::power::battery_input::read_power_input().adapter_watts,
