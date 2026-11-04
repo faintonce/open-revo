@@ -785,10 +785,20 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     if (liveFanDebounceRef.current) {
       clearTimeout(liveFanDebounceRef.current);
     }
+    const linked = !!profile.fan_curve_linked;
     liveFanDebounceRef.current = setTimeout(() => {
-      invoke('apply_fan_curve_live', { cpuCurve, gpuCurve }).catch((err) => {
-        console.warn('Failed to apply live fan curve:', err);
-      });
+      // 联动机型（单曲线，两把扇共用一条）：走 apply_fan_curve_linked，
+      // 由宿主清除 0x07C5 bit7。用老命令会置起隔离位，副扇改走 GPU 表后
+      // 永远停在第 0 档（零转待机，duty 必须为 0），从此不再转。
+      if (linked) {
+        invoke('apply_fan_curve_linked', { curve: cpuCurve }).catch((err) => {
+          console.warn('Failed to apply linked fan curve:', err);
+        });
+      } else {
+        invoke('apply_fan_curve_live', { cpuCurve, gpuCurve }).catch((err) => {
+          console.warn('Failed to apply live fan curve:', err);
+        });
+      }
     }, 250);
   };
 
@@ -800,7 +810,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
         cpu_fan_curve: newCurve,
         gpu_fan_curve: newCurve,
       }));
-      if (profile.fan_isolated_output || isBld) {
+      if (profile.fan_isolated_output || profile.fan_curve_linked || isBld) {
         triggerLiveFanApply(newCurve, newCurve);
       }
     } else {
@@ -808,7 +818,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       const nextCpu = type === 'cpu' ? newCurve : profile.cpu_fan_curve;
       const nextGpu = type === 'gpu' ? newCurve : profile.gpu_fan_curve;
       setProfile((prev) => ({ ...prev, [curveKey]: newCurve }));
-      if (profile.fan_isolated_output || isBld) {
+      if (profile.fan_isolated_output || profile.fan_curve_linked || isBld) {
         triggerLiveFanApply(nextCpu, nextGpu);
       }
     }

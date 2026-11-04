@@ -363,6 +363,54 @@ pub fn apply_fan_curve_live(
     Ok(())
 }
 
+/// 联动风扇曲线（不置隔离位）。
+///
+/// 无独显机型（`discrete_gpu: false`）没有可用的第二通道温度源 —— 本机
+/// `0x044F` 恒为 0。一旦 `0x07C5` bit7（独立输出）被置起，EC 会用 GPU 表驱动
+/// 副扇，而 GPU 表永远停在第 0 档；第 0 档按固件硬规则必须是 0x00（零转待机），
+/// 于是副扇停转且再也起不来。
+///
+/// 本命令把同一条曲线同时写进两个通道，并**显式清掉**隔离位，让两把扇都跟随
+/// CPU 表。与 `apply_fan_curve_live` 的唯一差别就是把 `set_fan_isolated_output`
+/// 的参数从 `true` 改成 `false`，其余时序完全一致。
+#[tauri::command]
+pub fn apply_fan_curve_linked(
+    app: AppHandle,
+    ec_state: State<'_, SharedEcBridge>,
+    curve: Vec<crate::system::config::FanCurvePoint>,
+) -> Result<(), String> {
+    let is_bld_manifest = crate::hal::declarative::load_matched_manifest()
+        .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
+        .unwrap_or(false);
+
+    if is_bld_manifest {
+        let cfg = crate::system::config::load_config();
+        crate::driver::bld_driver_mgr::set_bld_fan_curve(
+            curve.clone(),
+            curve,
+            cfg.custom_profile.fan_ramp_rate,
+            cfg.custom_profile.fan_ramp_speed_ms,
+        );
+        crate::log_info!("BLD_FAN", "BLD linked fan curve applied to 1Hz heartbeat arbiter");
+        return Ok(());
+    }
+
+    let cfg = crate::system::config::load_config();
+    if (cfg.custom_profile.fan_isolated_output || cfg.custom_profile.fan_curve_enabled) && ec_state.lock().is_fan_boost() {
+        crate::log_info!("POWER_MODE", "apply_fan_curve_linked: Fan Boost is ON, terminating it to yield control to the linked curve");
+        let _ = set_fan_boost(app, false, ec_state);
+    }
+
+    crate::driver::wmi_ec::set_custom_mode_ec(true);
+    // 联动模式：隔离位保持清除，副扇才会跟随 CPU 表
+    crate::driver::wmi_ec::set_fan_isolated_output(false);
+
+    let table = crate::system::power_mode::build_custom_fan_table(&curve, &curve);
+    crate::system::power_mode::apply_fan_table_to_ec(&table);
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn toggle_fan_isolated_output(
     app: AppHandle,
