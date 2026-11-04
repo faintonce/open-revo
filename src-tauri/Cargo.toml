@@ -40,7 +40,9 @@ sha2 = "0.10"
 rhai = { version = "1.19", features = ["sync", "no_module", "no_custom_syntax", "no_closure", "no_optimize"] }
 windows = { version = "0.58", features = [
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_System_Power",
     "Win32_Foundation",
