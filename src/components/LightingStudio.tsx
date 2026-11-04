@@ -295,11 +295,14 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
   };
 
   // Restore Factory Defaults
+  // 六色轮换默认颜色（恢复默认时用）
+  const [cycleResetToken, setCycleResetToken] = useState(0);
+
   const handleResetDefaults = () => {
     if (subTab === 'keyboard') {
+      // 保持当前效果不变，只恢复亮度/速度/方向/主色与六色轮换默认色
       sendKeyboard({
         kb_enabled: true,
-        kb_effect: 3,
         kb_brightness: 3,
         kb_speed: 2,
         kb_direction: 0,
@@ -308,6 +311,14 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
       if (kbHwInfo?.is_four_zone) {
         sendFourZoneColors(['#00FFFF', '#0000FF', '#FF00FF', '#FF0000']);
       }
+      // 六色轮换：恢复默认 6 色 + 清掉本地自定义
+      try {
+        localStorage.removeItem('openrevo_kb_cycle_colors');
+        invoke('set_keyboard_cycle_colors', {
+          colors: ['#D30607', '#D55B0A', '#D4A906', '#05D308', '#0709D6', '#D308D6'],
+        }).catch(() => { /* ignore */ });
+      } catch { /* ignore */ }
+      setCycleResetToken((t) => t + 1);
     } else if (subTab === 'lightbar') {
       sendLightbar({
         lb_enabled: true,
@@ -670,6 +681,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
           kbHwInfo={kbHwInfo}
           sendKeyboard={sendKeyboard}
           sendFourZoneColors={sendFourZoneColors}
+          cycleResetToken={cycleResetToken}
         />
       )}
 

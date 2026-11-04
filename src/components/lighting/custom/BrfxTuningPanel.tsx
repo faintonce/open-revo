@@ -238,7 +238,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
             定制主色调:
           </span>
-          <div style={{ display: 'flex', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {PRESET_COLORS.map((c) => {
               const active = values.color.toLowerCase() === c.hex.toLowerCase();
               return (
