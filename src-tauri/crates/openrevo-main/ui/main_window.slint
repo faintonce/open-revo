@@ -4,6 +4,7 @@ import { FullDashboard } from "shell/full_dashboard.slint";
 import { WaterCoolerDeviceItem } from "views/water/cooler_types.slint";
 import { CustomPluginItem } from "views/plugins/plugins_view.slint";
 import { PluginItemData } from "shell/sidebar.slint";
+import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, UpdateResultData } from "views/system/system_types.slint";
 
 export component MainWindow inherits Window {
     title: "OpenRevo";
@@ -257,6 +258,70 @@ export component MainWindow inherits Window {
     in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
     in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
     in-out property <bool> is_color_dirty: false;
+
+    // GPU Boost & Overclocking Preferences
+    in-out property <bool> balanced_db_enabled: true;
+    in-out property <int> oc_core_mhz: 105;
+    in-out property <int> oc_mem_mhz: 500;
+    in-out property <string> oc_save_hint: "";
+
+    callback toggle_balanced_db(bool);
+    callback change_oc_core(int);
+    callback change_oc_mem(int);
+
+    // System Settings Properties & Callbacks
+    in-out property <OsdConfigData> osd_config: {
+        enabled: true,
+        theme: "fade",
+        scale: "140%",
+        position: "top-left"
+    };
+    callback change_osd_theme(string);
+    callback change_osd_scale(string);
+    callback change_osd_position(string);
+    callback toggle_osd_enabled(bool);
+    callback trigger_osd_preview();
+
+    in-out property <bool> unlock_battery_limit: false;
+    in-out property <bool> show_unlock_battery_confirm: false;
+    in-out property <bool> toggling_unlock_battery: false;
+    callback confirm_unlock_battery();
+    callback disable_unlock_battery();
+
+    in-out property <string> wake_window_mode: "remember";
+    callback change_wake_window_mode(string);
+
+    in-out property <bool> mini_auto_hide: true;
+    callback toggle_mini_auto_hide(bool);
+
+    in-out property <UserDataDirInfo> data_dir_info: {
+        path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
+        mode: "appdata"
+    };
+    in-out property <bool> show_clear_confirm: false;
+    in-out property <bool> clearing_data: false;
+    in-out property <bool> show_migrate_modal: false;
+    in-out property <bool> migrating_data: false;
+    callback open_user_data_dir();
+    callback confirm_clear_user_data();
+    callback confirm_migrate_user_data(string);
+
+    in-out property <[PowerSchemeItem]> power_schemes: [
+        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+    ];
+    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> restore_plan_msg: "";
+    in-out property <bool> show_restore_plan_confirm: false;
+    in-out property <bool> restoring_power_plan: false;
+    callback switch_power_scheme(string);
+    callback refresh_power_schemes();
+    callback confirm_restore_power_plan();
+
+    in-out property <bool> is_checking_update: false;
+    in-out property <bool> show_update_modal: false;
+    in-out property <UpdateResultData> update_data;
+    callback check_for_updates();
+    callback start_download_update();
 
     // Lighting Studio Properties
     in-out property <int> lighting_sub_tab: 0;
@@ -565,6 +630,15 @@ export component MainWindow inherits Window {
         start_cloud_icc_search(mode) => { root.start_cloud_icc_search(mode); }
         apply_cloud_icc_profile(idx) => { root.apply_cloud_icc_profile(idx); }
         apply_all_cloud_icc_profiles => { root.apply_all_cloud_icc_profiles(); }
+
+        balanced_db_enabled <=> root.balanced_db_enabled;
+        oc_core_mhz <=> root.oc_core_mhz;
+        oc_mem_mhz <=> root.oc_mem_mhz;
+        oc_save_hint: root.oc_save_hint;
+
+        toggle_balanced_db(en) => { root.toggle_balanced_db(en); }
+        change_oc_core(val) => { root.change_oc_core(val); }
+        change_oc_mem(val) => { root.change_oc_mem(val); }
 
 
         cpu_rpm: root.cpu_rpm;
@@ -914,5 +988,52 @@ export component MainWindow inherits Window {
         close_water_device_selector => { root.close_water_device_selector(); }
         refresh_water_devices => { root.refresh_water_devices(); }
         select_water_device(mac) => { root.select_water_device(mac); }
+
+        // System Settings Bindings
+        autostart: root.autostart;
+        toggle_autostart => { root.autostart_toggled(); }
+
+        osd_config: root.osd_config;
+        change_osd_theme(t) => { root.change_osd_theme(t); }
+        change_osd_scale(s) => { root.change_osd_scale(s); }
+        change_osd_position(p) => { root.change_osd_position(p); }
+        toggle_osd_enabled(en) => { root.toggle_osd_enabled(en); }
+        trigger_osd_preview => { root.trigger_osd_preview(); }
+
+        unlock_battery_limit: root.unlock_battery_limit;
+        show_unlock_battery_confirm <=> root.show_unlock_battery_confirm;
+        toggling_unlock_battery: root.toggling_unlock_battery;
+        confirm_unlock_battery => { root.confirm_unlock_battery(); }
+        disable_unlock_battery => { root.disable_unlock_battery(); }
+
+        wake_window_mode: root.wake_window_mode;
+        change_wake_window_mode(m) => { root.change_wake_window_mode(m); }
+
+        mini_auto_hide: root.mini_auto_hide;
+        toggle_mini_auto_hide(en) => { root.toggle_mini_auto_hide(en); }
+
+        data_dir_info: root.data_dir_info;
+        show_clear_confirm <=> root.show_clear_confirm;
+        clearing_data: root.clearing_data;
+        show_migrate_modal <=> root.show_migrate_modal;
+        migrating_data: root.migrating_data;
+        open_user_data_dir => { root.open_user_data_dir(); }
+        confirm_clear_user_data => { root.confirm_clear_user_data(); }
+        confirm_migrate_user_data(path) => { root.confirm_migrate_user_data(path); }
+
+        power_schemes: root.power_schemes;
+        active_power_scheme_name: root.active_power_scheme_name;
+        restore_plan_msg: root.restore_plan_msg;
+        show_restore_plan_confirm <=> root.show_restore_plan_confirm;
+        restoring_power_plan: root.restoring_power_plan;
+        switch_power_scheme(guid) => { root.switch_power_scheme(guid); }
+        refresh_power_schemes => { root.refresh_power_schemes(); }
+        confirm_restore_power_plan => { root.confirm_restore_power_plan(); }
+
+        is_checking_update: root.is_checking_update;
+        show_update_modal <=> root.show_update_modal;
+        update_data: root.update_data;
+        check_for_updates => { root.check_for_updates(); }
+        start_download_update => { root.start_download_update(); }
     }
 }

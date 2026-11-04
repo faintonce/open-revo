@@ -267,6 +267,22 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "fn_locked": switches.fn_lock,
                         "wifi_enabled": switches.wifi,
                         "bt_enabled": switches.bluetooth,
+                        "balanced_db_enabled": cfg.balanced_gpu_dynamic_boost,
+                        "oc_core_mhz": cfg.gpu_oc_core_mhz,
+                        "oc_mem_mhz": cfg.gpu_oc_mem_mhz,
+                        "unlock_battery_limit": cfg.unlock_battery_power_limit,
+                        "wake_window_mode": crate::commands::window_cmd::get_wake_window_mode(),
+                        "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
+                        "osd_config": {
+                            "enabled": switches.osd,
+                            "theme": cfg.osd_theme,
+                            "scale": cfg.osd_scale,
+                            "position": cfg.osd_position,
+                        },
+                        "data_dir_info": crate::commands::system_cmd::get_user_data_dir_info().unwrap_or(crate::commands::system_cmd::UserDataDirInfo {
+                            path: "C:\\Users\\AppData\\Roaming\\OpenRevo".into(),
+                            mode: "appdata".into(),
+                        }),
                     }));
                     let _ = stdin.write_all(line.as_bytes());
                     let _ = stdin.flush();
@@ -280,6 +296,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                 sync_slint_display_state();
                 sync_slint_power_state();
                 sync_slint_water_state(None, None);
+                sync_slint_power_schemes(None);
 
                 // Listen for stdout from companion
                 if let Some(stdout) = child.stdout.take() {
@@ -978,6 +995,143 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         "expand_dashboard" => {
             // Expanded natively inside Slint
             crate::log_info!("SLINT_MAIN", "Dashboard expanded to full native view");
+        }
+
+        // GPU Boost Preferences
+        "set_balanced_db" => {
+            if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.balanced_gpu_dynamic_boost = en;
+                let _ = crate::system::config::save_config(&cfg);
+            }
+        }
+        "set_gpu_oc_core" => {
+            if let Some(m) = val.get("mhz").and_then(|v| v.as_i64()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.gpu_oc_core_mhz = m.clamp(0, 250) as i32;
+                let _ = crate::system::config::save_config(&cfg);
+            }
+        }
+        "set_gpu_oc_mem" => {
+            if let Some(m) = val.get("mhz").and_then(|v| v.as_i64()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.gpu_oc_mem_mhz = m.clamp(0, 1000) as i32;
+                let _ = crate::system::config::save_config(&cfg);
+            }
+        }
+
+        // System Settings Actions
+        "set_osd_theme" => {
+            if let Some(t) = val.get("theme").and_then(|v| v.as_str()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.osd_theme = t.to_string();
+                let _ = crate::system::config::save_config(&cfg);
+            }
+        }
+        "set_osd_scale" => {
+            if let Some(s) = val.get("scale").and_then(|v| v.as_str()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.osd_scale = s.to_string();
+                let _ = crate::system::config::save_config(&cfg);
+            }
+        }
+        "set_osd_position" => {
+            if let Some(p) = val.get("position").and_then(|v| v.as_str()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.osd_position = p.to_string();
+                let _ = crate::system::config::save_config(&cfg);
+            }
+        }
+        "set_osd_enabled" => {
+            if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
+                if let Some(app) = app {
+                    let _ = crate::commands::switches_cmd::set_device_switch(app.clone(), "osd".into(), en);
+                }
+            }
+        }
+        "trigger_osd_preview" => {
+            if let Some(app) = app {
+                let _ = crate::system::osd_window::trigger_osd_preview(app.clone());
+            }
+        }
+        "set_unlock_battery_limit" => {
+            if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
+                if let Some(app) = app {
+                    use tauri::Manager;
+                    let ec_bridge = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
+                    let _ = crate::commands::system_cmd::set_unlock_battery_power_limit(en, app.clone(), ec_bridge);
+                }
+            }
+        }
+        "set_wake_window_mode" => {
+            if let Some(m) = val.get("mode").and_then(|v| v.as_str()) {
+                let _ = crate::commands::window_cmd::set_wake_window_mode(m.to_string());
+            }
+        }
+        "set_mini_auto_hide" => {
+            if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
+                let _ = crate::commands::window_cmd::set_mini_auto_hide(en);
+            }
+        }
+        "open_user_data_dir" => {
+            let _ = crate::commands::system_cmd::open_user_data_dir();
+        }
+        "clear_user_data_dir" => {
+            let _ = crate::commands::system_cmd::clear_user_data_dir();
+        }
+        "migrate_user_data_dir" => {
+            if let Some(p) = val.get("target_path").and_then(|v| v.as_str()) {
+                let _ = crate::commands::system_cmd::migrate_user_data_dir(p.to_string());
+            }
+        }
+        "switch_power_scheme" => {
+            if let Some(guid) = val.get("guid").and_then(|v| v.as_str()) {
+                let _ = crate::commands::power_cmd::set_active_windows_power_scheme(guid.to_string());
+                sync_slint_power_schemes(None);
+            }
+        }
+        "refresh_power_schemes" => {
+            sync_slint_power_schemes(None);
+        }
+        "restore_official_power_plan" => {
+            let res = crate::commands::power_cmd::restore_official_power_plan();
+            let msg = match res {
+                Ok(s) => s,
+                Err(e) => format!("修复失败: {}", e),
+            };
+            sync_slint_power_schemes(Some(&msg));
+        }
+        "check_for_updates" => {
+            tauri::async_runtime::spawn(async move {
+                match crate::updater::check_for_updates_cmd(None).await {
+                    Ok(res) => {
+                        let size_mb = format!("{:.2}", (res.size as f64) / (1024.0 * 1024.0));
+                        send_slint_ipc_message(serde_json::json!({
+                            "action": "sync_update_result",
+                            "update": {
+                                "has_update": res.has_update,
+                                "current_version": res.current_version,
+                                "latest_version": res.latest_version,
+                                "display_version": res.display_version,
+                                "notes": res.notes,
+                                "chosen_source": res.chosen_source,
+                                "asset_type": res.asset_type,
+                                "filename": res.filename,
+                                "download_url": res.download_url,
+                                "size_mb": size_mb,
+                                "sha256": res.sha256,
+                            }
+                        }));
+                    }
+                    Err(e) => {
+                        crate::log_warn!("UPDATER", "Check update failed: {}", e);
+                        send_slint_ipc_message(serde_json::json!({
+                            "action": "sync_update_result",
+                            "update": { "has_update": false }
+                        }));
+                    }
+                }
+            });
         }
 
         // Custom Tuning Actions
@@ -1895,6 +2049,23 @@ pub fn sync_slint_plugins_state() {
         send_slint_ipc_message(serde_json::json!({
             "action": "sync_custom_plugins",
             "plugins": list,
+        }));
+    }
+}
+
+pub fn sync_slint_power_schemes(restore_msg: Option<&str>) {
+    if let Ok(schemes) = crate::commands::power_cmd::get_windows_power_schemes() {
+        let list: Vec<serde_json::Value> = schemes.into_iter().map(|s| {
+            serde_json::json!({
+                "guid": s.guid,
+                "name": s.name,
+                "is_active": s.is_active,
+            })
+        }).collect();
+        send_slint_ipc_message(serde_json::json!({
+            "action": "sync_power_schemes",
+            "schemes": list,
+            "restore_plan_msg": restore_msg.unwrap_or(""),
         }));
     }
 }

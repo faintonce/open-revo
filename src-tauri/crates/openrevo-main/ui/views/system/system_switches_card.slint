@@ -1,0 +1,1048 @@
+import { AppTheme } from "../../theme.slint";
+import { PowerSchemeItem, UserDataDirInfo, OsdConfigData } from "system_types.slint";
+
+export component SystemSwitchesCard inherits Rectangle {
+    // 1. Autostart
+    in-out property <bool> autostart: false;
+    callback toggle_autostart();
+
+    // 2. OSD Config
+    in-out property <OsdConfigData> osd_config: {
+        enabled: true,
+        theme: "fade",
+        scale: "140%",
+        position: "top-left"
+    };
+    callback change_osd_theme(string);
+    callback change_osd_scale(string);
+    callback change_osd_position(string);
+    callback toggle_osd_enabled(bool);
+    callback trigger_osd_preview();
+
+    // 3. Unlock Battery Limit
+    in-out property <bool> unlock_battery_limit: false;
+    callback request_toggle_unlock_battery();
+
+    // 4. Wake Window Mode ("remember" | "mini" | "full")
+    in-out property <string> wake_window_mode: "remember";
+    callback change_wake_window_mode(string);
+
+    // 5. Mini Auto Hide
+    in-out property <bool> mini_auto_hide: true;
+    callback toggle_mini_auto_hide(bool);
+
+    // 6. User Data Directory
+    in-out property <UserDataDirInfo> data_dir_info: {
+        path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
+        mode: "appdata"
+    };
+    callback open_user_data_dir();
+    callback request_migrate_data();
+    callback request_clear_data();
+
+    // 7. Windows Power Schemes
+    in-out property <[PowerSchemeItem]> power_schemes: [
+        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+    ];
+    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> restore_plan_msg: "";
+    callback request_restore_power_plan();
+    callback switch_power_scheme(string);
+    callback refresh_power_schemes();
+
+    // 8. Software Version & Updater
+    in-out property <string> app_version: "v0.9.7";
+    in-out property <bool> is_checking_update: false;
+    callback check_for_updates();
+
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Card Title
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/settings.svg");
+                    width: 16px;
+                    height: 16px;
+                    colorize: #38bdf8;
+                }
+            }
+            Text {
+                text: "系统配置与通用选项";
+                font-size: 13px;
+                font-weight: 700;
+                color: AppTheme.text_primary;
+                vertical-alignment: center;
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 1: 开机自动启动 (提升至第 1 项)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: "开机自动启动 (最小化至托盘)";
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: "系统登录时静默启动并在托盘常驻，保障温控与功耗策略平稳运行";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.autostart ? #38bdf8 : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_autostart(); }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.autostart ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 2: OSD 屏幕悬浮提示 (HUD)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "OSD 屏幕悬浮提示";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: "HUD"; font-size: 10px; font-weight: 700; color: #38bdf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: "快捷键切换时在屏幕弹出状态提示；可选 3 种风格、尺寸与显示位置";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    // 1. Theme Dropdown
+                    theme_btn := Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_theme.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_theme := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { theme_popup.show(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Text {
+                                text: root.osd_config.theme == "cinema" ? "电影字幕" : (root.osd_config.theme == "fade" ? "向右羽化" : "磨砂胶囊");
+                                font-size: 11px;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                            Image {
+                                source: @image-url("../../assets/icons/chevron-down.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: AppTheme.text_muted;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                        theme_popup := PopupWindow {
+                            x: 0;
+                            y: parent.height + 4px;
+                            width: 100px;
+                            Rectangle {
+                                background: AppTheme.surface_elevated;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: AppTheme.border_medium;
+                                VerticalLayout {
+                                    padding: 4px;
+                                    spacing: 2px;
+                                    Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_th1.has-hover ? AppTheme.surface_pill : transparent;
+                                        t_th1 := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.change_osd_theme("cinema"); }
+                                        }
+                                        HorizontalLayout { padding-left: 8px; Text { text: "电影字幕"; font-size: 11px; vertical-alignment: center; } }
+                                    }
+                                    Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_th2.has-hover ? AppTheme.surface_pill : transparent;
+                                        t_th2 := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.change_osd_theme("fade"); }
+                                        }
+                                        HorizontalLayout { padding-left: 8px; Text { text: "向右羽化"; font-size: 11px; vertical-alignment: center; } }
+                                    }
+                                    Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_th3.has-hover ? AppTheme.surface_pill : transparent;
+                                        t_th3 := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.change_osd_theme("pill"); }
+                                        }
+                                        HorizontalLayout { padding-left: 8px; Text { text: "磨砂胶囊"; font-size: 11px; vertical-alignment: center; } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Scale Dropdown
+                    scale_btn := Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_scale.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_scale := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { scale_popup.show(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Text { text: root.osd_config.scale; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                            Image {
+                                source: @image-url("../../assets/icons/chevron-down.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: AppTheme.text_muted;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                        scale_popup := PopupWindow {
+                            x: 0;
+                            y: parent.height + 4px;
+                            width: 80px;
+                            Rectangle {
+                                background: AppTheme.surface_elevated;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: AppTheme.border_medium;
+                                VerticalLayout {
+                                    padding: 4px;
+                                    spacing: 2px;
+                                    for sc in ["80%", "100%", "120%", "140%"]: Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_sc.has-hover ? AppTheme.surface_pill : transparent;
+                                        t_sc := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.change_osd_scale(sc); }
+                                        }
+                                        HorizontalLayout { padding-left: 8px; Text { text: sc; font-size: 11px; vertical-alignment: center; } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Position Dropdown
+                    pos_btn := Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_pos.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_pos := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { pos_popup.show(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Text {
+                                text: root.osd_config.position == "top-left" ? "左上角" : (root.osd_config.position == "bottom-center" ? "下方中央" : "屏幕正中");
+                                font-size: 11px;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                            Image {
+                                source: @image-url("../../assets/icons/chevron-down.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: AppTheme.text_muted;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                        pos_popup := PopupWindow {
+                            x: 0;
+                            y: parent.height + 4px;
+                            width: 90px;
+                            Rectangle {
+                                background: AppTheme.surface_elevated;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: AppTheme.border_medium;
+                                VerticalLayout {
+                                    padding: 4px;
+                                    spacing: 2px;
+                                    Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_p1.has-hover ? AppTheme.surface_pill : transparent;
+                                        t_p1 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("top-left"); } }
+                                        HorizontalLayout { padding-left: 8px; Text { text: "左上角"; font-size: 11px; vertical-alignment: center; } }
+                                    }
+                                    Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_p2.has-hover ? AppTheme.surface_pill : transparent;
+                                        t_p2 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("bottom-center"); } }
+                                        HorizontalLayout { padding-left: 8px; Text { text: "下方中央"; font-size: 11px; vertical-alignment: center; } }
+                                    }
+                                    Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_p3.has-hover ? AppTheme.surface_pill : transparent;
+                                        t_p3 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("center"); } }
+                                        HorizontalLayout { padding-left: 8px; Text { text: "屏幕正中"; font-size: 11px; vertical-alignment: center; } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Preview Button
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_prev.has-hover ? #6366f125 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: #6366f155;
+                        t_prev := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.trigger_osd_preview(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text { text: "预览"; font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
+                        }
+                    }
+
+                    // Enable Switch
+                    Rectangle {
+                        width: 44px;
+                        height: 24px;
+                        border-radius: 12px;
+                        background: root.osd_config.enabled ? #38bdf8 : AppTheme.surface_pill;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.osd_config.enabled = !root.osd_config.enabled;
+                                root.toggle_osd_enabled(root.osd_config.enabled);
+                            }
+                        }
+                        Rectangle {
+                            width: 18px;
+                            height: 18px;
+                            border-radius: 9px;
+                            background: #ffffff;
+                            x: root.osd_config.enabled ? parent.width - 21px : 3px;
+                            y: 3px;
+                            animate x { duration: 150ms; }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 3: 解除离电限制 (Power Gating)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "解除离电限制";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: root.unlock_battery_limit ? #f59e0b20 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.unlock_battery_limit ? #f59e0b60 : AppTheme.border_subtle;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.unlock_battery_limit ? "已解除限制 (风险自担)" : "出厂安全限制";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: root.unlock_battery_limit ? #f59e0b : AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #6366f120;
+                        border-width: 1px;
+                        border-color: #6366f160;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: "Power Gating"; font-size: 10px; font-weight: 700; color: #818cf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: "允许在拔掉充电器或 Type-C 供电时自由切换狂暴与极客调校，且拔电时不强制降级为平衡模式";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.unlock_battery_limit ? #f59e0b : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.request_toggle_unlock_battery(); }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.unlock_battery_limit ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 4: 唤醒面板形态 (WinSize)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "唤醒面板形态";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: "Window"; font-size: 10px; font-weight: 700; color: #38bdf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: "从系统托盘或后台双击唤醒时展现的界面形态；可记忆最后状态或锁定首选模式";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    border-radius: 6px;
+                    background: AppTheme.surface_sunken;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    HorizontalLayout {
+                        padding: 2px;
+                        spacing: 2px;
+
+                        // 1. Remember
+                        Rectangle {
+                            height: 24px;
+                            border-radius: 4px;
+                            background: root.wake_window_mode == "remember" ? #6366f1 : (t_wm1.has-hover ? AppTheme.surface_card_hover : transparent);
+                            t_wm1 := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.change_wake_window_mode("remember"); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: "记忆上次形态";
+                                    font-size: 10.5px;
+                                    font-weight: root.wake_window_mode == "remember" ? 700 : 500;
+                                    color: root.wake_window_mode == "remember" ? #ffffff : AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // 2. Mini
+                        Rectangle {
+                            height: 24px;
+                            border-radius: 4px;
+                            background: root.wake_window_mode == "mini" ? #6366f1 : (t_wm2.has-hover ? AppTheme.surface_card_hover : transparent);
+                            t_wm2 := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.change_wake_window_mode("mini"); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: "始终迷你抽屉";
+                                    font-size: 10.5px;
+                                    font-weight: root.wake_window_mode == "mini" ? 700 : 500;
+                                    color: root.wake_window_mode == "mini" ? #ffffff : AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // 3. Full
+                        Rectangle {
+                            height: 24px;
+                            border-radius: 4px;
+                            background: root.wake_window_mode == "full" ? #6366f1 : (t_wm3.has-hover ? AppTheme.surface_card_hover : transparent);
+                            t_wm3 := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.change_wake_window_mode("full"); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: "始终完整面板";
+                                    font-size: 10.5px;
+                                    font-weight: root.wake_window_mode == "full" ? 700 : 500;
+                                    color: root.wake_window_mode == "full" ? #ffffff : AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 5: 迷你抽屉点击外部自动收起 (Mini Drawer)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "迷你抽屉点击外部自动收起";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: "Mini Drawer"; font-size: 10px; font-weight: 700; color: #38bdf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: "在迷你抽屉模式下，点击桌面或其他应用窗口时自动回收抽屉；完整面板不受此影响";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.mini_auto_hide ? #38bdf8 : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.mini_auto_hide = !root.mini_auto_hide;
+                            root.toggle_mini_auto_hide(root.mini_auto_hide);
+                        }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.mini_auto_hide ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 6: 数据存储管理
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "数据存储管理";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: root.data_dir_info.mode == "portable" ? #10b98120 : (root.data_dir_info.mode == "custom" ? #f59e0b20 : #6366f120);
+                        border-width: 1px;
+                        border-color: root.data_dir_info.mode == "portable" ? #10b98160 : (root.data_dir_info.mode == "custom" ? #f59e0b60 : #6366f160);
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.data_dir_info.mode == "portable" ? "便携目录 (./data)" : (root.data_dir_info.mode == "custom" ? "自定义路径 (data_dir.ptr)" : "标准 AppData (%APPDATA%)");
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: root.data_dir_info.mode == "portable" ? #10b981 : (root.data_dir_info.mode == "custom" ? #f59e0b : #818cf8);
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "当前目录: " + root.data_dir_info.path;
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    // Open Folder
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_open_dir.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_open_dir := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.open_user_data_dir(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Image {
+                                source: @image-url("../../assets/icons/folder.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: AppTheme.text_secondary;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text { text: "打开目录"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                        }
+                    }
+
+                    // Migrate Storage
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_mig.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_mig := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.request_migrate_data(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text { text: "迁移存储"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                        }
+                    }
+
+                    // Clear Data (Danger)
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_clr.has-hover ? #f43f5e25 : #f43f5e15;
+                        border-width: 1px;
+                        border-color: #f43f5e55;
+                        t_clr := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.request_clear_data(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Image {
+                                source: @image-url("../../assets/icons/trash.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: #f43f5e;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text { text: "清除数据"; font-size: 11px; font-weight: 700; color: #f43f5e; vertical-alignment: center; }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 7: Windows 基础电源方案 (powercfg)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "Windows 基础电源方案";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #10b98120;
+                        border-width: 1px;
+                        border-color: #10b98160;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: "powercfg"; font-size: 10px; font-weight: 700; color: #10b981; vertical-alignment: center; }
+                        }
+                    }
+                    if root.restore_plan_msg != "": Text {
+                        text: root.restore_plan_msg;
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        color: #10b981;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: "系统底层电源计划；完全保留用户自建的降压/降频方案，可随时自由切换";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    // Fix/Restore Button
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_fix.has-hover ? #f43f5e25 : #f43f5e15;
+                        border-width: 1px;
+                        border-color: #f43f5e55;
+                        t_fix := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.request_restore_power_plan(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text { text: "修复/重置计划"; font-size: 11px; font-weight: 600; color: #f43f5e; vertical-alignment: center; }
+                        }
+                    }
+
+                    // Scheme Dropdown with PopupWindow
+                    scheme_btn := Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_scheme.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_scheme := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { scheme_popup.show(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Text { text: root.active_power_scheme_name; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                            Image {
+                                source: @image-url("../../assets/icons/chevron-down.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: AppTheme.text_muted;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                        scheme_popup := PopupWindow {
+                            x: 0;
+                            y: parent.height + 4px;
+                            width: 180px;
+                            Rectangle {
+                                background: AppTheme.surface_elevated;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: AppTheme.border_medium;
+                                VerticalLayout {
+                                    padding: 4px;
+                                    spacing: 2px;
+                                    for item in root.power_schemes: Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: t_item.has-hover ? AppTheme.surface_pill : (item.is_active ? #38bdf820 : transparent);
+                                        t_item := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => {
+                                                root.active_power_scheme_name = item.name;
+                                                root.switch_power_scheme(item.guid);
+                                            }
+                                        }
+                                        HorizontalLayout {
+                                            padding-left: 8px;
+                                            padding-right: 8px;
+                                            alignment: space-between;
+                                            Text { text: item.name; font-size: 11px; color: item.is_active ? #38bdf8 : AppTheme.text_primary; vertical-alignment: center; }
+                                            if item.is_active: Text { text: "当前生效"; font-size: 9px; color: #38bdf8; vertical-alignment: center; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Refresh Button
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_ref.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_ref := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.refresh_power_schemes(); }
+                        }
+                        Image {
+                            source: @image-url("../../assets/icons/rotate-ccw.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: AppTheme.text_secondary;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 8: 软件版本与分发更新 (放到最后一个)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "软件版本与分发更新";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: root.app_version; font-size: 10px; font-weight: 700; color: #38bdf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: "支持 GitHub 官方与国内 Gitee 镜像智能双源竞速拉取；适配安装版与绿色便携版";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 26px;
+                    border-radius: 4px;
+                    background: root.is_checking_update ? #6366f125 : (t_chk.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                    border-width: 1px;
+                    border-color: root.is_checking_update ? #6366f1 : AppTheme.border_medium;
+                    t_chk := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.is_checking_update {
+                                root.check_for_updates();
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 4px;
+                        Image {
+                            source: @image-url("../../assets/icons/refresh-cw.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: root.is_checking_update ? #818cf8 : AppTheme.text_secondary;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: root.is_checking_update ? "正在检测..." : "检查更新";
+                            font-size: 11px;
+                            font-weight: root.is_checking_update ? 700 : 500;
+                            color: root.is_checking_update ? #818cf8 : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

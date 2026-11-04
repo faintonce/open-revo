@@ -1,5 +1,5 @@
 use std::io::{BufRead, Write};
-use crate::MainWindow;
+use crate::{MainWindow, PowerSchemeItem, UpdateResultData};
 use slint::ComponentHandle;
 
 pub fn start_ipc_listener(ui_weak: slint::Weak<MainWindow>) {
@@ -200,6 +200,38 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     if let Some(sao) = val.get("sleep_auto_office").and_then(|v| v.as_bool()) {
                         ui.set_sleep_auto_office(sao);
                     }
+                    if let Some(en) = val.get("balanced_db_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_balanced_db_enabled(en);
+                    }
+                    if let Some(core) = val.get("oc_core_mhz").and_then(|v| v.as_i64()) {
+                        ui.set_oc_core_mhz(core as i32);
+                    }
+                    if let Some(mem) = val.get("oc_mem_mhz").and_then(|v| v.as_i64()) {
+                        ui.set_oc_mem_mhz(mem as i32);
+                    }
+                    if let Some(ubl) = val.get("unlock_battery_limit").and_then(|v| v.as_bool()) {
+                        ui.set_unlock_battery_limit(ubl);
+                    }
+                    if let Some(wm) = val.get("wake_window_mode").and_then(|v| v.as_str()) {
+                        ui.set_wake_window_mode(wm.into());
+                    }
+                    if let Some(mah) = val.get("mini_auto_hide").and_then(|v| v.as_bool()) {
+                        ui.set_mini_auto_hide(mah);
+                    }
+                    if let Some(osd_obj) = val.get("osd_config").and_then(|v| v.as_object()) {
+                        let mut cfg = ui.get_osd_config();
+                        if let Some(en) = osd_obj.get("enabled").and_then(|v| v.as_bool()) { cfg.enabled = en; }
+                        if let Some(th) = osd_obj.get("theme").and_then(|v| v.as_str()) { cfg.theme = th.into(); }
+                        if let Some(sc) = osd_obj.get("scale").and_then(|v| v.as_str()) { cfg.scale = sc.into(); }
+                        if let Some(pos) = osd_obj.get("position").and_then(|v| v.as_str()) { cfg.position = pos.into(); }
+                        ui.set_osd_config(cfg);
+                    }
+                    if let Some(dd_obj) = val.get("data_dir_info").and_then(|v| v.as_object()) {
+                        let mut info = ui.get_data_dir_info();
+                        if let Some(p) = dd_obj.get("path").and_then(|v| v.as_str()) { info.path = p.into(); }
+                        if let Some(m) = dd_obj.get("mode").and_then(|v| v.as_str()) { info.mode = m.into(); }
+                        ui.set_data_dir_info(info);
+                    }
                 }
                 "sync_power_settings" => {
                     if let Some(bp) = val.get("battery_percent").and_then(|v| v.as_i64()) {
@@ -246,6 +278,38 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     }
                     if let Some(sao) = val.get("sleep_auto_office").and_then(|v| v.as_bool()) {
                         ui.set_sleep_auto_office(sao);
+                    }
+                    if let Some(en) = val.get("balanced_db_enabled").and_then(|v| v.as_bool()) {
+                        ui.set_balanced_db_enabled(en);
+                    }
+                    if let Some(core) = val.get("oc_core_mhz").and_then(|v| v.as_i64()) {
+                        ui.set_oc_core_mhz(core as i32);
+                    }
+                    if let Some(mem) = val.get("oc_mem_mhz").and_then(|v| v.as_i64()) {
+                        ui.set_oc_mem_mhz(mem as i32);
+                    }
+                    if let Some(ubl) = val.get("unlock_battery_limit").and_then(|v| v.as_bool()) {
+                        ui.set_unlock_battery_limit(ubl);
+                    }
+                    if let Some(wm) = val.get("wake_window_mode").and_then(|v| v.as_str()) {
+                        ui.set_wake_window_mode(wm.into());
+                    }
+                    if let Some(mah) = val.get("mini_auto_hide").and_then(|v| v.as_bool()) {
+                        ui.set_mini_auto_hide(mah);
+                    }
+                    if let Some(osd_obj) = val.get("osd_config").and_then(|v| v.as_object()) {
+                        let mut cfg = ui.get_osd_config();
+                        if let Some(en) = osd_obj.get("enabled").and_then(|v| v.as_bool()) { cfg.enabled = en; }
+                        if let Some(th) = osd_obj.get("theme").and_then(|v| v.as_str()) { cfg.theme = th.into(); }
+                        if let Some(sc) = osd_obj.get("scale").and_then(|v| v.as_str()) { cfg.scale = sc.into(); }
+                        if let Some(pos) = osd_obj.get("position").and_then(|v| v.as_str()) { cfg.position = pos.into(); }
+                        ui.set_osd_config(cfg);
+                    }
+                    if let Some(dd_obj) = val.get("data_dir_info").and_then(|v| v.as_object()) {
+                        let mut info = ui.get_data_dir_info();
+                        if let Some(p) = dd_obj.get("path").and_then(|v| v.as_str()) { info.path = p.into(); }
+                        if let Some(m) = dd_obj.get("mode").and_then(|v| v.as_str()) { info.mode = m.into(); }
+                        ui.set_data_dir_info(info);
                     }
                 }
                 "sync_display_state" => {
@@ -858,6 +922,86 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                         ui.set_plugin_items(slint::ModelRc::new(slint::VecModel::from(tab_items)));
                         ui.set_custom_plugins(slint::ModelRc::new(slint::VecModel::from(list)));
                     }
+                }
+                "sync_power_schemes" => {
+                    if let Some(arr) = val.get("schemes").and_then(|v| v.as_array()) {
+                        let mut list = Vec::new();
+                        let mut active_name = "平衡 (Balanced)".to_string();
+                        for item in arr {
+                            let guid = item.get("guid").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                            let name = item.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                            let is_active = item.get("is_active").and_then(|v| v.as_bool()).unwrap_or(false);
+                            if is_active {
+                                active_name = name.clone();
+                            }
+                            list.push(PowerSchemeItem {
+                                guid: guid.into(),
+                                name: name.into(),
+                                is_active,
+                            });
+                        }
+                        ui.set_power_schemes(slint::ModelRc::new(slint::VecModel::from(list)));
+                        ui.set_active_power_scheme_name(active_name.into());
+                    }
+                    if let Some(msg) = val.get("restore_plan_msg").and_then(|v| v.as_str()) {
+                        ui.set_restore_plan_msg(msg.into());
+                    }
+                }
+                "sync_update_result" => {
+                    ui.set_is_checking_update(false);
+                    if let Some(up) = val.get("update").and_then(|v| v.as_object()) {
+                        let has_update = up.get("has_update").and_then(|v| v.as_bool()).unwrap_or(false);
+                        let cur_ver = up.get("current_version").and_then(|v| v.as_str()).unwrap_or_default();
+                        let lat_ver = up.get("latest_version").and_then(|v| v.as_str()).unwrap_or_default();
+                        let disp_ver = up.get("display_version").and_then(|v| v.as_str()).unwrap_or(lat_ver);
+                        let notes = up.get("notes").and_then(|v| v.as_str()).unwrap_or_default();
+                        let src = up.get("chosen_source").and_then(|v| v.as_str()).unwrap_or("github");
+                        let asset_type = up.get("asset_type").and_then(|v| v.as_str()).unwrap_or("installer");
+                        let fname = up.get("filename").and_then(|v| v.as_str()).unwrap_or_default();
+                        let durl = up.get("download_url").and_then(|v| v.as_str()).unwrap_or_default();
+                        let size_mb = up.get("size_mb").and_then(|v| v.as_str()).unwrap_or_default();
+                        let sha = up.get("sha256").and_then(|v| v.as_str()).unwrap_or_default();
+
+                        let res = UpdateResultData {
+                            has_update,
+                            current_version: cur_ver.into(),
+                            latest_version: lat_ver.into(),
+                            display_version: disp_ver.into(),
+                            notes: notes.into(),
+                            chosen_source: src.into(),
+                            asset_type: asset_type.into(),
+                            filename: fname.into(),
+                            download_url: durl.into(),
+                            size_mb: size_mb.into(),
+                            sha256: sha.into(),
+                            downloading: false,
+                            progress_pct: 0.0,
+                            progress_downloaded_mb: "0.00".into(),
+                            progress_total_mb: size_mb.into(),
+                            progress_speed_mb: "0.00".into(),
+                        };
+                        ui.set_update_data(res);
+                        if has_update {
+                            ui.set_show_update_modal(true);
+                        }
+                    }
+                }
+                "sync_update_progress" => {
+                    let mut d = ui.get_update_data();
+                    d.downloading = true;
+                    if let Some(pct) = val.get("percentage").and_then(|v| v.as_f64()) {
+                        d.progress_pct = (pct / 100.0) as f32;
+                    }
+                    if let Some(speed) = val.get("speed_mb").and_then(|v| v.as_str()) {
+                        d.progress_speed_mb = speed.into();
+                    }
+                    if let Some(dl) = val.get("downloaded_mb").and_then(|v| v.as_str()) {
+                        d.progress_downloaded_mb = dl.into();
+                    }
+                    if let Some(tot) = val.get("total_mb").and_then(|v| v.as_str()) {
+                        d.progress_total_mb = tot.into();
+                    }
+                    ui.set_update_data(d);
                 }
                 _ => {}
             }

@@ -1,103 +1,169 @@
 import { AppTheme } from "../../theme.slint";
+import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, UpdateResultData } from "system_types.slint";
+import { SystemSwitchesCard } from "system_switches_card.slint";
+import { SystemUnlockBatteryModal } from "modals/system_unlock_battery_modal.slint";
+import { SystemClearDataModal } from "modals/system_clear_data_modal.slint";
+import { SystemRestorePlanModal } from "modals/system_restore_plan_modal.slint";
+import { SystemMigrateModal } from "modals/system_migrate_modal.slint";
+import { SystemUpdaterModal } from "modals/system_updater_modal.slint";
 
 export component DashboardSystemView inherits Rectangle {
     background: transparent;
 
+    // 1. Autostart
     in-out property <bool> autostart: false;
-    in-out property <int> theme_mode: 0;
-    in-out property <bool> win_locked: false;
-    in-out property <bool> fn_locked: false;
-    in-out property <bool> osd_enabled: true;
-    in-out property <bool> keep_awake: false;
-
     callback toggle_autostart();
-    callback toggle_theme();
-    callback toggle_osd();
-    callback takeover_oem();
 
-    Flickable {
-        content-height: 600px;
+    // 2. OSD Config
+    in-out property <OsdConfigData> osd_config: {
+        enabled: true,
+        theme: "fade",
+        scale: "140%",
+        position: "top-left"
+    };
+    callback change_osd_theme(string);
+    callback change_osd_scale(string);
+    callback change_osd_position(string);
+    callback toggle_osd_enabled(bool);
+    callback trigger_osd_preview();
 
-        VerticalLayout {
-            padding: 16px;
-            spacing: 14px;
+    // 3. Unlock Battery Limit
+    in-out property <bool> unlock_battery_limit: false;
+    in-out property <bool> show_unlock_battery_confirm: false;
+    in-out property <bool> toggling_unlock_battery: false;
+    callback confirm_unlock_battery();
+    callback disable_unlock_battery();
 
-            Rectangle {
-                border-radius: 8px;
-                background: AppTheme.surface_card;
-                border-width: 1px;
-                border-color: AppTheme.border_subtle;
+    // 4. Wake Window Mode
+    in-out property <string> wake_window_mode: "remember";
+    callback change_wake_window_mode(string);
 
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
+    // 5. Mini Drawer Auto Hide
+    in-out property <bool> mini_auto_hide: true;
+    callback toggle_mini_auto_hide(bool);
 
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Image {
-                            source: @image-url("../../assets/icons/settings.svg");
-                            width: 16px;
-                            height: 16px;
-                            colorize: #38bdf8;
-                            y: (parent.height - self.height) / 2;
-                        }
-                        Text {
-                            text: "系统配置与通用选项";
-                            font-size: 13px;
-                            font-weight: 700;
-                            color: AppTheme.text_primary;
-                            vertical-alignment: center;
-                        }
-                    }
+    // 6. User Data Directory
+    in-out property <UserDataDirInfo> data_dir_info: {
+        path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
+        mode: "appdata"
+    };
+    in-out property <bool> show_clear_confirm: false;
+    in-out property <bool> clearing_data: false;
+    in-out property <bool> show_migrate_modal: false;
+    in-out property <bool> migrating_data: false;
+    callback open_user_data_dir();
+    callback confirm_clear_user_data();
+    callback confirm_migrate_user_data(string);
 
-                    Rectangle {
-                        height: 1px;
-                        background: AppTheme.border_subtle;
-                    }
+    // 7. Power Schemes
+    in-out property <[PowerSchemeItem]> power_schemes: [
+        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+    ];
+    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> restore_plan_msg: "";
+    in-out property <bool> show_restore_plan_confirm: false;
+    in-out property <bool> restoring_power_plan: false;
+    callback switch_power_scheme(string);
+    callback refresh_power_schemes();
+    callback confirm_restore_power_plan();
 
-                    // System Rows
-                    HorizontalLayout {
-                        alignment: space-between;
-                        VerticalLayout {
-                            spacing: 2px;
-                            Text {
-                                text: "开机自启动";
-                                font-size: 12px;
-                                font-weight: 600;
-                                color: AppTheme.text_primary;
-                            }
-                            Text {
-                                text: "系统登录时静默启动并在托盘常驻，保障温控与功耗策略平稳运行";
-                                font-size: 10px;
-                                color: AppTheme.text_muted;
-                            }
-                        }
+    // 8. Software Version & Update
+    in-out property <string> app_version: "v0.9.7";
+    in-out property <bool> is_checking_update: false;
+    in-out property <bool> show_update_modal: false;
+    in-out property <UpdateResultData> update_data;
+    callback check_for_updates();
+    callback start_download_update();
 
-                        Rectangle {
-                            width: 44px;
-                            height: 24px;
-                            border-radius: 12px;
-                            background: root.autostart ? #38bdf8 : AppTheme.surface_pill;
-                            y: (parent.height - self.height) / 2;
+    VerticalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        padding-top: 14px;
+        padding-bottom: 14px;
+        spacing: 12px;
+        alignment: start;
 
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.toggle_autostart(); }
-                            }
+        // Main Switches Card
+        SystemSwitchesCard {
+            autostart: root.autostart;
+            toggle_autostart => { root.toggle_autostart(); }
 
-                            Rectangle {
-                                width: 18px;
-                                height: 18px;
-                                border-radius: 9px;
-                                background: #ffffff;
-                                x: root.autostart ? parent.width - 21px : 3px;
-                                y: 3px;
-                                animate x { duration: 150ms; }
-                            }
-                        }
-                    }
+            osd_config: root.osd_config;
+            change_osd_theme(t) => { root.change_osd_theme(t); }
+            change_osd_scale(s) => { root.change_osd_scale(s); }
+            change_osd_position(p) => { root.change_osd_position(p); }
+            toggle_osd_enabled(en) => { root.toggle_osd_enabled(en); }
+            trigger_osd_preview => { root.trigger_osd_preview(); }
+
+            unlock_battery_limit: root.unlock_battery_limit;
+            request_toggle_unlock_battery => {
+                if root.unlock_battery_limit {
+                    root.disable_unlock_battery();
+                } else {
+                    root.show_unlock_battery_confirm = true;
                 }
             }
+
+            wake_window_mode: root.wake_window_mode;
+            change_wake_window_mode(m) => { root.change_wake_window_mode(m); }
+
+            mini_auto_hide: root.mini_auto_hide;
+            toggle_mini_auto_hide(en) => { root.toggle_mini_auto_hide(en); }
+
+            data_dir_info: root.data_dir_info;
+            open_user_data_dir => { root.open_user_data_dir(); }
+            request_migrate_data => { root.show_migrate_modal = true; }
+            request_clear_data => { root.show_clear_confirm = true; }
+
+            power_schemes: root.power_schemes;
+            active_power_scheme_name: root.active_power_scheme_name;
+            restore_plan_msg: root.restore_plan_msg;
+            request_restore_power_plan => { root.show_restore_plan_confirm = true; }
+            switch_power_scheme(guid) => { root.switch_power_scheme(guid); }
+            refresh_power_schemes => { root.refresh_power_schemes(); }
+
+            app_version: root.app_version;
+            is_checking_update: root.is_checking_update;
+            check_for_updates => { root.check_for_updates(); }
         }
+    }
+
+    // =========================================================================
+    // Modals
+    // =========================================================================
+    if root.show_unlock_battery_confirm: SystemUnlockBatteryModal {
+        is_open: true;
+        is_processing: root.toggling_unlock_battery;
+        close => { root.show_unlock_battery_confirm = false; }
+        confirm => { root.confirm_unlock_battery(); }
+    }
+
+    if root.show_clear_confirm: SystemClearDataModal {
+        is_open: true;
+        is_processing: root.clearing_data;
+        close => { root.show_clear_confirm = false; }
+        confirm => { root.confirm_clear_user_data(); }
+    }
+
+    if root.show_restore_plan_confirm: SystemRestorePlanModal {
+        is_open: true;
+        is_processing: root.restoring_power_plan;
+        close => { root.show_restore_plan_confirm = false; }
+        confirm => { root.confirm_restore_power_plan(); }
+    }
+
+    if root.show_migrate_modal: SystemMigrateModal {
+        is_open: true;
+        is_processing: root.migrating_data;
+        target_path: root.data_dir_info.path;
+        close => { root.show_migrate_modal = false; }
+        confirm(path) => { root.confirm_migrate_user_data(path); }
+    }
+
+    if root.show_update_modal: SystemUpdaterModal {
+        is_open: true;
+        update_data: root.update_data;
+        close => { root.show_update_modal = false; }
+        start_download => { root.start_download_update(); }
     }
 }

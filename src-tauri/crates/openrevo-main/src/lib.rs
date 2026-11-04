@@ -996,6 +996,157 @@ pub fn run_main_standalone() {
         ipc::send_action_to_host("toggle_oem", serde_json::json!({}));
     });
 
+    // GPU Boost Handlers
+    window.on_toggle_balanced_db(move |en| {
+        ipc::send_action_to_host("set_balanced_db", serde_json::json!({ "enabled": en }));
+    });
+    let ui_cb = ui_weak.clone();
+    window.on_change_oc_core(move |val| {
+        ipc::send_action_to_host("set_gpu_oc_core", serde_json::json!({ "mhz": val }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_oc_save_hint("已保存".into());
+        }
+    });
+    let ui_cb = ui_weak.clone();
+    window.on_change_oc_mem(move |val| {
+        ipc::send_action_to_host("set_gpu_oc_mem", serde_json::json!({ "mhz": val }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_oc_save_hint("已保存".into());
+        }
+    });
+
+    // System Settings Handlers
+    let ui_cb = ui_weak.clone();
+    window.on_change_osd_theme(move |t| {
+        ipc::send_action_to_host("set_osd_theme", serde_json::json!({ "theme": t.as_str() }));
+        if let Some(ui) = ui_cb.upgrade() {
+            let mut cfg = ui.get_osd_config();
+            cfg.theme = t;
+            ui.set_osd_config(cfg);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_change_osd_scale(move |s| {
+        ipc::send_action_to_host("set_osd_scale", serde_json::json!({ "scale": s.as_str() }));
+        if let Some(ui) = ui_cb.upgrade() {
+            let mut cfg = ui.get_osd_config();
+            cfg.scale = s;
+            ui.set_osd_config(cfg);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_change_osd_position(move |p| {
+        ipc::send_action_to_host("set_osd_position", serde_json::json!({ "position": p.as_str() }));
+        if let Some(ui) = ui_cb.upgrade() {
+            let mut cfg = ui.get_osd_config();
+            cfg.position = p;
+            ui.set_osd_config(cfg);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_toggle_osd_enabled(move |en| {
+        ipc::send_action_to_host("set_osd_enabled", serde_json::json!({ "enabled": en }));
+        if let Some(ui) = ui_cb.upgrade() {
+            let mut cfg = ui.get_osd_config();
+            cfg.enabled = en;
+            ui.set_osd_config(cfg);
+        }
+    });
+
+    window.on_trigger_osd_preview(move || {
+        ipc::send_action_to_host("trigger_osd_preview", serde_json::json!({}));
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_confirm_unlock_battery(move || {
+        ipc::send_action_to_host("set_unlock_battery_limit", serde_json::json!({ "enabled": true }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_unlock_battery_limit(true);
+            ui.set_show_unlock_battery_confirm(false);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_disable_unlock_battery(move || {
+        ipc::send_action_to_host("set_unlock_battery_limit", serde_json::json!({ "enabled": false }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_unlock_battery_limit(false);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_change_wake_window_mode(move |m| {
+        ipc::send_action_to_host("set_wake_window_mode", serde_json::json!({ "mode": m.as_str() }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_wake_window_mode(m);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_toggle_mini_auto_hide(move |en| {
+        ipc::send_action_to_host("set_mini_auto_hide", serde_json::json!({ "enabled": en }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_mini_auto_hide(en);
+        }
+    });
+
+    window.on_open_user_data_dir(move || {
+        ipc::send_action_to_host("open_user_data_dir", serde_json::json!({}));
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_confirm_clear_user_data(move || {
+        ipc::send_action_to_host("clear_user_data_dir", serde_json::json!({}));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_show_clear_confirm(false);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_confirm_migrate_user_data(move |path| {
+        ipc::send_action_to_host("migrate_user_data_dir", serde_json::json!({ "target_path": path.as_str() }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_show_migrate_modal(false);
+        }
+    });
+
+    window.on_switch_power_scheme(move |guid| {
+        ipc::send_action_to_host("switch_power_scheme", serde_json::json!({ "guid": guid.as_str() }));
+    });
+
+    window.on_refresh_power_schemes(move || {
+        ipc::send_action_to_host("refresh_power_schemes", serde_json::json!({}));
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_confirm_restore_power_plan(move || {
+        ipc::send_action_to_host("restore_official_power_plan", serde_json::json!({}));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_show_restore_plan_confirm(false);
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_check_for_updates(move || {
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_is_checking_update(true);
+        }
+        ipc::send_action_to_host("check_for_updates", serde_json::json!({}));
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_start_download_update(move || {
+        if let Some(ui) = ui_cb.upgrade() {
+            let mut d = ui.get_update_data();
+            d.downloading = true;
+            ui.set_update_data(d);
+        }
+        ipc::send_action_to_host("start_download_update", serde_json::json!({}));
+    });
+
     let hwnd_expand = hwnd_holder.clone();
     let ui_expand = ui_weak.clone();
     window.on_expand_dashboard_clicked(move || {

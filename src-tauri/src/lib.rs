@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use parking_lot::Mutex;
 use std::sync::Arc;
 use tauri::Manager;

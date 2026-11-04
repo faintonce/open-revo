@@ -1,6 +1,7 @@
 import { AppTheme } from "../../theme.slint";
 import { DisplayTuningModal } from "display_tuning_modal.slint";
 import { CloudIccModal } from "cloud_icc_modal.slint";
+import { GpuBoostCard } from "gpu_boost_card.slint";
 
 export component DashboardGpuView inherits Rectangle {
     background: transparent;
@@ -93,6 +94,16 @@ export component DashboardGpuView inherits Rectangle {
     callback apply_color_profile(string);
     callback import_color_profile();
     callback delete_color_profile();
+
+    // GPU Boost & Overclocking Preferences
+    in-out property <bool> balanced_db_enabled: true;
+    in-out property <int> oc_core_mhz: 105;
+    in-out property <int> oc_mem_mhz: 500;
+    in-out property <string> oc_save_hint: "";
+
+    callback toggle_balanced_db(bool);
+    callback change_oc_core(int);
+    callback change_oc_mem(int);
 
     VerticalLayout {
         padding-left: 18px;
@@ -1260,10 +1271,24 @@ export component DashboardGpuView inherits Rectangle {
                 }
             }
         }
+
+        // =========================================================================
+        // 6. GPU Boost & Overclocking Preferences (卡片 6)
+        // =========================================================================
+        GpuBoostCard {
+            balanced_db_enabled <=> root.balanced_db_enabled;
+            oc_core_mhz <=> root.oc_core_mhz;
+            oc_mem_mhz <=> root.oc_mem_mhz;
+            save_hint: root.oc_save_hint;
+
+            toggle_balanced_db(en) => { root.toggle_balanced_db(en); }
+            change_oc_core(val) => { root.change_oc_core(val); }
+            change_oc_mem(val) => { root.change_oc_mem(val); }
+        }
     }
 
     // =========================================================================
-    // 6. Switch Confirmation Modal (显卡模式切换确认对话框)
+    // 7. Switch Confirmation Modal (显卡模式切换确认对话框)
     // =========================================================================
     if root.show_switch_confirm: Rectangle {
         background: #000000aa;

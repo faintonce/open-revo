@@ -1,0 +1,162 @@
+import { AppTheme } from "../../../theme.slint";
+
+export component SystemClearDataModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+    in-out property <bool> is_processing: false;
+
+    callback close();
+    callback confirm();
+
+    background: #000000bd;
+    TouchArea { }
+
+    Rectangle {
+        width: Math.min(parent.width - 60px, 520px);
+        height: Math.min(parent.height - 40px, 390px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #141721;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #f43f5e55;
+        clip: true;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: space-between;
+
+            // Header
+            HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 8px;
+                        background: #f43f5e20;
+                        border-width: 1px;
+                        border-color: #f43f5e60;
+                        Image {
+                            source: @image-url("../../../assets/icons/trash.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: #f43f5e;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    Text {
+                        text: "清除所有用户数据？";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: AppTheme.text_primary;
+                    }
+                    Text {
+                        text: "此操作将彻底清空本地用户数据目录，恢复出厂默认";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Warning Box
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.is_light ? #fef2f2 : #1c141a;
+                border-width: 1px;
+                border-color: #f43f5e30;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "⚠️ 执行后以下所有内容将被永久清除，无法撤回：";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #fb7185;
+                    }
+                    Text {
+                        text: "• 用户自建或调整的模式与功耗调优预设文件 (tuning_presets.json)";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                    }
+                    Text {
+                        text: "• 键盘自制灯效、动画脚本与预设 (lighting_presets.json)";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                    }
+                    Text {
+                        text: "• 已下载安装的第三方插件与自定义皮肤";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                    }
+                    Text {
+                        text: "• 模具库自定义昵称与映射缓存 (models.json)";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                    }
+                }
+            }
+
+            // Action Buttons
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: end;
+
+                // Cancel
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: t_cancel.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    t_cancel := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.close(); }
+                    }
+                    Text {
+                        text: "取消";
+                        font-size: 12px;
+                        color: AppTheme.text_primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Confirm Danger
+                Rectangle {
+                    width: 120px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: root.is_processing ? #881337 : (t_confirm.has-hover ? #e11d48 : #be123c);
+                    border-width: 1px;
+                    border-color: #f43f5e;
+                    t_confirm := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.is_processing {
+                                root.confirm();
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.is_processing ? "正在清除..." : "确认彻底清除";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+

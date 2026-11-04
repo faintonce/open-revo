@@ -1,0 +1,188 @@
+import { AppTheme } from "../../../theme.slint";
+
+export component SystemUnlockBatteryModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+    in-out property <bool> is_processing: false;
+
+    callback close();
+    callback confirm();
+
+    background: #000000bd;
+    TouchArea { }
+
+    Rectangle {
+        width: Math.min(parent.width - 60px, 560px);
+        height: Math.min(parent.height - 40px, 450px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #141721;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #f43f5e55;
+        clip: true;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: space-between;
+
+            // Header
+            HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 8px;
+                        background: #f43f5e20;
+                        border-width: 1px;
+                        border-color: #f43f5e60;
+                        Image {
+                            source: @image-url("../../../assets/icons/ban.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: #f43f5e;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "解除离电模式限制风险警示";
+                            font-size: 15px;
+                            font-weight: 800;
+                            color: AppTheme.text_primary;
+                        }
+                        Rectangle {
+                            border-radius: 3px;
+                            background: #f43f5e20;
+                            border-width: 1px;
+                            border-color: #f43f5e60;
+                            height: 18px;
+                            HorizontalLayout {
+                                padding-left: 5px;
+                                padding-right: 5px;
+                                Text {
+                                    text: "Power Gating";
+                                    font-size: 10px;
+                                    font-weight: 700;
+                                    color: #f43f5e;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: "硬件放电与电池安全性须知（官方固件默认禁止电池开高功耗）";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Warning Box
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.is_light ? #fef2f2 : #1c141a;
+                border-width: 1px;
+                border-color: #f43f5e30;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "⚠️ 开启后将无视适配器断开状态，允许在电池供电下运行狂暴模式：";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #fb7185;
+                    }
+
+                    Text {
+                        text: "• 电池过流保护断电：游戏本电池瞬时放电功率远低于电源适配器，离电重负载可能瞬间触发 BMS 过流保护导致直接掉电黑屏或硬件重启。";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "• 电池寿命加速衰减：大倍率放电会导致电芯剧烈发热，显著加速电池容量老化与鼓包风险。";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "• 拔电不再强制降级：拔掉充电器后，系统将锁定当前模式，不会再自动降级为平衡模式。";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "• 推荐应用场景：如果您是在离电下追求极致续航、设定比办公模式更低的极客功耗，可以放心使用；但切勿在离电下运行重度 3D 游戏或高负载渲染！";
+                        font-size: 10.5px;
+                        color: #10b981;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            // Action Buttons
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: end;
+
+                // Cancel
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: t_cancel.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    t_cancel := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.close(); }
+                    }
+                    Text {
+                        text: "取消";
+                        font-size: 12px;
+                        color: AppTheme.text_primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Confirm Danger
+                Rectangle {
+                    width: 170px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: root.is_processing ? #881337 : (t_confirm.has-hover ? #e11d48 : #be123c);
+                    border-width: 1px;
+                    border-color: #f43f5e;
+                    t_confirm := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.is_processing {
+                                root.confirm();
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.is_processing ? "正在生效..." : "我已知晓风险，确认解除";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
