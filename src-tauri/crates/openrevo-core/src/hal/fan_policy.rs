@@ -704,6 +704,46 @@ mod tests {
         assert_eq!(c.hardware.calls.len(), calls);
     }
     #[test]
+    fn factory_handover_cancels_active_and_protected_curves_across_wake() {
+        for protected in [false, true] {
+            let saved = RpmFanCurves::default();
+            let mut c = FanController::new(MockFan::default());
+            c.select_curve(saved.clone(), Some(45)).unwrap();
+            if protected { tick(&mut c, Some(90), 1); }
+            c.automatic().unwrap();
+            let calls = c.hardware.calls.len();
+            c.suspend();
+            c.resume();
+            for second in [2, 8, 30] { tick(&mut c, Some(45), second); }
+            assert_eq!(c.status.mode, "auto");
+            assert_eq!(c.status.requested_mode, "auto");
+            assert!(!c.status.resume_pending);
+            assert!(!c.needs_tick());
+            assert_eq!(c.hardware.calls.len(), calls);
+            // Re-entering Custom explicitly reuses the saved curve.
+            c.select_curve(saved.clone(), Some(45)).unwrap();
+            assert_eq!(c.status.requested_mode, "curve");
+            assert_eq!(c.status.target_rpm, saved.targets(45));
+        }
+    }
+
+    #[test]
+    fn factory_handover_cancels_fixed_rpm_and_smoothing() {
+        let mut c = FanController::new(MockFan { actual: Some([2200, 2200]), ..Default::default() });
+        c.select_manual([4000, 4500], Some(45)).unwrap();
+        assert!(c.status.smoothing_active);
+        c.automatic().unwrap();
+        let calls = c.hardware.calls.len();
+        for second in [1, 5, 20] { tick(&mut c, Some(45), second); }
+        assert_eq!(c.status.mode, "auto");
+        assert_eq!(c.status.requested_mode, "auto");
+        assert!(!c.status.smoothing_active);
+        assert_eq!(c.status.target_rpm, [0, 0]);
+        assert_eq!(c.status.transition_rpm, [0, 0]);
+        assert_eq!(c.hardware.calls.len(), calls);
+    }
+
+    #[test]
     fn edited_curve_during_protection_waits_for_recovery() {
         let mut c = controller();
         tick(&mut c, Some(90), 1);

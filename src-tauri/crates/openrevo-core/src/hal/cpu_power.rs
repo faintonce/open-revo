@@ -133,6 +133,10 @@ struct Policy {
     limit_watts: Option<u16>,
 }
 impl Policy {
+    fn while_active(&self, action: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+        if self.session.is_some() { action() } else { Ok(()) }
+    }
+
     fn bound(&self, snapshot: Snapshot) -> u16 {
         if let Some(limit) = self.limit_watts {
             if !(5..=255).contains(&limit) {
@@ -382,6 +386,12 @@ pub fn is_active() -> bool {
     CONTROLLER.lock().policy.session.is_some()
 }
 
+/// Serialize saved fan-profile updates with entry/exit of native Custom mode.
+/// A delayed save after selecting a factory preset must not restart its curve.
+pub fn with_active_profile(action: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+    CONTROLLER.lock().policy.while_active(action)
+}
+
 pub fn ac_online() -> bool {
     #[repr(C)]
     #[derive(Default)]
@@ -536,6 +546,30 @@ mod tests {
             Ok(())
         }
     }
+    #[test]
+    fn delayed_profile_action_cannot_reactivate_after_factory_exit() {
+        let mut io = Fake::new(3);
+        let mut p = Policy::default();
+        p.while_active(|| panic!("Factory mode must not apply a saved fan curve")).unwrap();
+        p.apply(&mut io, [12, 17]).unwrap();
+        let mut applied = false;
+        p.while_active(|| { applied = true; Ok(()) }).unwrap();
+        assert!(applied);
+        p.transition(&mut io, None, |_| Ok(())).unwrap();
+        p.while_active(|| panic!("Delayed save must not restart the curve")).unwrap();
+        assert!(p.session.is_none());
+    }
+
+    #[test]
+    fn fan_profile_failure_is_reported_without_losing_cpu_ownership() {
+        let mut io = Fake::new(3);
+        let mut p = Policy::default();
+        p.apply(&mut io, [12, 17]).unwrap();
+        assert_eq!(p.while_active(|| Err("Fan transport unavailable".into())).unwrap_err(),
+            "Fan transport unavailable");
+        assert!(p.status(&mut io).write_verified);
+    }
+
     #[test]
     fn failed_profile_save_restores_limits_and_does_not_activate_custom() {
         let mut io = Fake::new(3);

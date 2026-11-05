@@ -316,11 +316,25 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
                 return Err(HalError::UnsupportedModel("CPU custom mode is not declared".into()));
             }
             let p = crate::system::config::load_config().custom_profile;
-            return self.apply_cpu_power_profile(p.cpu_pl1_watts, p.cpu_pl2_watts);
+            self.apply_cpu_power_profile(p.cpu_pl1_watts, p.cpu_pl2_watts)?;
+            if self.manifest.uses_ptl_pmc() {
+                crate::hal::cpu_power::with_active_profile(|| {
+                    let curves = p.ptl_rpm_curves();
+                    crate::hal::ptl_pmc::set_smoothing(curves.smoothing)?;
+                    if p.fan_curve_enabled { crate::hal::ptl_pmc::set_rpm_curves(curves) }
+                    else { crate::hal::ptl_pmc::restore_auto() }
+                }).map_err(HalError::RegisterAccessFailed)?;
+            }
+            return Ok(());
         }
         let mut firmware_error = None;
+        let mut fan_restore = Ok(());
         let result = crate::hal::cpu_power::transition(None, || match self.set_declared_mode(mode) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                // A fan transport failure must not leave the custom CPU cap in place.
+                if self.manifest.uses_ptl_pmc() { fan_restore = crate::hal::ptl_pmc::restore_auto(); }
+                Ok(())
+            },
             Err(error) => {
                 let message = error.to_string();
                 firmware_error = Some(error);
@@ -328,7 +342,8 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
             }
         });
         if let Some(error) = firmware_error { return Err(error); }
-        result.map_err(HalError::RegisterAccessFailed)
+        result.map_err(HalError::RegisterAccessFailed)?;
+        fan_restore.map_err(HalError::RegisterAccessFailed)
     }
 
     fn set_battery_health(&self, mode: BatteryHealthMode) -> Result<(), HalError> {

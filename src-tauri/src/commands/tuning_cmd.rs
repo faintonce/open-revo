@@ -296,20 +296,23 @@ fn sync_native_fan_profile(
     previous: &crate::system::config::CustomProfileConfig,
 ) -> Result<(), String> {
     if !uses_ptl_pmc() { return Ok(()); }
-    let curves = profile.ptl_rpm_curves();
-    let previous_curves = previous.ptl_rpm_curves();
-    let hal = crate::hal::get_hardware_driver();
-    if curves.smoothing != previous_curves.smoothing {
-        hal.set_rpm_fan_smoothing(curves.smoothing).map_err(|e| e.to_string())?;
-    }
-    if profile.fan_curve_enabled {
-        if !previous.fan_curve_enabled || curves != previous_curves {
-            hal.set_rpm_fan_curves(curves).map_err(|e| e.to_string())?;
+    crate::hal::cpu_power::with_active_profile(|| {
+        let curves = profile.ptl_rpm_curves();
+        let previous_curves = previous.ptl_rpm_curves();
+        let hal = crate::hal::get_hardware_driver();
+        if curves.smoothing != previous_curves.smoothing {
+            hal.set_rpm_fan_smoothing(curves.smoothing).map_err(|e| e.to_string())?;
         }
-    } else if previous.fan_curve_enabled {
-        hal.restore_fan_auto().map_err(|e| e.to_string())?;
-    }
-    Ok(())
+        if profile.fan_curve_enabled {
+            if !previous.fan_curve_enabled || curves != previous_curves
+                || crate::hal::ptl_pmc::status().requested_mode == "auto" {
+                hal.set_rpm_fan_curves(curves).map_err(|e| e.to_string())?;
+            }
+        } else if previous.fan_curve_enabled {
+            hal.restore_fan_auto().map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    })
 }
 
 
@@ -526,8 +529,9 @@ pub fn apply_fan_curve_live(
     if uses_ptl_pmc() {
         let cpu=cpu_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
         let gpu=gpu_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
-        return crate::hal::get_hardware_driver().set_rpm_fan_curves(migrate_ptl_curves(&cpu,&gpu)?)
-            .map_err(|e| e.to_string());
+        let curves = migrate_ptl_curves(&cpu, &gpu)?;
+        return crate::hal::cpu_power::with_active_profile(||
+            crate::hal::get_hardware_driver().set_rpm_fan_curves(curves).map_err(|e| e.to_string()));
     }
     let is_bld_manifest = fan_curve_uses_bld_controller()?;
 
@@ -569,13 +573,16 @@ pub fn toggle_fan_isolated_output(
     if uses_ptl_pmc() {
         if enable {
             let profile=crate::system::config::load_config().custom_profile;
-            if cpu_curve.is_none() && gpu_curve.is_none() {
-                set_rpm_fan_curves(profile.ptl_rpm_curves())?;
+            let curves = if cpu_curve.is_none() && gpu_curve.is_none() {
+                profile.ptl_rpm_curves()
             } else {
                 let cpu=cpu_curve.unwrap_or(profile.cpu_fan_curve).iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
                 let gpu=gpu_curve.unwrap_or(profile.gpu_fan_curve).iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
-                set_rpm_fan_curves(migrate_ptl_curves(&cpu,&gpu)?)?;
-            }
+                migrate_ptl_curves(&cpu,&gpu)?
+            };
+            crate::hal::cpu_power::with_active_profile(||
+                crate::hal::get_hardware_driver().set_rpm_fan_curves(curves.clone()).map_err(|e| e.to_string()))?;
+            save_ptl_fan_policy(Some(curves), Some(true))?;
         } else { restore_fan_auto()?; }
         return Ok(enable);
     }

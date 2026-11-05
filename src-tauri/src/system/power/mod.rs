@@ -299,11 +299,8 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
                 if let Err(e) = hal.set_rpm_fan_smoothing(curves.smoothing) {
                     crate::log_error!("PTL_FAN", "Cannot restore software smoothing: {}", e);
                 }
-                if cfg.custom_profile.fan_curve_enabled {
-                    if let Err(e) = hal.set_rpm_fan_curves(curves) {
-                        crate::log_error!("PTL_FAN", "Cannot restore fan curve: {}", e);
-                    }
-                }
+                // The selected mode owns fan restoration. Replaying a saved
+                // curve here would override a factory preset or fallback.
             }
 
             restore_ec_power_options(&crate::system::config::load_config());
