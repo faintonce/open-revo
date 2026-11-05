@@ -287,24 +287,24 @@ impl Policy {
             before.encode(watts, self.bound(before))?;
             if self.session.is_none() {
                 select(io)?;
+                let result = self.apply(io, watts);
+                // The firmware selection is part of entering Custom. Preserve
+                // the pre-entry budget, not a value changed by that selection.
+                if let Some(session) = &mut self.session {
+                    session.baseline = before;
+                }
+                return result;
             }
             self.apply(io, watts)
         } else {
-            let previous = self.session;
-            self.release(io)?;
-            if let Err(error) = select(io) {
-                // Recover the custom session if the preset switch failed without changing it.
-                if let Some(s) = previous {
-                    let actual = io.read(MSR_PKG_POWER_LIMIT)?;
-                    if (actual ^ s.baseline.limit) & OWNED_FIELDS == 0 {
-                        let resumed = (actual & !OWNED_FIELDS) | (s.last & OWNED_FIELDS);
-                        write_verified(io, resumed)?;
-                        self.session = Some(s);
-                    }
-                }
-                return Err(error);
-            }
-            Ok(())
+            // Select the factory mode before releasing our MSR override. A
+            // firmware mode change may copy the current custom limits back to
+            // the CPU; restoring first lets that copy reinstate the old cap.
+            // Keep any new limits supplied by firmware and restore only fields
+            // that still match our last write. Failure retains the owner so a
+            // later mode switch or shutdown can retry the restoration.
+            select(io)?;
+            self.release(io)
         }
     }
 }
@@ -678,13 +678,12 @@ mod tests {
         assert_eq!(io.value, original);
     }
     #[test]
-    fn captures_selected_firmware_budget_and_does_not_repeat_mode_writes() {
+    fn captures_budget_before_entering_custom_and_does_not_repeat_mode_writes() {
         let mut io = Fake::new(3);
         let mut p = Policy::default();
-        let mut selected = io.value;
+        let original = io.value;
         p.transition(&mut io, Some([20, 30]), |io| {
             io.value = (io.value & !PL1_FIELDS) | 50 * 8 | PL1_ENABLE;
-            selected = io.value;
             Ok(())
         })
         .unwrap();
@@ -693,11 +692,92 @@ mod tests {
         })
         .unwrap();
         p.transition(&mut io, None, |io| {
-            assert_eq!(io.value, selected);
+            assert_eq!(io.value & PL1_FIELDS, 30 * 8 | PL1_ENABLE);
             Ok(())
         })
         .unwrap();
+        assert_eq!(io.value, original);
         assert!(p.session.is_none());
+    }
+
+    #[test]
+    fn exit_clears_twelve_watt_limit_copied_back_by_factory_mode_selection() {
+        let mut io = Fake::new(3);
+        let original = io.value;
+        let mut p = Policy::default();
+        p.transition(&mut io, Some([12, 17]), |_| Ok(())).unwrap();
+        let custom = io.value;
+        p.transition(&mut io, None, |io| {
+            // OEM mode selection can copy the active package budget. The
+            // final restoration must run after this firmware operation.
+            io.value = custom;
+            Ok(())
+        }).unwrap();
+        assert_eq!(io.value, original);
+        assert!(!p.status(&mut io).active);
+    }
+
+    #[test]
+    fn exit_keeps_new_factory_limits_and_unrelated_firmware_bits() {
+        let mut io = Fake::new(3);
+        let mut p = Policy::default();
+        p.apply(&mut io, [12, 17]).unwrap();
+        let factory = (io.value & !OWNED_FIELDS)
+            | 28 * 8 | PL1_ENABLE | ((40 * 8) << 32) | PL2_ENABLE;
+        let factory = factory ^ (1 << 23) ^ (1 << 61);
+        p.transition(&mut io, None, |io| {
+            io.value = factory;
+            Ok(())
+        }).unwrap();
+        assert_eq!(io.value, factory);
+        assert_eq!(io.writes.len(), 1); // No write over the firmware's new budget.
+        assert!(!p.status(&mut io).active);
+    }
+
+    #[test]
+    fn exit_restores_only_the_channel_left_at_the_custom_limit() {
+        let mut io = Fake::new(3);
+        let original = io.value;
+        let mut p = Policy::default();
+        p.apply(&mut io, [12, 17]).unwrap();
+        p.transition(&mut io, None, |io| {
+            io.value = (io.value & !PL1_FIELDS) | 28 * 8 | PL1_ENABLE;
+            Ok(())
+        }).unwrap();
+        assert_eq!(io.value & PL1_FIELDS, 28 * 8 | PL1_ENABLE);
+        assert_eq!(io.value & PL2_FIELDS, original & PL2_FIELDS);
+        assert!(!p.status(&mut io).active);
+    }
+
+    #[test]
+    fn failed_exit_restore_keeps_owner_and_can_be_retried() {
+        let mut io = Fake::new(3);
+        let original = io.value;
+        let mut p = Policy::default();
+        p.apply(&mut io, [12, 17]).unwrap();
+        io.ignore_next = true;
+        assert!(p.transition(&mut io, None, |_| Ok(())).is_err());
+        assert!(p.status(&mut io).active);
+        assert_eq!(p.status(&mut io).pl1_watts, Some(12.0));
+        p.transition(&mut io, None, |_| Ok(())).unwrap();
+        assert_eq!(io.value, original);
+        assert!(!p.status(&mut io).active);
+    }
+
+    #[test]
+    fn failed_factory_switch_does_not_write_limits_or_lose_ownership() {
+        let mut io = Fake::new(3);
+        let original = io.value;
+        let mut p = Policy::default();
+        p.apply(&mut io, [12, 17]).unwrap();
+        let custom = io.value;
+        let writes = io.writes.len();
+        assert!(p.transition(&mut io, None, |_| Err("Firmware rejected mode".into())).is_err());
+        assert_eq!(io.value, custom);
+        assert_eq!(io.writes.len(), writes);
+        assert!(p.status(&mut io).write_verified);
+        p.release(&mut io).unwrap();
+        assert_eq!(io.value, original);
     }
     #[test]
     fn failed_exit_recovers_previous_custom_session() {
@@ -806,6 +886,7 @@ mod tests {
     fn declared_limit_allows_fifty_watts_from_a_low_power_preset() {
         let mut io = Fake::new(3);
         io.value = (io.value & !OWNED_FIELDS) | 15 * 8 | PL1_ENABLE | ((20 * 8) << 32) | PL2_ENABLE;
+        let original = io.value;
         let mut p = Policy {
             limit_watts: Some(50),
             ..Default::default()
@@ -823,7 +904,7 @@ mod tests {
         p.apply(&mut io, [50, 50]).unwrap();
         assert_eq!(p.status(&mut io).max_watts, 50);
         p.release(&mut io).unwrap();
-        assert_eq!(io.value, turbo);
+        assert_eq!(io.value, original);
     }
 
     #[test]
