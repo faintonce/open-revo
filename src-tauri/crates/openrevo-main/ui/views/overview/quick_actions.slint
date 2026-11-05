@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { MonitorRefreshCard } from "../gpu/monitor_refresh_card.slint";
 
 export component DashboardQuickActions inherits Rectangle {
     height: 76px;
@@ -10,6 +11,9 @@ export component DashboardQuickActions inherits Rectangle {
     in-out property <string> monitor_name: "京东方";
     in-out property <[int]> rates_row1: [60, 144, 240];
     in-out property <[int]> rates_row2: [];
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
 
     callback toggle_fan_boost();
     callback toggle_auto_min_hz();
@@ -162,224 +166,19 @@ export component DashboardQuickActions inherits Rectangle {
             }
         }
 
-        // 3. 屏幕刷新率 (Wide flexible container taking all remaining width)
-        card_rate := Rectangle {
+        // 3. Monitor Refresh Rate Control (Reusing shared MonitorRefreshCard)
+        MonitorRefreshCard {
             horizontal-stretch: 1;
-            background: AppTheme.surface_card;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: AppTheme.border_subtle;
-
-            HorizontalLayout {
-                padding-left: 14px;
-                padding-right: 14px;
-                alignment: space-between;
-
-                // Left: Icon + Label + Monitor Dropdown Pill
-                HorizontalLayout {
-                    spacing: 10px;
-                    alignment: start;
-
-                    VerticalLayout {
-                        alignment: center;
-                        Image {
-                            source: @image-url("../../assets/icons/monitor.svg");
-                            width: 22px;
-                            height: 22px;
-                            colorize: #38bdf8;
-                        }
-                    }
-
-                    VerticalLayout {
-                        alignment: center;
-                        spacing: 3px;
-
-                        Text {
-                            text: "屏幕刷新率";
-                            font-size: 12px;
-                            font-weight: 700;
-                            color: AppTheme.text_primary;
-                        }
-
-                        // Monitor Dropdown Pill with Real Vector Chevron Icon & PopupWindow
-                        mon_btn := Rectangle {
-                            border-radius: 4px;
-                            background: t_mon.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: AppTheme.border_subtle;
-                            height: 20px;
-
-                            t_mon := TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { mon_popup.show(); }
-                            }
-
-                            HorizontalLayout {
-                                padding-left: 6px;
-                                padding-right: 6px;
-                                spacing: 4px;
-
-                                Image {
-                                    source: @image-url("../../assets/icons/monitor.svg");
-                                    width: 10px;
-                                    height: 10px;
-                                    colorize: AppTheme.text_muted;
-                                    y: (parent.height - self.height) / 2;
-                                }
-
-                                Text {
-                                    text: root.monitor_name;
-                                    font-size: 9px;
-                                    color: AppTheme.text_secondary;
-                                    vertical-alignment: center;
-                                }
-
-                                Image {
-                                    source: @image-url("../../assets/icons/chevron-down.svg");
-                                    width: 8px;
-                                    height: 8px;
-                                    colorize: AppTheme.text_muted;
-                                    y: (parent.height - self.height) / 2;
-                                }
-                            }
-
-                            mon_popup := PopupWindow {
-                                x: 0px;
-                                y: 22px;
-                                width: 170px;
-
-                                Rectangle {
-                                    background: AppTheme.surface_elevated;
-                                    border-radius: 6px;
-                                    border-width: 1px;
-                                    border-color: AppTheme.border_medium;
-                                    drop-shadow-blur: 8px;
-                                    drop-shadow-color: #00000080;
-
-                                    VerticalLayout {
-                                        padding: 4px;
-                                        spacing: 2px;
-
-                                        // Item 0: 主屏 (京东方)
-                                        Rectangle {
-                                            height: 26px;
-                                            border-radius: 4px;
-                                            background: t_m0.has-hover ? AppTheme.surface_pill : transparent;
-                                            t_m0 := TouchArea {
-                                                mouse-cursor: pointer;
-                                                clicked => {
-                                                    root.monitor_name = "京东方 (主屏)";
-                                                    root.select_monitor("京东方 (主屏)");
-                                                    root.select_monitor_index(0);
-                                                }
-                                            }
-                                            HorizontalLayout {
-                                                padding-left: 8px;
-                                                padding-right: 8px;
-                                                Text {
-                                                    text: "京东方 (内置主屏)";
-                                                    font-size: 10px;
-                                                    color: AppTheme.text_primary;
-                                                    vertical-alignment: center;
-                                                }
-                                            }
-                                        }
-
-                                        // Item 1: 外接副屏
-                                        Rectangle {
-                                            height: 26px;
-                                            border-radius: 4px;
-                                            background: t_m1.has-hover ? AppTheme.surface_pill : transparent;
-                                            t_m1 := TouchArea {
-                                                mouse-cursor: pointer;
-                                                clicked => {
-                                                    root.monitor_name = "外接副屏";
-                                                    root.select_monitor("外接副屏");
-                                                    root.select_monitor_index(1);
-                                                }
-                                            }
-                                            HorizontalLayout {
-                                                padding-left: 8px;
-                                                padding-right: 8px;
-                                                Text {
-                                                    text: "外接副屏 / 扩展显示器";
-                                                    font-size: 10px;
-                                                    color: AppTheme.text_secondary;
-                                                    vertical-alignment: center;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Right: Dynamic Supported Refresh Rates (Wrap into 2 clean rows if many rates)
-                VerticalLayout {
-                    alignment: center;
-                    spacing: 4px;
-
-                    // Row 1
-                    HorizontalLayout {
-                        spacing: 4px;
-                        alignment: end;
-
-                        for rate in root.rates_row1: Rectangle {
-                            border-radius: 4px;
-                            background: root.refresh_rate == rate ? #38bdf825 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.refresh_rate == rate ? #38bdf8 : AppTheme.border_subtle;
-                            height: 22px;
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.switch_hz(rate); }
-                            }
-                            HorizontalLayout {
-                                padding-left: 7px;
-                                padding-right: 7px;
-                                Text {
-                                    text: rate + "Hz";
-                                    font-size: 9.5px;
-                                    font-weight: root.refresh_rate == rate ? 700 : 500;
-                                    color: root.refresh_rate == rate ? #38bdf8 : AppTheme.text_primary;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-                    }
-
-                    // Row 2 (rendered cleanly only if there are overflow rates)
-                    if root.rates_row2.length > 0: HorizontalLayout {
-                        spacing: 4px;
-                        alignment: end;
-
-                        for rate in root.rates_row2: Rectangle {
-                            border-radius: 4px;
-                            background: root.refresh_rate == rate ? #38bdf825 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.refresh_rate == rate ? #38bdf8 : AppTheme.border_subtle;
-                            height: 22px;
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.switch_hz(rate); }
-                            }
-                            HorizontalLayout {
-                                padding-left: 7px;
-                                padding-right: 7px;
-                                Text {
-                                    text: rate + "Hz";
-                                    font-size: 9.5px;
-                                    font-weight: root.refresh_rate == rate ? 700 : 500;
-                                    color: root.refresh_rate == rate ? #38bdf8 : AppTheme.text_primary;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            title: "屏幕刷新率";
+            monitor_name: root.monitor_name;
+            refresh_rate: root.refresh_rate;
+            rates_row1: root.rates_row1;
+            rates_row2: root.rates_row2;
+            has_secondary_monitor: root.has_secondary_monitor;
+            primary_monitor_name: root.primary_monitor_name;
+            secondary_monitor_name: root.secondary_monitor_name;
+            refresh_rate_switched(hz) => { root.switch_hz(hz); }
+            select_monitor_index(idx) => { root.select_monitor_index(idx); }
         }
     }
 }

@@ -1,13 +1,20 @@
 pub static IS_FILE_DIALOG_ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static RECORDED_SLINT_HWND: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
 
 #[cfg(target_os = "windows")]
 pub fn get_openrevo_main_hwnd() -> isize {
     use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetForegroundWindow, GetWindowTextW, IsWindowVisible,
+        EnumWindows, GetForegroundWindow, GetWindowTextW, IsWindow, IsWindowVisible,
     };
 
     unsafe {
+        // 0. Primary: use recorded HWND directly communicated by Slint companion via IPC
+        let recorded = RECORDED_SLINT_HWND.load(std::sync::atomic::Ordering::SeqCst);
+        if recorded != 0 && IsWindow(HWND(recorded as *mut _)).as_bool() {
+            return recorded;
+        }
+
         // 1. If foreground window is titled OpenRevo and visible, fast-path
         let fg = GetForegroundWindow();
         if !fg.0.is_null() && IsWindowVisible(fg).as_bool() {
@@ -367,8 +374,23 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
                 crate::commands::window_cmd::save_full_window_pos(x as i32, y as i32);
             }
         }
+        "sync_slint_hwnd" => {
+            if let Some(hwnd) = val.get("hwnd").and_then(|v| v.as_i64()) {
+                if hwnd != 0 {
+                    RECORDED_SLINT_HWND.store(hwnd as isize, std::sync::atomic::Ordering::SeqCst);
+                    crate::log_info!("SLINT_MAIN", "Synchronized Slint main HWND: 0x{:X}", hwnd);
+                }
+            }
+        }
         "slint_ready" => {
-            crate::log_info!("SLINT_MAIN", "Companion reported ready, sending full states");
+            if let Some(hwnd) = val.get("hwnd").and_then(|v| v.as_i64()) {
+                if hwnd != 0 {
+                    RECORDED_SLINT_HWND.store(hwnd as isize, std::sync::atomic::Ordering::SeqCst);
+                    crate::log_info!("SLINT_MAIN", "Companion reported ready with HWND: 0x{:X}", hwnd);
+                }
+            } else {
+                crate::log_info!("SLINT_MAIN", "Companion reported ready, sending full states");
+            }
             sync_slint_tuning_state();
             sync_slint_display_state();
             sync_slint_power_state();
@@ -406,18 +428,37 @@ fn handle_slint_incoming_action(line: &str, app: Option<&AppHandle>) {
         }
         "collapse_dashboard" => {
             if let Some(app) = app {
-                hide_embedded_webview(app);
+                let app_clone = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    hide_embedded_webview(&app_clone);
+                });
+            }
+        }
+        "window_moved" => {
+            if let Some(hwnd) = val.get("hwnd").and_then(|v| v.as_i64()) {
+                if hwnd != 0 {
+                    RECORDED_SLINT_HWND.store(hwnd as isize, std::sync::atomic::Ordering::SeqCst);
+                }
             }
         }
         "select_plugin_tab" => {
+            if let Some(hwnd) = val.get("hwnd").and_then(|v| v.as_i64()) {
+                if hwnd != 0 {
+                    RECORDED_SLINT_HWND.store(hwnd as isize, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
             if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
                 crate::log_info!("SLINT_MAIN", "User switched to plugin tab: '{}'", pid);
                 if let Some(app) = app {
-                    if pid.is_empty() {
-                        hide_embedded_webview(app);
-                    } else {
-                        attach_or_switch_embedded_webview(app, pid);
-                    }
+                    let app_clone = app.clone();
+                    let pid_string = pid.to_string();
+                    let _ = app.run_on_main_thread(move || {
+                        if pid_string.is_empty() {
+                            hide_embedded_webview(&app_clone);
+                        } else {
+                            attach_or_switch_embedded_webview(&app_clone, &pid_string);
+                        }
+                    });
                 }
             }
         }
@@ -1697,6 +1738,9 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
     };
 
     let (live_battery, live_ac, _) = crate::commands::power_cmd::get_live_power_status();
+    let has_secondary_monitor = state.monitors.len() > 1;
+    let primary_monitor_name = if !state.monitors.is_empty() { state.monitors[0].friendly_name.clone() } else { "内置主屏".to_string() };
+    let secondary_monitor_name = if state.monitors.len() > 1 { state.monitors[1].friendly_name.clone() } else { "".to_string() };
 
     send_slint_ipc_message(serde_json::json!({
         "action": "telemetry",
@@ -1721,6 +1765,9 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "monitor_name": monitor_name,
         "rates_row1": rates_row1,
         "rates_row2": rates_row2,
+        "has_secondary_monitor": has_secondary_monitor,
+        "primary_monitor_name": primary_monitor_name,
+        "secondary_monitor_name": secondary_monitor_name,
         "power_mode": state.power_mode,
         "fan_boost": state.fan_boost,
     }));
@@ -1823,6 +1870,9 @@ pub fn sync_slint_display_state() {
     } else {
         (supported_rates.clone(), Vec::new())
     };
+    let has_secondary_monitor = monitors.len() > 1;
+    let primary_monitor_name = if !monitors.is_empty() { monitors[0].friendly_name.clone() } else { "内置主屏".to_string() };
+    let secondary_monitor_name = if monitors.len() > 1 { monitors[1].friendly_name.clone() } else { "".to_string() };
 
     let mut profiles_list: Vec<String> = Vec::new();
     let mut profiles_ids: Vec<String> = Vec::new();
@@ -1852,6 +1902,9 @@ pub fn sync_slint_display_state() {
         "refresh_rate": curr_hz,
         "rates_row1": rates_row1,
         "rates_row2": rates_row2,
+        "has_secondary_monitor": has_secondary_monitor,
+        "primary_monitor_name": primary_monitor_name,
+        "secondary_monitor_name": secondary_monitor_name,
     }));
 }
 
@@ -2114,7 +2167,8 @@ pub fn sync_slint_power_schemes(restore_msg: Option<&str>) {
 
 const EMBEDDED_LABEL: &str = "embedded_plugin_host";
 
-fn calc_embedded_geometry(parent_hwnd: windows::Win32::Foundation::HWND) -> (i32, i32, i32, i32) {
+/// Compute the physical pixel coordinates of the plugin area within the Slint client space.
+fn calc_embedded_geometry(parent_hwnd: windows::Win32::Foundation::HWND) -> (i32, i32, i32, i32, i32) {
     use windows::Win32::Foundation::RECT;
     use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
@@ -2126,23 +2180,68 @@ fn calc_embedded_geometry(parent_hwnd: windows::Win32::Foundation::HWND) -> (i32
     let total_h = rect.bottom - rect.top;
 
     if total_w <= 0 || total_h <= 0 {
-        return (200, 79, 920, 681);
+        return (200, 79, 919, 680, 9);
     }
 
     // Slint full dashboard design base: 1120 x 760
     // Sidebar width: 200px
-    // Header height: 40px
-    // Header divider: 1px
-    // Plugin action strip height: 38px (total top offset = 79px)
+    // Header height: 40px + 1px divider + 38px plugin-action-strip = 79px total top offset
     let scale_x = total_w as f64 / 1120.0;
     let scale_y = total_h as f64 / 760.0;
 
     let target_x = (200.0 * scale_x).round() as i32;
     let target_y = (79.0 * scale_y).round() as i32;
-    let target_w = (total_w - target_x).max(100);
-    let target_h = (total_h - target_y).max(100);
 
-    (target_x, target_y, target_w, target_h)
+    // Leave 1px margin on right and bottom so parent's border_subtle is not covered
+    let target_w = (total_w - target_x - 1).max(100);
+    let target_h = (total_h - target_y - 1).max(100);
+
+    // Parent container outer border-radius is 10px; with 1px border inner radius is ~9px
+    let corner_radius = (9.0 * scale_x).round() as i32;
+
+    (target_x, target_y, target_w, target_h, corner_radius)
+}
+
+/// Applies a custom clipping region to the embedded child window so that:
+/// - Top-left, Top-right, and Bottom-left remain sharp right angles matching interior seams.
+/// - Bottom-right corner is smoothly rounded to fit the Slint container's rounded corner (10px).
+/// - Completely strips away standard Win32 rectangular borders/shadows outside the region.
+fn apply_child_rounded_region(child_hwnd: windows::Win32::Foundation::HWND, w: i32, h: i32, radius: i32) {
+    use windows::Win32::Graphics::Gdi::{
+        CombineRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, RGN_OR,
+    };
+
+    if w <= 0 || h <= 0 {
+        return;
+    }
+
+    unsafe {
+        if radius <= 1 {
+            let rgn = CreateRectRgn(0, 0, w, h);
+            let _ = SetWindowRgn(child_hwnd, rgn, true);
+            return;
+        }
+
+        // Region 1: Upper block (covers y from 0 to h - radius across full width w)
+        let r1 = CreateRectRgn(0, 0, w, h - radius);
+
+        // Region 2: Lower-left block (covers y from h - radius to h, x from 0 to w - radius)
+        let r2 = CreateRectRgn(0, h - radius, w - radius, h);
+
+        // Region 3: Round-corner arc for bottom-right corner [w - 2 * radius .. w, h - 2 * radius .. h]
+        let r3 = CreateRoundRectRgn(w - 2 * radius, h - 2 * radius, w + 1, h + 1, radius * 2, radius * 2);
+
+        let main_rgn = CreateRectRgn(0, 0, 0, 0);
+        CombineRgn(main_rgn, r1, r2, RGN_OR);
+        CombineRgn(main_rgn, main_rgn, r3, RGN_OR);
+
+        let _ = DeleteObject(r1);
+        let _ = DeleteObject(r2);
+        let _ = DeleteObject(r3);
+
+        // SetWindowRgn takes ownership of main_rgn handle
+        let _ = SetWindowRgn(child_hwnd, main_rgn, true);
+    }
 }
 
 pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
@@ -2151,7 +2250,7 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
     use windows::Win32::UI::WindowsAndMessaging::{
         GetWindowLongW, SetParent, SetWindowLongW, SetWindowPos, ShowWindow,
         GWL_EXSTYLE, GWL_STYLE, HWND_TOP, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_SHOW,
-        WS_CAPTION, WS_CHILD, WS_EX_APPWINDOW, WS_EX_WINDOWEDGE, WS_POPUP, WS_THICKFRAME,
+        WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_CONTROLPARENT, WS_VISIBLE,
     };
 
     let parent_hwnd_raw = get_openrevo_main_hwnd();
@@ -2160,9 +2259,17 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
         return;
     }
     let parent_hwnd = HWND(parent_hwnd_raw as *mut _);
-    let (target_x, target_y, target_w, target_h) = calc_embedded_geometry(parent_hwnd);
+    let (target_x, target_y, target_w, target_h, corner_radius) = calc_embedded_geometry(parent_hwnd);
 
-    // If window already exists, switch hash, update global id and broadcast switch event
+    // 1. Ensure parent Slint window has WS_CLIPCHILDREN so its background repainting doesn't overwrite WebView2!
+    unsafe {
+        let p_style = GetWindowLongW(parent_hwnd, GWL_STYLE) as u32;
+        if (p_style & WS_CLIPCHILDREN.0) == 0 {
+            let _ = SetWindowLongW(parent_hwnd, GWL_STYLE, (p_style | WS_CLIPCHILDREN.0) as i32);
+        }
+    }
+
+    // 2. If the embedded window already exists, switch hash and reposition
     if let Some(win) = app.get_webview_window(EMBEDDED_LABEL) {
         let script = format!(
             "window.__OPENREVO_WIDGET_ID__ = '{0}'; window.location.hash = '#/widget/{0}'; window.dispatchEvent(new CustomEvent('openrevo-switch-widget', {{ detail: {{ pluginId: '{0}' }} }}));",
@@ -2184,54 +2291,78 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
                     SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW,
                 );
             }
+            apply_child_rounded_region(child_hwnd, target_w, target_h, corner_radius);
         }
+        let _ = win.show();
         return;
     }
 
-    // Otherwise, create the child WebviewWindow lazily
-    let target_url = WebviewUrl::App(format!("index.html?window=widget&id={}", plugin_id).into());
+    // 3. Create the child WebviewWindow lazily with clean index.html URL
+    let target_url = WebviewUrl::App("index.html".into());
     let init_script = format!(
-        "window.__OPENREVO_WIDGET_ID__ = '{}'; window.location.hash = '#/widget/{}'; if(document.documentElement) document.documentElement.style.backgroundColor='#0c1017';",
-        plugin_id, plugin_id
+        "window.__OPENREVO_WIDGET_ID__ = '{0}'; window.location.hash = '#/widget/{0}'; \
+        const s = document.createElement('style'); \
+        s.textContent = 'html, body, #root {{ background: #0c1017 !important; background-color: #0c1017 !important; margin: 0; padding: 0; overflow: hidden; }}'; \
+        if (document.head) {{ document.head.appendChild(s); }} else {{ document.addEventListener('DOMContentLoaded', () => document.head.appendChild(s)); }}",
+        plugin_id
     );
+
+    crate::log_info!("EMBEDDED_WEBVIEW", "Building embedded WebviewWindow for plugin '{}' into parent 0x{:X}", plugin_id, parent_hwnd_raw);
 
     let builder = WebviewWindowBuilder::new(app, EMBEDDED_LABEL, target_url)
         .title("OpenRevo Embedded Plugin")
-        .inner_size(920.0, 674.0)
+        .inner_size(target_w as f64, target_h as f64)
         .resizable(false)
         .decorations(false)
-        .transparent(false)
+        .transparent(true)
+        .shadow(false)
         .skip_taskbar(true)
+        .drag_and_drop(false)
         .initialization_script(&init_script)
         .visible(false);
 
-    if let Ok(win) = builder.build() {
-        let _ = win.set_size(tauri::PhysicalSize::new(target_w as u32, target_h as u32));
-        if let Ok(child_hwnd_raw) = win.hwnd() {
-            let child_hwnd = HWND(child_hwnd_raw.0 as *mut _);
-            unsafe {
-                let style = GetWindowLongW(child_hwnd, GWL_STYLE) as u32;
-                let remove_mask = WS_POPUP.0 | WS_CAPTION.0 | WS_THICKFRAME.0;
-                let new_style = ((style & !remove_mask) | WS_CHILD.0) as i32;
-                let _ = SetWindowLongW(child_hwnd, GWL_STYLE, new_style);
+    match builder.build() {
+        Ok(win) => {
+            crate::log_info!("EMBEDDED_WEBVIEW", "Embedded WebviewWindow built successfully, configuring Win32 child");
+            let _ = win.set_size(tauri::PhysicalSize::new(target_w as u32, target_h as u32));
+            if let Ok(child_hwnd_raw) = win.hwnd() {
+                let child_hwnd = HWND(child_hwnd_raw.0 as *mut _);
+                unsafe {
+                    let style = GetWindowLongW(child_hwnd, GWL_STYLE) as u32;
+                    // Strip all standard borders, frames, titlebars, and popup attributes:
+                    // 0x80000000 = WS_POPUP, 0x00C00000 = WS_CAPTION, 0x00040000 = WS_THICKFRAME,
+                    // 0x00020000 = WS_MINIMIZEBOX, 0x00010000 = WS_MAXIMIZEBOX, 0x00800000 = WS_BORDER, 0x00400000 = WS_DLGFRAME
+                    let remove_mask = 0x80000000 | 0x00C00000 | 0x00040000 | 0x00020000 | 0x00010000 | 0x00800000 | 0x00400000;
+                    let new_style = ((style & !remove_mask) | WS_CHILD.0 | WS_VISIBLE.0 | WS_CLIPSIBLINGS.0) as i32;
+                    let _ = SetWindowLongW(child_hwnd, GWL_STYLE, new_style);
 
-                let ex_style = GetWindowLongW(child_hwnd, GWL_EXSTYLE) as u32;
-                let remove_ex = WS_EX_APPWINDOW.0 | WS_EX_WINDOWEDGE.0;
-                let new_ex_style = (ex_style & !remove_ex) as i32;
-                let _ = SetWindowLongW(child_hwnd, GWL_EXSTYLE, new_ex_style);
+                    let ex_style = GetWindowLongW(child_hwnd, GWL_EXSTYLE) as u32;
+                    // Strip sunken edges, dialog frames, and window borders:
+                    // 0x00040000 = WS_EX_APPWINDOW, 0x00000100 = WS_EX_WINDOWEDGE, 0x00000200 = WS_EX_CLIENTEDGE,
+                    // 0x00020000 = WS_EX_STATICEDGE, 0x00000001 = WS_EX_DLGMODALFRAME
+                    let remove_ex = 0x00040000 | 0x00000100 | 0x00000200 | 0x00020000 | 0x00000001;
+                    let new_ex_style = ((ex_style & !remove_ex) | WS_EX_CONTROLPARENT.0) as i32;
+                    let _ = SetWindowLongW(child_hwnd, GWL_EXSTYLE, new_ex_style);
 
-                let _ = SetParent(child_hwnd, parent_hwnd);
-                let _ = SetWindowPos(
-                    child_hwnd,
-                    HWND_TOP,
-                    target_x,
-                    target_y,
-                    target_w,
-                    target_h,
-                    SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
-                );
-                let _ = ShowWindow(child_hwnd, SW_SHOW);
+                    let _ = SetParent(child_hwnd, parent_hwnd);
+                    let _ = SetWindowPos(
+                        child_hwnd,
+                        HWND_TOP,
+                        target_x,
+                        target_y,
+                        target_w,
+                        target_h,
+                        SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+                    );
+                    let _ = ShowWindow(child_hwnd, SW_SHOW);
+                }
+
+                apply_child_rounded_region(child_hwnd, target_w, target_h, corner_radius);
             }
+            let _ = win.show();
+        }
+        Err(e) => {
+            crate::log_error!("EMBEDDED_WEBVIEW", "Failed to build embedded WebviewWindow for '{}': {:?}", plugin_id, e);
         }
     }
 }

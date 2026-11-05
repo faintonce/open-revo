@@ -124,6 +124,7 @@ pub async fn build_osd_window_async(app: &AppHandle) -> Result<String, String> {
     .shadow(false)
     .always_on_top(true)
     .skip_taskbar(true)
+    .drag_and_drop(false)
     .initialization_script(init_script)
     .visible(false);
 

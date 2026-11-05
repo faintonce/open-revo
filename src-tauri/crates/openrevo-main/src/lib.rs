@@ -46,39 +46,13 @@ pub static SAVED_FULL_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 
 fn do_redraw_pass(hwnd: HWND) {
     unsafe {
-        let mut rect = RECT::default();
-        if GetWindowRect(hwnd, &mut rect).is_ok() {
-            let w = rect.right - rect.left;
-            let h = rect.bottom - rect.top;
-            if w > 100 && h > 100 {
-                // Micro-nudge window size to force winit/Slint software renderer
-                // to completely invalidate and recreate the backing frame buffer and mark full dirty region
-                let _ = SetWindowPos(
-                    hwnd,
-                    HWND(std::ptr::null_mut()),
-                    rect.left,
-                    rect.top,
-                    w + 1,
-                    h,
-                    SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-                );
-                let _ = SetWindowPos(
-                    hwnd,
-                    HWND(std::ptr::null_mut()),
-                    rect.left,
-                    rect.top,
-                    w,
-                    h,
-                    SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-                );
-            }
-        }
         let _ = InvalidateRect(hwnd, None, true);
     }
 
     if let Ok(guard) = SLINT_UI_WEAK.lock() {
         if let Some(weak) = guard.as_ref() {
             let _ = weak.upgrade_in_event_loop(|ui| {
+                ui.set_redraw_tick(ui.get_redraw_tick().wrapping_add(1));
                 ui.window().request_redraw();
             });
         }
@@ -88,9 +62,15 @@ fn do_redraw_pass(hwnd: HWND) {
 pub fn trigger_full_redraw(hwnd: HWND) {
     do_redraw_pass(hwnd);
 
-    // Re-trigger after 25ms to ensure Windows DWM animation and geometry restoration is fully settled
+    // Multi-stage timers across Windows DWM restore animation lifecycle (0ms, 50ms, 150ms, 300ms)
     let safe_hwnd = SafeHwnd(hwnd.0 as isize);
-    slint::Timer::single_shot(Duration::from_millis(25), move || {
+    slint::Timer::single_shot(Duration::from_millis(50), move || {
+        do_redraw_pass(safe_hwnd.to_hwnd());
+    });
+    slint::Timer::single_shot(Duration::from_millis(150), move || {
+        do_redraw_pass(safe_hwnd.to_hwnd());
+    });
+    slint::Timer::single_shot(Duration::from_millis(300), move || {
         do_redraw_pass(safe_hwnd.to_hwnd());
     });
 }
@@ -102,6 +82,19 @@ unsafe extern "system" fn subclass_wnd_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     match msg {
+        windows::Win32::UI::WindowsAndMessaging::WM_SIZE => {
+            use windows::Win32::UI::WindowsAndMessaging::{SIZE_MINIMIZED, SIZE_RESTORED};
+            let resize_type = wparam.0 as u32;
+            if resize_type == SIZE_MINIMIZED {
+                WAS_MINIMIZED.store(true, Ordering::SeqCst);
+            } else if resize_type == SIZE_RESTORED {
+                WAS_MINIMIZED.store(false, Ordering::SeqCst);
+                let prev = *PREV_WNDPROC.lock().unwrap();
+                let ret = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
+                trigger_full_redraw(hwnd);
+                return ret;
+            }
+        }
         WM_SYSCOMMAND => {
             let cmd = (wparam.0 & 0xFFF0) as u32;
             if cmd == SC_MINIMIZE {
@@ -1880,8 +1873,10 @@ pub fn run_main_standalone() {
     window.on_select_plugin_tab(move |plugin_id| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_active_plugin_id(plugin_id.clone());
+            let hwnd_val = HWND_HOLDER.lock().unwrap().map(|h| h.0).unwrap_or(0);
             ipc::send_action_to_host("select_plugin_tab", serde_json::json!({
                 "plugin_id": plugin_id.as_str(),
+                "hwnd": hwnd_val,
             }));
         }
     });
@@ -1902,11 +1897,13 @@ pub fn run_main_standalone() {
 
     // Synchronously capture HWND and configure visibility/position immediately
     let hwnd_setup = hwnd_holder.clone();
+    let mut initial_hwnd_val = 0;
     if let Some(hwnd) = find_thread_hwnd() {
         apply_window_decorations(hwnd);
         let safe = SafeHwnd(hwnd.0 as isize);
         *hwnd_setup.lock().unwrap() = Some(safe);
         *HWND_HOLDER.lock().unwrap() = Some(safe);
+        initial_hwnd_val = hwnd.0 as isize;
         align_mini_drawer_to_tray(hwnd, 395, 632);
         if !std::env::args().any(|a| a == "--visible") {
             unsafe {
@@ -1915,7 +1912,7 @@ pub fn run_main_standalone() {
         }
     }
 
-    ipc::send_action_to_host("slint_ready", serde_json::json!({}));
+    ipc::send_action_to_host("slint_ready", serde_json::json!({ "hwnd": initial_hwnd_val }));
 
     // Setup window handles and DWM styles fallback timer
     let timer = slint::Timer::default();
@@ -1939,6 +1936,7 @@ pub fn run_main_standalone() {
                             let _ = ShowWindow(hwnd, SW_HIDE);
                         }
                     }
+                    ipc::send_action_to_host("sync_slint_hwnd", serde_json::json!({ "hwnd": hwnd.0 as isize }));
                     *done = true;
                 }
             }

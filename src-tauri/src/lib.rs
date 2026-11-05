@@ -419,14 +419,18 @@ pub fn run() {
             // Step 6.1: Initialize main WebviewWindow (positioning above taskbar)
             crate::system::boot_trace::boot_scope("Step 6.1: Main Window Positioning", || {
                 let cfg = crate::system::config::load_config();
-                if cfg.use_classic_webview {
-                    if let Some(window) = crate::system::window::ensure_window_alive(&app.handle()) {
+                if let Some(window) = app.get_webview_window("main") {
+                    if cfg.use_classic_webview {
                         crate::system::window::init_main_window(&window);
                     } else {
-                        crate::log_error!("WINDOW", "CRITICAL: 'main' WebviewWindow was NOT created during setup!");
+                        // Keep main WebviewWindow strictly hidden as background WebView2 runtime host for plugins
+                        let _ = window.hide();
+                        crate::log_info!("WINDOW", "Slint native UI mode active; 'main' WebviewWindow kept hidden as plugin runtime host.");
                     }
-                } else {
-                    crate::log_info!("WINDOW", "Slint native UI mode active; skipping 'main' WebviewWindow creation.");
+                } else if cfg.use_classic_webview {
+                    if let Some(window) = crate::system::window::create_main_webview_window(&app.handle()) {
+                        crate::system::window::init_main_window(&window);
+                    }
                 }
             });
 

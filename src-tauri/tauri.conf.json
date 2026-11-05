@@ -10,7 +10,21 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [],
+    "windows": [
+      {
+        "title": "OpenRevo",
+        "label": "main",
+        "width": 395,
+        "height": 622,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": true,
+        "center": false,
+        "visible": false
+      }
+    ],
     "security": {
       "csp": null
     }

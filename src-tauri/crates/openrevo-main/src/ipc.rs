@@ -98,6 +98,15 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                         let r2: Vec<i32> = r2_arr.iter().filter_map(|r| r.as_i64().map(|v| v as i32)).collect();
                         ui.set_rates_row2(slint::ModelRc::new(slint::VecModel::from(r2)));
                     }
+                    if let Some(h) = val.get("has_secondary_monitor").and_then(|v| v.as_bool()) {
+                        ui.set_has_secondary_monitor(h);
+                    }
+                    if let Some(p) = val.get("primary_monitor_name").and_then(|v| v.as_str()) {
+                        ui.set_primary_monitor_name(p.into());
+                    }
+                    if let Some(s) = val.get("secondary_monitor_name").and_then(|v| v.as_str()) {
+                        ui.set_secondary_monitor_name(s.into());
+                    }
                     if let Some(cam) = val.get("camera_enabled").and_then(|v| v.as_bool()) {
                         ui.set_camera_enabled(cam);
                     }
@@ -402,6 +411,15 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                         let r2: Vec<i32> = r2_arr.iter().filter_map(|r| r.as_i64().map(|v| v as i32)).collect();
                         ui.set_rates_row2(slint::ModelRc::new(slint::VecModel::from(r2)));
                     }
+                    if let Some(h) = val.get("has_secondary_monitor").and_then(|v| v.as_bool()) {
+                        ui.set_has_secondary_monitor(h);
+                    }
+                    if let Some(p) = val.get("primary_monitor_name").and_then(|v| v.as_str()) {
+                        ui.set_primary_monitor_name(p.into());
+                    }
+                    if let Some(s) = val.get("secondary_monitor_name").and_then(|v| v.as_str()) {
+                        ui.set_secondary_monitor_name(s.into());
+                    }
                 }
                 "telemetry" => {
                     if let Some(ct) = val.get("cpu_temp").and_then(|v| v.as_i64()) {
@@ -479,6 +497,15 @@ fn handle_ipc_message(line: &str, ui_weak: &slint::Weak<MainWindow>) {
                     if let Some(r2_arr) = val.get("rates_row2").and_then(|v| v.as_array()) {
                         let r2: Vec<i32> = r2_arr.iter().filter_map(|r| r.as_i64().map(|v| v as i32)).collect();
                         ui.set_rates_row2(slint::ModelRc::new(slint::VecModel::from(r2)));
+                    }
+                    if let Some(h) = val.get("has_secondary_monitor").and_then(|v| v.as_bool()) {
+                        ui.set_has_secondary_monitor(h);
+                    }
+                    if let Some(p) = val.get("primary_monitor_name").and_then(|v| v.as_str()) {
+                        ui.set_primary_monitor_name(p.into());
+                    }
+                    if let Some(s) = val.get("secondary_monitor_name").and_then(|v| v.as_str()) {
+                        ui.set_secondary_monitor_name(s.into());
                     }
                 }
                 "show" => {

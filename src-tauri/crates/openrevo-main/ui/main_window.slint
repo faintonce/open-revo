@@ -11,6 +11,9 @@ export component MainWindow inherits Window {
     no-frame: true;
     background: transparent;
 
+    // Invalidate/Redraw tick counter to force software renderer dirty region repaint
+    in-out property <int> redraw_tick: 0;
+
     // Expand state: false = Mini Drawer (395x632), true = Full Dashboard (1120x760)
     in-out property <bool> is_expanded: false;
     in-out property <string> app_version: "v0.9.7";
@@ -66,6 +69,9 @@ export component MainWindow inherits Window {
     in-out property <string> monitor_name: "京东方";
     in-out property <[int]> rates_row1: [60, 144, 240];
     in-out property <[int]> rates_row2: [];
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
 
     // Power Targets
     in-out property <int> pl1_target: 75;
@@ -543,6 +549,7 @@ export component MainWindow inherits Window {
         width: 100%;
         height: 100%;
 
+        redraw_tick: root.redraw_tick;
         app_version: root.app_version;
 
         is_overview_enabled <=> root.is_overview_enabled;
@@ -686,6 +693,9 @@ export component MainWindow inherits Window {
         monitor_name: root.monitor_name;
         rates_row1: root.rates_row1;
         rates_row2: root.rates_row2;
+        has_secondary_monitor: root.has_secondary_monitor;
+        primary_monitor_name: root.primary_monitor_name;
+        secondary_monitor_name: root.secondary_monitor_name;
         toggle_fan_boost => { root.fan_boost_toggled(); }
         toggle_auto_min_hz => { root.auto_min_hz_toggled(); }
         switch_hz(hz) => { root.refresh_rate_switched(hz); }

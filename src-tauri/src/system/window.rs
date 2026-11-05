@@ -342,6 +342,7 @@ pub fn create_main_webview_window(app: &tauri::AppHandle) -> Option<WebviewWindo
         .decorations(false)
         .transparent(true)
         .shadow(true)
+        .drag_and_drop(false)
         .visible(false);
 
     match builder.build() {

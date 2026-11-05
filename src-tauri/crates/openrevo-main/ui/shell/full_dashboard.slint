@@ -14,7 +14,8 @@ import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, UpdateResultData } fro
 import { DashboardSponsorView } from "../views/sponsor/sponsor_view.slint";
 
 export component FullDashboard inherits Rectangle {
-    background: AppTheme.bg_root;
+    in-out property <int> redraw_tick: 0;
+    background: (Math.mod(root.redraw_tick, 2) == 0) ? AppTheme.bg_root : @linear-gradient(180deg, AppTheme.bg_root 0%, AppTheme.bg_root 100%);
     border-radius: 10px;
     border-width: 1px;
     border-color: AppTheme.border_subtle;
@@ -303,6 +304,9 @@ export component FullDashboard inherits Rectangle {
     in-out property <string> monitor_name: "京东方";
     in-out property <[int]> rates_row1: [60, 144, 240];
     in-out property <[int]> rates_row2: [];
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
     callback toggle_fan_boost();
     callback toggle_auto_min_hz();
     callback switch_hz(int);
@@ -487,6 +491,7 @@ export component FullDashboard inherits Rectangle {
     HorizontalLayout {
         // 1. Left Sidebar (Width: 200px)
         DashboardSidebar {
+            redraw_tick: root.redraw_tick;
             app_version: root.app_version;
             active_tab: root.active_tab;
             active_plugin_id <=> root.active_plugin_id;
@@ -590,6 +595,9 @@ export component FullDashboard inherits Rectangle {
                 monitor_name: root.monitor_name;
                 rates_row1: root.rates_row1;
                 rates_row2: root.rates_row2;
+                has_secondary_monitor: root.has_secondary_monitor;
+                primary_monitor_name: root.primary_monitor_name;
+                secondary_monitor_name: root.secondary_monitor_name;
                 toggle_fan_boost => { root.toggle_fan_boost(); }
                 toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
                 switch_hz(hz) => { root.switch_hz(hz); }

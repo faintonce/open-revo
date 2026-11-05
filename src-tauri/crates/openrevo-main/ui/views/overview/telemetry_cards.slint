@@ -23,11 +23,14 @@ export component DashboardTelemetryCards inherits Rectangle {
     in-out property <int> vram_mhz: 810;
     in-out property <int> vram_usage: 10;
 
+
     HorizontalLayout {
         spacing: 12px;
 
-        // 1. CPU 处理器状态
+        // 1. CPU 处理器状态 (Strict 25% Equal Width)
         card_cpu := Rectangle {
+            min-width: 0px;
+            horizontal-stretch: 1;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -98,12 +101,23 @@ export component DashboardTelemetryCards inherits Rectangle {
                 // Bottom: Model & Usage Badge
                 HorizontalLayout {
                     alignment: space-between;
-                    Text {
-                        text: cpu_name;
-                        font-size: 10px;
-                        color: AppTheme.text_muted;
-                        vertical-alignment: center;
+                    spacing: 6px;
+
+                    cpu_touch := TouchArea {
+                        horizontal-stretch: 1;
+                        min-width: 0px;
+                        mouse-cursor: pointer;
+
+                        Text {
+                            width: 100%;
+                            text: cpu_name;
+                            font-size: 10px;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
                     }
+
                     Rectangle {
                         border-radius: 4px;
                         background: #38bdf818;
@@ -124,10 +138,36 @@ export component DashboardTelemetryCards inherits Rectangle {
                     }
                 }
             }
+
+            // Hover Tooltip: 浮动显示 CPU 完整型号
+            if cpu_touch.has-hover: Rectangle {
+                x: 8px;
+                y: parent.height - self.height - 28px;
+                width: Math.min(parent.width - 16px, cpu_tip_txt.preferred-width + 14px);
+                height: cpu_tip_txt.preferred-height + 10px;
+                background: #0b1329;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: #38bdf890;
+                drop-shadow-blur: 6px;
+                drop-shadow-color: #000000b0;
+
+                cpu_tip_txt := Text {
+                    x: 7px;
+                    y: 5px;
+                    text: cpu_name;
+                    font-size: 9.5px;
+                    font-weight: 600;
+                    color: #f8fafc;
+                    wrap: word-wrap;
+                }
+            }
         }
 
-        // 2. GPU 独立显卡
+        // 2. GPU 独立显卡 (Strict 25% Equal Width)
         card_gpu := Rectangle {
+            min-width: 0px;
+            horizontal-stretch: 1;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -198,12 +238,23 @@ export component DashboardTelemetryCards inherits Rectangle {
                 // Bottom: Model & Usage Badge
                 HorizontalLayout {
                     alignment: space-between;
-                    Text {
-                        text: gpu_name;
-                        font-size: 10px;
-                        color: AppTheme.text_muted;
-                        vertical-alignment: center;
+                    spacing: 6px;
+
+                    gpu_touch := TouchArea {
+                        horizontal-stretch: 1;
+                        min-width: 0px;
+                        mouse-cursor: pointer;
+
+                        Text {
+                            width: 100%;
+                            text: gpu_name;
+                            font-size: 10px;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
                     }
+
                     Rectangle {
                         border-radius: 4px;
                         background: #10b98118;
@@ -224,10 +275,36 @@ export component DashboardTelemetryCards inherits Rectangle {
                     }
                 }
             }
+
+            // Hover Tooltip: 浮动显示 GPU 完整型号
+            if gpu_touch.has-hover: Rectangle {
+                x: 8px;
+                y: parent.height - self.height - 28px;
+                width: Math.min(parent.width - 16px, gpu_tip_txt.preferred-width + 14px);
+                height: gpu_tip_txt.preferred-height + 10px;
+                background: #092017;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: #10b98190;
+                drop-shadow-blur: 6px;
+                drop-shadow-color: #000000b0;
+
+                gpu_tip_txt := Text {
+                    x: 7px;
+                    y: 5px;
+                    text: gpu_name;
+                    font-size: 9.5px;
+                    font-weight: 600;
+                    color: #f8fafc;
+                    wrap: word-wrap;
+                }
+            }
         }
 
-        // 3. 散热系统状态
+        // 3. 散热系统状态 (Strict 25% Equal Width)
         card_fan := Rectangle {
+            min-width: 0px;
+            horizontal-stretch: 1;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -313,8 +390,10 @@ export component DashboardTelemetryCards inherits Rectangle {
             }
         }
 
-        // 4. VRAM 显存容量
+        // 4. VRAM 显存容量 (Strict 25% Equal Width)
         card_vram := Rectangle {
+            min-width: 0px;
+            horizontal-stretch: 1;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -343,22 +422,31 @@ export component DashboardTelemetryCards inherits Rectangle {
                     }
                 }
 
-                // Middle: VRAM Usage & MHz
+                // Middle: VRAM Usage
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
                         text: vram_text;
-                        font-size: 16px;
+                        font-size: 17px;
                         font-weight: 800;
                         color: AppTheme.text_primary;
                         vertical-alignment: bottom;
                     }
-                    Text {
-                        text: vram_mhz + " MHz";
-                        font-size: 15px;
-                        font-weight: 800;
-                        color: #c084fc;
-                        vertical-alignment: bottom;
+                }
+
+                // 显存负载细微进度条 (方案B核心质感呈现)
+                Rectangle {
+                    height: 3px;
+                    background: #ffffff14;
+                    border-radius: 1.5px;
+
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        width: Math.max(0px, Math.min(parent.width, parent.width * root.vram_usage / 100));
+                        height: parent.height;
+                        border-radius: 1.5px;
+                        background: #c084fc;
                     }
                 }
 
