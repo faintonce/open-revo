@@ -72,6 +72,7 @@ impl RpmTransition {
     }
     pub fn seed(&mut self, actual: [u16; 2], now: Duration) {
         self.current = Some(std::array::from_fn(|fan| {
+            if actual[fan] == 0 { return 0; }
             (((actual[fan] as u32 + 50) / 100) * 100).clamp(MIN_RPM[fan] as u32, MAX_RPM as u32)
                 as u16
         }));
@@ -103,6 +104,14 @@ impl RpmTransition {
         self.time = now;
         let mut current = self.current.expect("RPM transition seeded before planning");
         for fan in 0..2 {
+            if current[fan] == 0 && target[fan] > 0 {
+                // Cross the non-running range immediately; the hardware guard
+                // supplies timed start assistance before smoothing can descend.
+                current[fan] = MIN_RPM[fan];
+                self.credit[fan] = 0;
+                self.direction[fan] = 0;
+                self.fall_since[fan] = None;
+            }
             let direction = match target[fan].cmp(&current[fan]) {
                 std::cmp::Ordering::Greater => 1,
                 std::cmp::Ordering::Less => -1,
@@ -150,6 +159,9 @@ impl RpmTransition {
             } else {
                 current[fan] - change
             };
+            if target[fan] == 0 && current[fan] < MIN_RPM[fan] {
+                current[fan] = 0;
+            }
             if current[fan] == target[fan] {
                 self.credit[fan] = 0;
             }
@@ -164,6 +176,20 @@ mod tests {
     use super::*;
     fn at(seconds: u64) -> Duration {
         Duration::from_secs(seconds)
+    }
+
+    #[test]
+    fn stop_transitions_skip_invalid_rpm_gap_and_restart_without_waiting_for_ramp() {
+        let settings = RpmSmoothing { enabled: true, fall_delay_secs: 0, ..Default::default() };
+        let mut ramp = RpmTransition::default();
+        ramp.seed([1200, 1000], at(0));
+        assert_eq!(ramp.plan([0, 1000], settings, at(0), false), [1200, 1000]);
+        assert_eq!(ramp.plan([0, 1000], settings, at(1), false), [0, 1000]);
+        assert_eq!(ramp.plan([1200, 1000], settings, at(1), false), [1200, 1000]);
+        ramp.clear();
+        ramp.seed([0, 0], at(0));
+        assert_eq!(ramp.plan([0, 0], settings, at(0), false), [0, 0]);
+        assert_eq!(ramp.plan([2700, 2600], settings, at(0), true), [2700, 2600]);
     }
 
     #[test]

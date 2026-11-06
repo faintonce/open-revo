@@ -459,13 +459,16 @@ fn controller() -> &'static Mutex<Controller> {
     CONTROLLER.get_or_init(|| Mutex::new(Controller::new(NativeFans::default())))
 }
 static HEARTBEAT: OnceLock<()> = OnceLock::new();
+fn control_now() -> Duration {
+    static EPOCH: OnceLock<Instant> = OnceLock::new();
+    EPOCH.get_or_init(Instant::now).elapsed()
+}
 fn start_heartbeat() {
     HEARTBEAT.get_or_init(|| {
         thread::Builder::new()
             .name("ptl-fan-safety".into())
             .spawn(|| {
                 let mut sensor = PackageTemperatureReader::new();
-                let epoch = Instant::now();
                 let mut last = Instant::now();
                 loop {
                     let interval = {
@@ -485,7 +488,7 @@ fn start_heartbeat() {
                     match gate::Gate::enter() {
                         Ok(_gate) => {
                             let temp = sensor.read_celsius().and_then(|t| u8::try_from(t).ok());
-                            c.tick(temp, epoch.elapsed(), gap_healthy);
+                            c.tick(temp, control_now(), gap_healthy);
                         }
                         Err(e) => c.note_failure(e),
                     }
@@ -502,6 +505,7 @@ pub fn set_manual_rpm(targets: [u16; 2]) -> Result<()> {
     start_heartbeat();
     let mut c = controller().lock();
     let _gate = gate::Gate::enter()?;
+    c.set_time(control_now());
     c.select_manual(targets, temp)
 }
 pub fn set_rpm_curves(curves: RpmFanCurves) -> Result<()> {
@@ -512,7 +516,10 @@ pub fn set_rpm_curves(curves: RpmFanCurves) -> Result<()> {
     start_heartbeat();
     let mut c = controller().lock();
     match gate::Gate::enter() {
-        Ok(_gate) => c.select_curve(curves, temp),
+        Ok(_gate) => {
+            c.set_time(control_now());
+            c.select_curve(curves, temp)
+        },
         Err(e) => {
             c.queue_curve(curves)?;
             c.note_failure(e);
@@ -748,7 +755,7 @@ mod tests {
     }
     #[test]
     fn manual_input_rejected_without_hardware() {
-        assert!(set_manual_rpm([0, 4000]).is_err());
+        assert!(set_manual_rpm([100, 4000]).is_err());
         assert!(set_manual_rpm([4000, 8000]).is_err());
     }
 }

@@ -47,7 +47,8 @@ async function fixture(t, mode = 4, overrides = {}) {
     fan_curve_enabled: false, fan_isolated_output: true, fan_ramp_rate: true, fan_ramp_speed_ms: 300, ...overrides };
   let tree;
   await act(async () => { tree = create(React.createElement(CustomTuningPanel, {
-    status: { power_mode: mode, cpu_fan_rpm: 2400, gpu_fan_rpm: 2300, gpu_name: 'Intel Arc' },
+    status: { power_mode: mode, cpu_fan_rpm: 2400, gpu_fan_rpm: 2300, gpu_name: 'Intel Arc',
+      fan_control: { percent_reference_rpm: [2700, 2600], percent_max_rpm: [7100, 7000] } },
     capabilities: { cpu_power_backend: 'intel_rapl', cpu_power_max_watts: 50,
       fan_control_mode: 'pmc_rpm_curve', fan_independent_channels: true,
       fan_ramp_rate: false, fan_software_smoothing: true, gpu_power_tuning_mode: 'none',
@@ -120,4 +121,23 @@ test('existing RPM policies populate the original controls from their saved soft
   assert.equal(state.fan.props.fanRampSpeedMs, 1000);
   await state.flush();
   assert.equal(state.requests.some(request => request.command === 'save_profile_preset'), false);
+});
+
+test('PTL keeps zero percentage nodes and explains both fan scales in the original editor', async t => {
+  const state = await fixture(t, 4, { fan_curve_enabled: true, fan_isolated_output: true, fan_curve_linked: true });
+  const text = () => JSON.stringify(state.root.findAllByType('span').flatMap(node => node.children.filter(child => typeof child === 'string')));
+  assert.match(text(), /0% 请求停转/);
+  assert.match(text(), /2700.*7100 RPM/);
+  await act(async () => { state.fan.props.onTabChange('gpu'); });
+  assert.match(text(), /2600.*7000 RPM/);
+  const next = state.fan.props.cpuCurve.map((point, index) => ({ ...point, duty: index < 2 ? 0 : point.duty }));
+  await act(async () => { state.fan.props.onCurveChange('cpu', next); });
+  await state.flush();
+  const saved = state.requests.filter(request => request.command === 'save_profile_preset').at(-1);
+  assert.equal(saved.args.legacyFanCurveChanged, true);
+  assert.deepEqual(Array.from(saved.args.preset.profile.cpu_fan_curve.slice(0, 2), point => point.duty), [0, 0]);
+  assert.deepEqual(Array.from(saved.args.preset.profile.gpu_fan_curve.slice(0, 2), point => point.duty), [0, 0]);
+  const live = state.requests.filter(request => request.command === 'apply_fan_curve_live').at(-1);
+  assert.equal(live.args.cpuCurve[0].duty, 0);
+  assert.equal(live.args.gpuCurve[0].duty, 0);
 });

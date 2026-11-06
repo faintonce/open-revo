@@ -350,9 +350,9 @@ impl Default for CustomProfileConfig {
 
 impl CustomProfileConfig {
     pub fn ptl_rpm_curves(&self) -> crate::hal::fan_policy::RpmFanCurves {
-        self.ptl_rpm_fan_curves.clone().unwrap_or_else(|| {
-            let cpu = self.cpu_fan_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
-            let gpu = self.gpu_fan_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+        let cpu = self.cpu_fan_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+        let gpu = self.gpu_fan_curve.iter().map(|p| (p.temp,p.duty)).collect::<Vec<_>>();
+        self.ptl_rpm_fan_curves.clone().map(|curves| curves.upgrade_percentage_mapping(&cpu, &gpu)).unwrap_or_else(|| {
             let mut curves = crate::hal::fan_policy::RpmFanCurves::from_legacy(&cpu,&gpu).unwrap_or_default();
             curves.smoothing = crate::hal::fan_policy::RpmSmoothing::from_legacy_ramp(
                 self.fan_ramp_rate, self.fan_ramp_speed_ms);
@@ -370,7 +370,7 @@ pub fn sync_legacy_ptl_curve_data(
 ) -> Result<(), String> {
     match curve_changed {
         None => {}
-        Some(false) => profile.ptl_rpm_fan_curves = previous.ptl_rpm_fan_curves.clone(),
+        Some(false) => profile.ptl_rpm_fan_curves = previous.ptl_rpm_fan_curves.as_ref().map(|_| previous.ptl_rpm_curves()),
         Some(true) => {
             let points = |curve: &[FanCurvePoint]| curve.iter().map(|p| (p.temp, p.duty)).collect::<Vec<_>>();
             let mut curves = crate::hal::fan_policy::RpmFanCurves::from_legacy(&points(&profile.cpu_fan_curve), &points(&profile.gpu_fan_curve))?;
@@ -422,8 +422,8 @@ mod legacy_ptl_curve_tests {
         edited.gpu_fan_curve = edited.cpu_fan_curve.clone();
         sync_legacy_ptl_curve_data(&mut edited, &previous, Some(true)).unwrap();
         let curves = edited.ptl_rpm_curves();
-        assert_eq!(curves.targets(45), [2200, 2200]);
-        assert_eq!(curves.targets(95), [7500, 7500]);
+        assert_eq!(curves.targets(45), [2700, 2600]);
+        assert_eq!(curves.targets(95), [7100, 7000]);
         assert_eq!(curves.smoothing, previous.ptl_rpm_curves().smoothing);
     }
 
@@ -468,6 +468,21 @@ mod legacy_ptl_curve_tests {
 mod rpm_curve_tests {
     use super::*;
     #[test]
+    fn zero_percentage_projection_roundtrips_with_version_and_keeps_cpu_only_edits() {
+        let mut profile = CustomProfileConfig::default();
+        profile.cpu_fan_curve = vec![FanCurvePoint { temp: 40, duty: 0 }, FanCurvePoint { temp: 50, duty: 0 }, FanCurvePoint { temp: 60, duty: 25 }];
+        profile.gpu_fan_curve = profile.cpu_fan_curve.clone();
+        profile.ptl_rpm_fan_curves = Some(profile.ptl_rpm_curves());
+        let loaded: CustomProfileConfig = serde_json::from_str(&serde_json::to_string(&profile).unwrap()).unwrap();
+        assert_eq!(loaded.ptl_rpm_curves().targets(45), [0, 0]);
+        assert_eq!(loaded.ptl_rpm_curves().percent_mapping_version, Some(2));
+        let mut edited = loaded.clone();
+        edited.cpu_pl1_watts = 12;
+        sync_legacy_ptl_curve_data(&mut edited, &loaded, Some(false)).unwrap();
+        assert_eq!(edited.ptl_rpm_fan_curves, loaded.ptl_rpm_fan_curves);
+    }
+
+    #[test]
     fn explicit_rpm_curves_survive_profile_serialization_without_changing_legacy_units() {
         let mut profile=CustomProfileConfig::default();
         let legacy=profile.cpu_fan_curve.clone();
@@ -500,8 +515,8 @@ mod rpm_curve_tests {
         let mut profile=CustomProfileConfig::default();
         profile.cpu_fan_curve=vec![FanCurvePoint {temp:40,duty:25},FanCurvePoint {temp:50,duty:25},FanCurvePoint {temp:95,duty:100}];
         profile.gpu_fan_curve=profile.cpu_fan_curve.clone();
-        assert_eq!(profile.ptl_rpm_curves().targets(45),[2200,2200]);
-        assert_eq!(profile.ptl_rpm_curves().targets(100),[7500,7500]);
+        assert_eq!(profile.ptl_rpm_curves().targets(45),[2700,2600]);
+        assert_eq!(profile.ptl_rpm_curves().targets(100),[7100,7000]);
         assert!(profile.ptl_rpm_fan_curves.is_none());
     }
 }
