@@ -1,0 +1,160 @@
+import { AppTheme } from "../../theme.slint";
+import { PowerSchemeItem } from "system_types.slint";
+
+export component PowerSchemeRow inherits HorizontalLayout {
+    in-out property <[PowerSchemeItem]> power_schemes: [];
+    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> restore_plan_msg: "";
+
+    callback request_restore_power_plan();
+    callback switch_power_scheme(string);
+    callback refresh_power_schemes();
+
+    alignment: space-between;
+
+    VerticalLayout {
+        spacing: 2px;
+        HorizontalLayout {
+            spacing: 6px;
+            Text {
+                text: "Windows 基础电源方案";
+                font-size: 12px;
+                font-weight: 600;
+                color: AppTheme.text_primary;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                border-radius: 3px;
+                background: #10b98120;
+                border-width: 1px;
+                border-color: #10b98160;
+                height: 18px;
+                HorizontalLayout {
+                    padding-left: 5px;
+                    padding-right: 5px;
+                    Text { text: "powercfg"; font-size: 10px; font-weight: 700; color: #10b981; vertical-alignment: center; }
+                }
+            }
+            if root.restore_plan_msg != "": Text {
+                text: root.restore_plan_msg;
+                font-size: 10.5px;
+                font-weight: 600;
+                color: #10b981;
+                vertical-alignment: center;
+            }
+        }
+        Text {
+            text: "系统底层电源计划；完全保留用户自建的降压/降频方案，可随时自由切换";
+            font-size: 10px;
+            color: AppTheme.text_muted;
+        }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            spacing: 6px;
+
+            // Fix/Restore Button
+            Rectangle {
+                height: 26px;
+                border-radius: 4px;
+                background: t_fix.has-hover ? #f43f5e25 : #f43f5e15;
+                border-width: 1px;
+                border-color: #f43f5e55;
+                t_fix := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.request_restore_power_plan(); }
+                }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    Text { text: "修复/重置计划"; font-size: 11px; font-weight: 600; color: #f43f5e; vertical-alignment: center; }
+                }
+            }
+
+            // Scheme Dropdown with PopupWindow
+            Rectangle {
+                height: 26px;
+                border-radius: 4px;
+                background: t_scheme.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_medium;
+                t_scheme := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { scheme_popup.show(); }
+                }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 4px;
+                    Text { text: root.active_power_scheme_name; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                    Image {
+                        source: @image-url("../../assets/icons/chevron-down.svg");
+                        width: 10px;
+                        height: 10px;
+                        colorize: AppTheme.text_muted;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+                scheme_popup := PopupWindow {
+                    x: 0;
+                    y: parent.height + 4px;
+                    width: 180px;
+                    Rectangle {
+                        background: AppTheme.surface_elevated;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        VerticalLayout {
+                            padding: 4px;
+                            spacing: 2px;
+                            for item in root.power_schemes: Rectangle {
+                                height: 24px;
+                                border-radius: 4px;
+                                background: t_item.has-hover ? AppTheme.surface_pill : (item.is_active ? #38bdf820 : transparent);
+                                t_item := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.active_power_scheme_name = item.name;
+                                        root.switch_power_scheme(item.guid);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    alignment: space-between;
+                                    Text { text: item.name; font-size: 11px; color: item.is_active ? #38bdf8 : AppTheme.text_primary; vertical-alignment: center; }
+                                    if item.is_active: Text { text: "当前生效"; font-size: 9px; color: #38bdf8; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Refresh Button
+            Rectangle {
+                width: 26px;
+                height: 26px;
+                border-radius: 4px;
+                background: t_ref.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_medium;
+                t_ref := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.refresh_power_schemes(); }
+                }
+                Image {
+                    source: @image-url("../../assets/icons/rotate-ccw.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+    }
+}
+
