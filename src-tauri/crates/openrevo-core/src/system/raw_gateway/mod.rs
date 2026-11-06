@@ -12,13 +12,14 @@ pub use executor::{execute_raw_mailbox, execute_raw_read, execute_raw_write};
 pub fn get_gateway_capabilities() -> RawEcCapabilities {
     let mut available = Vec::new();
 
-    let is_direct_ec = crate::driver::wmi_ec::is_acpi_driver_available();
+    let is_direct_ec = crate::hal::platform_probe::is_tongfang_family()
+        && crate::driver::wmi_ec::is_acpi_driver_available();
     if is_direct_ec {
         available.push(RawEcProtocol::TongfangDirectEc);
     }
 
     let is_bld_mailbox = crate::hal::declarative::load_matched_manifest()
-        .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
+        .map(|m| m.uses_mifs_mailbox())
         .unwrap_or(false);
     if is_bld_mailbox {
         available.push(RawEcProtocol::BldWmiMailbox);

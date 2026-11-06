@@ -24,7 +24,8 @@ function run(root) {
 
 test('vault gate accepts symbolic HAL references and ordinary time, size, and text values', () => {
   const root = fixture();
-  writeFileSync(join(root, 'src-tauri/src/control.rs'), 'let name = "server 1856";\nlet delay = Duration::from_millis(1856);\nwmi_write_ec(crate::hal::vault::ec::ADDR_TEST, 1);');
+  writeFileSync(join(root, 'src-tauri/src/control.rs'), 'let name = "server 1856";\nlet delay = Duration::from_millis(1856);\ncurves.fan0[0].rpm = 1856;\nassert_eq!(loaded.fan0[0].rpm, 1856);\nlet settings = RpmSmoothing { rise_rpm_per_sec: 1856 };\nwmi_write_ec(crate::hal::vault::ec::ADDR_TEST, 1);');
+  writeFileSync(join(root, 'src/control.ts'), 'const rates = [500, 1856, curves.smoothing.fall_rpm_per_sec];\nconst ticks = [minRpm, 1856, maxRpm];');
   const result = run(root);
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
@@ -33,6 +34,7 @@ test('vault gate rejects bare addresses, aliases, IOCTLs, protocol frames, and a
   const cases = [
     'wmi_write_ec(0x0999, 1);',
     'wmi_write_ec(1856, 1); // Duration::from_millis(1856)',
+    'wmi_write_ec(1856, rpm);',
     'wmi_write_ec_batch(&[(2718, 1)]);',
     'const ADDR_OTHER: u16 = 2718;',
     'let anything: u16 = 0x0740;',

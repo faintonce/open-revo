@@ -25,7 +25,7 @@ interface PowerSettingsInfo {
   sleep_auto_office: boolean;
 }
 
-export const PowerTuningView: React.FC = () => {
+export const PowerTuningView: React.FC<{ batteryChargeLimitSupported?: boolean }> = ({ batteryChargeLimitSupported = false }) => {
   const [powerInfo, setPowerInfo] = useState<PowerSettingsInfo>({
     battery_percent: 100,
     is_ac_online: true,
@@ -48,6 +48,7 @@ export const PowerTuningView: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [controlError, setControlError] = useState<string | null>(null);
+  const [batteryError, setBatteryError] = useState('');
   const busy = useRef(false);
   const revision = useRef(0);
 
@@ -68,14 +69,15 @@ export const PowerTuningView: React.FC = () => {
   }, []);
 
   const handleSelectBatteryMode = async (mode: string) => {
-    if (loading) return;
+    if (loading || !batteryChargeLimitSupported) return;
     setLoading(true);
-    setPowerInfo((prev) => ({ ...prev, battery_mode: mode }));
+    setBatteryError('');
     try {
       const res = await invoke<PowerSettingsInfo>('set_battery_mode', { mode });
       if (res) setPowerInfo(res);
     } catch (e) {
       console.error('Failed to set battery mode:', e);
+      setBatteryError(String(e));
     } finally {
       setLoading(false);
     }
@@ -509,9 +511,12 @@ export const PowerTuningView: React.FC = () => {
           </div>
         </div>
 
+        {batteryError && <div className="hardware-control-error" role="alert">{batteryError}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '14px', alignItems: 'center' }}>
           {/* Left: 3 Radio Modes with Exact OEM Copy */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {!batteryChargeLimitSupported ? (
+            <div className="sys-row-desc">本机充电上限尚未适配，当前使用固件默认充电策略。</div>
+          ) : <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {/* Mode 1: 长效模式 */}
             <div
               onClick={() => handleSelectBatteryMode('long_life')}
@@ -523,6 +528,9 @@ export const PowerTuningView: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>长效模式</span>
+                  {batteryChargeLimitSupported && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--status-ok)' }}>(100%)</span>
+                  )}
                 </div>
                 <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', lineHeight: '1.35', marginTop: '1px' }}>
                   适合很长时间使用电池工作的环境。
@@ -541,6 +549,9 @@ export const PowerTuningView: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>平衡模式</span>
+                  {batteryChargeLimitSupported && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--status-ok)' }}>(80%)</span>
+                  )}
                 </div>
                 <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', lineHeight: '1.35', marginTop: '1px' }}>
                   偶而会携带电脑工作，且不需要多余靠电池供电。
@@ -559,6 +570,9 @@ export const PowerTuningView: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>工作站模式</span>
+                  {batteryChargeLimitSupported && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--status-ok)' }}>(60%)</span>
+                  )}
                 </div>
                 <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', lineHeight: '1.35', marginTop: '1px' }}>
                   如果很容易接续适配器工作，无携带电脑外出工作的需求，强烈建议使用此模式，延长电池的寿命。
@@ -567,6 +581,7 @@ export const PowerTuningView: React.FC = () => {
             </div>
           </div>
 
+          }
           {/* Right: Real-time Animated Battery Gauge */}
           <div className="battery-gauge-box">
             {/* Battery Shell */}

@@ -17,6 +17,7 @@ pub use crate::system::power_mode::{FactoryPowerPresets, get_factory_power_prese
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardwareState {
+    pub fan_control: Option<crate::hal::fan_policy::FanControlStatus>,
     pub power_mode: u8,
     pub fan_boost: bool,
     pub battery_limit: u8,
@@ -24,6 +25,7 @@ pub struct HardwareState {
     pub cpu_usage: u32,
     pub cpu_freq: u32,
     pub gpu_temp: u32,
+    pub gpu_temp_unavailable_reason: Option<String>,
     pub cpu_fan_rpm: u16,
     pub gpu_fan_rpm: u16,
     pub gpu_usage: u32,
@@ -51,6 +53,7 @@ pub struct HardwareState {
     pub is_dc_online: bool,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
+    pub gpu_power_available: Option<bool>,
 }
 
 pub fn get_machine_model() -> String {
@@ -69,7 +72,7 @@ pub fn collect_hardware_state(
     query_gpu: bool,
 ) -> HardwareState {
     let is_bld_manifest = crate::hal::declarative::load_matched_manifest()
-        .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
+        .map(|m| m.capabilities.uses_bld_fan_controller())
         .unwrap_or(false);
     // 1. Nanosecond EC state copy: Immediately drop lock to prevent cross-thread starvation
     let (power_mode, fan_boost, battery_limit, mut cpu_fan_rpm, mut gpu_fan_rpm, is_mock) = {
@@ -88,30 +91,58 @@ pub fn collect_hardware_state(
         )
     };
 
+    let battery_limit = if crate::driver::wmi_ec::get_hardware_support_flags().has_battery_limit {
+        battery_limit
+    } else {
+        0
+    };
+
     // On-demand foreground fan telemetry for ultrabooks (zero background polling)
     if crate::hal::platform_probe::is_ultrabook() {
         let hal = crate::hal::get_hardware_driver();
         if let Ok((c_rpm, g_rpm)) = hal.read_fan_rpm() {
-            if c_rpm > 0 {
-                cpu_fan_rpm = c_rpm;
-            }
-            if g_rpm > 0 {
-                gpu_fan_rpm = g_rpm;
-            }
+            cpu_fan_rpm = c_rpm;
+            gpu_fan_rpm = g_rpm;
             ec_state.lock().update_fan_rpm(c_rpm, g_rpm);
         }
     }
 
-    // 2. Nanosecond GPU telemetry copy: Query only if requested to prevent waking up NVIDIA dGPU from D3Cold
-    let is_discrete_gpu_supported = if let Some(m) = crate::hal::declarative::load_matched_manifest() {
+    // 2. Query GPU telemetry only when requested; keep NVIDIA D3Cold gating.
+    let manifest = crate::hal::declarative::load_matched_manifest();
+    let is_discrete_gpu_supported = if let Some(m) = &manifest {
         m.capabilities.discrete_gpu
     } else {
         crate::commands::power_cmd::check_dgpu_present()
     };
 
+    let intel_gpu = if query_gpu
+        && !is_discrete_gpu_supported
+        && manifest.as_ref().and_then(|m| m.capabilities.gpu_telemetry_backend.as_deref())
+            == Some("intel_igcl_pmt")
+    {
+        Some(crate::hal::intel_gpu::sample())
+    } else {
+        None
+    };
+    let gpu_power_available = intel_gpu.as_ref().map(|gpu| gpu.power_watts.is_some());
+    let gpu_temp_unavailable_reason = intel_gpu.as_ref()
+        .filter(|gpu| gpu.temperature_c.is_none())
+        .map(|gpu| {
+            if gpu.error.is_some() {
+                "当前无法读取 GPU 温度"
+            } else {
+                "当前驱动未提供可用的 GPU 温度读数"
+            }.to_string()
+        });
     let (gpu_temp, gpu_usage, gpu_core_freq, gpu_mem_freq, gpu_vram_mb, gpu_vram_used_mb, gpu_power_w, gpu_name, has_gpu) = {
-        if !is_discrete_gpu_supported {
-            // Declarative Decision Center Authority: strictly pure iGPU / thin & light laptop, no dGPU
+        if let Some(gpu) = intel_gpu {
+            // iGPU telemetry does not grant dGPU power/overclocking capabilities.
+            (
+                gpu.temperature_c.unwrap_or(0), gpu.usage_percent.unwrap_or(0),
+                gpu.core_frequency_mhz.unwrap_or(0), 0, 0, 0,
+                gpu.power_watts.unwrap_or(0.0), gpu.name, false,
+            )
+        } else if !is_discrete_gpu_supported {
             (0, 0, 0, 0, 0, 0, 0.0, "".to_string(), false)
         } else if query_gpu {
             let gpu = gpu_state.lock();
@@ -147,6 +178,8 @@ pub fn collect_hardware_state(
     let cfg = crate::system::config::load_config();
 
     HardwareState {
+        fan_control: crate::hal::declarative::load_matched_manifest()
+            .filter(|manifest| manifest.uses_ptl_pmc()).map(|_| crate::hal::ptl_pmc::status()),
         power_mode,
         fan_boost,
         battery_limit,
@@ -154,6 +187,7 @@ pub fn collect_hardware_state(
         cpu_usage: cpu.get_usage(),
         cpu_freq: cpu.get_current_mhz(),
         gpu_temp,
+        gpu_temp_unavailable_reason,
         cpu_fan_rpm,
         gpu_fan_rpm,
         gpu_usage,
@@ -185,6 +219,7 @@ pub fn collect_hardware_state(
         is_dc_online: is_dc_round_plugged_in(),
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
+        gpu_power_available,
     }
 }
 
@@ -1515,7 +1550,8 @@ pub fn get_model_capabilities() -> serde_json::Value {
         // If the ACPI driver is active and returns valid non-zero wattage, prioritize real hardware truth.
         let effective_pmw = {
             let mut watts_map = manifest.capabilities.power_mode_watts.clone().unwrap_or_default();
-            if crate::driver::wmi_ec::is_acpi_driver_available() {
+            if manifest.channels.values().any(|channel| matches!(channel, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. }))
+                && crate::driver::wmi_ec::is_acpi_driver_available() {
                 let off_ec = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_OFFICE_PL1).unwrap_or(0);
                 let bal_ec = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BALANCE_PL1).unwrap_or(0);
                 let tur_ec = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TURBO_PL1).unwrap_or(0);
@@ -1543,10 +1579,14 @@ pub fn get_model_capabilities() -> serde_json::Value {
             "fan_custom_curve": manifest.capabilities.fan_custom_curve,
             "fan_independent_channels": manifest.capabilities.fan_independent_channels,
             "fan_ramp_rate": manifest.capabilities.fan_ramp_rate,
+            "fan_software_smoothing": manifest.capabilities.fan_software_smoothing,
             "fan_control_mode": fan_control_mode,
             "fan_boost_mode": fan_boost_mode,
             "cpu_vendor": cpu_vendor,
             "cpu_tuning_type": cpu_tuning_type,
+            "cpu_power_backend": manifest.capabilities.cpu_power_backend,
+            "cpu_power_max_watts": manifest.capabilities.cpu_power_max_watts,
+            "gpu_telemetry_backend": manifest.capabilities.gpu_telemetry_backend,
             "cpu_supports_fppt": cpu_supports_fppt,
             "gpu_power_tuning_mode": gpu_power_tuning_mode,
             "cpu_name": cpu_name,

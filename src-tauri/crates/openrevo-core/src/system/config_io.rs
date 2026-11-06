@@ -33,6 +33,33 @@ pub fn atomic_write(path: &Path, content: &[u8]) -> Result<(), String> {
         })
 }
 
+/// Commit an active profile and config together; restore the profile if the
+/// config cannot be replaced. Callers serialize writers with DATA_IO.
+pub fn atomic_write_pair(
+    first: &Path,
+    first_content: &[u8],
+    second: &Path,
+    second_content: &[u8],
+) -> Result<(), String> {
+    let original = match fs::read(first) {
+        Ok(bytes) => Some(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(format!("Cannot back up {}: {error}", first.display())),
+    };
+    atomic_write(first, first_content)?;
+    if let Err(error) = atomic_write(second, second_content) {
+        let restored = match original {
+            Some(bytes) => atomic_write(first, &bytes),
+            None => fs::remove_file(first).map_err(|restore| restore.to_string()),
+        };
+        return Err(match restored {
+            Ok(()) => error,
+            Err(restore) => format!("{error}; profile rollback failed: {restore}"),
+        });
+    }
+    Ok(())
+}
+
 pub fn merge_changes(current: &mut Value, baseline: &Value, updated: &Value) {
     if baseline == updated {
         return;
@@ -61,6 +88,50 @@ pub fn merge_changes(current: &mut Value, baseline: &Value, updated: &Value) {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn failed_config_commit_restores_previous_profile_bytes() {
+        let dir = std::env::temp_dir().join(format!(
+            "openrevo-profile-rollback-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let profile = dir.join("profile.json");
+        let config = dir.join("config.json");
+        fs::write(&profile, b"original profile").unwrap();
+        fs::create_dir(&config).unwrap();
+        assert!(
+            atomic_write_pair(&profile, b"updated profile", &config, b"updated config").is_err()
+        );
+        assert_eq!(fs::read(&profile).unwrap(), b"original profile");
+        fs::remove_file(&profile).unwrap();
+        fs::remove_dir(&config).unwrap();
+        fs::remove_dir(&dir).unwrap();
+    }
+
+    #[test]
+    fn failed_config_commit_removes_only_the_newly_created_profile() {
+        let dir = std::env::temp_dir().join(format!(
+            "openrevo-new-profile-rollback-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let profile = dir.join("profile.json");
+        let config = dir.join("config.json");
+        fs::create_dir(&config).unwrap();
+        assert!(atomic_write_pair(&profile, b"new profile", &config, b"updated config").is_err());
+        assert!(!profile.exists());
+        fs::remove_dir(&config).unwrap();
+        fs::remove_dir(&dir).unwrap();
+    }
 
     #[test]
     fn regression_merges_independent_config_and_map_edits() {

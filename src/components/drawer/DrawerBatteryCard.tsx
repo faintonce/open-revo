@@ -15,6 +15,7 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
   checkOemGuard,
   onExpandDashboard: _onExpandDashboard,
 }) => {
+  const supported = status.support_flags?.has_battery_limit !== false;
   return (
     <div className="m-card">
       <div className="m-card-header">
@@ -22,7 +23,7 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
           <Battery size={13} style={{ color: 'var(--theme-bat)' }} />
           <span>电池健康:</span>
           <span style={{ color: 'var(--theme-bat)', fontWeight: 700 }}>
-            {status.battery_limit === 60
+            {!supported ? '固件默认' : status.battery_limit === 60
               ? '工作站模式'
               : status.battery_limit === 80
               ? '平衡模式'
@@ -35,7 +36,7 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
         </div>
       </div>
 
-      <div className="m-grid-3">
+      {supported ? <div className="m-grid-3">
         <button
           className="m-btn-bat"
           style={
@@ -92,7 +93,7 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
         >
           长效
         </button>
-      </div>
+      </div> : <div className="sys-row-desc">本机充电上限尚未适配</div>}
     </div>
   );
 };

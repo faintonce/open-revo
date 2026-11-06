@@ -86,12 +86,18 @@ impl OpenRevoEngine {
     // Power & Performance Mode Orchestration
     // ------------------------------------------------------------------------
 
-    /// Apply physical EC performance mode (e.g. 0 = Office/Saver, 1 = Balanced/Game, 2 = Turbo/Beast).
+    /// Apply performance mode: 1 = Office, 2 = Balance, 3 = Turbo, 4 = Custom.
     pub fn set_power_mode(&self, mode: u8) -> Result<(), String> {
         if !self.is_active() {
             return Err("OpenRevo engine is not running or already shut down".to_string());
         }
-        apply_ec_hardware_mode(mode);
+        if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.capabilities.cpu_power_backend.as_deref() == Some("intel_rapl")) {
+            let hw = match mode { 1 => crate::hal::HardwarePowerMode::Office, 2 => crate::hal::HardwarePowerMode::Balance, 3 => crate::hal::HardwarePowerMode::Turbo, 4 => crate::hal::HardwarePowerMode::Custom, _ => return Err("Invalid performance mode".into()) };
+            crate::hal::get_hardware_driver().set_performance_mode(hw).map_err(|e| e.to_string())?;
+            let mut cfg = crate::system::config::load_config();
+            cfg.power_mode = mode;
+            crate::system::config::save_config(&cfg);
+        } else { apply_ec_hardware_mode(mode); }
         dispatch_event_global(CoreEvent::PhysicalModeSwitched(mode));
         Ok(())
     }
@@ -139,6 +145,7 @@ impl OpenRevoEngine {
     /// Gracefully shutdown the engine, signaling background monitors and releasing handles.
     pub fn shutdown(&self) {
         if self.is_running.swap(false, Ordering::SeqCst) {
+            if let Err(e) = crate::hal::cpu_power::shutdown() { crate::log_error!("CPU_POWER", "CPU release on engine shutdown failed: {}", e); }
             crate::log_info!("ENGINE", "OpenRevo engine shutdown initiated.");
             set_telemetry_active(false);
         }

@@ -93,7 +93,7 @@ impl CpuMonitor {
             current_mhz: AtomicU32::new(2200),
             base_mhz: AtomicU32::new(2200),
             usage_pct: AtomicU32::new(5),
-            cpu_temp: AtomicI32::new(50),
+            cpu_temp: AtomicI32::new(0),
             power_dw: AtomicU32::new(0),
         });
 
@@ -123,13 +123,13 @@ impl CpuMonitor {
                     })
             };
 
-            // Dynamically load pdh.dll for thermal zone temperature, power & processor performance
+            // Dynamically load pdh.dll for power & processor performance.
             let pdh_lib: Option<&'static libloading::Library> = unsafe {
                 libloading::Library::new("pdh.dll")
                     .ok()
                     .map(|lib| Box::leak(Box::new(lib)) as &'static libloading::Library)
             };
-            let (pdh_query, pdh_tz_counter, pdh_pwr_counter, pdh_perf_counter, pdh_collect, pdh_get_array, pdh_get_val) = if let Some(lib) = pdh_lib {
+            let (pdh_query, pdh_pwr_counter, pdh_perf_counter, pdh_collect, pdh_get_array, pdh_get_val) = if let Some(lib) = pdh_lib {
                 unsafe {
                     let open_query: Option<libloading::Symbol<PdhOpenQueryWFn>> = lib.get(b"PdhOpenQueryW").ok();
                     let add_counter: Option<libloading::Symbol<PdhAddEnglishCounterWFn>> = lib.get(b"PdhAddEnglishCounterW").ok();
@@ -140,13 +140,6 @@ impl CpuMonitor {
                     if let (Some(open), Some(add), Some(collect), Some(get_arr), Some(get_v)) = (open_query, add_counter, collect_data, get_array, get_val) {
                         let mut q = 0isize;
                         if open(std::ptr::null(), 0, &mut q) == 0 {
-                            let mut c_tz = 0isize;
-                            let tz_path: Vec<u16> = r"\Thermal Zone Information(*)\Temperature"
-                                .encode_utf16()
-                                .chain(Some(0))
-                                .collect();
-                            let has_tz = add(q, tz_path.as_ptr(), 0, &mut c_tz) == 0;
-
                             let mut c_pwr = 0isize;
                             let pwr_path: Vec<u16> = r"\Energy Meter(*)\Power"
                                 .encode_utf16()
@@ -164,7 +157,6 @@ impl CpuMonitor {
                             collect(q);
                             (
                                 Some(q),
-                                if has_tz { Some(c_tz) } else { None },
                                 if has_pwr { Some(c_pwr) } else { None },
                                 if has_perf { Some(c_perf) } else { None },
                                 Some(collect),
@@ -172,18 +164,19 @@ impl CpuMonitor {
                                 Some(get_v),
                             )
                         } else {
-                            (None, None, None, None, None, None, None)
+                            (None, None, None, None, None, None)
                         }
                     } else {
-                        (None, None, None, None, None, None, None)
+                        (None, None, None, None, None, None)
                     }
                 }
             } else {
-                (None, None, None, None, None, None, None)
+                (None, None, None, None, None, None)
             };
 
             let _num_cpus = num_cpus();
             let is_ultrabook = crate::hal::platform_probe::is_ultrabook();
+            let mut package_temperature = crate::hal::cpu_temperature::PackageTemperatureReader::new();
 
             loop {
                 if is_ultrabook && !crate::system::telemetry::is_telemetry_active() {
@@ -250,7 +243,17 @@ impl CpuMonitor {
                     }
                 }
 
-                // 3. Read real-time Thermal Zone temperature, Energy Meter power & Processor Performance via PDH
+                // 3. Read CPU Package temperature independently of PDH availability.
+                // Only use genuine sensor readings. Zero means unavailable to the UI.
+                let temperature = package_temperature.read_celsius().or_else(|| {
+                    crate::hal::get_hardware_driver().read_cpu_temp_sensor()
+                        .ok()
+                        .filter(|temp| *temp > 0 && *temp < 125)
+                        .map(i32::from)
+                });
+                monitor_clone.cpu_temp.store(temperature.unwrap_or(0), Ordering::SeqCst);
+
+                // 4. Read Energy Meter power & Processor Performance via PDH.
                 if let (Some(q), Some(ref collect), Some(ref get_array)) = (
                     pdh_query,
                     pdh_collect.as_ref(),
@@ -258,37 +261,6 @@ impl CpuMonitor {
                 ) {
                     unsafe {
                         collect(q);
-
-                        // A. Thermal zone
-                        if let Some(c) = pdh_tz_counter {
-                            let mut buf_size = 0u32;
-                            let mut item_count = 0u32;
-                            let _ = get_array(c, 0x00000200 /* PDH_FMT_DOUBLE */, &mut buf_size, &mut item_count, std::ptr::null_mut());
-                            if buf_size > 0 {
-                                let mut buf = vec![0u8; buf_size as usize];
-                                let ret = get_array(c, 0x00000200, &mut buf_size, &mut item_count, buf.as_mut_ptr());
-                                if ret == 0 && item_count > 0 {
-                                    let item_size = std::mem::size_of::<PdhFmtCountervalueItem>();
-                                    let mut max_celsius = None;
-                                    for i in 0..item_count as usize {
-                                        let offset = i * item_size;
-                                        if offset + item_size <= buf.len() {
-                                            let item_ptr = buf.as_ptr().add(offset) as *const PdhFmtCountervalueItem;
-                                            let val = (*item_ptr).fmt_value.double_value;
-                                            if val > 250.0 && val < 420.0 {
-                                                let c = (val - 273.15).round() as i32;
-                                                if max_celsius.map_or(true, |m| c > m) {
-                                                    max_celsius = Some(c);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    if let Some(c) = max_celsius {
-                                        monitor_clone.cpu_temp.store(c, Ordering::SeqCst);
-                                    }
-                                }
-                            }
-                        }
 
                         // B. Energy Meter Power
                         if let Some(c) = pdh_pwr_counter {

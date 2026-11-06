@@ -71,6 +71,30 @@ fn handle_wake_auto_office() {
 }
 
 fn handle_system_resume_pipeline(event_name: &str) {
+    crate::hal::ptl_pmc::resume();
+    if crate::commands::tuning_cmd::uses_native_cpu_power() {
+        let mut cfg = crate::system::config::load_config();
+        if cfg.power_mode == 4 && !crate::hal::cpu_power::is_active() {
+            let hal = crate::hal::get_hardware_driver();
+            let requested = if crate::hal::cpu_power::validate_power_supply(
+                crate::hal::cpu_power::ac_online(), cfg.unlock_battery_power_limit).is_ok() {
+                crate::hal::HardwarePowerMode::Custom
+            } else { crate::hal::HardwarePowerMode::Balance };
+            let actual = match hal.set_performance_mode(requested) {
+                Ok(()) => Some(if requested == crate::hal::HardwarePowerMode::Custom { 4 } else { 2 }),
+                Err(e) => {
+                    crate::log_error!("CPU_POWER", "Cannot restore CPU power after resume: {}", e);
+                    hal.set_performance_mode(crate::hal::HardwarePowerMode::Balance).ok().map(|()| 2)
+                }
+            };
+            if let Some(mode) = actual {
+                cfg.power_mode = mode;
+                crate::system::config::save_config(&cfg);
+                if let Some(ec) = GLOBAL_EC.read().as_ref() { ec.lock().set_power_mode_from_hardware(mode); }
+                crate::update_tray_power_mode(mode);
+            }
+        }
+    }
     crate::system::telemetry::set_screen_suspended(false);
     if crate::hal::platform_probe::is_ultrabook() {
         println!("[Power Guard] Ultrabook {}! Restoring power mode only.", event_name);
@@ -168,6 +192,8 @@ unsafe extern "system" fn power_wnd_proc(
         WM_POWERBROADCAST => {
             let pbt = wparam.0 as u32;
             if pbt == PBT_APMSUSPEND {
+                if let Err(e) = crate::hal::cpu_power::shutdown() { crate::log_error!("CPU_POWER", "CPU release before sleep failed: {}", e); }
+                crate::hal::ptl_pmc::suspend();
                 // If Keep-Awake is active or screen was turned off for overnight tasks,
                 // NEVER degrade power mode to Office (1) and NEVER shut down water cooling!
                 let is_running_tasks = crate::system::switches::is_keep_awake() || crate::system::switches::is_screen_off();
@@ -231,6 +257,8 @@ unsafe extern "system" fn power_wnd_proc(
             LRESULT(1)
         }
         WM_QUERYENDSESSION | WM_ENDSESSION => {
+            if let Err(e) = crate::hal::cpu_power::shutdown() { crate::log_error!("CPU_POWER", "CPU release before shutdown failed: {}", e); }
+            crate::hal::ptl_pmc::shutdown();
             println!("[Power Guard] System is shutting down or restarting! Stopping water cooler & lighting...");
             crate::system::telemetry::set_screen_suspended(true);
             crate::system::display_tuning::reset_display_tuning_to_default();

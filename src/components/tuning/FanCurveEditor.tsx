@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Wind, Link2, Link2Off, Plus, Minus, Fan } from 'lucide-react';
-import { FanCurvePoint } from '../../types/hardware';
+import { FanCurvePoint, RpmFanControlStatus } from '../../types/hardware';
 import { RevSwitch } from '../ui/RevSwitch';
 
 export interface FanCurveEditorProps {
@@ -24,6 +24,7 @@ export interface FanCurveEditorProps {
   fanIndependentChannels?: boolean;
   supportFanRampRate?: boolean;
   minDuty?: number;
+  rpmScale?: Pick<RpmFanControlStatus, 'percent_reference_rpm' | 'percent_max_rpm'>;
 }
 
 export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
@@ -47,6 +48,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
   fanIndependentChannels = true,
   supportFanRampRate = true,
   minDuty: propMinDuty,
+  rpmScale,
 }) => {
   const minDuty = propMinDuty ?? (fanBoostMode === 'direct_rpm_clamp' ? 22 : 0);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
@@ -618,7 +620,11 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
             padding: '2px 4px',
           }}
         >
-          <span>{minDuty > 0 ? `最低起旋 ${minDuty}% (2200 RPM) · 滚轮微调` : '鼠标悬停滚轮微调'}</span>
+          <span title={rpmScale ? '百分比是目标转速刻度；0% 请求低温停转，受启停迟滞和温度保护约束，实际转速以读数为准。' : undefined}>
+            {rpmScale?.percent_reference_rpm && rpmScale?.percent_max_rpm
+              ? `0% 请求停转 · 25% ≈ ${rpmScale.percent_reference_rpm[fanCurveTab === 'cpu' ? 0 : 1]} · 100% ≈ ${rpmScale.percent_max_rpm[fanCurveTab === 'cpu' ? 0 : 1]} RPM`
+              : minDuty > 0 ? `最低起旋 ${minDuty}% (2200 RPM) · 滚轮微调` : '鼠标悬停滚轮微调'}
+          </span>
           <span style={{ color: fanIsolated ? 'var(--color-brand)' : 'var(--text-dim)' }}>
             8 节点单调递增
           </span>

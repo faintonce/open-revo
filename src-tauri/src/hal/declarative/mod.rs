@@ -8,6 +8,7 @@ pub mod wmi_mailbox;
 pub use driver::DeclarativeHardwareDriver;
 pub use model_manifest::ModelManifest;
 
+const BUILTIN_XINGYAO_14_PTL: &str = include_str!("../../../resources/drivers/xingyao_14_p916f_ptl.json");
 const BUILTIN_XINGYAO_14: &str = include_str!("../../../resources/drivers/xingyao_14_p916f.json");
 const BUILTIN_WUJIE_14_IP3: &str = include_str!("../../../resources/drivers/wujie_14_ip3.json");
 const BUILTIN_WUJIE_14_BLD: &str = include_str!("../../../resources/drivers/wujie_14_bld.json");
@@ -60,6 +61,8 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
 
             let board = read_reg(w!("BaseBoardProduct"));
             let sys_prod = read_reg(w!("SystemProductName"));
+            let vendor = read_reg(w!("SystemManufacturer"));
+            let bios = read_reg(w!("BIOSVersion"));
             unsafe { let _ = RegCloseKey(hkey); }
 
             // 1. Check external driver plugins in %APPDATA%\OpenRevo\plugins\drivers\
@@ -76,7 +79,7 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
                             if path.extension().and_then(|s| s.to_str()) == Some("json") {
                                 if let Ok(content) = std::fs::read_to_string(&path) {
                                     if let Ok(manifest) = serde_json::from_str::<ModelManifest>(&content) {
-                                        if manifest.matches_dmi(&board, &sys_prod) {
+                                        if manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
                                             crate::log_info!(
                                                 "DECLARATIVE_LOADER",
                                                 "Matched external driver plugin: {} ({}) for board '{}'",
@@ -94,9 +97,21 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
                 }
             }
 
+            // Exact PTL contract takes priority over the older P916F wildcard.
+            if let Ok(manifest) = serde_json::from_str::<ModelManifest>(BUILTIN_XINGYAO_14_PTL) {
+                if manifest.matches_identity(&board, &sys_prod, &vendor) && !manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
+                    crate::log_warn!("DECLARATIVE_LOADER", "Unvalidated BIOS {}; disabling physical controls for {}", bios, board);
+                    return Some(manifest.read_only());
+                }
+                if manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
+                    crate::log_info!("DECLARATIVE_LOADER", "Matched PTL driver manifest: {} for board '{}'", manifest.id, board);
+                    return Some(manifest);
+                }
+            }
+
             // 2. Check built-in manifest: Xingyao 14 P916F
             if let Ok(manifest) = serde_json::from_str::<ModelManifest>(BUILTIN_XINGYAO_14) {
-                if manifest.matches_dmi(&board, &sys_prod) {
+                if manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
                     crate::log_info!(
                         "DECLARATIVE_LOADER",
                         "Matched built-in driver manifest: {} ({}) for board '{}'",
@@ -113,7 +128,7 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
                 // Use pure static DMI matching only. Do NOT gate on is_ip3_available(),
                 // which is populated by an async WMI worker thread and may return false
                 // during early startup (race condition), causing MockHAL fallback.
-                if manifest.matches_dmi(&board, &sys_prod) {
+                if manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
                     crate::log_info!(
                         "DECLARATIVE_LOADER",
                         "Matched built-in driver manifest: {} ({}) for board '{}'",
@@ -127,7 +142,7 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
 
             // 4. Check built-in manifest: Wujie 14 Pro (Baolongda T140)
             if let Ok(manifest) = serde_json::from_str::<ModelManifest>(BUILTIN_WUJIE_14_BLD) {
-                if manifest.matches_dmi(&board, &sys_prod) {
+                if manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
                     crate::log_info!(
                         "DECLARATIVE_LOADER",
                         "Matched built-in driver manifest: {} ({}) for board '{}'",
@@ -141,7 +156,7 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
 
             // 5. Check built-in manifest: Wujie 14X / 15X / 16X (Tongfang X Series)
             if let Ok(manifest) = serde_json::from_str::<ModelManifest>(BUILTIN_WUJIE_X_SERIES) {
-                if manifest.matches_dmi(&board, &sys_prod) {
+                if manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
                     crate::log_info!(
                         "DECLARATIVE_LOADER",
                         "Matched built-in driver manifest: {} ({}) for board '{}'",
@@ -155,7 +170,7 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
 
             // 6. Check built-in manifest: Jiaolong 16 Pro (Baolongda MRID6)
             if let Ok(manifest) = serde_json::from_str::<ModelManifest>(BUILTIN_JIAOLONG_16_BLD) {
-                if manifest.matches_dmi(&board, &sys_prod) {
+                if manifest.matches_hardware(&board, &sys_prod, &vendor, &bios) {
                     crate::log_info!(
                         "DECLARATIVE_LOADER",
                         "Matched built-in driver manifest: {} ({}) for board '{}'",
@@ -186,6 +201,7 @@ pub fn invoke_raw_mailbox(in_bytes: &[u8]) -> Result<Vec<u8>, String> {
                 class_name,
                 method_name,
                 buffer_sizes,
+                ..
             } => Some((namespace, class_name, method_name, buffer_sizes)),
             _ => None,
         })

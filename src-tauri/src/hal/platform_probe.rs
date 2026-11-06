@@ -29,6 +29,7 @@ pub fn get_platform_channel() -> PlatformChannelKind {
         if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
             for channel in manifest.channels.values() {
                 match channel {
+                    crate::hal::declarative::model_manifest::ChannelDef::PmcEc { .. } => continue,
                     crate::hal::declarative::model_manifest::ChannelDef::WmiIp3 => {
                         crate::log_info!("PLATFORM_PROBE", "Platform identified via Manifest: Shenzhen IP3 WMI ({})", manifest.id);
                         return PlatformChannelKind::Ip3Wmi;

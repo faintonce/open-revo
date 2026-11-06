@@ -169,6 +169,9 @@ fn canonicalize_safe(p: &Path) -> std::io::Result<PathBuf> {
 
 /// Start a plugin companion service with sandbox path validation
 pub fn start_service(plugin_id: &str) -> Result<PluginServiceStatus, String> {
+    if plugin_id == "openrevo-plugin-power" && crate::commands::tuning_cmd::uses_native_cpu_power() {
+        return Err("本机已使用内置 CPU 功耗控制，请关闭功耗插件代理以避免同时写入".into());
+    }
     let Some((plugin_dir, svc)) = get_plugin_service_config(plugin_id) else {
         return Err(format!("插件 '{}' 未在 manifest.json 中声明 companion service", plugin_id));
     };

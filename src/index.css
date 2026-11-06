@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+.hardware-control-error { color: var(--status-error); font-size: var(--font-size-sm); }
+
+.fan-control-badge { background: var(--surface-badge); border: 1px solid var(--border-medium); padding: 2px var(--space-2); border-radius: var(--radius-xs); font: 600 var(--font-size-sm) var(--font-mono); color: var(--text-secondary); }
+.fan-control-badge[data-mode="curve"], .fan-control-badge[data-mode="manual"] { color: var(--status-info); }
+.fan-control-badge[data-mode="protected"], .fan-control-badge[data-mode="recovering"] { color: var(--status-warn); }
+.fan-control-badge[data-mode="boost"] { color: var(--status-error); }
+
 :root {
   color-scheme: dark;
   /* ==========================================================================
@@ -32,6 +39,9 @@
   --text-dim: #64748b;
 
   /* --- 4. Physical Scale & Mesh (圆角与间距规范) --- */
+  --space-2: 8px;
+  --space-3: 12px;
+  --font-size-sm: 12px;
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -3175,6 +3185,9 @@ body,
 
 
 
+
+/* Capability states reuse the original tuning controls across all themes. */
+.tuning-control-disabled { opacity: 0.45; }
 
 /* GCU OC 快捷胶囊（狂暴模式左上角） */
 .gpu-oc-wrap { position: relative; display: inline-flex; }

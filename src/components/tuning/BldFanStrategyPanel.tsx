@@ -27,8 +27,10 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
   const [speedCap, setSpeedCap] = useState<number>(maxRpm);
   const [isCapActive, setIsCapActive] = useState<boolean>(false);
   const debounceRef = useRef<any>(null);
+  const firmwareAuto = fanBoostMode === 'none';
 
   const handleSpeedCapChange = (val: number) => {
+    if (firmwareAuto) return;
     setSpeedCap(val);
     setIsCapActive(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -38,6 +40,7 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
   };
 
   const handleRestoreAuto = () => {
+    if (firmwareAuto) return;
     setIsCapActive(false);
     setSpeedCap(maxRpm);
     invoke('set_bld_fan_speed_cap', { rpm: 0 }).catch(console.warn);
@@ -58,9 +61,9 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--status-info)' }}>
           <Wind className="w-4 h-4" />
-          <span>原厂散热策略与闭环温控</span>
+          <span>{firmwareAuto ? '固件自动温控' : '原厂散热策略与闭环温控'}</span>
         </div>
-        <button
+        {!firmwareAuto && <button
           type="button"
           onClick={handleRestoreAuto}
           className="tuning-step-btn"
@@ -69,7 +72,7 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
         >
           <RotateCcw className="w-3 h-3" />
           <span>恢复默认</span>
-        </button>
+        </button>}
       </div>
 
       {/* Dual Fan Live Telemetry */}
@@ -86,7 +89,7 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-            <span>CPU 风扇</span>
+            <span>{firmwareAuto ? '风扇 1' : 'CPU 风扇'}</span>
             <span>{cpuTemp > 0 ? `${cpuTemp}°C` : '--'}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -99,7 +102,7 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-            <span>GPU 风扇</span>
+            <span>{firmwareAuto ? '风扇 2' : 'GPU 风扇'}</span>
             <span>{gpuTemp > 0 ? `${gpuTemp}°C` : '--'}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -112,6 +115,9 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
       </div>
 
       {/* Single-row Fan Boost Switch */}
+      {firmwareAuto ? (
+        <div className="sys-row-desc">风扇随性能模式自动调节。手动转速和自定义曲线尚未适配。</div>
+      ) : <>
       <div
         className="tuning-sub-card"
         style={{
@@ -164,6 +170,7 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
           <span>{maxRpm} RPM (满速上限)</span>
         </div>
       </div>
+      </>}
     </div>
   );
 };

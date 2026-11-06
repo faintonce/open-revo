@@ -670,7 +670,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
 
         {activeTab === 'tuning' && (
           <ModuleErrorBoundary moduleName="电源管理" onNavigateToOverview={() => setActiveTab('overview')}>
-            <PowerTuningView />
+            <PowerTuningView batteryChargeLimitSupported={capabilities?.battery_charge_limit} />
           </ModuleErrorBoundary>
         )}
 

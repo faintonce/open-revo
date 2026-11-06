@@ -391,6 +391,13 @@ pub fn trigger_ec_action(mask: u8) -> bool {
 }
 
 pub fn is_fan_boost_active() -> bool {
+    if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.uses_ptl_pmc()) {
+        let state = crate::hal::ptl_pmc::status();
+        return state.mode == "manual" && state.target_rpm == [7500, 7500];
+    }
+    if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.capabilities.fan_boost_mode.as_deref() == Some("none")) {
+        return false;
+    }
     let is_tongfang_hardware = is_acpi_driver_available()
         || crate::hal::declarative::load_matched_manifest()
             .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
@@ -402,7 +409,7 @@ pub fn is_fan_boost_active() -> bool {
     }
 
     let is_bld = crate::hal::declarative::load_matched_manifest()
-        .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
+        .map(|m| m.capabilities.uses_bld_fan_controller())
         .unwrap_or(false);
     if is_bld {
         return crate::driver::bld_driver_mgr::is_bld_fan_clamped();
@@ -583,7 +590,7 @@ pub fn get_hardware_support_flags() -> HardwareSupportFlags {
                 .map(|k| k.keyboard_type != "none" && k.keyboard_type != "monochrome_stepped")
                 .unwrap_or(false);
             let has_boost = manifest.capabilities.fan_control_mode.as_deref() != Some("none")
-                && (manifest.capabilities.fan_boost_mode.as_deref() == Some("hardware_toggle")
+                && (manifest.uses_ptl_pmc() || manifest.capabilities.fan_boost_mode.as_deref() == Some("hardware_toggle")
                     || manifest.capabilities.fan_boost_mode.as_deref() == Some("direct_rpm_clamp")
                     || manifest.actions.contains_key("set_fan_boost_on")
                     || manifest.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })));

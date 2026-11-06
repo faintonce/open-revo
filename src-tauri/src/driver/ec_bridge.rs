@@ -128,7 +128,7 @@ impl EcBridge {
                             let is_ultrabook = crate::hal::platform_probe::is_ultrabook();
                             if !is_ultrabook {
                                 let is_bld_manifest = crate::hal::declarative::load_matched_manifest()
-                                    .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
+                                    .map(|m| m.capabilities.uses_bld_fan_controller())
                                     .unwrap_or(false);
                                 if !is_bld_manifest {
                                     let hw_fb = (raw_fan_clamp & wmi_ec::FAN_BOOST_CLAMP_BIT) != 0;
@@ -249,11 +249,26 @@ impl EcBridge {
     }
 
     pub fn get_power_mode(&self) -> u8 {
+        // Use the acknowledged firmware mode and native Custom ownership, including
+        // startup fallback and persistence failures.
+        if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.capabilities.cpu_power_backend.as_deref() == Some("intel_rapl")) {
+            return crate::hal::get_hardware_driver().get_performance_mode()
+                .map(|mode| mode as u8).unwrap_or_else(|_| self.cache.lock().power_mode);
+        }
         self.cache.lock().power_mode
     }
 
     pub fn set_power_mode(&self, ui_mode: u8) {
         crate::log_info!("EC_BRIDGE", "User triggered set_power_mode: {}", ui_mode);
+        if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.capabilities.cpu_power_backend.as_deref() == Some("intel_rapl")) {
+            let mode = match ui_mode { 1 => crate::hal::HardwarePowerMode::Office, 2 => crate::hal::HardwarePowerMode::Balance, 3 => crate::hal::HardwarePowerMode::Turbo, 4 => crate::hal::HardwarePowerMode::Custom, _ => return };
+            match crate::hal::get_hardware_driver().set_performance_mode(mode) {
+                Ok(()) => self.set_power_mode_from_hardware(ui_mode),
+                Err(e) => crate::log_error!("CPU_POWER", "Performance mode request failed: {}", e),
+            }
+            return;
+        }
+
         {
             let mut c = self.cache.lock();
             c.power_mode = ui_mode;
@@ -279,6 +294,9 @@ impl EcBridge {
     }
 
     pub fn is_fan_boost(&self) -> bool {
+        if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.uses_ptl_pmc()) {
+            return wmi_ec::is_fan_boost_active();
+        }
         self.cache.lock().fan_boost
     }
 
@@ -327,6 +345,9 @@ impl EcBridge {
     }
 
     pub fn get_battery_limit(&self) -> u8 {
+        if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.uses_ptl_pmc()) {
+            return crate::hal::ptl_pmc::battery_state().map(|s| if s.enabled { s.lower } else { 100 }).unwrap_or(0);
+        }
         self.cache.lock().battery_limit
     }
 
@@ -335,12 +356,43 @@ impl EcBridge {
         self.apply_battery_limit_with_override(limit, cfg.battery_hardware_limit_enabled);
     }
 
+    /// Apply declarative battery settings before updating the cache or saved config.
+    pub fn apply_battery_limit_checked(&self, limit: u8, hardware_override: bool) -> Result<(), String> {
+        if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
+            if !manifest.capabilities.battery_charge_limit {
+                return Err("当前机型尚未适配充电上限，使用固件默认充电策略".into());
+            }
+            if !manifest.channels.values().any(|channel| matches!(channel, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })) {
+                let mode = match limit {
+                    100 => crate::hal::BatteryHealthMode::LongLife,
+                    80 => crate::hal::BatteryHealthMode::Balance,
+                    60 => crate::hal::BatteryHealthMode::Station,
+                    _ => return Err("该机型仅支持 60%、80%、100% 充电模式".into()),
+                };
+                crate::hal::get_hardware_driver().set_battery_health(mode).map_err(|error| error.to_string())?;
+                let mut cache = self.cache.lock();
+                cache.battery_limit = limit;
+                cache.battery_limit_cooldown_until = Instant::now() + Duration::from_secs(5);
+                return Ok(());
+            }
+        }
+        self.apply_battery_limit_with_override(limit, hardware_override);
+        Ok(())
+    }
+
     pub fn set_battery_hardware_limit_override(&self, hardware_override: bool) {
         let cfg = crate::system::config::load_config();
         self.apply_battery_limit_with_override(cfg.battery_limit, hardware_override);
     }
 
     pub fn apply_battery_limit_with_override(&self, limit: u8, hardware_override: bool) {
+        if crate::hal::declarative::load_matched_manifest().is_some_and(|m| m.uses_ptl_pmc()) {
+            if let Err(e) = self.apply_battery_limit_checked(limit, false) { crate::log_error!("PTL_BATTERY", "{}", e); }
+            return;
+        }
+        if crate::hal::declarative::load_matched_manifest().is_some_and(|manifest| !manifest.capabilities.battery_charge_limit) {
+            return;
+        }
         {
             let mut c = self.cache.lock();
             c.battery_limit = limit;
@@ -422,8 +474,8 @@ impl EcBridge {
 
     pub fn update_fan_rpm(&self, cpu: u16, gpu: u16) {
         let mut c = self.cache.lock();
-        if cpu > 0 { c.cpu_fan_rpm = cpu; }
-        if gpu > 0 { c.gpu_fan_rpm = gpu; }
+        c.cpu_fan_rpm = cpu;
+        c.gpu_fan_rpm = gpu;
     }
 }
 

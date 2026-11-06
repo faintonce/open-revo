@@ -13,7 +13,96 @@ pub struct DeclarativeHardwareDriver {
     last_power_mode: AtomicU8,
 }
 
+#[cfg(test)]
+mod contract_tests {
+    use super::*;
+
+    fn ptl_manifest() -> ModelManifest {
+        serde_json::from_str(include_str!("../../../resources/drivers/xingyao_14_p916f_ptl.json")).unwrap()
+    }
+
+    fn driver(manifest: ModelManifest) -> DeclarativeHardwareDriver {
+        DeclarativeHardwareDriver { manifest: Arc::new(manifest), last_power_mode: AtomicU8::new(2) }
+    }
+
+    #[test]
+    fn ptl_unsupported_writes_fail_before_transport_access() {
+        let mut manifest = ptl_manifest();
+        manifest.channels.remove("pm2");
+        manifest.capabilities.battery_charge_limit = false;
+        manifest.capabilities.power_modes.retain(|mode| mode != "custom");
+        let driver = driver(manifest);
+        assert!(matches!(driver.set_battery_health(BatteryHealthMode::Balance), Err(HalError::UnsupportedModel(_))));
+        assert!(matches!(driver.set_fan_boost(true), Err(HalError::UnsupportedModel(_))));
+        assert!(matches!(driver.set_performance_mode(HardwarePowerMode::Custom), Err(HalError::UnsupportedModel(_))));
+    }
+
+    #[test]
+    fn missing_battery_action_never_reports_success() {
+        let mut manifest = ptl_manifest();
+        manifest.channels.remove("pm2");
+        manifest.capabilities.battery_charge_limit = true;
+        assert!(matches!(driver(manifest).set_battery_health(BatteryHealthMode::Balance), Err(HalError::UnsupportedModel(_))));
+    }
+
+    #[test]
+    fn fan_query_honors_its_declared_channel() {
+        let mut manifest = ptl_manifest();
+        if let ActionDef::BufferInvoke { channel, .. } = manifest.actions.get_mut("diagnostic_cpu_fan_rpm").unwrap() {
+            *channel = Some("missing_channel".into());
+        }
+        assert!(matches!(driver(manifest).read_fan_channel("diagnostic_cpu_fan_rpm"), Err(HalError::DriverUnavailable(_))));
+    }
+
+    #[test]
+    fn invalid_fan_query_byte_is_rejected_before_transport_access() {
+        let mut manifest = ptl_manifest();
+        if let ActionDef::BufferInvoke { input, .. } = manifest.actions.get_mut("diagnostic_cpu_fan_rpm").unwrap() {
+            input[2] = serde_json::json!(256);
+        }
+        assert!(matches!(driver(manifest).read_fan_channel("diagnostic_cpu_fan_rpm"), Err(HalError::InvalidParameter(_))));
+    }
+
+    #[test]
+    fn ptl_tachometers_never_fall_back_to_stale_wmi() {
+        let mut manifest = ptl_manifest();
+        if let ActionDef::BufferInvoke { channel, .. } = manifest.actions.get_mut("read_fan_rpm").unwrap() {
+            *channel = Some("wmi_mailbox".into());
+        }
+        assert!(matches!(driver(manifest).read_fan_rpm(), Err(HalError::DriverUnavailable(_))));
+    }
+
+    #[test]
+    fn mode_action_never_falls_back_from_its_explicit_channel() {
+        let mut manifest = ptl_manifest();
+        if let ActionDef::ModeInvoke { channel, .. } = manifest.actions.get_mut("set_power_mode").unwrap() {
+            *channel = "missing_channel".into();
+        }
+        let driver = driver(manifest);
+        assert!(matches!(driver.set_performance_mode(HardwarePowerMode::Office), Err(HalError::DriverUnavailable(_))));
+        assert_eq!(driver.last_power_mode.load(Ordering::SeqCst),2);
+    }
+
+    #[test]
+    fn ptl_mode_query_errors_never_return_cached_turbo() {
+        let mut manifest = ptl_manifest();
+        if let ActionDef::BufferInvoke { input, .. } = manifest.actions.get_mut("get_power_mode").unwrap() {
+            input[0] = serde_json::json!(256);
+        }
+        let driver = driver(manifest);
+        driver.last_power_mode.store(3, Ordering::SeqCst);
+        assert!(matches!(driver.get_performance_mode(), Err(HalError::InvalidParameter(_))));
+    }
+}
+
 impl DeclarativeHardwareDriver {
+    fn validate_cpu_power_supply() -> Result<(), HalError> {
+        crate::hal::cpu_power::validate_power_supply(
+            crate::hal::cpu_power::ac_online(),
+            crate::system::config::load_config().unlock_battery_power_limit,
+        ).map_err(HalError::InvalidParameter)
+    }
+
     pub fn new(manifest: ModelManifest) -> Self {
         let saved_mode = crate::system::config::load_config().power_mode;
         let initial_mode = if (1..=4).contains(&saved_mode) {
@@ -44,25 +133,35 @@ impl DeclarativeHardwareDriver {
     }
 
     fn execute_buffer_action(&self, in_bytes: &[u8]) -> Result<Vec<u8>, HalError> {
-        // Find default wmi_mailbox channel
+        self.execute_buffer_action_on_channel(in_bytes, None)
+    }
+
+    fn execute_buffer_action_on_channel(&self, in_bytes: &[u8], channel_name: Option<&str>) -> Result<Vec<u8>, HalError> {
+        self.execute_buffer_action_with_status(in_bytes, channel_name, None)
+    }
+
+    fn execute_buffer_action_with_status(&self, in_bytes: &[u8], channel_name: Option<&str>, response_status: Option<&ResponseStatus>) -> Result<Vec<u8>, HalError> {
+        // An explicit action channel must never fall back to another transport.
         let channel = self
             .manifest
             .channels
-            .values()
-            .find_map(|c| match c {
+            .iter()
+            .filter(|(name, _)| channel_name.map_or(true, |requested| name.as_str() == requested))
+            .find_map(|(_, c)| match c {
                 ChannelDef::WmiMailbox {
                     namespace,
                     class_name,
                     method_name,
                     buffer_sizes,
-                } => Some((namespace, class_name, method_name, buffer_sizes)),
+                    response_status,
+                } => Some((namespace, class_name, method_name, buffer_sizes, response_status)),
                 _ => None,
             })
             .ok_or_else(|| {
                 HalError::DriverUnavailable("No WmiMailbox channel configured in manifest".to_string())
             })?;
 
-        invoke_wmi_mailbox(
+        let response = invoke_wmi_mailbox(
             channel.0,
             channel.1,
             channel.2,
@@ -70,12 +169,74 @@ impl DeclarativeHardwareDriver {
             channel.3.in_size,
             channel.3.out_size,
         )
-        .map_err(|e| HalError::RegisterAccessFailed(e))
+        .map_err(HalError::RegisterAccessFailed)?;
+        if let Some(status) = response_status.or(channel.4.as_ref()) {
+            status.validate(&response).map_err(HalError::RegisterAccessFailed)?;
+        }
+        Ok(response)
+    }
+
+    fn read_fan_channel(&self, action_name: &str) -> Result<u16, HalError> {
+        let Some(ActionDef::BufferInvoke { channel, input, parse, .. }) = self.manifest.actions.get(action_name) else {
+            return Err(HalError::UnsupportedModel(format!("{} is not configured", action_name)));
+        };
+        let input: Vec<u8> = input.iter().map(|value| {
+            value.as_u64().and_then(|number| u8::try_from(number).ok())
+                .ok_or_else(|| HalError::InvalidParameter("Invalid fan query byte".into()))
+        }).collect::<Result<_, _>>()?;
+        let response = self.execute_buffer_action_on_channel(&input, channel.as_deref())?;
+        let rpm = parse.as_ref().and_then(|rules| rules.get("rpm"))
+            .and_then(|rule| extract_value_from_buffer(&response, rule.offset, &rule.value_type))
+            .and_then(|value| u16::try_from(value).ok())
+            .ok_or_else(|| HalError::RegisterAccessFailed("Missing fan reading in firmware response".into()))?;
+        Ok(rpm)
+    }
+
+    fn read_declared_power_mode(&self) -> Result<HardwarePowerMode, HalError> {
+        let Some(ActionDef::BufferInvoke { channel, input, parse, mapping, .. }) = self.manifest.actions.get("get_power_mode") else {
+            return Err(HalError::UnsupportedModel("No power mode readback action declared".into()));
+        };
+        let input = input.iter().map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok())
+            .ok_or_else(|| HalError::InvalidParameter("Invalid power mode query byte".into())))
+            .collect::<Result<Vec<_>, _>>()?;
+        let response = self.execute_buffer_action_on_channel(&input, channel.as_deref())?;
+        let raw = parse.as_ref().and_then(|p| p.get("mode_code"))
+            .and_then(|rule| extract_value_from_buffer(&response, rule.offset, &rule.value_type))
+            .ok_or_else(|| HalError::RegisterAccessFailed("Missing power mode in firmware response".into()))?;
+        let label = mapping.as_ref().and_then(|m| m.get(&raw.to_string())).map(String::as_str);
+        let mode = match (label, raw) {
+            (Some("office" | "silence"), _) | (None, 1) => HardwarePowerMode::Office,
+            (Some("balance"), _) | (None, 2) => HardwarePowerMode::Balance,
+            (Some("turbo" | "rage"), _) | (None, 3) => HardwarePowerMode::Turbo,
+            _ => return Err(HalError::RegisterAccessFailed(format!("Invalid firmware power mode {raw}"))),
+        };
+        Ok(mode)
+    }
+
+    fn confirm_power_mode(&self, expected: HardwarePowerMode) -> Result<(), HalError> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(400);
+        loop {
+            let actual = self.read_declared_power_mode()?;
+            if actual == expected { return Ok(()); }
+            if std::time::Instant::now() >= deadline {
+                return Err(HalError::RegisterAccessFailed(format!("Power mode readback mismatch: requested {expected:?}, observed {actual:?}")));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
     }
 }
 
-impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
-    fn set_performance_mode(&self, mode: HardwarePowerMode) -> Result<(), HalError> {
+impl DeclarativeHardwareDriver {
+    fn set_declared_mode(&self, mode: HardwarePowerMode) -> Result<(), HalError> {
+        let requested_mode = match mode {
+            HardwarePowerMode::Office => "office",
+            HardwarePowerMode::Balance => "balance",
+            HardwarePowerMode::Turbo => "turbo",
+            HardwarePowerMode::Custom => "custom",
+        };
+        if !self.manifest.capabilities.power_modes.iter().any(|supported| supported == requested_mode) {
+            return Err(HalError::UnsupportedModel(format!("{} mode is not supported by this contract", requested_mode)));
+        }
         let mode_key = match mode {
             HardwarePowerMode::Office => "office",
             HardwarePowerMode::Balance => "balance",
@@ -84,21 +245,21 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
         };
 
         if let Some(action) = self.manifest.actions.get("set_power_mode") {
-            let bytes_opt = match action {
-                ActionDef::ModeMap(map) => map.get(mode_key).cloned(),
-                ActionDef::BufferInvoke { input, .. } => Some(input.clone()),
-                ActionDef::RawBytes(bytes) => Some(bytes.clone()),
-            };
-
-            if let Some(val_bytes) = bytes_opt {
-                let u8_bytes: Vec<u8> = val_bytes
+            if let Some(invocation) = action.for_mode(mode_key) {
+                if invocation.channel.is_some_and(|name| !self.manifest.channels.contains_key(name)) {
+                    return Err(HalError::DriverUnavailable("Power mode channel is not declared".into()));
+                }
+                let u8_bytes: Vec<u8> = invocation.input
                     .iter()
-                    .filter_map(|v| v.as_u64().map(|n| n as u8))
-                    .collect();
+                    .map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok())
+                        .ok_or_else(|| HalError::InvalidParameter("Invalid power mode command byte".into())))
+                    .collect::<Result<_, _>>()?;
 
                 if !u8_bytes.is_empty() {
-                    for channel in self.manifest.channels.values() {
+                    for (_, channel) in self.manifest.channels.iter()
+                        .filter(|(name, _)| invocation.channel.map_or(true, |requested| name.as_str() == requested)) {
                         match channel {
+                            ChannelDef::PmcEc { .. } => continue,
                             ChannelDef::WmiIp3 => {
                                 if let Some(&raw_mode) = u8_bytes.first() {
                                     if crate::driver::wmi_ip3::ip3_set_power_mode(raw_mode) {
@@ -116,7 +277,8 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
                                 }
                             }
                             ChannelDef::WmiMailbox { .. } => {
-                                self.execute_buffer_action(&u8_bytes)?;
+                                self.execute_buffer_action_with_status(&u8_bytes, invocation.channel, invocation.response_status)?;
+                                if self.manifest.uses_ptl_pmc() { self.confirm_power_mode(mode)?; }
                                 self.last_power_mode.store(mode as u8, Ordering::SeqCst);
                                 crate::log_info!(
                                     "DECLARATIVE_HAL",
@@ -149,6 +311,48 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
         )))
     }
 
+}
+
+impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
+    fn set_performance_mode(&self, mode: HardwarePowerMode) -> Result<(), HalError> {
+        if self.manifest.capabilities.cpu_power_backend.as_deref() != Some("intel_rapl") {
+            return self.set_declared_mode(mode);
+        }
+        if mode == HardwarePowerMode::Custom {
+            if !self.manifest.capabilities.power_modes.iter().any(|m| m == "custom") {
+                return Err(HalError::UnsupportedModel("CPU custom mode is not declared".into()));
+            }
+            let p = crate::system::config::load_config().custom_profile;
+            self.apply_cpu_power_profile(p.cpu_pl1_watts, p.cpu_pl2_watts)?;
+            if self.manifest.uses_ptl_pmc() {
+                crate::hal::cpu_power::with_active_profile(|| {
+                    let curves = p.ptl_rpm_curves();
+                    crate::hal::ptl_pmc::set_smoothing(curves.smoothing)?;
+                    if p.fan_curve_enabled { crate::hal::ptl_pmc::set_rpm_curves(curves) }
+                    else { crate::hal::ptl_pmc::restore_auto() }
+                }).map_err(HalError::RegisterAccessFailed)?;
+            }
+            return Ok(());
+        }
+        let mut firmware_error = None;
+        let mut fan_restore = Ok(());
+        let result = crate::hal::cpu_power::transition(None, || match self.set_declared_mode(mode) {
+            Ok(()) => {
+                // A fan transport failure must not leave the custom CPU cap in place.
+                if self.manifest.uses_ptl_pmc() { fan_restore = crate::hal::ptl_pmc::restore_auto(); }
+                Ok(())
+            },
+            Err(error) => {
+                let message = error.to_string();
+                firmware_error = Some(error);
+                Err(message)
+            }
+        });
+        if let Some(error) = firmware_error { return Err(error); }
+        result.map_err(HalError::RegisterAccessFailed)?;
+        fan_restore.map_err(HalError::RegisterAccessFailed)
+    }
+
     fn set_battery_health(&self, mode: BatteryHealthMode) -> Result<(), HalError> {
         if !self.manifest.capabilities.battery_charge_limit {
             return Err(HalError::UnsupportedModel(
@@ -156,9 +360,13 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
             ));
         }
 
+        if self.manifest.uses_ptl_pmc() {
+            let limit = match mode { BatteryHealthMode::LongLife => 100, BatteryHealthMode::Balance => 80, BatteryHealthMode::Station => 60 };
+            return crate::hal::ptl_pmc::set_battery_limit(limit).map_err(HalError::RegisterAccessFailed);
+        }
+
         // Native Tongfang ACPI channel support: bridge to MechrevoHALImpl
         if self.manifest.channels.values().any(|c| matches!(c, ChannelDef::AcpiIoctl { .. }))
-            || crate::driver::wmi_ec::is_acpi_driver_available()
         {
             let real = crate::hal::driver_impl::MechrevoHALImpl::new();
             real.set_battery_health(mode)?;
@@ -191,10 +399,15 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
             return Ok(());
         }
 
-        Ok(())
+        Err(HalError::UnsupportedModel("set_battery_limit is not defined in driver manifest".into()))
     }
 
     fn set_fan_boost(&self, active: bool) -> Result<(), HalError> {
+        if self.manifest.uses_ptl_pmc() {
+            return if active {
+                crate::hal::ptl_pmc::set_manual_rpm([7500, 7500])
+            } else { crate::hal::ptl_pmc::restore_auto() }.map_err(HalError::RegisterAccessFailed);
+        }
         let is_direct_clamp = self.manifest.capabilities.fan_boost_mode.as_deref() == Some("direct_rpm_clamp")
             || self.manifest.capabilities.fan_control_mode.as_deref() == Some("direct_rpm_clamp");
 
@@ -231,7 +444,7 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
                 .iter()
                 .filter_map(|v| v.as_u64().map(|n| n as u8))
                 .collect();
-            let _ = self.execute_buffer_action(&u8_bytes);
+            self.execute_buffer_action(&u8_bytes)?;
             return Ok(());
         }
 
@@ -267,6 +480,21 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
     }
 
     fn read_fan_rpm(&self) -> Result<(u16, u16), HalError> {
+        if self.manifest.uses_ptl_pmc() {
+            let Some(ActionDef::BufferInvoke { channel: Some(channel), .. }) = self.manifest.actions.get("read_fan_rpm") else {
+                return Err(HalError::UnsupportedModel("No PTL fan tachometer action declared".into()));
+            };
+            if !matches!(self.manifest.channels.get(channel), Some(ChannelDef::PmcEc { protocol }) if protocol == "xingyao_ptl_v1") {
+                return Err(HalError::DriverUnavailable("PTL tachometer action must use its PM2 channel".into()));
+            }
+            let rpm = crate::hal::ptl_pmc::read_rpm().map_err(HalError::RegisterAccessFailed)?;
+            return Ok((rpm[0], rpm[1]));
+        }
+        if self.manifest.actions.contains_key("read_cpu_fan_rpm")
+            || self.manifest.actions.contains_key("read_gpu_fan_rpm")
+        {
+            return Ok((self.read_fan_channel("read_cpu_fan_rpm")?, self.read_fan_channel("read_gpu_fan_rpm")?));
+        }
         if let Some(ActionDef::BufferInvoke { input, parse, .. }) =
             self.manifest.actions.get("read_fan_rpm")
         {
@@ -293,7 +521,6 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
 
         // Native Tongfang ACPI channel fallback: directly query hardware EC RPM registers
         if self.manifest.channels.values().any(|c| matches!(c, ChannelDef::AcpiIoctl { .. }))
-            || crate::driver::wmi_ec::is_acpi_driver_available()
         {
             let real = crate::hal::driver_impl::MechrevoHALImpl::new();
             return real.read_fan_rpm();
@@ -361,6 +588,77 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
 }
 
 impl HardwareDriver for DeclarativeHardwareDriver {
+    fn update_cpu_power_limits(&self, pl1: u16, pl2: u16) -> Result<(), HalError> {
+        if self.manifest.capabilities.cpu_power_backend.as_deref() != Some("intel_rapl") {
+            return Err(HalError::UnsupportedModel("CPU package power backend is not declared".into()));
+        }
+        Self::validate_cpu_power_supply()?;
+        crate::hal::cpu_power::update([pl1, pl2]).map_err(HalError::RegisterAccessFailed)
+    }
+
+    fn apply_cpu_power_profile(&self, pl1: u16, pl2: u16) -> Result<(), HalError> {
+        if self.manifest.capabilities.cpu_power_backend.as_deref() != Some("intel_rapl")
+            || !self.manifest.capabilities.power_modes.iter().any(|m| m == "custom") {
+            return Err(HalError::UnsupportedModel("CPU custom mode is not declared".into()));
+        }
+        Self::validate_cpu_power_supply()?;
+        let active = crate::hal::cpu_power::is_active();
+        let previous = self.read_declared_power_mode()?;
+        let result = crate::hal::cpu_power::transition(Some([pl1, pl2]), ||
+            self.set_declared_mode(HardwarePowerMode::Turbo).map_err(|e| e.to_string()));
+        if result.is_err() && !active {
+            // The CPU policy handles MSR rollback; also restore the chassis preset.
+            self.set_declared_mode(previous)?;
+        }
+        result.map_err(HalError::RegisterAccessFailed)?;
+        self.last_power_mode.store(HardwarePowerMode::Custom as u8, Ordering::SeqCst);
+        Ok(())
+    }
+
+
+    fn commit_cpu_power_profile(&self, pl1: u16, pl2: u16, active_only: bool,
+        persist: &mut dyn FnMut() -> Result<(), String>) -> Result<(), HalError> {
+        if self.manifest.capabilities.cpu_power_backend.as_deref() != Some("intel_rapl")
+            || !self.manifest.capabilities.power_modes.iter().any(|mode| mode == "custom") {
+            return Err(HalError::UnsupportedModel("CPU custom mode is not declared".into()));
+        }
+        Self::validate_cpu_power_supply()?;
+        let previous = std::cell::Cell::new(None);
+        crate::hal::cpu_power::commit_profile([pl1, pl2], active_only,
+            || {
+                previous.set(Some(self.read_declared_power_mode().map_err(|error| error.to_string())?));
+                self.set_declared_mode(HardwarePowerMode::Turbo).map_err(|error| error.to_string())
+            },
+            || match previous.take() {
+                Some(mode) => self.set_declared_mode(mode).map_err(|error| error.to_string()),
+                None => Ok(()),
+            },
+            persist,
+        ).map_err(HalError::RegisterAccessFailed)?;
+        self.last_power_mode.store(HardwarePowerMode::Custom as u8, Ordering::SeqCst);
+        Ok(())
+    }
+
+    fn set_rpm_fan_curves(&self, curves: crate::hal::fan_policy::RpmFanCurves) -> Result<(), HalError> {
+        if !self.manifest.uses_ptl_pmc() { return Err(HalError::UnsupportedModel("No PM2 RPM curve channel declared".into())); }
+        crate::hal::ptl_pmc::set_rpm_curves(curves).map_err(HalError::RegisterAccessFailed)
+    }
+    fn set_rpm_fan_smoothing(&self, smoothing: crate::hal::fan_policy::RpmSmoothing) -> Result<(), HalError> {
+        if !self.manifest.uses_ptl_pmc() { return Err(HalError::UnsupportedModel("No PM2 software smoothing declared".into())); }
+        crate::hal::ptl_pmc::set_smoothing(smoothing).map_err(HalError::RegisterAccessFailed)
+    }
+    fn set_manual_fan_rpm(&self, targets: [u16; 2]) -> Result<(), HalError> {
+        if !self.manifest.uses_ptl_pmc() { return Err(HalError::UnsupportedModel("No PM2 fan channel declared".into())); }
+        crate::hal::ptl_pmc::set_manual_rpm(targets).map_err(HalError::RegisterAccessFailed)
+    }
+    fn set_software_fan_curve(&self, curve: Vec<(u8, u8)>) -> Result<(), HalError> {
+        if !self.manifest.uses_ptl_pmc() { return Err(HalError::UnsupportedModel("No PM2 curve channel declared".into())); }
+        crate::hal::ptl_pmc::set_curve(curve).map_err(HalError::RegisterAccessFailed)
+    }
+    fn restore_fan_auto(&self) -> Result<(), HalError> {
+        if !self.manifest.uses_ptl_pmc() { return Err(HalError::UnsupportedModel("No PM2 fan channel declared".into())); }
+        crate::hal::ptl_pmc::restore_auto().map_err(HalError::RegisterAccessFailed)
+    }
     fn name(&self) -> &'static str {
         "Declarative-WMI"
     }
@@ -374,6 +672,12 @@ impl HardwareDriver for DeclarativeHardwareDriver {
     }
 
     fn get_performance_mode(&self) -> Result<HardwarePowerMode, HalError> {
+        if self.manifest.uses_ptl_pmc() {
+            let physical = self.read_declared_power_mode()?;
+            return Ok(if physical == HardwarePowerMode::Turbo && crate::hal::cpu_power::is_active() {
+                HardwarePowerMode::Custom
+            } else { physical });
+        }
         for channel in self.manifest.channels.values() {
             if matches!(channel, ChannelDef::WmiIp3) {
                 if let Some(raw) = crate::driver::wmi_ip3::ip3_get_power_mode() {
@@ -433,6 +737,18 @@ impl HardwareDriver for DeclarativeHardwareDriver {
     }
 
     fn read_cpu_temp(&self) -> Result<u8, HalError> {
+        if let Ok(temp) = self.read_cpu_temp_sensor() {
+            return Ok(temp);
+        }
+        let temp = crate::commands::system_cmd::get_cpu_monitor().get_temp();
+        if temp > 0 && temp < 125 {
+            Ok(temp as u8)
+        } else {
+            Ok(48)
+        }
+    }
+
+    fn read_cpu_temp_sensor(&self) -> Result<u8, HalError> {
         if let Some(ActionDef::BufferInvoke { input, parse, .. }) = self.manifest.actions.get("read_cpu_temp") {
             let u8_bytes: Vec<u8> = input
                 .iter()
@@ -451,12 +767,7 @@ impl HardwareDriver for DeclarativeHardwareDriver {
             }
         }
 
-        let temp = crate::commands::system_cmd::get_cpu_monitor().get_temp();
-        if temp > 0 && temp < 125 {
-            Ok(temp as u8)
-        } else {
-            Ok(48)
-        }
+        Err(HalError::DriverUnavailable("CPU temperature sensor unavailable".into()))
     }
 
     fn get_gpu_mux(&self) -> Result<String, HalError> {

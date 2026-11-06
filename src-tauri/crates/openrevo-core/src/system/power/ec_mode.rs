@@ -6,10 +6,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
     // route performance mode application via HAL and avoid poking legacy registers.
     // If Tongfang ACPI hardware channel is available (both gaming laptops and Tongfang ultrabooks like Wujie 14X/15X),
     // we MUST proceed with writing native Tongfang EC registers (APExist, MODE_INDEX, TRIGGER_BYTE, etc.)!
-    let is_tongfang_hardware = crate::driver::wmi_ec::is_acpi_driver_available()
-        || crate::hal::declarative::load_matched_manifest()
-            .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
-            .unwrap_or(false);
+    let is_tongfang_hardware = crate::hal::platform_probe::is_tongfang_family();
 
     if !is_tongfang_hardware {
         let hw_mode = match ui_mode {

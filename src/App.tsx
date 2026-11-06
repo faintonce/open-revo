@@ -580,6 +580,8 @@ export default function App() {
         await invoke('set_power_mode', { mode });
       } catch (e) {
         console.error('Failed to set power mode:', e);
+        delete overrideLockRef.current.power_mode;
+        await fetchStatus();
       }
     }
   };

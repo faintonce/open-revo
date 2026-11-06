@@ -1,6 +1,6 @@
 import React from 'react';
 import { Cpu } from 'lucide-react';
-import { BiosMenuStatus } from '../../types/hardware';
+import { BiosMenuStatus, CpuPowerStatus } from '../../types/hardware';
 import { CpuPlSliderRow } from './CpuPlSliderRow';
 import { CpuBiosOcRow } from './CpuBiosOcRow';
 import { HardwareTelemetryBar } from './HardwareTelemetryBar';
@@ -12,6 +12,7 @@ export interface CpuTuningSectionProps {
   gpuTemp?: number;
   gpuFanRpm?: number;
   gpuPowerW?: number;
+  gpuPowerAvailable?: boolean | null;
   gpuName?: string;
   discreteGpu?: boolean;
   minPl: number;
@@ -40,6 +41,8 @@ export interface CpuTuningSectionProps {
   cpuVendor?: 'amd' | 'intel' | string;
   cpuTuningType?: 'intel_pl' | 'amd_smu' | 'none' | string;
   cpuSupportsFppt?: boolean;
+  cpuPowerStatus?: CpuPowerStatus | null;
+  controlError?: string;
   cpuName?: string;
   biosOcEnabled: boolean;
   biosStatus: BiosMenuStatus | null;
@@ -59,10 +62,13 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
   gpuTemp,
   gpuFanRpm,
   gpuPowerW,
+  gpuPowerAvailable,
   discreteGpu,
   cpuVendor,
   cpuTuningType,
   cpuSupportsFppt = true,
+  cpuPowerStatus,
+  controlError,
   minPl,
   maxPl1,
   maxPl2,
@@ -103,9 +109,15 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
   }, [cpuVendor, cpuTuningType]);
 
   const isCpuTuningDisabled = cpuTuningType === 'none';
+  const isNativePower = cpuTuningType === 'intel_rapl';
+  const pl1Disabled = isNativePower && (!cpuPowerStatus?.pl1_writable || cpuPowerStatus.overridden);
+  const pl2Disabled = isNativePower && (!cpuPowerStatus?.pl2_writable || cpuPowerStatus.overridden);
+  const temperatureDisabled = isNativePower && !cpuPowerStatus?.temperature_writable;
+  const pl4Disabled = (isAmdPlatform && !cpuSupportsFppt) || (isNativePower && !cpuPowerStatus?.pl4_writable);
+  const error = controlError || (isNativePower ? cpuPowerStatus?.error : undefined);
 
   return (
-    <div className="tuning-card">
+    <div className="tuning-card" title={error || undefined}>
       {/* Header */}
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--color-balance)' }}>
@@ -145,7 +157,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
         {(() => {
           const effectiveTempTarget = Math.min(tempTarget, tempTargetMax);
           return (
-            <div className="tuning-row">
+            <div className={`tuning-row${temperatureDisabled ? ' tuning-control-disabled' : ''}`} title={temperatureDisabled ? '当前机型尚未开放温度墙调节' : undefined}>
               <div className="tuning-row-header">
                 <span className="tuning-row-label">
                   {isAmdPlatform ? '温度墙上限 (TjMax):' : '温度墙上限:'}
@@ -174,6 +186,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                   </span>
                   <button
                     type="button"
+                    disabled={temperatureDisabled}
                     onClick={() => onToggleTempTarget(!tempTargetEnabled)}
                     style={{
                       padding: '2px 8px',
@@ -197,6 +210,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                   <div style={{ padding: '2px 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="range"
+                      disabled={temperatureDisabled}
                       min={tempTargetMin}
                       max={tempTargetMax}
                       step="1"
@@ -236,7 +250,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                       <button
                         type="button"
                         onClick={() => onAdjustTempTargetMax?.(-1)}
-                        disabled={tempTargetMax <= tempTargetMin}
+                        disabled={temperatureDisabled || tempTargetMax <= tempTargetMin}
                         title="以 1°C 步长调小温度墙上限"
                         className="tuning-step-btn"
                       >
@@ -245,7 +259,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                       <button
                         type="button"
                         onClick={() => onAdjustTempTargetMax?.(1)}
-                        disabled={tempTargetMax >= maxTempWall}
+                        disabled={temperatureDisabled || tempTargetMax >= maxTempWall}
                         title="以 1°C 步长调大温度墙上限"
                         className="tuning-step-btn"
                       >
@@ -265,6 +279,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
         hint={isAmdPlatform ? '等效 PL1' : undefined}
         tooltip={isAmdPlatform ? 'AMD Sustained Power Limit (持续稳定功耗，等效 Intel PL1)' : 'Intel Long Duration Power Limit (PL1)'}
         value={pl1}
+        disabled={pl1Disabled}
         onChange={onChangePl1}
         min={minPl}
         max={maxPl1}
@@ -280,6 +295,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
         hint={isAmdPlatform ? '等效 PL2' : undefined}
         tooltip={isAmdPlatform ? 'AMD Slow Package Power Tracking (通常持续 28 秒的高负荷爆发功耗，等效 Intel PL2)' : 'Intel Short Duration Power Limit (PL2)'}
         value={pl2}
+        disabled={pl2Disabled}
         onChange={onChangePl2}
         min={minPl}
         max={maxPl2}
@@ -300,7 +316,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                 : 'AMD Fast Package Power Tracking (微秒级瞬时电感电流限制，等效 Intel PL4)')
             : 'Intel Peak Power Limit (PL4)'
         }
-        disabled={isAmdPlatform && !cpuSupportsFppt}
+        disabled={pl4Disabled}
         value={pl4}
         onChange={onChangePl4}
         min={minPl + pl4Margin}
@@ -315,6 +331,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
 
       {/* BIOS Advanced Switch */}
       <CpuBiosOcRow
+        disabled={isNativePower}
         biosStatus={biosStatus}
         biosOcEnabled={biosOcEnabled}
         biosToggling={biosToggling}
@@ -330,6 +347,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
         gpuTemp={gpuTemp}
         gpuFanRpm={gpuFanRpm}
         gpuPowerW={gpuPowerW}
+        gpuPowerAvailable={gpuPowerAvailable}
         isApuOrIgpu={isApuOrIgpu}
       />
     </div>
