@@ -1,0 +1,169 @@
+import { AppTheme } from "../../theme.slint";
+import { SwitchToggle } from "switch_toggle.slint";
+
+export component HardwarePowerOptionsCard inherits Rectangle {
+    in-out property <bool> usb_charge_enabled: false;
+    in-out property <bool> ac_recovery_enabled: false;
+    in-out property <bool> high_perf_scheme: true;
+
+    callback toggle_power_option(string);
+
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: "电源与供电选项";
+                font-size: 11.5px;
+                font-weight: 700;
+                color: AppTheme.text_muted;
+            }
+            Text {
+                text: "主板硬件 EC 寄存器底层配置";
+                font-size: 9.5px;
+                color: AppTheme.text_muted;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+
+            // Option 1: 关机 USB 供电
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 56px;
+                border-radius: 6px;
+                background: t_o1.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.usb_charge_enabled ? #38bdf860 : AppTheme.border_subtle;
+
+                t_o1 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_power_option("usb_charge"); }
+                }
+
+                VerticalLayout {
+                    padding: 8px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "关机下使用USB给电";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        SwitchToggle {
+                            checked: root.usb_charge_enabled;
+                            active_color: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                            toggled => { root.toggle_power_option("usb_charge"); }
+                        }
+                    }
+
+                    Text {
+                        text: "可在关机或休眠状态下支持USB供电，为手机应急充电";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Option 2: 来电自动开机
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 56px;
+                border-radius: 6px;
+                background: t_o2.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.ac_recovery_enabled ? #38bdf860 : AppTheme.border_subtle;
+
+                t_o2 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_power_option("ac_recovery"); }
+                }
+
+                VerticalLayout {
+                    padding: 8px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "来电自动开机 (AC Recovery)";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        SwitchToggle {
+                            checked: root.ac_recovery_enabled;
+                            active_color: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                            toggled => { root.toggle_power_option("ac_recovery"); }
+                        }
+                    }
+
+                    Text {
+                        text: "关机状态下，接通外部电源适配器瞬间自动开机启动系统";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Option 3: 高性能电源模式
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 56px;
+                border-radius: 6px;
+                background: t_o3.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.high_perf_scheme ? #38bdf860 : AppTheme.border_subtle;
+
+                t_o3 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_power_option("high_perf"); }
+                }
+
+                VerticalLayout {
+                    padding: 8px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "高性能电源模式";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        SwitchToggle {
+                            checked: root.high_perf_scheme;
+                            active_color: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                            toggled => { root.toggle_power_option("high_perf"); }
+                        }
+                    }
+
+                    Text {
+                        text: "开启后四大模式联动调整 Windows 系统电源配置，不妥协响应速度";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+        }
+    }
+}
+
