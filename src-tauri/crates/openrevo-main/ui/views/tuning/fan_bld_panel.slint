@@ -1,0 +1,204 @@
+import { AppTheme } from "../../theme.slint";
+
+export component FanBldPanel inherits VerticalLayout {
+    in-out property <int> bld_rpm_cap: 5800;
+    in-out property <bool> bld_boost: false;
+    in-out property <int> cpu_temp: 67;
+    in-out property <int> gpu_temp: 54;
+    in-out property <int> cpu_rpm: 3166;
+    in-out property <int> gpu_rpm: 2123;
+
+    callback toggle_bld_boost();
+    callback change_bld_cap(int);
+
+    spacing: 9px;
+
+    // Dual Fan Live Box
+    HorizontalLayout {
+        spacing: 8px;
+        Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text { text: "CPU 风扇"; font-size: 10px; color: AppTheme.text_muted; }
+                    Text { text: root.cpu_temp + "°C"; font-size: 10px; color: #38bdf8; font-weight: 700; }
+                }
+                Text {
+                    text: root.cpu_rpm + " RPM";
+                    font-size: 13px;
+                    font-weight: 800;
+                    color: AppTheme.text_primary;
+                }
+            }
+        }
+        Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text { text: "GPU 风扇"; font-size: 10px; color: AppTheme.text_muted; }
+                    Text { text: root.gpu_temp + "°C"; font-size: 10px; color: #10b981; font-weight: 700; }
+                }
+                Text {
+                    text: root.gpu_rpm + " RPM";
+                    font-size: 13px;
+                    font-weight: 800;
+                    color: AppTheme.text_primary;
+                }
+            }
+        }
+    }
+
+    // Direct Max RPM Boost Box
+    Rectangle {
+        background: AppTheme.surface_pill;
+        border-radius: AppTheme.radius_sm;
+        border-width: 1px;
+        border-color: AppTheme.border_subtle;
+
+        HorizontalLayout {
+            padding: 8px;
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: "双风扇强制狂暴加速";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: "无视温度曲线强制全速拉满 5800 RPM (BM5235 直接总线写入)";
+                    font-size: 9px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            Rectangle {
+                width: 44px;
+                height: 22px;
+                border-radius: 4px;
+                background: root.bld_boost ? #0284c730 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.bld_boost ? #38bdf8 : AppTheme.border_medium;
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.bld_boost = !root.bld_boost;
+                        root.toggle_bld_boost();
+                    }
+                }
+
+                Text {
+                    text: root.bld_boost ? "已开启" : "关闭";
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: root.bld_boost ? #38bdf8 : AppTheme.text_muted;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // Manual Fan Cap Slider
+    Rectangle {
+        background: AppTheme.surface_pill;
+        border-radius: AppTheme.radius_sm;
+        border-width: 1px;
+        border-color: AppTheme.border_subtle;
+
+        VerticalLayout {
+            padding: 8px;
+            spacing: 6px;
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "风扇最大转速上限 (Cap):";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: root.bld_rpm_cap + " RPM";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #38bdf8;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Slider container
+            Rectangle {
+                height: 20px;
+                background: transparent;
+
+                // Track
+                Rectangle {
+                    height: 6px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 3px;
+                    background: AppTheme.surface_card;
+                    width: 100%;
+
+                    // Fill
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * Math.clamp((root.bld_rpm_cap - 2800) / 3000, 0, 1);
+                        height: 100%;
+                        border-radius: 3px;
+                        background: #38bdf8;
+                    }
+
+                    // Thumb
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.clamp((root.bld_rpm_cap - 2800) / 3000, 0, 1);
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                        border-width: 2px;
+                        border-color: #38bdf8;
+                    }
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    moved => {
+                        if self.pressed {
+                            let ratio = Math.clamp(self.mouse-x / parent.width, 0, 1);
+                            let val = Math.clamp(2800 + Math.round(ratio * 3000), 2800, 5800);
+                            root.bld_rpm_cap = val;
+                            root.change_bld_cap(val);
+                        }
+                    }
+                    clicked => {
+                        let ratio = Math.clamp(self.mouse-x / parent.width, 0, 1);
+                        let val = Math.clamp(2800 + Math.round(ratio * 3000), 2800, 5800);
+                        root.bld_rpm_cap = val;
+                        root.change_bld_cap(val);
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: space-between;
+                Text { text: "2800 RPM (静音限速)"; font-size: 9px; color: AppTheme.text_muted; }
+                Text { text: "5800 RPM (满速上限)"; font-size: 9px; color: AppTheme.text_muted; }
+            }
+        }
+    }
+}
