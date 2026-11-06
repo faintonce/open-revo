@@ -39,6 +39,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "collapse_dashboard" => {
             crate::log_info!("PLUGINS", "Received collapse_dashboard from Slint UI");
             crate::system::native_wry::hide_embedded();
+            super::super::send_slint_ipc_message(serde_json::json!({ "action": "trigger_full_redraw" }));
             if let Some(app) = app {
                 let app_clone = app.clone();
                 let _ = app.run_on_main_thread(move || {
@@ -59,6 +60,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 crate::log_info!("PLUGINS", "User switched to plugin tab: '{}'", pid);
                 if pid.is_empty() {
                     crate::system::native_wry::hide_embedded();
+                    super::super::send_slint_ipc_message(serde_json::json!({ "action": "trigger_full_redraw" }));
                     if let Some(app) = app {
                         let app_clone = app.clone();
                         let _ = app.run_on_main_thread(move || {

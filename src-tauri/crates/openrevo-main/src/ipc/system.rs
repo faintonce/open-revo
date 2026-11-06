@@ -268,6 +268,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             true
         }
+        "trigger_full_redraw" => {
+            if let Some(h) = *crate::window::HWND_HOLDER.lock().unwrap() {
+                crate::window::trigger_full_redraw(h.to_hwnd());
+            }
+            true
+        }
         "sync_custom_plugins" => {
             if let Some(arr) = val.get("plugins").and_then(|v| v.as_array()) {
                 let mut list = Vec::new();

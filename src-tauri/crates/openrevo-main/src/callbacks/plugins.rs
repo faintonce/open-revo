@@ -46,10 +46,31 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
                 "plugin_id": plugin_id.as_str(),
                 "hwnd": hwnd_val,
             }));
+            if plugin_id.is_empty() {
+                if let Some(h) = *HWND_HOLDER.lock().unwrap() {
+                    crate::window::trigger_full_redraw(h.to_hwnd());
+                }
+            }
         }
     });
 
+    let ui_cb = ui_weak.clone();
     window.on_launch_plugin_window(move |plugin_id| {
+        if let Some(ui) = ui_cb.upgrade() {
+            // Automatically reset the embedded view and return to Plugin Center tab
+            ui.set_active_plugin_id(slint::SharedString::from(""));
+            ui.set_active_tab(5);
+
+            let hwnd_val = HWND_HOLDER.lock().unwrap().map(|h| h.0).unwrap_or(0);
+            ipc::send_action_to_host("select_plugin_tab", serde_json::json!({
+                "plugin_id": "",
+                "hwnd": hwnd_val,
+            }));
+
+            if let Some(h) = *HWND_HOLDER.lock().unwrap() {
+                crate::window::trigger_full_redraw(h.to_hwnd());
+            }
+        }
         ipc::send_action_to_host("open_custom_widget", serde_json::json!({
             "plugin_id": plugin_id.as_str(),
         }));

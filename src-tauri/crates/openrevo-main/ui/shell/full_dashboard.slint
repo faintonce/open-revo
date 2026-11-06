@@ -523,10 +523,13 @@ export component FullDashboard inherits Rectangle {
         }
 
         // 2. Right Main Work Area (Width: 920px)
-        VerticalLayout {
+        Rectangle {
             horizontal-stretch: 1;
+            background: AppTheme.bg_root;
+            clip: true;
 
-            // 2.1 Top Right Header Bar (Only visible when NOT in tuning sub-view)
+            VerticalLayout {
+                // 2.1 Top Right Header Bar (Only visible when NOT in tuning sub-view)
             if !root.is_in_tuning_view: DashboardHeader {
                 title: root.active_plugin_id != "" ? "扩展插件面板" :
                        (root.active_tab == 0 ? "状态总览" :
@@ -1148,4 +1151,5 @@ export component FullDashboard inherits Rectangle {
             }
         }
     }
+}
 }

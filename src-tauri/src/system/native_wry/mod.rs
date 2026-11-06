@@ -444,9 +444,18 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
 
                 NativeWryMessage::HideEmbedded => {
                     *ACTIVE_EMBEDDED_PLUGIN.write() = None;
-                    if let Some((pid, view, _)) = embedded.take() {
+                    if let Some((pid, view, parent_hwnd)) = embedded.take() {
                         crate::log_info!("NATIVE_WRY", "Dropping embedded child webview for '{}'", pid);
                         drop(view);
+
+                        #[cfg(target_os = "windows")]
+                        unsafe {
+                            use windows::Win32::Foundation::HWND;
+                            use windows::Win32::Graphics::Gdi::{InvalidateRect, UpdateWindow};
+                            let h = HWND(parent_hwnd as *mut _);
+                            let _ = InvalidateRect(h, None, true);
+                            let _ = UpdateWindow(h);
+                        }
                     }
                 }
 

@@ -89,6 +89,7 @@ export component MainWindow inherits Window {
     in-out property <bool> fn_locked: false;
 
     // Builtin Module Visibility & Custom Plugins
+    in-out property <int> active_tab: 0;
     in-out property <bool> is_overview_enabled: true;
     in-out property <bool> is_gpu_enabled: true;
     in-out property <bool> is_tuning_enabled: true;
@@ -551,6 +552,7 @@ export component MainWindow inherits Window {
 
         redraw_tick: root.redraw_tick;
         app_version: root.app_version;
+        active_tab <=> root.active_tab;
 
         is_overview_enabled <=> root.is_overview_enabled;
         is_gpu_enabled <=> root.is_gpu_enabled;
