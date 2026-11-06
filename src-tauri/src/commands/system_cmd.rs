@@ -224,6 +224,7 @@ pub fn set_classic_webview(enabled: bool) -> Result<(), String> {
 #[tauri::command]
 pub fn restart_app(app: AppHandle) -> Result<(), String> {
     crate::log_info!("APP", "Restarting application...");
+    crate::system::tray::IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
     if let Ok(exe) = std::env::current_exe() {
         let _ = std::process::Command::new(exe).spawn();
     }

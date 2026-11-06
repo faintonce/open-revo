@@ -24,6 +24,7 @@ pub async fn download_and_install_update_cmd(
 ) -> Result<(), String> {
     let downloaded_path = installer::download_update_asset(&app, &download_url, &expected_sha256, &filename).await?;
     installer::apply_update(&downloaded_path, is_installer)?;
+    crate::system::tray::IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
     app.exit(0);
     Ok(())
 }

@@ -46,6 +46,8 @@ pub struct TrayMenuControls {
 
 pub struct TrayKeeper(#[allow(dead_code)] pub TrayIcon);
 
+pub static IS_EXPLICIT_EXIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 static GLOBAL_TRAY: OnceLock<TrayIcon> = OnceLock::new();
 static TRAY_MENU_CONTROLS: OnceLock<TrayMenuControls> = OnceLock::new();
 
@@ -282,9 +284,16 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit_to("main", "oem-service-status-changed", next_state);
         }
         "quit" => {
+            IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
             crate::system::webview_orchestrator::WebviewOrchestrator::global().safe_shutdown_all_subviews();
             safe_hardware_shutdown_on_exit();
+            crate::system::plugin_service::shutdown_all_plugin_services();
             app_handle.exit(0);
+            // Fallback watchdog: ensure process terminates cleanly within 800ms
+            std::thread::spawn(|| {
+                std::thread::sleep(std::time::Duration::from_millis(800));
+                std::process::exit(0);
+            });
         }
         _ => {}
     }

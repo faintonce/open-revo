@@ -419,18 +419,12 @@ pub fn run() {
             // Step 6.1: Initialize main WebviewWindow (positioning above taskbar)
             crate::system::boot_trace::boot_scope("Step 6.1: Main Window Positioning", || {
                 let cfg = crate::system::config::load_config();
-                if let Some(window) = app.get_webview_window("main") {
-                    if cfg.use_classic_webview {
-                        crate::system::window::init_main_window(&window);
-                    } else {
-                        // Keep main WebviewWindow strictly hidden as background WebView2 runtime host for plugins
-                        let _ = window.hide();
-                        crate::log_info!("WINDOW", "Slint native UI mode active; 'main' WebviewWindow kept hidden as plugin runtime host.");
-                    }
-                } else if cfg.use_classic_webview {
-                    if let Some(window) = crate::system::window::create_main_webview_window(&app.handle()) {
+                if cfg.use_classic_webview {
+                    if let Some(window) = app.get_webview_window("main").or_else(|| crate::system::window::create_main_webview_window(&app.handle())) {
                         crate::system::window::init_main_window(&window);
                     }
+                } else {
+                    crate::log_info!("WINDOW", "Slint native UI mode active; zero background WebView2 windows spawned on boot.");
                 }
             });
 
@@ -519,12 +513,20 @@ pub fn run() {
         .on_window_event(crate::system::window::handle_window_event)
         .build(tauri::generate_context!())
         .expect("error while building OpenRevo application")
-        .run(|_app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
+        .run(|_app_handle, event| match event {
+            tauri::RunEvent::ExitRequested { api, .. } => {
+                if !crate::system::tray::IS_EXPLICIT_EXIT.load(std::sync::atomic::Ordering::SeqCst) {
+                    // Prevent app from quitting when no webview windows exist (system tray background daemon)
+                    api.prevent_exit();
+                }
+            }
+            tauri::RunEvent::Exit => {
                 println!("[OpenRevo] Process exiting. Executing clean webview shutdown and hardware safety shutdown...");
                 crate::system::webview_orchestrator::WebviewOrchestrator::global().safe_shutdown_all_subviews();
                 crate::system::tray::safe_hardware_shutdown_on_exit();
                 crate::system::plugin_service::shutdown_all_plugin_services();
+                std::process::exit(0);
             }
+            _ => {}
         });
 }

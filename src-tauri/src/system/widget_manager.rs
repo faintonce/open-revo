@@ -27,6 +27,7 @@ pub fn format_widget_label(plugin_id: &str) -> String {
 #[tauri::command]
 pub async fn open_custom_widget(app: AppHandle, plugin_id: String) -> Result<String, String> {
     let label = format_widget_label(&plugin_id);
+    crate::log_info!("WIDGET", "open_custom_widget called for plugin '{}', label '{}'", plugin_id, label);
 
     // 1. Persist plugin toggle state
     let mut cfg = crate::system::config::load_config();
@@ -42,18 +43,21 @@ pub async fn open_custom_widget(app: AppHandle, plugin_id: String) -> Result<Str
     }
 
     // 3. Delegate to WebviewOrchestrator queue for safe staggered creation with circuit-breaker protection
+    crate::log_info!("WIDGET", "Enqueuing widget '{}' to WebviewOrchestrator...", plugin_id);
     crate::system::webview_orchestrator::WebviewOrchestrator::global().enqueue_widget(plugin_id.clone());
 
     // 4. Await orchestrator window instantiation (up to 3000ms)
-    for _ in 0..60 {
+    for i in 0..60 {
         if let Some(win) = app.get_webview_window(&label) {
             let _ = win.show();
             let _ = win.unminimize();
+            crate::log_info!("WIDGET", "Widget window '{}' successfully presented after {}ms", label, i * 50);
             return Ok(label);
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
+    crate::log_error!("WIDGET", "Timed out awaiting widget '{}' creation from orchestrator (3000ms)", plugin_id);
     Err(format!("Timed out awaiting widget '{}' creation from orchestrator", plugin_id))
 }
 
@@ -194,8 +198,10 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
         builder = builder.center();
     }
 
+    crate::log_info!("WIDGET", "Executing WebviewWindowBuilder::build for widget '{}'...", label);
     match builder.build() {
         Ok(win) => {
+            crate::log_info!("WIDGET", "WebviewWindowBuilder::build SUCCESS for widget '{}'", label);
             // Watchdog fallback (600ms): if frontend widget_ready event is somehow missed, show gracefully
             let win_fallback = win.clone();
             std::thread::spawn(move || {
@@ -220,6 +226,7 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
             Ok(label)
         }
         Err(e) => {
+            crate::log_error!("WIDGET", "Failed to build widget window '{}': {}", label, e);
             crate::system::telemetry::unregister_consumer(plugin_id);
             let mut active = get_active_widgets().lock();
             active.remove(plugin_id);

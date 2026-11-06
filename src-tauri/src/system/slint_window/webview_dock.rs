@@ -89,24 +89,31 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
         WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_CONTROLPARENT, WS_VISIBLE,
     };
 
+    crate::log_info!("EMBEDDED_WEBVIEW", "attach_or_switch_embedded_webview requested for plugin: '{}'", plugin_id);
+
     let parent_hwnd_raw = get_openrevo_main_hwnd();
+    crate::log_info!("EMBEDDED_WEBVIEW", "Resolved Slint parent HWND: 0x{:X}", parent_hwnd_raw);
+
     if parent_hwnd_raw == 0 {
-        crate::log_warn!("EMBEDDED_WEBVIEW", "Cannot locate Slint main window HWND");
+        crate::log_warn!("EMBEDDED_WEBVIEW", "Cannot locate Slint main window HWND (is 0)! Aborting dock.");
         return;
     }
     let parent_hwnd = HWND(parent_hwnd_raw as *mut _);
     let (target_x, target_y, target_w, target_h, corner_radius) = calc_embedded_geometry(parent_hwnd);
+    crate::log_info!("EMBEDDED_WEBVIEW", "Geometry calculated: x={}, y={}, w={}, h={}, radius={}", target_x, target_y, target_w, target_h, corner_radius);
 
     // 1. Ensure parent Slint window has WS_CLIPCHILDREN so its background repainting doesn't overwrite WebView2!
     unsafe {
         let p_style = GetWindowLongW(parent_hwnd, GWL_STYLE) as u32;
         if (p_style & WS_CLIPCHILDREN.0) == 0 {
             let _ = SetWindowLongW(parent_hwnd, GWL_STYLE, (p_style | WS_CLIPCHILDREN.0) as i32);
+            crate::log_info!("EMBEDDED_WEBVIEW", "Applied WS_CLIPCHILDREN to parent Slint window");
         }
     }
 
     // 2. If the embedded window already exists, switch hash and reposition
     if let Some(win) = app.get_webview_window(EMBEDDED_LABEL) {
+        crate::log_info!("EMBEDDED_WEBVIEW", "Window '{}' already exists. Switching hash...", EMBEDDED_LABEL);
         let script = format!(
             "window.__OPENREVO_WIDGET_ID__ = '{0}'; window.location.hash = '#/widget/{0}'; window.dispatchEvent(new CustomEvent('openrevo-switch-widget', {{ detail: {{ pluginId: '{0}' }} }}));",
             plugin_id
@@ -130,6 +137,7 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
             apply_child_rounded_region(child_hwnd, target_w, target_h, corner_radius);
         }
         let _ = win.show();
+        crate::log_info!("EMBEDDED_WEBVIEW", "Existing window presented and navigated to plugin '{}'", plugin_id);
         return;
     }
 
@@ -143,7 +151,7 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
         plugin_id
     );
 
-    crate::log_info!("EMBEDDED_WEBVIEW", "Building embedded WebviewWindow for plugin '{}' into parent 0x{:X}", plugin_id, parent_hwnd_raw);
+    crate::log_info!("EMBEDDED_WEBVIEW", "Building new WebviewWindow for plugin '{}' into parent 0x{:X}", plugin_id, parent_hwnd_raw);
 
     let builder = WebviewWindowBuilder::new(app, EMBEDDED_LABEL, target_url)
         .title("OpenRevo Embedded Plugin")
@@ -159,10 +167,11 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
 
     match builder.build() {
         Ok(win) => {
-            crate::log_info!("EMBEDDED_WEBVIEW", "Embedded WebviewWindow built successfully, configuring Win32 child");
+            crate::log_info!("EMBEDDED_WEBVIEW", "WebviewWindow built successfully, configuring Win32 child styles...");
             let _ = win.set_size(tauri::PhysicalSize::new(target_w as u32, target_h as u32));
             if let Ok(child_hwnd_raw) = win.hwnd() {
                 let child_hwnd = HWND(child_hwnd_raw.0 as *mut _);
+                crate::log_info!("EMBEDDED_WEBVIEW", "Configuring Child HWND: 0x{:X}", child_hwnd_raw.0 as usize);
                 unsafe {
                     let style = GetWindowLongW(child_hwnd, GWL_STYLE) as u32;
                     let remove_mask = 0x80000000 | 0x00C00000 | 0x00040000 | 0x00020000 | 0x00010000 | 0x00800000 | 0x00400000;
@@ -190,6 +199,7 @@ pub fn attach_or_switch_embedded_webview(app: &AppHandle, plugin_id: &str) {
                 apply_child_rounded_region(child_hwnd, target_w, target_h, corner_radius);
             }
             let _ = win.show();
+            crate::log_info!("EMBEDDED_WEBVIEW", "Child WebviewWindow mounted and shown smoothly for '{}'", plugin_id);
         }
         Err(e) => {
             crate::log_error!("EMBEDDED_WEBVIEW", "Failed to build embedded WebviewWindow for '{}': {:?}", plugin_id, e);
@@ -202,12 +212,14 @@ pub fn hide_embedded_webview(app: &AppHandle) {
     use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
     use tauri::Manager;
 
+    crate::log_info!("EMBEDDED_WEBVIEW", "hide_embedded_webview called");
     if let Some(win) = app.get_webview_window(EMBEDDED_LABEL) {
         if let Ok(child_hwnd_raw) = win.hwnd() {
             let child_hwnd = HWND(child_hwnd_raw.0 as *mut _);
             unsafe {
                 let _ = ShowWindow(child_hwnd, SW_HIDE);
             }
+            crate::log_info!("EMBEDDED_WEBVIEW", "Embedded child window 0x{:X} hidden with SW_HIDE", child_hwnd_raw.0 as usize);
         }
     }
 }
