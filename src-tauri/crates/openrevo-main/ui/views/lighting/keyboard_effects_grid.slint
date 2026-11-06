@@ -1,0 +1,468 @@
+import { AppTheme } from "../../theme.slint";
+
+export component KeyboardEffectsGrid inherits VerticalLayout {
+    in-out property <int> kb_engine: 1; // 0: hardware, 1: streamer, 2: custom
+    in-out property <int> kb_effect: 101; // effect id (101: Wave, etc.)
+    in-out property <int> custom_script_idx: 0; // 0: 龟派气功, 1: 万象莲花, 2: 奇点黑洞, 3: 像素跑马灯
+    in-out property <bool> custom_reactive: false;
+
+    callback select_effect(int);
+    callback select_custom_script(int);
+    callback toggle_custom_reactive();
+
+    spacing: 8px;
+    alignment: start; // Crucial: tight packing!
+
+    Text {
+        text: root.kb_engine == 0 ? "原厂硬件独立灯效 (内置 MCU 固件算法 - 稳定节能):" : (root.kb_engine == 1 ? "轻量级空间流动矩阵 (BetterRGB 空间投影引擎 - 苹果原彩):" : "定制动效脚本工作室 (外部 .brfx 脚本热重载 & 参数微调):");
+        font-size: 11px;
+        font-weight: 700;
+        color: AppTheme.text_muted;
+    }
+
+    // Mode 1: BetterRGB Streamer Grid (14 modes, height: 36px, spacing: 8px)
+    if root.kb_engine == 1 : VerticalLayout {
+        spacing: 8px;
+        alignment: start;
+
+        // Row 1: Wave, Breath, Ripple, Quicksand, Current, Wheel, Rainbow
+        HorizontalLayout {
+            spacing: 8px;
+
+            // 101: 波浪 (Wave)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 101 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 101 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(101); } }
+                Text { text: "波浪 (Wave)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 101 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 100: 呼吸 (Breath)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 100 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 100 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(100); } }
+                Text { text: "呼吸 (Breath)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 100 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 102: 涟漪 (Ripple)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 102 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 102 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(102); } }
+                Text { text: "涟漪 (Ripple)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 102 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 103: 流沙 (Quicksand)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 103 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 103 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(103); } }
+                Text { text: "流沙 (Quicksand)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 103 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 104: 电流 (Current)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 104 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 104 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(104); } }
+                Text { text: "电流 (Current)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 104 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 105: 色轮 (Wheel)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 105 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 105 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(105); } }
+                Text { text: "色轮 (Wheel)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 105 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 106: 彩虹 (Rainbow)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 106 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 106 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(106); } }
+                Text { text: "彩虹 (Rainbow)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 106 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
+
+        // Row 2: Matrix, Lightning, Flame, Rain, Sparkle, Touch Current, Static
+        HorizontalLayout {
+            spacing: 8px;
+
+            // 107: 矩阵 (Matrix)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 107 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 107 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(107); } }
+                Text { text: "矩阵 (Matrix)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 107 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 108: 闪电 (Lightning)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 108 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 108 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(108); } }
+                Text { text: "闪电 (Lightning)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 108 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 109: 火焰 (Flame)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 109 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 109 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(109); } }
+                Text { text: "火焰 (Flame)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 109 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 110: 雨滴 (Rain)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 110 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 110 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(110); } }
+                Text { text: "雨滴 (Rain)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 110 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 111: 星光 (Sparkle)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 111 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 111 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(111); } }
+                Text { text: "星光 (Sparkle)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 111 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 112: 极光电流
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 112 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 112 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(112); } }
+                Text { text: "极光电流"; font-size: 11px; font-weight: 700; color: root.kb_effect == 112 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 113: 单色极简 (Static)
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 113 ? #6366f125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 113 ? #6366f1 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(113); } }
+                Text { text: "单色极简 (Static)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 113 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
+    }
+
+    // Mode 0: Hardware Built-in Grid (11 modes, height: 36px, spacing: 8px)
+    if root.kb_engine == 0 : VerticalLayout {
+        spacing: 8px;
+        alignment: start;
+
+        HorizontalLayout {
+            spacing: 8px;
+
+            // 1: 单色常亮
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 1 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 1 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
+                Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.kb_effect == 1 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 2: 单色呼吸
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 2 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 2 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
+                Text { text: "单色呼吸"; font-size: 11px; font-weight: 700; color: root.kb_effect == 2 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 3: 波浪流光
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 3 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 3 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(3); } }
+                Text { text: "波浪流光"; font-size: 11px; font-weight: 700; color: root.kb_effect == 3 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 4: 按键微光
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 4 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 4 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(4); } }
+                Text { text: "按键微光"; font-size: 11px; font-weight: 700; color: root.kb_effect == 4 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 5: 彩虹相环
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 5 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 5 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(5); } }
+                Text { text: "彩虹相环"; font-size: 11px; font-weight: 700; color: root.kb_effect == 5 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 6: 涟漪扩散
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 6 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 6 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(6); } }
+                Text { text: "涟漪扩散"; font-size: 11px; font-weight: 700; color: root.kb_effect == 6 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+
+            // 10: 随机雨滴
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 10 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 10 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(10); } }
+                Text { text: "随机雨滴"; font-size: 11px; font-weight: 700; color: root.kb_effect == 10 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 9: 全彩跑马
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 9 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 9 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(9); } }
+                Text { text: "全彩跑马"; font-size: 11px; font-weight: 700; color: root.kb_effect == 9 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 17: 璀璨烟花
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 17 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 17 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(17); } }
+                Text { text: "璀璨烟花"; font-size: 11px; font-weight: 700; color: root.kb_effect == 17 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 14: 幽静极光
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 14 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 14 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(14); } }
+                Text { text: "幽静极光"; font-size: 11px; font-weight: 700; color: root.kb_effect == 14 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+
+            // 21: 电竞高亮
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: AppTheme.radius_xs;
+                background: root.kb_effect == 21 ? #10b98125 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.kb_effect == 21 ? #10b981 : AppTheme.border_subtle;
+                TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(21); } }
+                Text { text: "电竞高亮"; font-size: 11px; font-weight: 700; color: root.kb_effect == 21 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
+    }
+
+    // Mode 2: Custom BRFX Studio Panel
+    if root.kb_engine == 2 : VerticalLayout {
+        spacing: 8px;
+        alignment: start;
+
+        // Script Selection Bar
+        Rectangle {
+            height: 40px;
+            border-radius: AppTheme.radius_sm;
+            background: AppTheme.surface_sunken;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                alignment: space-between;
+
+                VerticalLayout {
+                    alignment: center;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+
+                        Text {
+                            text: "当前动效脚本:";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+
+                        // Preset Script Chips
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.custom_script_idx == 0 ? #f43f5e25 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.custom_script_idx == 0 ? #f43f5e : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 0; root.select_custom_script(0); } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "⚡ 龟派气功 (Kamehameha)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 0 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.custom_script_idx == 1 ? #f43f5e25 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.custom_script_idx == 1 ? #f43f5e : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 1; root.select_custom_script(1); } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "🌸 万象莲花 (Lotus)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 1 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.custom_script_idx == 2 ? #f43f5e25 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.custom_script_idx == 2 ? #f43f5e : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 2; root.select_custom_script(2); } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "🌌 奇点黑洞 (Singularity)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 2 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.custom_script_idx == 3 ? #f43f5e25 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.custom_script_idx == 3 ? #f43f5e : AppTheme.border_subtle;
+                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 3; root.select_custom_script(3); } }
+                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "💬 跑马灯字幕 (Marquee)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 3 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
+                        }
+                    }
+                }
+
+                // Reactive Toggle
+                VerticalLayout {
+                    alignment: center;
+
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: root.custom_reactive ? #f43f5e25 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.custom_reactive ? #f43f5e : AppTheme.border_subtle;
+
+                        TouchArea { mouse-cursor: pointer; clicked => { root.toggle_custom_reactive(); } }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../../assets/icons/activity.svg");
+                                    width: 11px;
+                                    height: 11px;
+                                    colorize: root.custom_reactive ? #fb7185 : AppTheme.text_muted;
+                                }
+                            }
+                            Text {
+                                text: root.custom_reactive ? "按键高频反馈 (已开启)" : "静态环境模式";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: root.custom_reactive ? #fb7185 : AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

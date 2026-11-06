@@ -1,0 +1,305 @@
+import { AppTheme } from "../../theme.slint";
+
+export component KeyboardControlsBar inherits Rectangle {
+    in-out property <int> kb_direction: 0; // 0: Right, 1: Left, 2: Up, 3: Down
+    in-out property <int> kb_brightness: 3; // 0..4
+    in-out property <int> kb_speed: 2; // 0..4
+
+    callback select_direction(int);
+    callback change_brightness(int);
+    callback change_speed(int);
+
+    height: 56px;
+    background: AppTheme.surface_sunken;
+    border-radius: AppTheme.radius_md;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 16px;
+        alignment: space-between;
+
+        // Left: Flow Directions (-> <- ↑ ↓) wrapped in VerticalLayout for perfect center alignment
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                Text {
+                    text: "运行流向方向:";
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+
+                HorizontalLayout {
+                    spacing: 5px;
+                    alignment: center;
+
+                    // -> Right (0)
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: root.kb_direction == 0 ? #6366f1 : AppTheme.surface_pill;
+                        TouchArea { mouse-cursor: pointer; clicked => { root.select_direction(0); } }
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/arrow-right.svg");
+                                width: 13px;
+                                height: 13px;
+                                colorize: root.kb_direction == 0 ? #ffffff : AppTheme.text_muted;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+
+                    // <- Left (1)
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: root.kb_direction == 1 ? #6366f1 : AppTheme.surface_pill;
+                        TouchArea { mouse-cursor: pointer; clicked => { root.select_direction(1); } }
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/arrow-left.svg");
+                                width: 13px;
+                                height: 13px;
+                                colorize: root.kb_direction == 1 ? #ffffff : AppTheme.text_muted;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+
+                    // ↑ Up (2)
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: root.kb_direction == 2 ? #6366f1 : AppTheme.surface_pill;
+                        TouchArea { mouse-cursor: pointer; clicked => { root.select_direction(2); } }
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/arrow-up.svg");
+                                width: 13px;
+                                height: 13px;
+                                colorize: root.kb_direction == 2 ? #ffffff : AppTheme.text_muted;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+
+                    // ↓ Down (3)
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: root.kb_direction == 3 ? #6366f1 : AppTheme.surface_pill;
+                        TouchArea { mouse-cursor: pointer; clicked => { root.select_direction(3); } }
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/arrow-down.svg");
+                                width: 13px;
+                                height: 13px;
+                                colorize: root.kb_direction == 3 ? #ffffff : AppTheme.text_muted;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Middle: Brightness Slider
+        VerticalLayout {
+            width: 210px;
+            alignment: center;
+            spacing: 4px;
+
+            HorizontalLayout {
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 4px;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/sun.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: #f59e0b;
+                        }
+                    }
+                    Text {
+                        text: "亮度等级";
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: root.kb_brightness == 0 ? "关闭 (0)" : (root.kb_brightness + " 档");
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #818cf8;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Locked Full-width Slider Track
+            b_track := Rectangle {
+                height: 16px;
+                background: transparent;
+
+                Rectangle {
+                    x: 0;
+                    y: (parent.height - self.height) / 2;
+                    width: parent.width;
+                    height: 4px;
+                    background: AppTheme.surface_pill;
+                    border-radius: 2px;
+
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        width: Math.max(0px, (root.kb_brightness / 4.0) * parent.width);
+                        height: parent.height;
+                        background: #818cf8;
+                        border-radius: 2px;
+                    }
+                }
+
+                // Knob
+                Rectangle {
+                    x: Math.max(0px, Math.min(parent.width - self.width, (root.kb_brightness / 4.0) * parent.width - self.width / 2));
+                    y: (parent.height - self.height) / 2;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: #ffffff;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        if event.kind == PointerEventKind.down {
+                            let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                            let val = Math.round(ratio * 4.0);
+                            root.kb_brightness = val;
+                            root.change_brightness(val);
+                        }
+                    }
+                    moved => {
+                        let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                        let val = Math.round(ratio * 4.0);
+                        if val != root.kb_brightness {
+                            root.kb_brightness = val;
+                            root.change_brightness(val);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right: Speed Slider
+        VerticalLayout {
+            width: 210px;
+            alignment: center;
+            spacing: 4px;
+
+            HorizontalLayout {
+                alignment: space-between;
+                HorizontalLayout {
+                    spacing: 4px;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/zap.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: #06b6d4;
+                        }
+                    }
+                    Text {
+                        text: "流动速度";
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: (root.kb_speed + 1) + " 档 (适中)";
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #06b6d4;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Locked Full-width Speed Slider Track
+            s_track := Rectangle {
+                height: 16px;
+                background: transparent;
+
+                Rectangle {
+                    x: 0;
+                    y: (parent.height - self.height) / 2;
+                    width: parent.width;
+                    height: 4px;
+                    background: AppTheme.surface_pill;
+                    border-radius: 2px;
+
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        width: Math.max(0px, (root.kb_speed / 4.0) * parent.width);
+                        height: parent.height;
+                        background: #06b6d4;
+                        border-radius: 2px;
+                    }
+                }
+
+                // Knob
+                Rectangle {
+                    x: Math.max(0px, Math.min(parent.width - self.width, (root.kb_speed / 4.0) * parent.width - self.width / 2));
+                    y: (parent.height - self.height) / 2;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: #ffffff;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        if event.kind == PointerEventKind.down {
+                            let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                            let val = Math.round(ratio * 4.0);
+                            root.kb_speed = val;
+                            root.change_speed(val);
+                        }
+                    }
+                    moved => {
+                        let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                        let val = Math.round(ratio * 4.0);
+                        if val != root.kb_speed {
+                            root.kb_speed = val;
+                            root.change_speed(val);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
