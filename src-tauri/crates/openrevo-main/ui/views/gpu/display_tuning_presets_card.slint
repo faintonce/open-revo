@@ -1,0 +1,418 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DisplayTuningPresetsCard inherits Rectangle {
+    in-out property <string> active_preset_id: "preset_vibrant";
+    in-out property <bool> is_modified: false;
+
+    callback import_json();
+    callback export_json();
+    callback reset_preset();
+    callback select_preset(string);
+
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 10px;
+
+        // Title & Actions Row
+        HorizontalLayout {
+            alignment: space-between;
+
+            Text {
+                text: "色彩预设方案";
+                font-size: 11.5px;
+                font-weight: 700;
+                color: AppTheme.text_primary;
+                vertical-alignment: center;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                // Load .json
+                Rectangle {
+                    height: 24px;
+                    border-radius: 5px;
+                    background: #3b82f61a;
+                    border-width: 1px;
+                    border-color: #3b82f660;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.import_json(); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 5px;
+                        Image {
+                            source: @image-url("../../assets/icons/folder.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: #60a5fa;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "加载 .json";
+                            font-size: 10px;
+                            font-weight: 600;
+                            color: #60a5fa;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Export .json
+                Rectangle {
+                    height: 24px;
+                    border-radius: 5px;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.export_json(); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 5px;
+                        Image {
+                            source: @image-url("../../assets/icons/download.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: AppTheme.text_secondary;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "导出 .json";
+                            font-size: 10px;
+                            color: AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Undo / Reset
+                Rectangle {
+                    height: 24px;
+                    border-radius: 5px;
+                    background: root.is_modified ? #ef444420 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.is_modified ? #ef444460 : AppTheme.border_subtle;
+                    opacity: root.is_modified ? 1.0 : 0.5;
+                    TouchArea {
+                        mouse-cursor: root.is_modified ? pointer : default;
+                        clicked => {
+                            if (root.is_modified) {
+                                root.reset_preset();
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 5px;
+                        Image {
+                            source: @image-url("../../assets/icons/rotate-ccw.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: root.is_modified ? #f87171 : AppTheme.text_muted;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "撤销更改";
+                            font-size: 10px;
+                            font-weight: 600;
+                            color: root.is_modified ? #f87171 : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6 Presets Grid Row 1 (3 items)
+        HorizontalLayout {
+            spacing: 8px;
+
+            // 1. Vibrant
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 38px;
+                border-radius: 6px;
+                background: root.active_preset_id == "preset_vibrant" ? #ec489926 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_preset_id == "preset_vibrant" ? #ec489999 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select_preset("preset_vibrant");
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Image {
+                            source: @image-url("../../assets/icons/star.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #f59e0b;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "多彩鲜艳";
+                            font-size: 11px;
+                            font-weight: root.active_preset_id == "preset_vibrant" ? 700 : 500;
+                            color: root.active_preset_id == "preset_vibrant" ? #ffffff : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if root.active_preset_id == "preset_vibrant" && root.is_modified: Text {
+                        text: "微调";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #fbbf24;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 2. Internet / Office
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 38px;
+                border-radius: 6px;
+                background: root.active_preset_id == "preset_internet" ? #ec489926 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_preset_id == "preset_internet" ? #ec489999 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select_preset("preset_internet");
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Image {
+                            source: @image-url("../../assets/icons/monitor.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "互联网/办公";
+                            font-size: 11px;
+                            font-weight: root.active_preset_id == "preset_internet" ? 700 : 500;
+                            color: root.active_preset_id == "preset_internet" ? #ffffff : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if root.active_preset_id == "preset_internet" && root.is_modified: Text {
+                        text: "微调";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #fbbf24;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 3. Video
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 38px;
+                border-radius: 6px;
+                background: root.active_preset_id == "preset_video" ? #ec489926 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_preset_id == "preset_video" ? #ec489999 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select_preset("preset_video");
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Image {
+                            source: @image-url("../../assets/icons/layers.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #818cf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "电影娱乐";
+                            font-size: 11px;
+                            font-weight: root.active_preset_id == "preset_video" ? 700 : 500;
+                            color: root.active_preset_id == "preset_video" ? #ffffff : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if root.active_preset_id == "preset_video" && root.is_modified: Text {
+                        text: "微调";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #fbbf24;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Presets Row 2 (3 items)
+        HorizontalLayout {
+            spacing: 8px;
+
+            // 4. Eyecare
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 38px;
+                border-radius: 6px;
+                background: root.active_preset_id == "preset_eyecare" ? #ec489926 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_preset_id == "preset_eyecare" ? #ec489999 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select_preset("preset_eyecare");
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Image {
+                            source: @image-url("../../assets/icons/eyes.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #34d399;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "防蓝光护眼";
+                            font-size: 11px;
+                            font-weight: root.active_preset_id == "preset_eyecare" ? 700 : 500;
+                            color: root.active_preset_id == "preset_eyecare" ? #ffffff : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if root.active_preset_id == "preset_eyecare" && root.is_modified: Text {
+                        text: "微调";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #fbbf24;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 5. Cinema
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 38px;
+                border-radius: 6px;
+                background: root.active_preset_id == "preset_cinema" ? #ec489926 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_preset_id == "preset_cinema" ? #ec489999 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select_preset("preset_cinema");
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Image {
+                            source: @image-url("../../assets/icons/coffee.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #c084fc;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "影院震撼";
+                            font-size: 11px;
+                            font-weight: root.active_preset_id == "preset_cinema" ? 700 : 500;
+                            color: root.active_preset_id == "preset_cinema" ? #ffffff : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if root.active_preset_id == "preset_cinema" && root.is_modified: Text {
+                        text: "微调";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #fbbf24;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 6. Standard
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 38px;
+                border-radius: 6px;
+                background: root.active_preset_id == "preset_standard" ? #ec489926 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_preset_id == "preset_standard" ? #ec489999 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.select_preset("preset_standard");
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Image {
+                            source: @image-url("../../assets/icons/palette.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: #94a3b8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "标准出厂";
+                            font-size: 11px;
+                            font-weight: root.active_preset_id == "preset_standard" ? 700 : 500;
+                            color: root.active_preset_id == "preset_standard" ? #ffffff : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if root.active_preset_id == "preset_standard" && root.is_modified: Text {
+                        text: "微调";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #fbbf24;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

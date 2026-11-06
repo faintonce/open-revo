@@ -1,0 +1,518 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DisplayTuningSlidersCard inherits Rectangle {
+    in-out property <int> cur_temp_k: 6500;
+    in-out property <int> cur_saturation: 150;
+    in-out property <int> cur_contrast: 100;
+    in-out property <int> cur_gamma: 100;
+    in-out property <int> cur_gain_r: 100;
+    in-out property <int> cur_gain_g: 100;
+    in-out property <int> cur_gain_b: 100;
+    in-out property <bool> show_rgb_channels: false;
+
+    callback change_temp_k(int);
+    callback change_saturation(int);
+    callback change_contrast(int);
+    callback change_gamma(int);
+    callback change_gain_r(int);
+    callback change_gain_g(int);
+    callback change_gain_b(int);
+    callback mark_modified();
+
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 12px;
+
+        Text {
+            text: "实时显卡硬件微调 (所见即所得，毫秒级生效)";
+            font-size: 11.5px;
+            font-weight: 700;
+            color: AppTheme.text_primary;
+        }
+
+        // 1. Color Temp Slider (4000K - 9000K)
+        VerticalLayout {
+            spacing: 4px;
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "色温 (Color Temperature)";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                }
+                Text {
+                    text: root.cur_temp_k + " K";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #f59e0b;
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "4000K 暖黄"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 20px;
+                    Rectangle {
+                        x: 0;
+                        y: (parent.height - self.height) / 2;
+                        width: parent.width;
+                        height: 4px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 2px;
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.max(0.0, Math.min(1.0, (root.cur_temp_k - 4000) / 5000.0));
+                            height: 100%;
+                            background: #f59e0b;
+                            border-radius: 2px;
+                        }
+                    }
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, (root.cur_temp_k - 4000) / 5000.0));
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                        border-width: 3px;
+                        border-color: #f59e0b;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                if (self.pressed) {
+                                    root.mark_modified();
+                                    root.cur_temp_k = Math.max(4000, Math.min(9000, 4000 + Math.round(self.mouse-x / parent.width * 100) * 50));
+                                    root.change_temp_k(root.cur_temp_k);
+                                }
+                            }
+                        }
+                        clicked => {
+                            root.mark_modified();
+                            root.cur_temp_k = Math.max(4000, Math.min(9000, 4000 + Math.round(self.mouse-x / parent.width * 100) * 50));
+                            root.change_temp_k(root.cur_temp_k);
+                        }
+                    }
+                }
+                Text { text: "9000K 冷蓝"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+            }
+        }
+
+        // 2. Saturation / Vibrance (0% - 200%)
+        VerticalLayout {
+            spacing: 4px;
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "色彩鲜艳度 / 饱和度 (Vibrance)";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                }
+                Text {
+                    text: root.cur_saturation + "%";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #ec4899;
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "0% 黑白"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 20px;
+                    Rectangle {
+                        x: 0;
+                        y: (parent.height - self.height) / 2;
+                        width: parent.width;
+                        height: 4px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 2px;
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.max(0.0, Math.min(1.0, root.cur_saturation / 200.0));
+                            height: 100%;
+                            background: #ec4899;
+                            border-radius: 2px;
+                        }
+                    }
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, root.cur_saturation / 200.0));
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                        border-width: 3px;
+                        border-color: #ec4899;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                if (self.pressed) {
+                                    root.mark_modified();
+                                    root.cur_saturation = Math.max(0, Math.min(200, Math.round(self.mouse-x / parent.width * 40) * 5));
+                                    root.change_saturation(root.cur_saturation);
+                                }
+                            }
+                        }
+                        clicked => {
+                            root.mark_modified();
+                            root.cur_saturation = Math.max(0, Math.min(200, Math.round(self.mouse-x / parent.width * 40) * 5));
+                            root.change_saturation(root.cur_saturation);
+                        }
+                    }
+                }
+                Text { text: "200% 浓艳"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+            }
+        }
+
+        // 3. Contrast (50% - 150%)
+        VerticalLayout {
+            spacing: 4px;
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "对比度 (Contrast)";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                }
+                Text {
+                    text: root.cur_contrast + "%";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #38bdf8;
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "50% 柔和"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 20px;
+                    Rectangle {
+                        x: 0;
+                        y: (parent.height - self.height) / 2;
+                        width: parent.width;
+                        height: 4px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 2px;
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.max(0.0, Math.min(1.0, (root.cur_contrast - 50) / 100.0));
+                            height: 100%;
+                            background: #38bdf8;
+                            border-radius: 2px;
+                        }
+                    }
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, (root.cur_contrast - 50) / 100.0));
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                        border-width: 3px;
+                        border-color: #38bdf8;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                if (self.pressed) {
+                                    root.mark_modified();
+                                    root.cur_contrast = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 20) * 5));
+                                    root.change_contrast(root.cur_contrast);
+                                }
+                            }
+                        }
+                        clicked => {
+                            root.mark_modified();
+                            root.cur_contrast = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 20) * 5));
+                            root.change_contrast(root.cur_contrast);
+                        }
+                    }
+                }
+                Text { text: "150% 鲜明"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+            }
+        }
+
+        // 4. Gamma (0.70 - 1.30, stored as 70 - 130)
+        VerticalLayout {
+            spacing: 4px;
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "伽马曲线 (Gamma)";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                }
+                Text {
+                    text: (root.cur_gamma / 100.0) + "";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #a855f7;
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "0.7 暗部深沉"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 20px;
+                    Rectangle {
+                        x: 0;
+                        y: (parent.height - self.height) / 2;
+                        width: parent.width;
+                        height: 4px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 2px;
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.max(0.0, Math.min(1.0, (root.cur_gamma - 70) / 60.0));
+                            height: 100%;
+                            background: #a855f7;
+                            border-radius: 2px;
+                        }
+                    }
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, (root.cur_gamma - 70) / 60.0));
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                        border-width: 3px;
+                        border-color: #a855f7;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                if (self.pressed) {
+                                    root.mark_modified();
+                                    root.cur_gamma = Math.max(70, Math.min(130, 70 + Math.round(self.mouse-x / parent.width * 12) * 5));
+                                    root.change_gamma(root.cur_gamma);
+                                }
+                            }
+                        }
+                        clicked => {
+                            root.mark_modified();
+                            root.cur_gamma = Math.max(70, Math.min(130, 70 + Math.round(self.mouse-x / parent.width * 12) * 5));
+                            root.change_gamma(root.cur_gamma);
+                        }
+                    }
+                }
+                Text { text: "1.3 暗部通透"; font-size: 9.5px; color: AppTheme.text_muted; vertical-alignment: center; }
+            }
+        }
+
+        // Foldable Advanced RGB Gain Section
+        Rectangle {
+            height: 1px;
+            background: AppTheme.border_subtle;
+        }
+
+        HorizontalLayout {
+            alignment: space-between;
+            Rectangle {
+                height: 24px;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.show_rgb_channels = !root.show_rgb_channels; }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: root.show_rgb_channels ? "收起 RGB 独立原色增益微调" : "展开 RGB 独立原色增益微调";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                    Image {
+                        source: @image-url("../../assets/icons/chevron-down.svg");
+                        width: 11px;
+                        height: 11px;
+                        colorize: AppTheme.text_muted;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+        }
+
+        if root.show_rgb_channels: VerticalLayout {
+            spacing: 8px;
+
+            // Red (R)
+            HorizontalLayout {
+                spacing: 8px;
+                Text { width: 75px; text: "红 (R): " + root.cur_gain_r + "%"; font-size: 10px; color: #f87171; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 18px;
+                    Rectangle {
+                        x: 0;
+                        y: (parent.height - self.height) / 2;
+                        width: parent.width;
+                        height: 3px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 1.5px;
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.max(0.0, Math.min(1.0, (root.cur_gain_r - 50) / 100.0));
+                            height: 100%;
+                            background: #ef4444;
+                            border-radius: 1.5px;
+                        }
+                    }
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, (root.cur_gain_r - 50) / 100.0));
+                        y: (parent.height - self.height) / 2;
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 6px;
+                        background: #ffffff;
+                        border-width: 2.5px;
+                        border-color: #ef4444;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                if (self.pressed) {
+                                    root.mark_modified();
+                                    root.cur_gain_r = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 50) * 2));
+                                    root.change_gain_r(root.cur_gain_r);
+                                }
+                            }
+                        }
+                        clicked => {
+                            root.mark_modified();
+                            root.cur_gain_r = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 50) * 2));
+                            root.change_gain_r(root.cur_gain_r);
+                        }
+                    }
+                }
+            }
+
+            // Green (G)
+            HorizontalLayout {
+                spacing: 8px;
+                Text { width: 75px; text: "绿 (G): " + root.cur_gain_g + "%"; font-size: 10px; color: #4ade80; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 18px;
+                    Rectangle {
+                        x: 0;
+                        y: (parent.height - self.height) / 2;
+                        width: parent.width;
+                        height: 3px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 1.5px;
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.max(0.0, Math.min(1.0, (root.cur_gain_g - 50) / 100.0));
+                            height: 100%;
+                            background: #22c55e;
+                            border-radius: 1.5px;
+                        }
+                    }
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, (root.cur_gain_g - 50) / 100.0));
+                        y: (parent.height - self.height) / 2;
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 6px;
+                        background: #ffffff;
+                        border-width: 2.5px;
+                        border-color: #22c55e;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                if (self.pressed) {
+                                    root.mark_modified();
+                                    root.cur_gain_g = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 50) * 2));
+                                    root.change_gain_g(root.cur_gain_g);
+                                }
+                            }
+                        }
+                        clicked => {
+                            root.mark_modified();
+                            root.cur_gain_g = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 50) * 2));
+                            root.change_gain_g(root.cur_gain_g);
+                        }
+                    }
+                }
+            }
+
+            // Blue (B)
+            HorizontalLayout {
+                spacing: 8px;
+                Text { width: 75px; text: "蓝 (B): " + root.cur_gain_b + "%"; font-size: 10px; color: #60a5fa; vertical-alignment: center; }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 18px;
+                    Rectangle {
+                        x: 0;
+                        y: (parent.height - self.height) / 2;
+                        width: parent.width;
+                        height: 3px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 1.5px;
+                        Rectangle {
+                            x: 0;
+                            y: 0;
+                            width: parent.width * Math.max(0.0, Math.min(1.0, (root.cur_gain_b - 50) / 100.0));
+                            height: 100%;
+                            background: #3b82f6;
+                            border-radius: 1.5px;
+                        }
+                    }
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, (root.cur_gain_b - 50) / 100.0));
+                        y: (parent.height - self.height) / 2;
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 6px;
+                        background: #ffffff;
+                        border-width: 2.5px;
+                        border-color: #3b82f6;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                                if (self.pressed) {
+                                    root.mark_modified();
+                                    root.cur_gain_b = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 50) * 2));
+                                    root.change_gain_b(root.cur_gain_b);
+                                }
+                            }
+                        }
+                        clicked => {
+                            root.mark_modified();
+                            root.cur_gain_b = Math.max(50, Math.min(150, 50 + Math.round(self.mouse-x / parent.width * 50) * 2));
+                            root.change_gain_b(root.cur_gain_b);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
