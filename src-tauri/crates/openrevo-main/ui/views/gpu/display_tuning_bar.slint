@@ -1,0 +1,131 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DisplayTuningBar inherits Rectangle {
+    in-out property <bool> tuning_enabled: false;
+    in-out property <string> active_preset_name: "多彩鲜艳 (Vibrant)";
+
+    callback toggle_tuning(bool);
+    callback open_modal();
+
+    height: 46px;
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: space-between;
+
+        // Left Icon + Title
+        HorizontalLayout {
+            spacing: 10px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 6px;
+                    background: root.tuning_enabled ? #ec489920 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.tuning_enabled ? #ec489950 : AppTheme.border_subtle;
+                    Image {
+                        source: @image-url("../../assets/icons/palette.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: root.tuning_enabled ? #f472b6 : AppTheme.text_muted;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 1px;
+                Text {
+                    text: "屏幕色彩增强 (Display Tuning)";
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: root.tuning_enabled ? ("当前方案: " + root.active_preset_name) : "当前状态: 已关闭 (原厂直出)";
+                    font-size: 9.5px;
+                    color: AppTheme.text_muted;
+                }
+            }
+        }
+
+        // Right Controls: [调色控制] Button + Pill Toggle Switch
+        HorizontalLayout {
+            spacing: 10px;
+
+            // Open Modal Button
+            if root.tuning_enabled: VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 26px;
+                    border-radius: 5px;
+                    background: #ec489922;
+                    border-width: 1px;
+                    border-color: #ec489980;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open_modal(); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 9px;
+                        padding-right: 9px;
+                        spacing: 5px;
+                        Image {
+                            source: @image-url("../../assets/icons/sliders-horizontal.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: #f472b6;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "调色控制";
+                            font-size: 10.5px;
+                            font-weight: 700;
+                            color: #f472b6;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Pill Toggle
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 38px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: root.tuning_enabled ? #ec4899 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.tuning_enabled ? #ec4899 : AppTheme.border_medium;
+
+                    Rectangle {
+                        x: root.tuning_enabled ? parent.width - self.width - 2px : 2px;
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                    }
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.toggle_tuning(!root.tuning_enabled);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
