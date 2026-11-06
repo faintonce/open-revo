@@ -358,7 +358,8 @@ pub fn apply_custom_profile(
         preset.profile = profile.clone();
         cfg.custom_profile = profile.clone();
         cfg.power_mode = 4;
-        cfg.power_mode_ac = 4;
+        if crate::hal::cpu_power::ac_online() { cfg.power_mode_ac = 4; }
+        else { cfg.power_mode_battery = 4; }
         commit_native_cpu_profile(&profile, false, || crate::system::config::save_profile_and_config(&preset, &cfg))?;
         ec_state.lock().set_power_mode_from_hardware(4);
         sync_native_fan_profile(&profile, &previous)?;
@@ -712,7 +713,8 @@ pub fn set_active_profile_id(
         cfg.active_profile_id = id;
         cfg.custom_profile = target.profile.clone();
         cfg.power_mode = 4;
-        cfg.power_mode_ac = 4;
+        if crate::hal::cpu_power::ac_online() { cfg.power_mode_ac = 4; }
+        else { cfg.power_mode_battery = 4; }
         commit_native_cpu_profile(&target.profile, false, || crate::system::config::try_save_config(&cfg))?;
         ec_state.lock().set_power_mode_from_hardware(4);
         sync_native_fan_profile(&target.profile, &previous)?;

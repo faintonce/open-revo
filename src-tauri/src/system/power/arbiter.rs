@@ -88,11 +88,11 @@ pub fn resolve_target_mode(
     }
 }
 
-/// Resolve a saved thin-and-light mode against declared Custom support and AC.
-pub fn resolve_thin_light_boot_mode(saved: u8, custom_supported: bool, ac_online: bool) -> u8 {
+/// Restore Custom only when declared and allowed by supply or the existing unlock switch.
+pub fn resolve_thin_light_boot_mode(saved: u8, custom_supported: bool, power_allowed: bool) -> u8 {
     match saved {
         1..=3 => saved,
-        4 if custom_supported && ac_online => 4,
+        4 if custom_supported && power_allowed => 4,
         _ => 2,
     }
 }
@@ -223,10 +223,14 @@ impl PowerArbiter {
 mod tests {
     use super::*;
     #[test]
-    fn startup_restores_declared_custom_on_ac_and_falls_back_safely() {
-        assert_eq!(resolve_thin_light_boot_mode(4, true, true), 4);
-        assert_eq!(resolve_thin_light_boot_mode(4, true, false), 2);
-        assert_eq!(resolve_thin_light_boot_mode(4, false, true), 2);
+    fn startup_custom_respects_supply_and_existing_unlock_switch() {
+        for ac_online in [false, true] {
+            for unlocked in [false, true] {
+                let allowed = crate::hal::cpu_power::validate_power_supply(ac_online, unlocked).is_ok();
+                assert_eq!(resolve_thin_light_boot_mode(4, true, allowed), if ac_online || unlocked { 4 } else { 2 });
+                assert_eq!(resolve_thin_light_boot_mode(4, false, allowed), 2);
+            }
+        }
         for mode in 1..=3 { assert_eq!(resolve_thin_light_boot_mode(mode, false, false), mode); }
         assert_eq!(resolve_thin_light_boot_mode(0, true, true), 2);
     }

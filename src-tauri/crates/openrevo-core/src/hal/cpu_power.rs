@@ -411,6 +411,16 @@ pub fn ac_online() -> bool {
     unsafe { GetSystemPowerStatus(&mut power) != 0 && power.ac == 1 }
 }
 
+/// Supply policy is passed by the owning HAL so the app and core use their
+/// current configuration, rather than consulting another module's config cache.
+pub fn validate_power_supply(ac_online: bool, unlock_battery_power_limit: bool) -> Result<(), String> {
+    if ac_online || unlock_battery_power_limit {
+        Ok(())
+    } else {
+        Err("离电使用极客自定义模式，请先在系统设置中开启“解除离电限制”".into())
+    }
+}
+
 /// Serializes firmware transitions, live edits, restoration and exit under one owner.
 pub fn transition(
     watts: Option<[u16; 2]>,
@@ -453,9 +463,6 @@ pub fn commit_profile(
 }
 
 fn validate_power_writer() -> Result<(), String> {
-    if !ac_online() {
-        return Err("Connect AC power before applying CPU limits".into());
-    }
     if std::net::TcpStream::connect_timeout(
         &([127, 0, 0, 1], 18946).into(),
         std::time::Duration::from_millis(100),
@@ -505,6 +512,23 @@ pub fn shutdown() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn native_custom_supply_uses_existing_battery_unlock_switch() {
+        for ac_online in [false, true] {
+            for unlocked in [false, true] {
+                let mut io = Fake::new(3);
+                let mut p = Policy::default();
+                let result = validate_power_supply(ac_online, unlocked)
+                    .and_then(|()| p.transition(&mut io, Some([12, 17]), |_| Ok(())));
+                assert_eq!(result.is_ok(), ac_online || unlocked);
+                assert_eq!(io.writes.is_empty(), !ac_online && !unlocked);
+                // Re-locking on battery must not prevent release of owned limits.
+                p.transition(&mut io, None, |_| Ok(())).unwrap();
+                assert!(p.session.is_none());
+            }
+        }
+    }
+
     struct Fake {
         units: u64,
         value: u64,

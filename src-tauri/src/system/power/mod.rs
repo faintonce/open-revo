@@ -210,11 +210,12 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
         let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
 
         let effective_power_mode = if is_thin_light {
-            // Restore Custom only when declared by the driver and AC is online.
+            // Respect the existing battery unlock switch when restoring Custom.
             let custom_supported = crate::hal::declarative::load_matched_manifest()
                 .is_some_and(|manifest| manifest.capabilities.cpu_power_backend.is_some()
                     && manifest.capabilities.power_modes.iter().any(|mode| mode == "custom"));
-            let mode = arbiter::resolve_thin_light_boot_mode(cfg.power_mode, custom_supported, is_dc_online);
+            let mode = arbiter::resolve_thin_light_boot_mode(cfg.power_mode, custom_supported,
+                is_dc_online || cfg.unlock_battery_power_limit);
             crate::log_info!("MAIN", "Thin & light laptop: restoring user configured power mode {}", mode);
             mode
         } else if is_dc_online {

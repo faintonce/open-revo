@@ -96,6 +96,13 @@ mod contract_tests {
 }
 
 impl DeclarativeHardwareDriver {
+    fn validate_cpu_power_supply() -> Result<(), HalError> {
+        crate::hal::cpu_power::validate_power_supply(
+            crate::hal::cpu_power::ac_online(),
+            crate::system::config::load_config().unlock_battery_power_limit,
+        ).map_err(HalError::InvalidParameter)
+    }
+
     pub fn new(manifest: ModelManifest) -> Self {
         let saved_mode = crate::system::config::load_config().power_mode;
         let initial_mode = if (1..=4).contains(&saved_mode) {
@@ -585,6 +592,7 @@ impl HardwareDriver for DeclarativeHardwareDriver {
         if self.manifest.capabilities.cpu_power_backend.as_deref() != Some("intel_rapl") {
             return Err(HalError::UnsupportedModel("CPU package power backend is not declared".into()));
         }
+        Self::validate_cpu_power_supply()?;
         crate::hal::cpu_power::update([pl1, pl2]).map_err(HalError::RegisterAccessFailed)
     }
 
@@ -593,6 +601,7 @@ impl HardwareDriver for DeclarativeHardwareDriver {
             || !self.manifest.capabilities.power_modes.iter().any(|m| m == "custom") {
             return Err(HalError::UnsupportedModel("CPU custom mode is not declared".into()));
         }
+        Self::validate_cpu_power_supply()?;
         let active = crate::hal::cpu_power::is_active();
         let previous = self.read_declared_power_mode()?;
         let result = crate::hal::cpu_power::transition(Some([pl1, pl2]), ||
@@ -613,6 +622,7 @@ impl HardwareDriver for DeclarativeHardwareDriver {
             || !self.manifest.capabilities.power_modes.iter().any(|mode| mode == "custom") {
             return Err(HalError::UnsupportedModel("CPU custom mode is not declared".into()));
         }
+        Self::validate_cpu_power_supply()?;
         let previous = std::cell::Cell::new(None);
         crate::hal::cpu_power::commit_profile([pl1, pl2], active_only,
             || {

@@ -76,7 +76,10 @@ fn handle_system_resume_pipeline(event_name: &str) {
         let mut cfg = crate::system::config::load_config();
         if cfg.power_mode == 4 && !crate::hal::cpu_power::is_active() {
             let hal = crate::hal::get_hardware_driver();
-            let requested = if crate::hal::cpu_power::ac_online() { crate::hal::HardwarePowerMode::Custom } else { crate::hal::HardwarePowerMode::Balance };
+            let requested = if crate::hal::cpu_power::validate_power_supply(
+                crate::hal::cpu_power::ac_online(), cfg.unlock_battery_power_limit).is_ok() {
+                crate::hal::HardwarePowerMode::Custom
+            } else { crate::hal::HardwarePowerMode::Balance };
             let actual = match hal.set_performance_mode(requested) {
                 Ok(()) => Some(if requested == crate::hal::HardwarePowerMode::Custom { 4 } else { 2 }),
                 Err(e) => {

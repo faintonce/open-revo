@@ -273,7 +273,9 @@ pub fn start_hardware_state_watcher(
 
             let is_thin_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
 
-            if crate::hal::cpu_power::is_active() && !crate::hal::cpu_power::ac_online() {
+            if crate::hal::cpu_power::is_active()
+                && crate::hal::cpu_power::validate_power_supply(crate::hal::cpu_power::ac_online(),
+                    crate::system::config::load_config().unlock_battery_power_limit).is_err() {
                 let hal = crate::hal::get_hardware_driver();
                 if let Err(e) = hal.set_performance_mode(crate::hal::HardwarePowerMode::Balance) {
                     crate::log_error!("CPU_POWER", "Cannot release custom CPU power on battery: {}", e);
