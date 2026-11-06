@@ -1,0 +1,182 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CoolerCurveTemplates inherits HorizontalLayout {
+    in-out property <string> curve_template: "standard"; // "standard", "quiet", "aggressive", "linear"
+    callback apply_template(string);
+
+    alignment: space-between;
+
+    HorizontalLayout {
+        spacing: 5px;
+
+        Text {
+            text: "曲线预设：";
+            font-size: 9.5px;
+            font-weight: 600;
+            color: AppTheme.text_muted;
+            vertical-alignment: center;
+        }
+
+        // Standard template
+        Rectangle {
+            height: 20px;
+            border-radius: AppTheme.radius_xs;
+            background: root.curve_template == "standard" ? #0284c725 : AppTheme.surface_pill;
+            border-width: 1px;
+            border-color: root.curve_template == "standard" ? #38bdf880 : AppTheme.border_subtle;
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.apply_template("standard"); }
+            }
+
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                spacing: 3px;
+
+                Image {
+                    source: @image-url("../../assets/icons/star.svg");
+                    width: 10px;
+                    height: 10px;
+                    colorize: root.curve_template == "standard" ? #38bdf8 : AppTheme.text_muted;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                Text {
+                    text: "出厂智慧 (55°起转)";
+                    font-size: 9.5px;
+                    font-weight: 600;
+                    color: root.curve_template == "standard" ? #38bdf8 : AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Quiet template
+        Rectangle {
+            height: 20px;
+            border-radius: AppTheme.radius_xs;
+            background: root.curve_template == "quiet" ? #0284c725 : AppTheme.surface_pill;
+            border-width: 1px;
+            border-color: root.curve_template == "quiet" ? #38bdf880 : AppTheme.border_subtle;
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.apply_template("quiet"); }
+            }
+
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                spacing: 3px;
+
+                Image {
+                    source: @image-url("../../assets/icons/snowflake.svg");
+                    width: 10px;
+                    height: 10px;
+                    colorize: root.curve_template == "quiet" ? #38bdf8 : AppTheme.text_muted;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                Text {
+                    text: "极致静音 (65°起转)";
+                    font-size: 9.5px;
+                    font-weight: 600;
+                    color: root.curve_template == "quiet" ? #38bdf8 : AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Aggressive template
+        Rectangle {
+            height: 20px;
+            border-radius: AppTheme.radius_xs;
+            background: root.curve_template == "aggressive" ? #0284c725 : AppTheme.surface_pill;
+            border-width: 1px;
+            border-color: root.curve_template == "aggressive" ? #38bdf880 : AppTheme.border_subtle;
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.apply_template("aggressive"); }
+            }
+
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                spacing: 3px;
+
+                Image {
+                    source: @image-url("../../assets/icons/flame.svg");
+                    width: 10px;
+                    height: 10px;
+                    colorize: root.curve_template == "aggressive" ? #38bdf8 : AppTheme.text_muted;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                Text {
+                    text: "激进压温 (45°起转)";
+                    font-size: 9.5px;
+                    font-weight: 600;
+                    color: root.curve_template == "aggressive" ? #38bdf8 : AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Linear template
+        Rectangle {
+            height: 20px;
+            border-radius: AppTheme.radius_xs;
+            background: root.curve_template == "linear" ? #0284c725 : AppTheme.surface_pill;
+            border-width: 1px;
+            border-color: root.curve_template == "linear" ? #38bdf880 : AppTheme.border_subtle;
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.apply_template("linear"); }
+            }
+
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                spacing: 3px;
+
+                Image {
+                    source: @image-url("../../assets/icons/zap.svg");
+                    width: 10px;
+                    height: 10px;
+                    colorize: root.curve_template == "linear" ? #38bdf8 : AppTheme.text_muted;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                Text {
+                    text: "线性爬升";
+                    font-size: 9.5px;
+                    font-weight: 600;
+                    color: root.curve_template == "linear" ? #38bdf8 : AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // Right hysteresis filter tag
+    HorizontalLayout {
+        spacing: 4px;
+        Rectangle {
+            width: 5px;
+            height: 5px;
+            border-radius: 2.5px;
+            background: #10b981;
+            y: (parent.height - self.height) / 2;
+        }
+        Text {
+            text: "内置 3°C 迟滞滤波防抖";
+            font-size: 9px;
+            color: AppTheme.text_muted;
+            vertical-alignment: center;
+        }
+    }
+}

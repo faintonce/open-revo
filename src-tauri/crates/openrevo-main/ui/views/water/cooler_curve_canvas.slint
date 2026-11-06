@@ -1,0 +1,516 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CoolerCurveCanvas inherits Rectangle {
+    // 6 Points: temperatures (30..100) and fan duties (0..100)
+    in-out property <[int]> curve_temps: [45, 55, 65, 80, 90, 95];
+    in-out property <[int]> curve_duties: [0, 35, 50, 60, 75, 100];
+
+    // Pump thresholds
+    in-out property <int> pump_start_temp: 55;
+    in-out property <int> pump_turbo_temp: 90;
+
+    // Live telemetry probe
+    in-out property <int> live_max_temp: 55;
+    in-out property <int> live_fan_duty: 0;
+    in-out property <bool> is_dragging: false;
+
+    // Callbacks
+    callback set_point(int, int, int); // index, new_temp, new_duty
+    callback commit_curve();
+    callback pump_thresholds_changing(int, int); // start, turbo
+    callback commit_pump_thresholds(int, int);   // start, turbo
+
+    vertical-stretch: 1;
+    min-height: 160px;
+    background: #00000050;
+    border-radius: AppTheme.radius_xs;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    clip: true;
+
+    // Geometry metrics
+    property <length> pad_l: 36px;
+    property <length> pad_r: 20px;
+    property <length> pad_t: 16px;
+    property <length> pad_b: 18px;
+    property <length> plot_w: Math.max(100px, self.width - self.pad_l - self.pad_r);
+    property <length> plot_h: Math.max(50px, self.height - self.pad_t - self.pad_b);
+    property <length> floor_y: self.pad_t + self.plot_h;
+
+    // Mapping helpers (Slint lengths)
+    pure function temp_to_x(t: int) -> length {
+        return root.pad_l + root.plot_w * Math.clamp((t - 30) / 70.0, 0.0, 1.0);
+    }
+    pure function duty_to_y(d: int) -> length {
+        return root.pad_t + root.plot_h * Math.clamp((100 - d) / 100.0, 0.0, 1.0);
+    }
+    pure function x_to_temp(x: length) -> int {
+        return Math.clamp(30 + Math.round((x - root.pad_l) / root.plot_w * 70.0), 30, 100);
+    }
+    pure function y_to_duty(y: length) -> int {
+        return Math.clamp(Math.round((1.0 - (y - root.pad_t) / root.plot_h) * 100.0), 0, 100);
+    }
+
+    // Safe point getters to completely eliminate 0-collapse on arbitrary array length
+    pure function get_pt_temp(idx: int) -> int {
+        if idx < root.curve_temps.length {
+            return root.curve_temps[idx];
+        }
+        if root.curve_temps.length > 0 {
+            return Math.min(100, root.curve_temps[root.curve_temps.length - 1] + (idx - root.curve_temps.length + 1) * 3);
+        }
+        return idx == 0 ? 45 : (idx == 1 ? 55 : (idx == 2 ? 65 : (idx == 3 ? 80 : (idx == 4 ? 90 : 95))));
+    }
+    pure function get_pt_duty(idx: int) -> int {
+        if idx < root.curve_duties.length {
+            return root.curve_duties[idx];
+        }
+        if root.curve_duties.length > 0 {
+            return root.curve_duties[root.curve_duties.length - 1];
+        }
+        return idx == 0 ? 0 : (idx == 1 ? 35 : (idx == 2 ? 50 : (idx == 3 ? 60 : (idx == 4 ? 75 : 100))));
+    }
+
+    // 6 Nodes Coordinates (guaranteed safe bounds)
+    property <length> x0: temp_to_x(get_pt_temp(0));
+    property <length> y0: duty_to_y(get_pt_duty(0));
+    property <length> x1: temp_to_x(get_pt_temp(1));
+    property <length> y1: duty_to_y(get_pt_duty(1));
+    property <length> x2: temp_to_x(get_pt_temp(2));
+    property <length> y2: duty_to_y(get_pt_duty(2));
+    property <length> x3: temp_to_x(get_pt_temp(3));
+    property <length> y3: duty_to_y(get_pt_duty(3));
+    property <length> x4: temp_to_x(get_pt_temp(4));
+    property <length> y4: duty_to_y(get_pt_duty(4));
+    property <length> x5: temp_to_x(get_pt_temp(5));
+    property <length> y5: duty_to_y(get_pt_duty(5));
+
+    // Pump Bar Coordinates
+    property <length> x_start: temp_to_x(root.pump_start_temp);
+    property <length> x_turbo: temp_to_x(root.pump_turbo_temp);
+
+    // Probe Coordinates
+    property <length> x_probe: temp_to_x(root.live_max_temp);
+    property <length> y_probe: duty_to_y(root.live_fan_duty);
+
+    // ================= 1. Background Grid & Zones =================
+
+    // Zone 1: Stop Pump Zone (< start_temp)
+    Rectangle {
+        x: root.pad_l;
+        y: root.pad_t;
+        width: Math.max(0px, root.x_start - root.pad_l);
+        height: root.plot_h;
+        background: #10b9810a;
+
+        if self.width > 60px: Text {
+            x: 6px;
+            y: 4px;
+            text: "低温停转区 (<" + root.pump_start_temp + "°C)";
+            font-size: 8.5px;
+            font-weight: 700;
+            color: #34d39999;
+        }
+    }
+
+    // Zone 2: Cruise Standard Zone (start_temp .. turbo_temp)
+    Rectangle {
+        x: root.x_start;
+        y: root.pad_t;
+        width: Math.max(0px, root.x_turbo - root.x_start);
+        height: root.plot_h;
+        background: #06b6d40d;
+
+        if self.width > 80px: Text {
+            x: 6px;
+            y: 4px;
+            text: "标准巡航区 (" + root.pump_start_temp + "°C~" + root.pump_turbo_temp + "°C)";
+            font-size: 8.5px;
+            font-weight: 700;
+            color: #06b6d4bb;
+        }
+    }
+
+    // Zone 3: Beast Zone (>= turbo_temp)
+    Rectangle {
+        x: root.x_turbo;
+        y: root.pad_t;
+        width: Math.max(0px, root.pad_l + root.plot_w - root.x_turbo);
+        height: root.plot_h;
+        background: #f43f5e14;
+
+        if self.width > 60px: Text {
+            x: 6px;
+            y: 4px;
+            text: "水泵极限狂暴区 (≥" + root.pump_turbo_temp + "°C)";
+            font-size: 8.5px;
+            font-weight: 700;
+            color: #f43f5ebb;
+        }
+    }
+
+    // Horizontal Grid Lines & Y-labels (100%, 75%, 50%, 25%, 0 RPM)
+    Rectangle { x: root.pad_l; y: root.pad_t; width: root.plot_w; height: 1px; background: #ffffff0e; }
+    Text { x: 4px; y: root.pad_t - 5px; text: "100%"; font-size: 8px; color: AppTheme.text_muted; }
+
+    Rectangle { x: root.pad_l; y: root.pad_t + root.plot_h * 0.25; width: root.plot_w; height: 1px; background: #ffffff0a; }
+    Text { x: 4px; y: root.pad_t + root.plot_h * 0.25 - 5px; text: "75%"; font-size: 8px; color: AppTheme.text_muted; }
+
+    Rectangle { x: root.pad_l; y: root.pad_t + root.plot_h * 0.50; width: root.plot_w; height: 1px; background: #ffffff0a; }
+    Text { x: 4px; y: root.pad_t + root.plot_h * 0.50 - 5px; text: "50%"; font-size: 8px; color: AppTheme.text_muted; }
+
+    Rectangle { x: root.pad_l; y: root.pad_t + root.plot_h * 0.75; width: root.plot_w; height: 1px; background: #ffffff0a; }
+    Text { x: 4px; y: root.pad_t + root.plot_h * 0.75 - 5px; text: "25%"; font-size: 8px; color: AppTheme.text_muted; }
+
+    Rectangle { x: root.pad_l; y: root.floor_y; width: root.plot_w; height: 1px; background: #ffffff1f; }
+    Text { x: 2px; y: root.floor_y - 5px; text: "0 RPM"; font-size: 8px; font-weight: 700; color: #10b981; }
+
+    // Vertical Temperature Grid Lines & Labels
+    for t in [30, 40, 50, 60, 70, 80, 90, 100]: Rectangle {
+        property <length> tx: root.temp_to_x(t);
+        x: self.tx;
+        y: root.pad_t;
+        width: 1px;
+        height: root.plot_h;
+        background: #ffffff08;
+
+        if Math.abs(t - root.pump_start_temp) >= 4 && Math.abs(t - root.pump_turbo_temp) >= 4: Text {
+            x: -7px;
+            y: parent.height + 2px;
+            text: t + "°";
+            font-size: 8px;
+            color: AppTheme.text_muted;
+        }
+    }
+
+    // Bottom Labels for Pump Bars
+    Text {
+        x: root.x_start - 16px;
+        y: root.floor_y + 2px;
+        text: root.pump_start_temp + "°启泵";
+        font-size: 8px;
+        font-weight: 800;
+        color: #34d399;
+    }
+    Text {
+        x: root.x_turbo - 16px;
+        y: root.floor_y + 2px;
+        text: root.pump_turbo_temp + "°狂暴";
+        font-size: 8px;
+        font-weight: 800;
+        color: #f43f5e;
+    }
+
+    // ================= 2. Filled Glow Area & Curve Stroke =================
+
+    // Shaded Glow Fill
+    Path {
+        width: 100%;
+        height: 100%;
+        viewbox-x: 0;
+        viewbox-y: 0;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        fill: @linear-gradient(180deg, #06b6d445 0%, #06b6d405 100%);
+
+        MoveTo { x: root.temp_to_x(30) / 1px; y: root.floor_y / 1px; }
+        LineTo { x: root.temp_to_x(30) / 1px; y: root.y0 / 1px; }
+        LineTo { x: root.x0 / 1px; y: root.y0 / 1px; }
+        LineTo { x: root.x1 / 1px; y: root.y1 / 1px; }
+        LineTo { x: root.x2 / 1px; y: root.y2 / 1px; }
+        LineTo { x: root.x3 / 1px; y: root.y3 / 1px; }
+        LineTo { x: root.x4 / 1px; y: root.y4 / 1px; }
+        LineTo { x: root.x5 / 1px; y: root.y5 / 1px; }
+        LineTo { x: root.temp_to_x(100) / 1px; y: root.y5 / 1px; }
+        LineTo { x: root.temp_to_x(100) / 1px; y: root.floor_y / 1px; }
+        Close {}
+    }
+
+    // Continuous Stroke Line
+    Path {
+        width: 100%;
+        height: 100%;
+        viewbox-x: 0;
+        viewbox-y: 0;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        stroke: #06b6d4;
+        stroke-width: 2.5px;
+
+        MoveTo { x: root.temp_to_x(30) / 1px; y: root.y0 / 1px; }
+        LineTo { x: root.x0 / 1px; y: root.y0 / 1px; }
+        LineTo { x: root.x1 / 1px; y: root.y1 / 1px; }
+        LineTo { x: root.x2 / 1px; y: root.y2 / 1px; }
+        LineTo { x: root.x3 / 1px; y: root.y3 / 1px; }
+        LineTo { x: root.x4 / 1px; y: root.y4 / 1px; }
+        LineTo { x: root.x5 / 1px; y: root.y5 / 1px; }
+        LineTo { x: root.temp_to_x(100) / 1px; y: root.y5 / 1px; }
+    }
+
+    // ================= 3. Pump Threshold Drag Bars =================
+
+    // 1. Start Temp Bar (Green)
+    Rectangle {
+        x: root.x_start - 1px;
+        y: root.pad_t;
+        width: 2px;
+        height: root.plot_h;
+        background: #10b981;
+
+        // Top Badge
+        Rectangle {
+            x: -24px;
+            y: -14px;
+            width: 50px;
+            height: 14px;
+            border-radius: 3px;
+            background: #059669;
+            border-width: 1px;
+            border-color: #34d399;
+
+            Text {
+                text: root.pump_start_temp + "° 启泵";
+                font-size: 8px;
+                font-weight: 700;
+                color: #ffffff;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // Middle Thumb Handle
+        Rectangle {
+            x: -4px;
+            y: root.plot_h * 0.45;
+            width: 10px;
+            height: 16px;
+            border-radius: 3px;
+            background: #10b981;
+            border-width: 1px;
+            border-color: #ffffff;
+        }
+    }
+
+    // 2. Turbo Temp Bar (Red)
+    Rectangle {
+        x: root.x_turbo - 1px;
+        y: root.pad_t;
+        width: 2px;
+        height: root.plot_h;
+        background: #f43f5e;
+
+        // Top Badge
+        Rectangle {
+            x: -24px;
+            y: -14px;
+            width: 50px;
+            height: 14px;
+            border-radius: 3px;
+            background: #e11d48;
+            border-width: 1px;
+            border-color: #fda4af;
+
+            Text {
+                text: root.pump_turbo_temp + "° 狂暴";
+                font-size: 8px;
+                font-weight: 700;
+                color: #ffffff;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // Middle Thumb Handle
+        Rectangle {
+            x: -4px;
+            y: root.plot_h * 0.45;
+            width: 10px;
+            height: 16px;
+            border-radius: 3px;
+            background: #f43f5e;
+            border-width: 1px;
+            border-color: #ffffff;
+        }
+    }
+
+    // ================= 4. Live Telemetry Probe =================
+    Rectangle {
+        x: root.x_probe - 0.5px;
+        y: root.pad_t;
+        width: 1px;
+        height: root.plot_h;
+        background: #f43f5ecc;
+
+        // Probe Outer Halo Circle
+        Rectangle {
+            x: -6px;
+            y: root.y_probe - root.pad_t - 6px;
+            width: 13px;
+            height: 13px;
+            border-radius: 6.5px;
+            background: #f43f5e50;
+        }
+
+        // Probe Inner Dot
+        Rectangle {
+            x: -3px;
+            y: root.y_probe - root.pad_t - 3px;
+            width: 7px;
+            height: 7px;
+            border-radius: 3.5px;
+            background: #ffffff;
+            border-width: 1.5px;
+            border-color: #f43f5e;
+        }
+
+        // Probe Badge floating above
+        Rectangle {
+            x: -32px;
+            y: Math.max(-14px, root.y_probe - root.pad_t - 22px);
+            width: 65px;
+            height: 14px;
+            border-radius: 3px;
+            background: #0f172ae0;
+            border-width: 1px;
+            border-color: #f43f5e;
+
+            Text {
+                text: root.live_max_temp + "°C / " + root.live_fan_duty + "%";
+                font-size: 8px;
+                font-weight: 700;
+                color: #ffffff;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // ================= 5. 6 Fan Nodes Circles =================
+    for node[idx] in [
+        { x: root.x0, y: root.y0, duty: root.get_pt_duty(0) },
+        { x: root.x1, y: root.y1, duty: root.get_pt_duty(1) },
+        { x: root.x2, y: root.y2, duty: root.get_pt_duty(2) },
+        { x: root.x3, y: root.y3, duty: root.get_pt_duty(3) },
+        { x: root.x4, y: root.y4, duty: root.get_pt_duty(4) },
+        { x: root.x5, y: root.y5, duty: root.get_pt_duty(5) },
+    ]: Rectangle {
+        x: node.x - 5px;
+        y: node.y - 5px;
+        width: 10px;
+        height: 10px;
+        border-radius: 5px;
+        background: #06b6d4;
+        border-width: 1.5px;
+        border-color: #ffffff;
+
+        // Value label directly above
+        Text {
+            x: -12px;
+            y: -12px;
+            width: 34px;
+            text: node.duty + "%";
+            font-size: 8px;
+            font-weight: 800;
+            color: #38bdf8;
+            horizontal-alignment: center;
+        }
+    }
+
+    // ================= 6. Unified Global TouchArea (高精度距离判定与防抖机制) =================
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-cursor: (Math.abs(self.mouse-x - root.x_start) < 14px || Math.abs(self.mouse-x - root.x_turbo) < 14px) ? ew-resize : (self.has-hover ? pointer : default);
+
+        property <int> drag_target: 0; // 0: None, 1: StartTemp, 2: TurboTemp, 3: FanNode
+        property <int> active_node_idx: -1;
+
+        pointer-event(event) => {
+            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                let mx = self.mouse-x;
+                let my = self.mouse-y;
+
+                // Node Manhattan distances (px)
+                let d0 = (Math.abs(mx - root.x0) + Math.abs(my - root.y0)) / 1px;
+                let d1 = (Math.abs(mx - root.x1) + Math.abs(my - root.y1)) / 1px;
+                let d2 = (Math.abs(mx - root.x2) + Math.abs(my - root.y2)) / 1px;
+                let d3 = (Math.abs(mx - root.x3) + Math.abs(my - root.y3)) / 1px;
+                let d4 = (Math.abs(mx - root.x4) + Math.abs(my - root.y4)) / 1px;
+                let d5 = (Math.abs(mx - root.x5) + Math.abs(my - root.y5)) / 1px;
+
+                let min_d = Math.min(d0, Math.min(d1, Math.min(d2, Math.min(d3, Math.min(d4, d5)))));
+                let closest_idx = (min_d == d0) ? 0 :
+                                  (min_d == d1) ? 1 :
+                                  (min_d == d2) ? 2 :
+                                  (min_d == d3) ? 3 :
+                                  (min_d == d4) ? 4 : 5;
+
+                // Pump bar horizontal distances (px)
+                let d_start = Math.abs(mx - root.x_start) / 1px;
+                let d_turbo = Math.abs(mx - root.x_turbo) / 1px;
+
+                // 1. Direct hit on node circle has highest priority (within 20px)
+                if min_d <= 20 {
+                    self.drag_target = 3;
+                    self.active_node_idx = closest_idx;
+                    root.is_dragging = true;
+                    let new_duty = root.y_to_duty(my);
+                    let new_temp = root.x_to_temp(mx);
+                    root.set_point(closest_idx, new_temp, new_duty);
+                    return;
+                }
+
+                // 2. Start temp pump bar hit (within 16px)
+                if d_start <= 16 {
+                    self.drag_target = 1;
+                    root.is_dragging = true;
+                    return;
+                }
+
+                // 3. Turbo temp pump bar hit (within 16px)
+                if d_turbo <= 16 {
+                    self.drag_target = 2;
+                    root.is_dragging = true;
+                    return;
+                }
+
+                // 4. General canvas click: track to closest fan node
+                self.drag_target = 3;
+                self.active_node_idx = closest_idx;
+                root.is_dragging = true;
+                let new_duty = root.y_to_duty(my);
+                let new_temp = root.x_to_temp(mx);
+                root.set_point(closest_idx, new_temp, new_duty);
+            } else if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
+                if self.drag_target == 1 || self.drag_target == 2 {
+                    root.commit_pump_thresholds(root.pump_start_temp, root.pump_turbo_temp);
+                } else if self.drag_target == 3 {
+                    root.commit_curve();
+                }
+                self.drag_target = 0;
+                self.active_node_idx = -1;
+                root.is_dragging = false;
+            }
+        }
+
+        moved => {
+            if self.drag_target == 1 {
+                let t = Math.clamp(root.x_to_temp(self.mouse-x), 35, root.pump_turbo_temp - 5);
+                if t != root.pump_start_temp {
+                    root.pump_start_temp = t;
+                    root.pump_thresholds_changing(t, root.pump_turbo_temp);
+                }
+            } else if self.drag_target == 2 {
+                let t = Math.clamp(root.x_to_temp(self.mouse-x), root.pump_start_temp + 5, 98);
+                if t != root.pump_turbo_temp {
+                    root.pump_turbo_temp = t;
+                    root.pump_thresholds_changing(root.pump_start_temp, t);
+                }
+            } else if self.drag_target == 3 && self.active_node_idx >= 0 {
+                let new_duty = root.y_to_duty(self.mouse-y);
+                let new_temp = root.x_to_temp(self.mouse-x);
+                root.set_point(self.active_node_idx, new_temp, new_duty);
+            }
+        }
+    }
+}
