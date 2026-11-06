@@ -1210,6 +1210,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
               fanIndependentChannels={modelCaps?.fan_independent_channels ?? true}
               supportFanRampRate={modelCaps?.fan_software_smoothing || (modelCaps?.fan_ramp_rate ?? (capabilities?.fan_ramp_rate ?? true))}
               minDuty={modelCaps?.fan_boost_mode === 'direct_rpm_clamp' ? 22 : 0}
+              rpmScale={isPmcFan ? status.fan_control ?? undefined : undefined}
             />
           )}
         </div>

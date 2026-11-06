@@ -10,6 +10,29 @@ pub const STARTUP_RPM: u16 = 2000;
 const STARTUP_TIME: Duration = Duration::from_secs(2);
 const STALL_TIMEOUT: Duration = Duration::from_secs(3);
 const RESTART_WINDOW: Duration = Duration::from_secs(30);
+pub const PERCENT_MAPPING_VERSION: u8 = 2;
+// EC 01.00.00 Performance table targets, not measured motor/PWM limits.
+pub const PERCENT_LOW_RPM: [u16; 2] = [2700, 2600];
+pub const PERCENT_MAX_RPM: [u16; 2] = [7100, 7000];
+const STOP_HYSTERESIS_CELSIUS: u8 = 3;
+const STOP_WAIT: Duration = Duration::from_secs(5);
+const STOP_MAX_CELSIUS: u8 = 50;
+const STOP_RESTART_CELSIUS: u8 = 55;
+
+/// UI intensity scale, independent of physical PWM duty. Zero requests fan stop.
+pub fn percent_to_rpm(fan: usize, percent: u8) -> u16 {
+    if percent == 0 { return 0; }
+    let percent = percent.min(100) as u32;
+    let minimum = MIN_RPM[fan] as u32;
+    let low = PERCENT_LOW_RPM[fan] as u32;
+    let maximum = PERCENT_MAX_RPM[fan] as u32;
+    let rpm = if percent <= 25 {
+        minimum + (low - minimum) * percent / 25
+    } else {
+        low + (maximum - low) * (percent - 25) / 75
+    };
+    (((rpm + 50) / 100) * 100) as u16
+}
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct FanRpmLimits {
@@ -32,9 +55,9 @@ impl Default for FanRpmLimits {
 }
 pub(crate) fn validate_targets(targets: [u16; 2]) -> Result<(), String> {
     for (fan, target) in targets.into_iter().enumerate() {
-        if !(MIN_RPM[fan]..=MAX_RPM).contains(&target) {
+        if target != 0 && !(MIN_RPM[fan]..=MAX_RPM).contains(&target) {
             return Err(format!(
-                "风扇 {} 目标转速范围为 {}–{} RPM",
+                "风扇 {} 目标转速为 0（停转）或 {}–{} RPM",
                 fan + 1,
                 MIN_RPM[fan],
                 MAX_RPM
@@ -47,7 +70,7 @@ pub(crate) fn validate_targets(targets: [u16; 2]) -> Result<(), String> {
 /// Non-blocking start assistance and bounded stall recovery; called under the EC mutex.
 #[derive(Default)]
 pub(crate) struct FanRpmGuard {
-    active: bool,
+    active: [bool; 2],
     boost_until: [Option<Duration>; 2],
     zero_since: [Option<Duration>; 2],
     restarts: [std::collections::VecDeque<Duration>; 2],
@@ -65,13 +88,19 @@ impl FanRpmGuard {
         validate_targets(targets)?;
         let mut applied = targets;
         for fan in 0..2 {
+            if targets[fan] == 0 {
+                self.active[fan] = false;
+                self.boost_until[fan] = None;
+                self.zero_since[fan] = None;
+                continue;
+            }
             while self.restarts[fan]
                 .front()
                 .is_some_and(|time| now.saturating_sub(*time) >= RESTART_WINDOW)
             {
                 self.restarts[fan].pop_front();
             }
-            if !self.active && targets[fan] < STARTUP_RPM {
+            if !self.active[fan] && targets[fan] < STARTUP_RPM {
                 self.boost_until[fan] = Some(now + STARTUP_TIME);
             }
             if actual[fan] == 0 {
@@ -79,7 +108,7 @@ impl FanRpmGuard {
                 if now.saturating_sub(since) >= STALL_TIMEOUT {
                     return Err(format!("风扇 {} 持续停转，恢复原厂温控", fan + 1));
                 }
-                if self.active && self.boost_until[fan].is_none() && targets[fan] < STARTUP_RPM {
+                if self.active[fan] && self.boost_until[fan].is_none() && targets[fan] < STARTUP_RPM {
                     if self.restarts[fan].len() >= 2 {
                         return Err(format!("风扇 {} 反复停转，恢复原厂温控", fan + 1));
                     }
@@ -99,8 +128,8 @@ impl FanRpmGuard {
                     self.boost_until[fan] = None;
                 }
             }
+            self.active[fan] = true;
         }
-        self.active = true;
         Ok(applied)
     }
 }
@@ -115,6 +144,9 @@ pub struct RpmCurvePoint {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RpmFanCurves {
+    /// Present only for curves projected from the classic percentage editor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub percent_mapping_version: Option<u8>,
     #[serde(default)]
     pub smoothing: RpmSmoothing,
     pub fan0: Vec<RpmCurvePoint>,
@@ -138,6 +170,7 @@ impl Default for RpmFanCurves {
         .map(|(temp, rpm)| RpmCurvePoint { temp, rpm })
         .collect::<Vec<_>>();
         Self {
+            percent_mapping_version: None,
             smoothing: RpmSmoothing::default(),
             fan1: fan0.clone(),
             fan0,
@@ -151,14 +184,14 @@ impl RpmFanCurves {
         for (fan, curve) in [&self.fan0, &self.fan1].into_iter().enumerate() {
             if !(2..=32).contains(&curve.len())
                 || curve.iter().any(|p| {
-                    p.temp > 100 || !(MIN_RPM[fan]..=MAX_RPM).contains(&p.rpm) || p.rpm % 100 != 0
+                    p.temp > 100 || (p.rpm != 0 && !(MIN_RPM[fan]..=MAX_RPM).contains(&p.rpm)) || p.rpm % 100 != 0
                 })
                 || curve
                     .windows(2)
                     .any(|p| p[0].temp >= p[1].temp || p[0].rpm > p[1].rpm)
             {
                 return Err(format!(
-                    "风扇 {} 曲线需有 2–32 个递增温度节点，转速为 {}–{} RPM，按 100 RPM 递增或保持",
+                    "风扇 {} 曲线需有 2–32 个递增温度节点，转速为 0（停转）或 {}–{} RPM，按 100 RPM 递增或保持",
                     fan + 1,
                     MIN_RPM[fan],
                     MAX_RPM
@@ -170,9 +203,35 @@ impl RpmFanCurves {
         }
         Ok(())
     }
-    /// Preserve legacy temperature knots and relative intensity, not physical PWM-to-RPM calibration.
+    /// Percentages are a model-specific target scale, not a PWM calibration.
     pub fn from_legacy(fan0: &[(u8, u8)], fan1: &[(u8, u8)]) -> Result<Self, String> {
-        let convert = |curve: &[(u8, u8)]| -> Result<Vec<RpmCurvePoint>, String> {
+        Self::project_percentages(fan0, fan1, false)
+    }
+
+    pub(crate) fn from_legacy_v1(fan0: &[(u8, u8)], fan1: &[(u8, u8)]) -> Result<Self, String> {
+        Self::project_percentages(fan0, fan1, true)
+    }
+
+    /// Upgrade only an exact old percentage projection. Untagged independent
+    /// RPM curves and old zero-percent points keep their previous RPM targets;
+    /// old zero meant 2200 RPM, so migration must never silently stop a fan.
+    pub fn upgrade_percentage_mapping(self, fan0: &[(u8, u8)], fan1: &[(u8, u8)]) -> Self {
+        if self.percent_mapping_version.is_some()
+            || fan0.iter().chain(fan1).any(|&(_, percent)| percent == 0) {
+            return self;
+        }
+        let Ok(old) = Self::from_legacy_v1(fan0, fan1) else { return self; };
+        if self.fan0 != old.fan0 || self.fan1 != old.fan1 || self.linked != old.linked {
+            return self;
+        }
+        match Self::from_legacy(fan0, fan1) {
+            Ok(mut mapped) => { mapped.smoothing = self.smoothing; mapped }
+            Err(_) => self,
+        }
+    }
+
+    fn project_percentages(fan0: &[(u8, u8)], fan1: &[(u8, u8)], old: bool) -> Result<Self, String> {
+        let convert = |fan: usize, curve: &[(u8, u8)]| -> Result<Vec<RpmCurvePoint>, String> {
             if !(2..=32).contains(&curve.len())
                 || curve.iter().any(|&(t, d)| t > 100 || d > 100)
                 || curve
@@ -184,17 +243,21 @@ impl RpmFanCurves {
             Ok(curve
                 .iter()
                 .map(|&(temp, duty)| {
-                    let rpm = 2200 + ((duty.max(25) as u32 - 25) * 5300 + 37) / 75;
+                    let rpm = if old {
+                        let rpm = 2200 + ((duty.max(25) as u32 - 25) * 5300 + 37) / 75;
+                        (((rpm + 50) / 100) * 100) as u16
+                    } else { percent_to_rpm(fan, duty) };
                     RpmCurvePoint {
                         temp,
-                        rpm: (((rpm + 50) / 100) * 100).min(MAX_RPM as u32) as u16,
+                        rpm,
                     }
                 })
                 .collect())
         };
-        let fan0 = convert(fan0)?;
-        let fan1 = convert(fan1)?;
+        let fan0 = convert(0, fan0)?;
+        let fan1 = convert(1, fan1)?;
         let result = Self {
+            percent_mapping_version: if old { None } else { Some(PERCENT_MAPPING_VERSION) },
             smoothing: RpmSmoothing::default(),
             linked: fan0 == fan1,
             fan0,
@@ -204,27 +267,67 @@ impl RpmFanCurves {
         Ok(result)
     }
     pub fn targets(&self, temp: u8) -> [u16; 2] {
-        fn interpolate(curve: &[RpmCurvePoint], temp: u8) -> u16 {
+        fn interpolate(fan: usize, curve: &[RpmCurvePoint], temp: u8) -> u16 {
             for pair in curve.windows(2) {
                 let (a, b) = (&pair[0], &pair[1]);
                 if temp <= a.temp {
                     return a.rpm;
                 }
                 if temp < b.temp {
+                    if a.rpm == 0 && b.rpm == 0 { return 0; }
+                    // Hold an intentional zero plateau up to its final node;
+                    // positive interpolation never requests a sub-minimum RPM.
                     let rpm = a.rpm as u32
                         + (temp - a.temp) as u32 * (b.rpm - a.rpm) as u32
                             / (b.temp - a.temp) as u32;
-                    return (((rpm + 50) / 100) * 100) as u16;
+                    return ((((rpm + 50) / 100) * 100) as u16).max(MIN_RPM[fan]);
                 }
             }
             curve.last().expect("validated RPM curve").rpm
         }
-        [interpolate(&self.fan0, temp), interpolate(&self.fan1, temp)]
+        [interpolate(0, &self.fan0, temp), interpolate(1, &self.fan1, temp)]
+    }
+}
+
+/// Stop only after a cool dwell, restart immediately above the zero plateau.
+/// The absolute limits are CPU-package policy; they are not SEN3/SEN5 thresholds.
+#[derive(Default)]
+struct FanStopGate {
+    since: [Option<Duration>; 2],
+    stopped: [bool; 2],
+}
+impl FanStopGate {
+    fn apply(&mut self, targets: [u16; 2], boundaries: [Option<u8>; 2], temp: u8, now: Duration) -> [u16; 2] {
+        std::array::from_fn(|fan| {
+            if targets[fan] != 0 {
+                self.since[fan] = None;
+                self.stopped[fan] = false;
+                return targets[fan];
+            }
+            if temp >= STOP_RESTART_CELSIUS {
+                self.since[fan] = None;
+                self.stopped[fan] = false;
+                return PERCENT_LOW_RPM[fan];
+            }
+            if self.stopped[fan] { return 0; }
+            let stop_below = boundaries[fan].unwrap_or(STOP_MAX_CELSIUS)
+                .saturating_sub(STOP_HYSTERESIS_CELSIUS).min(STOP_MAX_CELSIUS);
+            if temp <= stop_below {
+                let since = *self.since[fan].get_or_insert(now);
+                if now.saturating_sub(since) >= STOP_WAIT {
+                    self.stopped[fan] = true;
+                    return 0;
+                }
+            } else { self.since[fan] = None; }
+            MIN_RPM[fan]
+        })
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FanControlStatus {
+    pub percent_reference_rpm: [u16; 2],
+    pub percent_max_rpm: [u16; 2],
     pub smoothing: RpmSmoothing,
     pub smoothing_active: bool,
     pub transition_rpm: [u16; 2],
@@ -262,6 +365,7 @@ pub(crate) struct FanController<H: FanHardware> {
     healthy_since: Option<Duration>,
     transition: RpmTransition,
     now: Duration,
+    stop_gate: FanStopGate,
 }
 impl<H: FanHardware> FanController<H> {
     pub fn new(hardware: H) -> Self {
@@ -274,7 +378,10 @@ impl<H: FanHardware> FanController<H> {
             healthy_since: None,
             transition: RpmTransition::default(),
             now: Duration::ZERO,
+            stop_gate: FanStopGate::default(),
             status: FanControlStatus {
+                percent_reference_rpm: PERCENT_LOW_RPM,
+                percent_max_rpm: PERCENT_MAX_RPM,
                 smoothing: RpmSmoothing::default(),
                 smoothing_active: false,
                 transition_rpm: [0, 0],
@@ -292,6 +399,9 @@ impl<H: FanHardware> FanController<H> {
     }
     pub fn status(&self) -> FanControlStatus {
         self.status.clone()
+    }
+    pub fn set_time(&mut self, now: Duration) {
+        self.now = now;
     }
     pub fn set_smoothing(&mut self, smoothing: RpmSmoothing) -> Result<(), String> {
         smoothing.validate()?;
@@ -326,6 +436,13 @@ impl<H: FanHardware> FanController<H> {
     }
     fn drive(&mut self, temp: u8) -> Result<(), String> {
         let targets = self.targets(temp).ok_or("No fan targets selected")?;
+        self.seed_transition()?;
+        let boundaries = match &self.requested {
+            Requested::Curve(curves) => [&curves.fan0, &curves.fan1].map(|curve|
+                curve.iter().take_while(|point| point.rpm == 0).last().map(|point| point.temp)),
+            _ => [None; 2],
+        };
+        let targets = self.stop_gate.apply(targets, boundaries, temp, self.now);
         self.send_targets(targets, temp)?;
         self.status.mode = match self.requested {
             Requested::Curve(_) => "curve",
@@ -340,11 +457,16 @@ impl<H: FanHardware> FanController<H> {
         self.update_intent();
         Ok(())
     }
-    fn send_targets(&mut self, targets: [u16; 2], temp: u8) -> Result<(), String> {
+    fn seed_transition(&mut self) -> Result<(), String> {
         if self.transition.needs_seed() {
             let actual = self.hardware.read_rpm()?;
+            self.stop_gate.stopped = actual.map(|rpm| rpm == 0);
             self.transition.seed(actual, self.now);
         }
+        Ok(())
+    }
+    fn send_targets(&mut self, targets: [u16; 2], temp: u8) -> Result<(), String> {
+        self.seed_transition()?;
         let command = self.transition.plan(
             targets,
             self.status.smoothing,
@@ -360,6 +482,7 @@ impl<H: FanHardware> FanController<H> {
         Ok(())
     }
     fn reset_transition(&mut self) {
+        self.stop_gate = FanStopGate::default();
         self.transition.clear();
         self.status.transition_rpm = [0, 0];
         self.status.smoothing_active = false;
@@ -454,7 +577,12 @@ impl<H: FanHardware> FanController<H> {
             .filter(|t| (1..PROTECT_CELSIUS).contains(t))
             .ok_or("CPU 温度不可用或达到 90°C，无法启用固定转速")?;
         let targets = targets.map(|rpm| ((rpm + 50) / 100) * 100);
-        match self.send_targets(targets, temp) {
+        let result = (|| {
+            self.seed_transition()?;
+            let effective = self.stop_gate.apply(targets, [None; 2], temp, self.now);
+            self.send_targets(effective, temp)
+        })();
+        match result {
             Ok(()) => (),
             Err(e) => {
                 self.protect(e.clone(), true);
@@ -637,10 +765,135 @@ mod tests {
             &[(40, 25), (50, 25), (95, 100)],
         )
         .unwrap();
-        assert_eq!(c.targets(45), [2200, 2200]);
-        assert_eq!(c.targets(100), [7500, 7500]);
-        assert!(c.linked);
+        assert_eq!(c.targets(45), [2700, 2600]);
+        assert_eq!(c.targets(100), [7100, 7000]);
+        // Percentage linkage lives in the profile; native RPM linkage requires
+        // identical RPMs and must remain false for these asymmetric motors.
+        assert!(!c.linked);
+        assert_eq!(c.percent_mapping_version, Some(PERCENT_MAPPING_VERSION));
         assert!(RpmFanCurves::from_legacy(&[(40, 101), (50, 100)], &[]).is_err());
+    }
+
+    #[test]
+    fn percentage_scale_is_monotonic_per_fan_and_matches_research_anchors() {
+        for (percent, expected) in [(0, [0, 0]), (10, [1800, 1600]),
+            (25, [2700, 2600]), (50, [4200, 4100]), (75, [5600, 5500]), (100, [7100, 7000])] {
+            assert_eq!([percent_to_rpm(0, percent), percent_to_rpm(1, percent)], expected);
+        }
+        for fan in 0..2 {
+            let values = (1..=100).map(|percent| percent_to_rpm(fan, percent)).collect::<Vec<_>>();
+            assert!(values.iter().all(|rpm| (MIN_RPM[fan]..=PERCENT_MAX_RPM[fan]).contains(rpm) && rpm % 100 == 0));
+            assert!(values.windows(2).all(|pair| pair[0] <= pair[1]));
+        }
+    }
+
+    #[test]
+    fn zero_plateau_interpolation_never_sends_subminimum_targets() {
+        let curves = RpmFanCurves::from_legacy(&[(40, 0), (50, 0), (60, 25)],
+            &[(40, 0), (50, 0), (60, 25)]).unwrap();
+        for temp in 1..=50 { assert_eq!(curves.targets(temp), [0, 0]); }
+        for temp in 51..=100 { validate_targets(curves.targets(temp)).unwrap(); }
+        assert_eq!(curves.targets(51), MIN_RPM);
+        assert_eq!(curves.targets(60), PERCENT_LOW_RPM);
+        let mut invalid = curves;
+        invalid.fan0[0].rpm = 100;
+        assert!(invalid.validate().is_err());
+    }
+
+    #[test]
+    fn migration_is_versioned_and_preserves_native_and_old_zero_intent() {
+        let input = [(40, 25), (60, 50), (95, 100)];
+        let mut old = RpmFanCurves::from_legacy_v1(&input, &input).unwrap();
+        old.smoothing.enabled = false;
+        let migrated = old.clone().upgrade_percentage_mapping(&input, &input);
+        assert_eq!(migrated.targets(40), PERCENT_LOW_RPM);
+        assert_eq!(migrated.percent_mapping_version, Some(PERCENT_MAPPING_VERSION));
+        assert!(!migrated.smoothing.enabled);
+        assert_eq!(migrated.clone().upgrade_percentage_mapping(&input, &input), migrated);
+        old.fan0[0].rpm = 1700;
+        old.linked = false;
+        assert_eq!(old.clone().upgrade_percentage_mapping(&input, &input), old);
+        let zero = [(40, 0), (60, 25)];
+        let old = RpmFanCurves::from_legacy_v1(&zero, &zero).unwrap();
+        assert_eq!(old.clone().upgrade_percentage_mapping(&zero, &zero), old);
+        assert_eq!(old.targets(40), [2200, 2200]);
+    }
+
+    #[test]
+    fn commanded_zero_does_not_trigger_stall_and_restart_is_assisted_independently() {
+        let mut guard = FanRpmGuard::default();
+        assert_eq!(guard.apply([0, 3000], [0, 3000], Duration::ZERO).unwrap(), [0, 3000]);
+        assert_eq!(guard.apply([0, 3000], [0, 3000], Duration::from_secs(100)).unwrap(), [0, 3000]);
+        assert_eq!(guard.apply([1200, 3000], [0, 3000], Duration::from_secs(101)).unwrap(), [2000, 3000]);
+        assert_eq!(guard.apply([1200, 3000], [1800, 3000], Duration::from_secs(102)).unwrap(), [2000, 3000]);
+        assert_eq!(guard.apply([1200, 3000], [1800, 3000], Duration::from_secs(103)).unwrap(), [1200, 3000]);
+        assert_eq!(guard.apply([0, 3000], [0, 3000], Duration::from_secs(104)).unwrap(), [0, 3000]);
+        assert_eq!(guard.apply([1200, 3000], [0, 3000], Duration::from_secs(105)).unwrap(), [2000, 3000]);
+        assert!(guard.apply([1200, 3000], [0, 3000], Duration::from_secs(107)).is_err());
+    }
+
+    #[test]
+    fn stop_requires_cool_dwell_and_temperature_hysteresis_per_channel() {
+        let mut gate = FanStopGate::default();
+        let boundary = [Some(50), Some(45)];
+        assert_eq!(gate.apply([0, 0], boundary, 47, Duration::ZERO), MIN_RPM);
+        assert_eq!(gate.apply([0, 0], boundary, 48, Duration::from_secs(4)), MIN_RPM);
+        assert_eq!(gate.apply([0, 0], boundary, 42, Duration::from_secs(5)), MIN_RPM);
+        assert_eq!(gate.apply([0, 0], boundary, 42, Duration::from_secs(10)), [0, 0]);
+        assert_eq!(gate.apply([1300, 0], boundary, 51, Duration::from_secs(11)), [1300, 0]);
+        assert_eq!(gate.apply([0, 0], boundary, 49, Duration::from_secs(12)), [1200, 0]);
+        assert_eq!(gate.apply([0, 0], boundary, 55, Duration::from_secs(13)), PERCENT_LOW_RPM);
+    }
+
+    #[test]
+    fn stopped_curve_keeps_temperature_protection_and_cancel_behavior() {
+        let curves = RpmFanCurves::from_legacy(&[(40, 0), (50, 0), (60, 25)],
+            &[(40, 0), (50, 0), (60, 25)]).unwrap();
+        let mut c = FanController::new(MockFan::default());
+        let mut curves = curves;
+        curves.smoothing.enabled = false;
+        c.select_curve(curves, Some(45)).unwrap();
+        tick(&mut c, Some(45), 5);
+        assert_eq!(c.status.target_rpm, [0, 0]);
+        assert_eq!(c.hardware.calls.last(), Some(&Some([0, 0])));
+        tick(&mut c, None, 6);
+        assert_eq!(c.status.mode, "protected");
+        assert_eq!(c.hardware.calls.last(), Some(&None));
+        c.automatic().unwrap();
+        for time in [7, 12, 30] { tick(&mut c, Some(45), time); }
+        assert_eq!(c.status.mode, "auto");
+        assert!(!c.status.resume_pending);
+    }
+
+    #[test]
+    fn already_stopped_fans_are_not_spun_up_just_to_wait_for_a_stop() {
+        let mut curves = RpmFanCurves::from_legacy(&[(40, 0), (50, 0), (60, 25)],
+            &[(40, 0), (50, 0), (60, 25)]).unwrap();
+        curves.smoothing.enabled = false;
+        let mut c = FanController::new(MockFan { actual: Some([0, 0]), ..Default::default() });
+        c.select_curve(curves, Some(45)).unwrap();
+        assert_eq!(c.hardware.calls, vec![Some([0, 0])]);
+        tick(&mut c, Some(45), 20);
+        assert_eq!(c.status.target_rpm, [0, 0]);
+        tick(&mut c, Some(51), 21);
+        assert_eq!(c.status.target_rpm, MIN_RPM);
+        assert!(c.hardware.calls.last().unwrap().unwrap().iter().all(|rpm| *rpm > 0));
+    }
+
+    #[test]
+    fn selecting_zero_curve_after_long_idle_starts_a_fresh_stop_wait() {
+        let mut curves = RpmFanCurves::from_legacy(&[(40, 0), (50, 0), (60, 25)],
+            &[(40, 0), (50, 0), (60, 25)]).unwrap();
+        curves.smoothing.enabled = false;
+        let mut c = FanController::new(MockFan::default());
+        c.set_time(Duration::from_secs(3600));
+        c.select_curve(curves, Some(45)).unwrap();
+        tick(&mut c, Some(45), 3601);
+        assert_eq!(c.status.target_rpm, MIN_RPM);
+        tick(&mut c, Some(45), 3604);
+        assert_eq!(c.status.target_rpm, MIN_RPM);
+        tick(&mut c, Some(45), 3605);
+        assert_eq!(c.status.target_rpm, [0, 0]);
     }
     #[test]
     fn overheating_recovers_only_after_five_healthy_seconds() {
@@ -867,6 +1120,7 @@ mod tests {
             ]
         };
         let mut curves = RpmFanCurves {
+            percent_mapping_version: None,
             smoothing: RpmSmoothing::default(),
             fan0: points(1200),
             fan1: points(1000),
