@@ -146,6 +146,9 @@ pub fn start_telemetry_loop(
                     let state = collect_hardware_state(&ec_bridge, &gpu_bridge, query_gpu);
                     if !SCREEN_SUSPENDED.load(Ordering::SeqCst) && !REBOOT_FREEZE.load(Ordering::SeqCst) {
                         let _ = app.emit("hardware-state-updated", &state);
+                        if let Ok(v) = serde_json::to_value(&state) {
+                            crate::system::native_wry::broadcast_event("hardware-state-updated", &v);
+                        }
                         crate::system::watcher_hub::evaluate_telemetry_watchers(&state);
                         crate::system::slint_window::sync_slint_telemetry(&state);
                     }

@@ -27,6 +27,18 @@ pub enum NativeWryMessage {
     ClosePopout {
         plugin_id: String,
     },
+    DragWindow {
+        plugin_id: String,
+    },
+    SetWindowSize {
+        plugin_id: String,
+        width: f64,
+        height: f64,
+    },
+    BroadcastEvent {
+        event: String,
+        payload_json: String,
+    },
     AttachEmbedded {
         parent_hwnd: isize,
         plugin_id: String,
@@ -135,28 +147,50 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
     });
   }
 
+  const listeners = new Map();
+  window.__NATIVE_WRY_EMIT__ = function(event, payload) {
+    const cbs = listeners.get(event) || [];
+    for (const cb of cbs) {
+      try { cb({ event: event, payload: payload }); } catch (e) { console.error(e); }
+    }
+    if (event === "hardware-state-updated") {
+      window.dispatchEvent(new CustomEvent("openrevo-telemetry", { detail: payload }));
+    }
+  };
+
   const bridge = {
     invoke: callRpc,
     pluginId: pluginId,
     listen: function(event, callback) {
-      return Promise.resolve(function unlisten() {});
+      if (!listeners.has(event)) {
+        listeners.set(event, []);
+      }
+      listeners.get(event).push(callback);
+      return Promise.resolve(function unlisten() {
+        const arr = listeners.get(event) || [];
+        const idx = arr.indexOf(callback);
+        if (idx !== -1) arr.splice(idx, 1);
+      });
     },
     emit: function(event, payload) {
       return callRpc("emit", { event: event, payload: payload });
     },
     getCurrentWebviewWindow: function() {
       return {
-        startDragging: function() {},
+        startDragging: function() { return callRpc("start_dragging", { pluginId: pluginId }); },
         close: function() { return callRpc("close_custom_widget", { pluginId: pluginId }); },
         hide: function() { return callRpc("close_custom_widget", { pluginId: pluginId }); },
         show: function() {},
+        setSize: function(sz) { return callRpc("set_window_size", { pluginId: pluginId, width: sz.width, height: sz.height }); },
         setFocus: function() {}
       };
     },
     getCurrentWindow: function() {
       return this.getCurrentWebviewWindow();
     },
-    startDragging: function() {},
+    startDragging: function() {
+      return callRpc("start_dragging", { pluginId: pluginId });
+    },
     close: function() {
       return callRpc("close_custom_widget", { pluginId: pluginId });
     },
@@ -182,9 +216,46 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
   window.__TAURI__ = {
     core: {
       invoke: callRpc
+    },
+    event: {
+      listen: function(event, callback) {
+        return bridge.listen(event, callback);
+      },
+      emit: function(event, payload) {
+        return callRpc("emit", { event: event, payload: payload });
+      }
+    },
+    webviewWindow: {
+      getCurrentWebviewWindow: function() {
+        return bridge.getCurrentWebviewWindow();
+      }
+    },
+    window: {
+      getCurrentWindow: function() {
+        return bridge.getCurrentWebviewWindow();
+      }
+    },
+    dpi: {
+      LogicalSize: function(width, height) {
+        this.width = width;
+        this.height = height;
+      }
     }
   };
   window.OpenRevo = bridge;
+
+  // Global mouse drag handler for [data-tauri-drag-region]
+  document.addEventListener("pointerdown", function(e) {
+    if (e.target && e.target.closest) {
+      if (e.target.closest("[data-no-drag]")) return;
+      if (e.target.closest("button, [role=\"button\"], input, select, textarea, .tool-btn")) return;
+      if (e.target.closest("[data-tauri-drag-region]")) {
+        if (e.button === 0) {
+          callRpc("start_dragging", { pluginId: pluginId });
+        }
+      }
+    }
+  });
 
   // postMessage fallback listener for older iframe/widget plugins
   window.addEventListener("message", async function(e) {
@@ -300,6 +371,23 @@ fn handle_ipc_payload(
     let parsed: Result<WryIpcEnvelope, _> = serde_json::from_str(raw_payload);
     match parsed {
         Ok(env) => {
+            if env.cmd == "start_dragging" {
+                let _ = proxy.send_event(NativeWryMessage::DragWindow {
+                    plugin_id: plugin_id.to_string(),
+                });
+                return;
+            }
+            if env.cmd == "set_window_size" {
+                let w = env.args.get("width").and_then(|v| v.as_f64()).unwrap_or(260.0);
+                let h = env.args.get("height").and_then(|v| v.as_f64()).unwrap_or(190.0);
+                let _ = proxy.send_event(NativeWryMessage::SetWindowSize {
+                    plugin_id: plugin_id.to_string(),
+                    width: w,
+                    height: h,
+                });
+                return;
+            }
+
             let pid = plugin_id.to_string();
             let req_id = env.req_id.unwrap_or_default();
             tauri::async_runtime::spawn(async move {
@@ -354,6 +442,10 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     if win.id() == window_id {
                         crate::log_info!("NATIVE_WRY", "Destroying popout window for plugin '{}'", pid);
                         get_running_popouts_set().write().remove(pid);
+                        let mut cfg = crate::system::config::load_config();
+                        cfg.custom_plugin_toggles.insert(pid.clone(), false);
+                        let _ = crate::system::config::save_config(&cfg);
+                        crate::system::slint_window::sync::sync_slint_plugins_state();
                         false
                     } else {
                         true
@@ -361,7 +453,44 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                 });
             }
 
+            tao::event::Event::WindowEvent {
+                window_id,
+                event: tao::event::WindowEvent::Moved(pos),
+                ..
+            } => {
+                for (pid, (win, _)) in popouts.iter() {
+                    if win.id() == window_id {
+                        crate::system::widget_manager::queue_widget_position(pid.clone(), pos.x, pos.y);
+                        break;
+                    }
+                }
+            }
+
             tao::event::Event::UserEvent(msg) => match msg {
+                NativeWryMessage::DragWindow { plugin_id } => {
+                    if let Some((win, _)) = popouts.get(&plugin_id) {
+                        let _ = win.drag_window();
+                    }
+                }
+
+                NativeWryMessage::SetWindowSize { plugin_id, width, height } => {
+                    if let Some((win, _)) = popouts.get(&plugin_id) {
+                        win.set_inner_size(tao::dpi::LogicalSize::new(width, height));
+                    }
+                }
+
+                NativeWryMessage::BroadcastEvent { event, payload_json } => {
+                    let script = format!(
+                        "window.__NATIVE_WRY_EMIT__ && window.__NATIVE_WRY_EMIT__('{}', {});",
+                        event, payload_json
+                    );
+                    for (_, (_, view)) in popouts.iter() {
+                        let _ = view.evaluate_script(&script);
+                    }
+                    if let Some((_, ref view, _)) = embedded {
+                        let _ = view.evaluate_script(&script);
+                    }
+                }
                 NativeWryMessage::OpenPopout { plugin_id } => {
                     if let Some((win, _)) = popouts.get(&plugin_id) {
                         win.set_visible(true);
@@ -509,27 +638,74 @@ fn spawn_popout_window(
     let mut width = 1024.0;
     let mut height = 720.0;
     let mut resizable = true;
+    let mut transparent = false;
+    let mut decorations = true;
+    let mut always_on_top = false;
+    let mut skip_taskbar = false;
+    let mut is_widget = false;
 
     if manifest_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&manifest_path) {
             if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
+                is_widget = p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin");
+
                 if let Some(ref name) = manifest.name {
                     title = format!("OpenRevo - {}", name);
+                }
+                if is_widget {
+                    width = 260.0;
+                    height = 200.0;
+                    resizable = false;
+                    decorations = false;
+                    transparent = true;
+                    always_on_top = true;
+                    skip_taskbar = true;
                 }
                 if let Some(win_cfg) = manifest.window {
                     width = win_cfg.width;
                     height = win_cfg.height;
                     resizable = win_cfg.resizable;
+                    transparent = win_cfg.transparent;
+                    always_on_top = win_cfg.always_on_top;
+                    decorations = win_cfg.decorations;
+                    skip_taskbar = win_cfg.skip_taskbar;
                 }
             }
         }
     }
 
-    let window = WindowBuilder::new()
+    let cfg = crate::system::config::load_config();
+    let saved_pos = if is_widget {
+        cfg.widget_positions.get(plugin_id).copied()
+    } else {
+        None
+    };
+
+    #[cfg(target_os = "windows")]
+    use tao::platform::windows::WindowBuilderExtWindows;
+
+    let mut win_builder = WindowBuilder::new()
         .with_title(&title)
         .with_inner_size(tao::dpi::LogicalSize::new(width, height))
         .with_resizable(resizable)
-        .with_visible(true)
+        .with_decorations(decorations)
+        .with_transparent(transparent)
+        .with_always_on_top(always_on_top)
+        .with_visible(true);
+
+    #[cfg(target_os = "windows")]
+    {
+        if skip_taskbar {
+            win_builder = win_builder.with_skip_taskbar(true);
+        }
+    }
+
+    if let Some((x, y)) = saved_pos {
+        win_builder = win_builder.with_position(tao::dpi::PhysicalPosition::new(x, y));
+    }
+
+    let window = win_builder
         .build(target)
         .map_err(|e| format!("Failed to create tao window: {:?}", e))?;
 
@@ -538,6 +714,7 @@ fn spawn_popout_window(
     let target_for_ipc = ViewTarget::Popout(plugin_id.to_string());
 
     let webview = WebViewBuilder::new()
+        .with_transparent(transparent)
         .with_custom_protocol("revo".into(), move |_id, request| {
             handle_custom_protocol(request)
         })
@@ -554,7 +731,9 @@ fn spawn_popout_window(
         .map_err(|e| format!("Failed to build wry WebView: {:?}", e))?;
 
     window.set_visible(true);
-    window.set_focus();
+    if !is_widget {
+        window.set_focus();
+    }
 
     #[cfg(target_os = "windows")]
     {
@@ -564,7 +743,9 @@ fn spawn_popout_window(
         let hwnd = HWND(window.hwnd() as *mut _);
         unsafe {
             let _ = ShowWindow(hwnd, SW_SHOW);
-            let _ = SetForegroundWindow(hwnd);
+            if !is_widget {
+                let _ = SetForegroundWindow(hwnd);
+            }
         }
     }
 
@@ -656,6 +837,15 @@ pub fn hide_embedded() {
 
 pub fn get_running_popouts() -> Vec<String> {
     get_running_popouts_set().read().iter().cloned().collect()
+}
+
+pub fn broadcast_event(event: &str, payload: &serde_json::Value) {
+    if let Some(proxy) = ensure_native_wry_loop() {
+        let _ = proxy.send_event(NativeWryMessage::BroadcastEvent {
+            event: event.to_string(),
+            payload_json: payload.to_string(),
+        });
+    }
 }
 
 pub fn shutdown_all() {

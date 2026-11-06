@@ -23,6 +23,25 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(id) = val.get("id").and_then(|v| v.as_str()) {
                 if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
                     let _ = crate::commands::system_cmd::set_custom_plugin_enabled(id.to_string(), enabled);
+
+                    // If this plugin is a desktop widget or skin, open or close the floating widget window
+                    let p_dir = crate::commands::system_cmd::find_plugin_dir(id);
+                    let manifest_path = p_dir.join("manifest.json");
+                    if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                        if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                            let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
+                            if p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin") {
+                                if enabled {
+                                    crate::log_info!("PLUGINS", "Toggled widget '{}' ON -> opening desktop widget", id);
+                                    crate::system::native_wry::open_popout(id);
+                                } else {
+                                    crate::log_info!("PLUGINS", "Toggled widget '{}' OFF -> closing desktop widget", id);
+                                    crate::system::native_wry::close_popout(id);
+                                }
+                            }
+                        }
+                    }
+
                     sync_slint_plugins_state();
                 }
             }

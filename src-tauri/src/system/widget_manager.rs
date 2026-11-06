@@ -347,11 +347,10 @@ pub fn restore_active_widgets_on_boot(_app: &AppHandle) {
                         if p_type == "widget" || p_type == "skin" {
                             crate::log_info!(
                                 "WIDGET",
-                                "Auto-restoring enabled widget '{}' on startup via orchestrator queue...",
+                                "Auto-restoring enabled widget '{}' on startup via native Wry runtime...",
                                 plugin_id
                             );
-                            crate::system::webview_orchestrator::WebviewOrchestrator::global()
-                                .enqueue_widget(plugin_id.clone());
+                            crate::system::native_wry::open_popout(plugin_id);
                         }
                     }
                 }
