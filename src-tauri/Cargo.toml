@@ -29,6 +29,9 @@ openrevo-core = { path = "crates/openrevo-core" }
 openrevo-osd = { path = "crates/openrevo-osd" }
 openrevo-main = { path = "crates/openrevo-main" }
 tauri = { version = "2.0.0", features = ["tray-icon"] }
+tao = "0.35"
+wry = "0.55"
+raw-window-handle = "0.6"
 tauri-plugin-autostart = "2.0.0"
 tauri-plugin-single-instance = "2.0.0"
 serde = { version = "1.0", features = ["derive"] }

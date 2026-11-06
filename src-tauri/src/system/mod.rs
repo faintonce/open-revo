@@ -32,5 +32,6 @@ pub mod raw_gateway;
 pub mod watcher_hub;
 pub mod plugin_storage;
 pub mod cloud_icc;
+pub mod native_wry;
 
 pub use openrevo_core::system::config_io;

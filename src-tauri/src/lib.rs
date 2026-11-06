@@ -522,6 +522,7 @@ pub fn run() {
             }
             tauri::RunEvent::Exit => {
                 println!("[OpenRevo] Process exiting. Executing clean webview shutdown and hardware safety shutdown...");
+                crate::system::native_wry::shutdown_all();
                 crate::system::webview_orchestrator::WebviewOrchestrator::global().safe_shutdown_all_subviews();
                 crate::system::tray::safe_hardware_shutdown_on_exit();
                 crate::system::plugin_service::shutdown_all_plugin_services();

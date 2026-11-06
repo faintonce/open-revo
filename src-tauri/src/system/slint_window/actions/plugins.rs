@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::super::sync::sync_slint_plugins_state;
-use super::super::webview_dock::{attach_or_switch_embedded_webview, hide_embedded_webview};
+use super::super::webview_dock::hide_embedded_webview;
 
 pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
@@ -38,6 +38,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "collapse_dashboard" => {
             crate::log_info!("PLUGINS", "Received collapse_dashboard from Slint UI");
+            crate::system::native_wry::hide_embedded();
             if let Some(app) = app {
                 let app_clone = app.clone();
                 let _ = app.run_on_main_thread(move || {
@@ -56,20 +57,27 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             }
             if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
                 crate::log_info!("PLUGINS", "User switched to plugin tab: '{}'", pid);
-                if let Some(app) = app {
-                    let app_clone = app.clone();
-                    let pid_string = pid.to_string();
-                    let res = app.run_on_main_thread(move || {
-                        crate::log_info!("PLUGINS", "run_on_main_thread closure executing for pid='{}'", pid_string);
-                        if pid_string.is_empty() {
+                if pid.is_empty() {
+                    crate::system::native_wry::hide_embedded();
+                    if let Some(app) = app {
+                        let app_clone = app.clone();
+                        let _ = app.run_on_main_thread(move || {
                             hide_embedded_webview(&app_clone);
-                        } else {
-                            attach_or_switch_embedded_webview(&app_clone, &pid_string);
-                        }
-                    });
-                    crate::log_info!("PLUGINS", "app.run_on_main_thread scheduled: {:?}", res);
+                        });
+                    }
                 } else {
-                    crate::log_error!("PLUGINS", "AppHandle is None in select_plugin_tab handler!");
+                    let parent_hwnd_raw = super::super::dialog::get_openrevo_main_hwnd();
+                    if parent_hwnd_raw != 0 {
+                        let parent_hwnd = windows::Win32::Foundation::HWND(parent_hwnd_raw as *mut _);
+                        let (target_x, target_y, target_w, target_h, _) = super::super::webview_dock::calc_embedded_geometry(parent_hwnd);
+                        crate::system::native_wry::attach_or_switch_embedded(
+                            parent_hwnd_raw,
+                            pid,
+                            (target_x, target_y, target_w, target_h),
+                        );
+                    } else {
+                        crate::log_warn!("PLUGINS", "Cannot dock plugin '{}': Slint HWND is 0", pid);
+                    }
                 }
             }
             true
@@ -77,17 +85,8 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "open_custom_widget" => {
             crate::log_info!("PLUGINS", "Received open_custom_widget: val={:?}, app_is_some={}", val, app.is_some());
             if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
-                if let Some(app) = app {
-                    let app_clone = app.clone();
-                    let pid_string = pid.to_string();
-                    tauri::async_runtime::spawn(async move {
-                        crate::log_info!("PLUGINS", "Calling widget_manager::open_custom_widget for '{}'", pid_string);
-                        let res = crate::system::widget_manager::open_custom_widget(app_clone, pid_string).await;
-                        crate::log_info!("PLUGINS", "widget_manager::open_custom_widget result: {:?}", res);
-                    });
-                } else {
-                    crate::log_error!("PLUGINS", "AppHandle is None in open_custom_widget handler!");
-                }
+                crate::log_info!("PLUGINS", "Opening native Wry popout window for plugin: '{}'", pid);
+                crate::system::native_wry::open_popout(pid);
             }
             true
         }

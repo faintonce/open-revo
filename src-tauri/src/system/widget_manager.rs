@@ -34,6 +34,12 @@ pub async fn open_custom_widget(app: AppHandle, plugin_id: String) -> Result<Str
     cfg.custom_plugin_toggles.insert(plugin_id.clone(), true);
     crate::system::config::save_config(&cfg);
 
+    if !cfg.use_classic_webview {
+        crate::log_info!("WIDGET", "Native Slint mode active: opening unmanaged Wry popout for '{}'", plugin_id);
+        crate::system::native_wry::open_popout(&plugin_id);
+        return Ok(label);
+    }
+
     // 2. Fast-path: if window already exists (e.g. was hidden), restore and show it instantly
     if let Some(win) = app.get_webview_window(&label) {
         let _ = win.show();
@@ -302,6 +308,8 @@ pub fn cleanup_widget_on_close(app: &AppHandle, plugin_id: &str) {
 pub fn close_custom_widget(app: AppHandle, plugin_id: String) -> Result<bool, String> {
     let label = format_widget_label(&plugin_id);
 
+    crate::system::native_wry::close_popout(&plugin_id);
+
     if let Some(win) = app.get_webview_window(&label) {
         let _ = win.destroy();
         crate::log_info!("WIDGET", "Widget window '{}' destroyed cleanly.", label);
@@ -314,8 +322,14 @@ pub fn close_custom_widget(app: AppHandle, plugin_id: String) -> Result<bool, St
 /// Get all currently active widget plugin IDs
 #[tauri::command]
 pub fn get_running_widgets() -> Result<Vec<String>, String> {
+    let mut list = crate::system::native_wry::get_running_popouts();
     let active = get_active_widgets().lock();
-    Ok(active.keys().cloned().collect())
+    for k in active.keys() {
+        if !list.contains(k) {
+            list.push(k.clone());
+        }
+    }
+    Ok(list)
 }
 
 /// Automatically restore and spawn enabled widget windows on OpenRevo boot via orchestrator queue
