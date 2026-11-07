@@ -12,7 +12,7 @@ use crate::system::hardware_probe::{
     collect_hardware_snapshot, get_hardware_snapshot_cached, HardwareSnapshot,
 };
 use crate::system::power::{
-    apply_ec_hardware_mode, get_cached_factory_power_presets, FactoryPowerPresets,
+    apply_ec_hardware_mode, ensure_power_mode_allowed, get_cached_factory_power_presets, FactoryPowerPresets,
 };
 use crate::driver::lighting::{get_global_lighting, SharedIteLightingManager};
 use crate::system::telemetry::{is_telemetry_active, set_telemetry_active};
@@ -86,13 +86,25 @@ impl OpenRevoEngine {
     // Power & Performance Mode Orchestration
     // ------------------------------------------------------------------------
 
-    /// Apply physical EC performance mode (e.g. 0 = Office/Saver, 1 = Balanced/Game, 2 = Turbo/Beast).
+    /// Apply SDK mode: 0 = Office, 1 = Balance, 2 = Turbo (hardware modes 1 through 3).
     pub fn set_power_mode(&self, mode: u8) -> Result<(), String> {
+        let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+        self.set_power_mode_with(mode, |ui_mode| {
+            ensure_power_mode_allowed(ui_mode)?;
+            apply_ec_hardware_mode(ui_mode)
+        })
+    }
+
+    fn set_power_mode_with(&self, mode: u8, apply: impl FnOnce(u8) -> Result<(), String>) -> Result<(), String> {
         if !self.is_active() {
             return Err("OpenRevo engine is not running or already shut down".to_string());
         }
-        apply_ec_hardware_mode(mode);
-        dispatch_event_global(CoreEvent::PhysicalModeSwitched(mode));
+        let ui_mode = match mode {
+            0..=2 => mode + 1,
+            _ => return Err("Invalid SDK power mode".into()),
+        };
+        apply(ui_mode)?;
+        dispatch_event_global(CoreEvent::PhysicalModeSwitched(ui_mode));
         Ok(())
     }
 
@@ -148,5 +160,29 @@ impl OpenRevoEngine {
 impl Drop for OpenRevoEngine {
     fn drop(&mut self) {
         self.shutdown();
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regression_sdk_power_modes_keep_the_documented_numbering_and_report_failure() {
+        let engine = OpenRevoEngine::new(None);
+        for mode in 0..=2 {
+            engine.set_power_mode_with(mode, |actual| {
+                assert_eq!(actual, mode + 1);
+                Ok(())
+            }).unwrap();
+            assert_eq!(engine.set_power_mode_with(mode, |_| Err("write failed".into())).unwrap_err(), "write failed");
+        }
+        for mode in 3..=u8::MAX {
+            assert!(engine.set_power_mode_with(mode, |_| panic!("Invalid SDK mode reached hardware")).is_err());
+        }
+        engine.is_running.store(false, Ordering::SeqCst);
+        assert!(engine.set_power_mode_with(0, |_| panic!("Stopped engine reached hardware")).is_err());
     }
 }

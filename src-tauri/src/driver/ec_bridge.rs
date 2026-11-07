@@ -258,30 +258,96 @@ impl EcBridge {
         self.cache.lock().power_mode
     }
 
-    pub fn set_power_mode(&self, ui_mode: u8) {
-        crate::log_info!("EC_BRIDGE", "User triggered set_power_mode: {}", ui_mode);
-        {
-            let mut c = self.cache.lock();
-            c.power_mode = ui_mode;
-            c.power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
-        }
-
-        thread::spawn(move || {
-            crate::system::power_mode::apply_full_power_mode(ui_mode);
-        });
+    pub fn set_power_mode(&self, mode: u8) -> Result<(), String> {
+        let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+        let mut cfg = crate::system::config::load_config();
+        cfg.power_mode = mode;
+        self.set_power_mode_with_config(&cfg)
     }
 
-    pub fn set_power_mode_from_hardware(&self, detected_mode: u8) {
-        crate::log_info!("EC_BRIDGE", "Hardware aligned set_power_mode: {}", detected_mode);
-        {
-            let mut c = self.cache.lock();
-            c.power_mode = detected_mode;
-            c.power_mode_cooldown_until = Instant::now() + Duration::from_secs(3);
-        }
+    pub fn apply_temporary_power_mode(&self, mode: u8) -> Result<(), String> {
+        let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+        let cfg = crate::system::config::load_config();
+        self.apply_power_mode(
+            mode,
+            || crate::system::power::apply_full_power_mode_with_config(mode, &cfg),
+            || Ok(()),
+        )
+    }
 
-        thread::spawn(move || {
-            crate::system::power_mode::apply_windows_power_overlay(detected_mode);
+    pub fn set_power_mode_with_config(
+        &self,
+        cfg: &crate::system::config::AppConfig,
+    ) -> Result<(), String> {
+        self.apply_power_mode(
+            cfg.power_mode,
+            || crate::system::power::apply_full_power_mode_with_config(cfg.power_mode, cfg),
+            || crate::system::config::try_save_config(cfg),
+        )
+    }
+
+    fn apply_power_mode(
+        &self,
+        mode: u8,
+        apply: impl FnOnce() -> Result<(), crate::hal::power_control::ModeApplyError>,
+        persist: impl FnOnce() -> Result<(), String>,
+    ) -> Result<(), String> {
+        if !(1..=4).contains(&mode) {
+            return Err("Invalid power mode".into());
+        }
+        self.cache.lock().power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
+        let result = apply();
+        let confirmed = result.is_ok()
+            || result.as_ref().err().is_some_and(|error| error.hardware_confirmed);
+        {
+            let mut cache = self.cache.lock();
+            cache.power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
+            if confirmed {
+                cache.power_mode = mode;
+            }
+        }
+        if confirmed {
+            crate::update_tray_power_mode(mode);
+        }
+        if !confirmed {
+            return result.map_err(|error| error.message);
+        }
+        let saved = persist().map_err(|error| {
+            format!(
+                "Performance mode control was acknowledged, but saving settings failed: {error}"
+            )
         });
+        match (result, saved) {
+            (Err(sync), Err(save)) => Err(format!("{}; {}", sync.message, save)),
+            (Err(sync), Ok(())) => Err(sync.message),
+            (Ok(()), saved) => saved,
+        }
+    }
+
+    pub fn set_power_mode_from_hardware(&self, mode: u8) -> Result<(), String> {
+        self.align_hardware_mode(mode, || {
+            let overlay = crate::system::power_mode::apply_windows_power_overlay(mode);
+            let mut cfg = crate::system::config::load_config();
+            cfg.power_mode = mode;
+            crate::system::config::try_save_config(&cfg)?;
+            overlay
+        })
+    }
+
+    fn align_hardware_mode(
+        &self,
+        mode: u8,
+        synchronize: impl FnOnce() -> Result<(), String>,
+    ) -> Result<(), String> {
+        if !(1..=4).contains(&mode) {
+            return Err("Invalid observed power mode".into());
+        }
+        {
+            let mut cache = self.cache.lock();
+            cache.power_mode = mode;
+            cache.power_mode_cooldown_until = Instant::now() + Duration::from_secs(3);
+        }
+        synchronize()
     }
 
     pub fn is_fan_boost(&self) -> bool {
@@ -434,3 +500,7 @@ impl EcBridge {
 }
 
 pub type SharedEcBridge = Arc<Mutex<EcBridge>>;
+
+#[path = "../../crates/openrevo-core/src/driver/power_mode_tests.rs"]
+#[cfg(test)]
+mod power_mode_tests;

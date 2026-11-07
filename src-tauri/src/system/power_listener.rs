@@ -48,26 +48,55 @@ pub fn get_power_watcher_hwnd() -> Option<HWND> {
 static PREV_POWER_MODE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
 fn handle_sleep_auto_office() {
-    let cfg = crate::system::config::load_config();
-    if cfg.sleep_auto_office {
-        let cur_mode = cfg.power_mode;
-        if cur_mode != 1 {
-            println!("[Sleep Guard] Auto-switching from mode {} to Office Mode (1) before sleep / lid close!", cur_mode);
-            PREV_POWER_MODE.store(cur_mode, Ordering::SeqCst);
-            crate::system::power_mode::apply_full_power_mode(1);
+    let epoch = SLEEP_MODE_EPOCH.fetch_add(1, Ordering::SeqCst) + 1;
+    let Some(ec) = GLOBAL_EC.read().clone() else {
+        return;
+    };
+    std::thread::spawn(move || {
+        let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+        if SLEEP_MODE_EPOCH.load(Ordering::SeqCst) != epoch {
+            return;
         }
-    }
+        let cfg = crate::system::config::load_config();
+        if cfg.sleep_auto_office && cfg.power_mode != 1 {
+            PREV_POWER_MODE.store(cfg.power_mode, Ordering::SeqCst);
+            if let Err(error) = ec.lock().apply_temporary_power_mode(1) {
+                crate::log_warn!("SLEEP_GUARD", "Temporary Office mode failed: {}", error);
+            }
+        }
+    });
 }
 
 fn handle_wake_auto_office() {
-    let cfg = crate::system::config::load_config();
-    if cfg.sleep_auto_office {
-        let prev = PREV_POWER_MODE.swap(0, Ordering::SeqCst);
-        if prev > 1 && prev <= 4 {
-            println!("[Sleep Guard] Waking up! Restoring previous power mode: {}", prev);
-            crate::system::power_mode::apply_full_power_mode(prev);
+    let epoch = SLEEP_MODE_EPOCH.fetch_add(1, Ordering::SeqCst) + 1;
+    let Some(ec) = GLOBAL_EC.read().clone() else {
+        return;
+    };
+    std::thread::spawn(move || {
+        let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+        let Some(previous) = claim_wake_mode(epoch) else {
+            return;
+        };
+        let mut cfg = crate::system::config::load_config();
+        if !cfg.sleep_auto_office || previous == 0 {
+            return;
         }
-    }
+        let thin = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
+        let dc = crate::commands::power_cmd::is_dc_round_plugged_in();
+        let result = if !thin && !dc && !cfg.unlock_battery_power_limit && cfg.power_mode >= 3 {
+            cfg.power_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
+            ec.lock().set_power_mode_with_config(&cfg)
+        } else {
+            ec.lock().apply_temporary_power_mode(cfg.power_mode)
+        };
+        if let Err(error) = result {
+            crate::log_warn!(
+                "SLEEP_GUARD",
+                "Wake performance mode restore failed: {}",
+                error
+            );
+        }
+    });
 }
 
 fn handle_system_resume_pipeline(event_name: &str) {
@@ -318,4 +347,32 @@ pub fn start_power_event_watcher() {
             DispatchMessageW(&msg);
         }
     });
+}
+
+static SLEEP_MODE_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn claim_wake_mode(epoch: u64) -> Option<u8> {
+    if SLEEP_MODE_EPOCH.load(Ordering::SeqCst) != epoch {
+        return None;
+    }
+    Some(PREV_POWER_MODE.swap(0, Ordering::SeqCst))
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regression_expired_wake_cannot_consume_a_new_sleep_restore_mode() {
+        let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+        SLEEP_MODE_EPOCH.store(3, Ordering::SeqCst);
+        PREV_POWER_MODE.store(3, Ordering::SeqCst);
+        assert_eq!(claim_wake_mode(2), None);
+        assert_eq!(PREV_POWER_MODE.load(Ordering::SeqCst), 3);
+        assert_eq!(claim_wake_mode(3), Some(3));
+        assert_eq!(PREV_POWER_MODE.load(Ordering::SeqCst), 0);
+        assert_eq!(claim_wake_mode(3), Some(0));
+    }
 }

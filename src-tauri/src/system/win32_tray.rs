@@ -251,28 +251,12 @@ fn handle_tray_menu_command(_hwnd: HWND, cmd_id: usize) {
 }
 
 fn set_power_mode_standalone(mode: u8) {
-    let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
-    let mut cfg = crate::system::config::load_config();
-    if (mode == 3 || mode == 4) && !is_dc && !cfg.unlock_battery_power_limit {
-        crate::log_warn!("TRAY", "Blocked Turbo/Custom mode: Running on battery and unlock limit not enabled.");
-        return;
-    }
-
-    if let Some(ec) = GLOBAL_EC_BRIDGE.get() {
-        ec.lock().set_power_mode(mode);
-    }
-    cfg.power_mode = mode;
-    if is_dc {
-        cfg.power_mode_ac = mode;
-    } else {
-        cfg.power_mode_battery = mode;
-    }
-    let _ = crate::system::config::save_config(&cfg);
-    crate::system::osd_window::show_power_mode(mode);
-    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
-        "action": "sync_state",
-        "power_mode": mode
-    }));
+    let Some(ec) = GLOBAL_EC_BRIDGE.get().cloned() else { return; };
+    std::thread::spawn(move || {
+        if let Err(error) = crate::commands::power_cmd::set_power_mode_internal(mode, None, &ec) {
+            crate::log_warn!("TRAY", "Performance mode change failed: {}", error);
+        }
+    });
 }
 
 #[link(name = "shell32")]

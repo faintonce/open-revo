@@ -233,7 +233,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                     let _ = crate::commands::tuning_cmd::heal_cpu_power_contract(None, None, None, None, None);
                     let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
                     if is_declarative {
-                        crate::commands::tuning_cmd::sync_custom_profile_to_declarative_hardware(&target.profile);
+                        if let Err(error) = crate::commands::tuning_cmd::sync_custom_profile_to_declarative_hardware(&target.profile) {
+                            crate::log_warn!("TUNING_RESET", "Custom profile synchronization failed: {}", error);
+                        }
                     }
                 }
                 Err(e) => {

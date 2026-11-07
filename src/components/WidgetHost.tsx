@@ -25,6 +25,10 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
     fan_boost: false,
   });
   const [togglingBoost, setTogglingBoost] = useState(false);
+  const [togglingMode, setTogglingMode] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const modeBusy = useRef(false);
+  const snapshotRevision = useRef(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // 1. Expose Universal Tauri & OpenRevo bridge to iframe
@@ -101,6 +105,7 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
     const fetchSnapshot = async () => {
       try {
         const state = await invoke<HardwareState>('get_hardware_status');
+        snapshotRevision.current += 1;
         setHardware((prev) => ({ ...prev, ...state }));
         // Broadcast to sandboxed iframe as postMessage backup
         if (iframeRef.current?.contentWindow) {
@@ -116,6 +121,7 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
       await fetchSnapshot();
       try {
         unlisten = await listen<HardwareState>('hardware-state-updated', (event) => {
+          snapshotRevision.current += 1;
           setHardware((prev) => ({ ...prev, ...event.payload }));
           if (iframeRef.current?.contentWindow) {
             iframeRef.current.contentWindow.postMessage(
@@ -281,12 +287,22 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
 
   const handleCyclePowerMode = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (modeBusy.current) return;
+    modeBusy.current = true;
+    setTogglingMode(true);
+    setActionError(null);
     const cur = hardware.power_mode ?? 2;
-    const nextMode: PowerMode = cur === 1 ? 2 : cur === 2 ? 3 : 1;
-    setHardware((prev) => ({ ...prev, power_mode: nextMode }));
+    const nextMode: PowerMode = cur === 1 ? 2 : cur === 2 && hardware.high_power_modes_available === true ? 3 : 1;
+    const revision = snapshotRevision.current;
     try {
       await invoke('set_power_mode', { mode: nextMode });
-    } catch (_) {}
+      setHardware((prev) => snapshotRevision.current === revision ? { ...prev, power_mode: nextMode } : prev);
+    } catch (error) {
+      setActionError(`切换性能模式失败：${String(error)}`);
+    } finally {
+      modeBusy.current = false;
+      setTogglingMode(false);
+    }
   };
 
   // If user has custom HTML, render the custom iframe
@@ -329,7 +345,7 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
   const isOverheat = cpuTemp > 80;
   const isWarm = cpuTemp > 68;
   const coreGlow = isOverheat ? '#ef4444' : isWarm ? '#f59e0b' : '#38bdf8';
-  const modeName = hardware.power_mode === 1 ? '办公' : hardware.power_mode === 3 ? '狂暴' : '均衡';
+  const modeName = hardware.power_mode === 1 ? '办公' : hardware.power_mode === 3 ? '狂暴' : hardware.power_mode === 4 ? '自定义' : '均衡';
 
   return (
     <div
@@ -463,6 +479,8 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
         >
           <button
             onClick={handleCyclePowerMode}
+            disabled={togglingMode}
+            aria-busy={togglingMode}
             title="点击轮转性能模式"
             style={{
               flex: 1,
@@ -509,8 +527,8 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
             <span>{hardware.fan_boost ? '强冷中' : '强冷'}</span>
           </button>
         </div>
+        {actionError && <p className="sys-row-desc" role="alert">{actionError}</p>}
       </div>
     </div>
   );
 };
-

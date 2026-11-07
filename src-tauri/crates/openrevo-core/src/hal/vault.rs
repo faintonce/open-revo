@@ -37,3 +37,33 @@ mod tests {
         }
     }
 }
+
+pub mod fan {
+    pub const LEGACY_BOOST_ON: u8 = 0x50;
+    pub const LEGACY_BOOST_OFF: u8 = 0x10;
+    pub const TABLE_SLOTS: usize = 16;
+    pub const GPU_TABLE_WRITE_SLOTS: usize = 13;
+    pub const TABLE_CONTROL_MIN: u8 = 0xA0;
+}
+
+pub mod power {
+    pub const AP_EXIST_BIT: u8 = 0x01;
+    pub const AP_ACTIVE_BITS: u8 = 0x81;
+    pub const MODE_BRIGHTNESS_MASK: u8 = 0xE0;
+    pub const MODE_BITS_MASK: u8 = 0x1E;
+    pub const LOGO_SUPPORT_BIT: u8 = 0x01;
+    pub const MODE_BALANCED: u8 = 0x00;
+    pub const MODE_TURBO: u8 = 0x10;
+    pub const OFFICE_CLAMP: u8 = 0xA0;
+    pub const TRIGGER_KEEP_MASK: u8 = 0x10;
+    pub const TRIGGER_OFFICE: u8 = 0x28;
+    pub const TRIGGER_PERFORMANCE: u8 = 0x20;
+    pub const STANDARD_FAN_RAMP: u8 = 0x83;
+    pub const CUSTOM_BACKLIGHT_CLEAR_BIT: u8 = 0x10;
+}
+
+pub mod bld_power {
+    pub const CPU_PL1_FRAME: [u8; 6] = [0, 251, 0, 23, 2, 0];
+    pub const CPU_PL2_FRAME: [u8; 6] = [0, 251, 0, 23, 3, 0];
+    pub const CPU_TEMP_FRAME: [u8; 6] = [0, 251, 0, 23, 4, 0];
+}
