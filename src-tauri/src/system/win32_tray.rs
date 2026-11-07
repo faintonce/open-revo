@@ -275,11 +275,38 @@ fn set_power_mode_standalone(mode: u8) {
     }));
 }
 
+#[link(name = "shell32")]
+extern "system" {
+    fn ExtractIconW(hinst: HINSTANCE, lpszexename: PCWSTR, niconindex: u32) -> HICON;
+}
+
+fn load_best_tray_icon(h_inst: HINSTANCE) -> HICON {
+    // 1. Try ExtractIconW on current running executable (Index 0 is the embedded application icon)
+    if let Ok(exe) = std::env::current_exe() {
+        let exe_wide = to_wide(&exe.to_string_lossy());
+        let ico = unsafe { ExtractIconW(h_inst, PCWSTR(exe_wide.as_ptr()), 0) };
+        if !ico.0.is_null() && (ico.0 as isize) > 1 {
+            return ico;
+        }
+    }
+
+    // 2. Try loading from common Windows/Tauri resource identifiers
+    for res_id in [1, 32512, 128] {
+        if let Ok(ico) = unsafe { LoadIconW(h_inst, PCWSTR(res_id as *const u16)) } {
+            if !ico.0.is_null() {
+                return ico;
+            }
+        }
+    }
+
+    // 3. Fallback to standard application icon
+    unsafe { LoadIconW(HINSTANCE(std::ptr::null_mut()), IDI_APPLICATION).unwrap_or(HICON(std::ptr::null_mut())) }
+}
+
 /// Runs the native Win32 system tray message loop on the main thread (blocking until exit)
 pub fn run_tray_loop(ec_instance: SharedEcBridge) {
     let _ = GLOBAL_EC_BRIDGE.set(ec_instance);
     unsafe {
-
         let h_inst = GetModuleHandleW(None).unwrap_or_default();
         let class_name = w!("OpenRevo_Tray_WndClass");
 
@@ -314,10 +341,7 @@ pub fn run_tray_loop(ec_instance: SharedEcBridge) {
             }
         };
 
-        // Load Icon from process resource ID 1, fallback to standard application icon
-        let h_icon = LoadIconW(h_inst, PCWSTR(1 as *const u16))
-            .or_else(|_| LoadIconW(HINSTANCE(std::ptr::null_mut()), IDI_APPLICATION))
-            .unwrap_or(HICON(std::ptr::null_mut()));
+        let h_icon = load_best_tray_icon(h_inst.into());
 
         let tip = to_wide("OpenRevo 控制中枢");
         let mut tip_arr = [0u16; 128];

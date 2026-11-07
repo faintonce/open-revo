@@ -243,6 +243,12 @@ fn run_slint_pure_daemon() {
         crate::log_info!("BOOT", "Zero-footprint standby: Slint main companion will spawn on demand upon tray click.");
     }
 
+    // Asynchronously trim cold working set memory after startup stabilization
+    std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(2500));
+        crate::system::process::trim_process_working_set();
+    });
+
     // 16. Enter Pure Win32 Tray Loop (blocks main thread until exit)
     crate::system::win32_tray::run_tray_loop(ec_for_tray);
 }

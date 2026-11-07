@@ -5,6 +5,7 @@ import { StorageManagementRow } from "storage_management_row.slint";
 import { WakeWindowModeRow } from "wake_window_mode_row.slint";
 
 export component SystemSwitchesCard inherits Rectangle {
+    property <bool> show_restart_hint: false;
     // 1. Autostart
     in-out property <bool> autostart: false;
     callback toggle_autostart();
@@ -181,6 +182,7 @@ export component SystemSwitchesCard inherits Rectangle {
                     alignment: end;
 
                     Rectangle {
+                        visible: root.show_restart_hint;
                         border-radius: 4px;
                         background: t_rst_btn.has-hover ? #38bdf835 : #38bdf820;
                         border-width: 1px;
@@ -211,7 +213,10 @@ export component SystemSwitchesCard inherits Rectangle {
 
                         TouchArea {
                             mouse-cursor: pointer;
-                            clicked => { root.toggle_classic_webview(!root.use_classic_webview); }
+                            clicked => {
+                                root.show_restart_hint = true;
+                                root.toggle_classic_webview(!root.use_classic_webview);
+                            }
                         }
 
                         Rectangle {

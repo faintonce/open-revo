@@ -147,6 +147,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                             if let Ok(mut g) = SLINT_STDIN.lock() {
                                 *g = None;
                             }
+                            crate::system::process::trim_process_working_set();
                         })
                         .ok();
                 }
