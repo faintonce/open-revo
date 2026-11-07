@@ -21,6 +21,7 @@ pub mod color_calibration;
 pub mod boot_trace;
 pub mod actuator;
 pub mod tray;
+pub mod win32_tray;
 pub mod window;
 pub mod telemetry;
 pub mod widget_manager;

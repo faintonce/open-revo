@@ -119,7 +119,7 @@ pub fn should_query_gpu() -> bool {
 
 /// Start the background dynamic telemetry heartbeat loop
 pub fn start_telemetry_loop(
-    app: AppHandle,
+    app: Option<AppHandle>,
     ec_bridge: SharedEcBridge,
     gpu_bridge: SharedGpuBridge,
 ) {
@@ -145,7 +145,9 @@ pub fn start_telemetry_loop(
                     let query_gpu = should_query_gpu();
                     let state = collect_hardware_state(&ec_bridge, &gpu_bridge, query_gpu);
                     if !SCREEN_SUSPENDED.load(Ordering::SeqCst) && !REBOOT_FREEZE.load(Ordering::SeqCst) {
-                        let _ = app.emit("hardware-state-updated", &state);
+                        if let Some(ref a) = app {
+                            let _ = a.emit("hardware-state-updated", &state);
+                        }
                         if let Ok(v) = serde_json::to_value(&state) {
                             crate::system::native_wry::broadcast_event("hardware-state-updated", &v);
                         }
