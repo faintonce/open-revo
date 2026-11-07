@@ -61,9 +61,13 @@ export component DashboardSystemView inherits Rectangle {
 
     // 8. Software Version & Update
     in-out property <string> app_version: "v0.9.7";
+    in-out property <string> update_channel: "stable";
+    in-out property <string> update_feedback: "";
+    in-out property <string> update_feedback_type: "";
     in-out property <bool> is_checking_update: false;
     in-out property <bool> show_update_modal: false;
     in-out property <UpdateResultData> update_data;
+    callback change_update_channel(string);
     callback check_for_updates();
     callback start_download_update();
 
@@ -112,7 +116,11 @@ export component DashboardSystemView inherits Rectangle {
             refresh_power_schemes => { root.refresh_power_schemes(); }
 
             app_version: root.app_version;
+            update_channel: root.update_channel;
+            update_feedback: root.update_feedback;
+            update_feedback_type: root.update_feedback_type;
             is_checking_update: root.is_checking_update;
+            change_update_channel(c) => { root.change_update_channel(c); }
             check_for_updates => { root.check_for_updates(); }
         }
     }

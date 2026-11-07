@@ -222,6 +222,20 @@ pub fn set_classic_webview(enabled: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_update_channel() -> String {
+    crate::system::config::load_config().update_channel
+}
+
+#[tauri::command]
+pub fn set_update_channel(channel: String) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.update_channel = channel.clone();
+    crate::system::config::save_config(&cfg);
+    crate::log_info!("CONFIG", "update_channel set to: {}", channel);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn restart_app(app: AppHandle) -> Result<(), String> {
     crate::log_info!("APP", "Restarting application...");
     crate::system::tray::IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);

@@ -66,11 +66,26 @@ pub fn register(
     });
 
     let ui_cb = ui_weak.clone();
+    window.on_change_update_channel(move |ch| {
+        let ch_str = ch.as_str().to_string();
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_update_channel(ch_str.as_str().into());
+            ui.set_update_feedback("".into());
+            ui.set_update_feedback_type("".into());
+        }
+        ipc::send_action_to_host("change_update_channel", serde_json::json!({ "channel": ch_str }));
+    });
+
+    let ui_cb = ui_weak.clone();
     window.on_check_for_updates(move || {
+        let mut ch_str = "stable".to_string();
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_is_checking_update(true);
+            ui.set_update_feedback("正在连接多源智能检测更新...".into());
+            ui.set_update_feedback_type("checking".into());
+            ch_str = ui.get_update_channel().as_str().to_string();
         }
-        ipc::send_action_to_host("check_for_updates", serde_json::json!({}));
+        ipc::send_action_to_host("check_for_updates", serde_json::json!({ "channel": ch_str }));
     });
 
     let ui_cb = ui_weak.clone();

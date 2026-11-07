@@ -186,6 +186,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(cw) = val.get("use_classic_webview").and_then(|v| v.as_bool()) {
                 ui.set_use_classic_webview(cw);
             }
+            if let Some(ch) = val.get("update_channel").and_then(|v| v.as_str()) {
+                ui.set_update_channel(ch.into());
+            }
             if let (Some(x), Some(y)) = (
                 val.get("full_window_x").and_then(|v| v.as_i64()),
                 val.get("full_window_y").and_then(|v| v.as_i64()),
@@ -349,8 +352,22 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             true
         }
+        "sync_update_channel" => {
+            if let Some(ch) = val.get("channel").and_then(|v| v.as_str()) {
+                ui.set_update_channel(ch.into());
+                ui.set_update_feedback("".into());
+                ui.set_update_feedback_type("".into());
+            }
+            true
+        }
         "sync_update_result" => {
             ui.set_is_checking_update(false);
+            if let Some(msg) = val.get("message").and_then(|v| v.as_str()) {
+                ui.set_update_feedback(msg.into());
+            }
+            if let Some(st) = val.get("status").and_then(|v| v.as_str()) {
+                ui.set_update_feedback_type(st.into());
+            }
             if let Some(up) = val.get("update").and_then(|v| v.as_object()) {
                 let has_update = up.get("has_update").and_then(|v| v.as_bool()).unwrap_or(false);
                 let cur_ver = up.get("current_version").and_then(|v| v.as_str()).unwrap_or_default();

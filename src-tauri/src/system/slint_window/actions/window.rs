@@ -117,15 +117,36 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             }
             true
         }
+        "change_update_channel" => {
+            if let Some(ch) = val.get("channel").and_then(|v| v.as_str()) {
+                let _ = crate::commands::system_cmd::set_update_channel(ch.to_string());
+                send_slint_ipc_message(serde_json::json!({
+                    "action": "sync_update_channel",
+                    "channel": ch
+                }));
+            }
+            true
+        }
         "check_for_updates" => {
+            let channel = val.get("channel").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let current_ch = channel.clone().unwrap_or_else(|| crate::system::config::load_config().update_channel);
             tauri::async_runtime::spawn(async move {
-                match crate::updater::check_for_updates_cmd(None).await {
+                match crate::updater::check_for_updates_cmd(channel, None).await {
                     Ok(res) => {
                         let size_mb = format!("{:.2}", (res.size as f64) / (1024.0 * 1024.0));
+                        let status = if res.has_update { "found" } else { "latest" };
+                        let message = if res.has_update {
+                            format!("发现新版本 {}", res.display_version)
+                        } else {
+                            format!("当前已是最新版本 ({})", res.current_version)
+                        };
                         send_slint_ipc_message(serde_json::json!({
                             "action": "sync_update_result",
+                            "status": status,
+                            "message": message,
                             "update": {
                                 "has_update": res.has_update,
+                                "channel": res.channel,
                                 "current_version": res.current_version,
                                 "latest_version": res.latest_version,
                                 "display_version": res.display_version,
@@ -141,8 +162,18 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
                     }
                     Err(e) => {
                         crate::log_warn!("UPDATER", "Check update failed: {}", e);
+                        let is_404 = e.contains("404");
+                        let (status, message) = if is_404 && current_ch.eq_ignore_ascii_case("beta") {
+                            ("not_found", "暂无预览版更新 (preview.json 尚未发布)".to_string())
+                        } else if is_404 {
+                            ("not_found", "未找到版本清单文件 (404 Not Found)".to_string())
+                        } else {
+                            ("error", "检查更新失败: 网络超时或连接受阻".to_string())
+                        };
                         send_slint_ipc_message(serde_json::json!({
                             "action": "sync_update_result",
+                            "status": status,
+                            "message": message,
                             "update": { "has_update": false }
                         }));
                     }

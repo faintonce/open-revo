@@ -10,8 +10,11 @@ pub use checker::*;
 pub use installer::*;
 
 #[tauri::command]
-pub async fn check_for_updates_cmd(preferred_source: Option<String>) -> Result<UpdateCheckResult, String> {
-    checker::check_for_updates(preferred_source).await
+pub async fn check_for_updates_cmd(
+    channel: Option<String>,
+    preferred_source: Option<String>,
+) -> Result<UpdateCheckResult, String> {
+    checker::check_for_updates(channel, preferred_source).await
 }
 
 #[tauri::command]

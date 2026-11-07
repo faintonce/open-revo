@@ -434,6 +434,8 @@ pub fn run_tauri_runtime() {
             commands::hardware_cmd::save_app_config,
             commands::hardware_cmd::get_classic_webview,
             commands::hardware_cmd::set_classic_webview,
+            commands::system_cmd::get_update_channel,
+            commands::system_cmd::set_update_channel,
             commands::hardware_cmd::restart_app,
             commands::hardware_cmd::get_device_switches,
             commands::hardware_cmd::set_device_switch,

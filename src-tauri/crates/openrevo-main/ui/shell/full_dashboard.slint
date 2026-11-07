@@ -24,6 +24,9 @@ export component FullDashboard inherits Rectangle {
 
     // Application Meta
     in-out property <string> app_version: "v0.9.7";
+    in-out property <string> update_channel: "stable";
+    in-out property <string> update_feedback: "";
+    in-out property <string> update_feedback_type: "";
 
     // Active Navigation Tab: 0: 概览, 1: 显卡, 2: 电源, 3: RGB, 4: 水冷, 5: 插件, 6: 系统, 7: 赞助
     in-out property <int> active_tab: 0;
@@ -106,6 +109,7 @@ export component FullDashboard inherits Rectangle {
     in-out property <bool> is_checking_update: false;
     in-out property <bool> show_update_modal: false;
     in-out property <UpdateResultData> update_data;
+    callback change_update_channel(string);
     callback check_for_updates();
     callback start_download_update();
 
@@ -1116,9 +1120,13 @@ export component FullDashboard inherits Rectangle {
                 confirm_restore_power_plan => { root.confirm_restore_power_plan(); }
 
                 app_version: root.app_version;
+                update_channel: root.update_channel;
+                update_feedback: root.update_feedback;
+                update_feedback_type: root.update_feedback_type;
                 is_checking_update: root.is_checking_update;
                 show_update_modal <=> root.show_update_modal;
                 update_data: root.update_data;
+                change_update_channel(c) => { root.change_update_channel(c); }
                 check_for_updates => { root.check_for_updates(); }
                 start_download_update => { root.start_download_update(); }
             }

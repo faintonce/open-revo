@@ -111,6 +111,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "is_expanded": should_expand,
                         "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
                         "use_classic_webview": cfg.use_classic_webview,
+                        "update_channel": cfg.update_channel,
                         "full_window_x": cfg.full_window_x,
                         "full_window_y": cfg.full_window_y,
                         "osd_config": {

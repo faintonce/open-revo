@@ -206,9 +206,13 @@ pub struct AppConfig {
     #[serde(default)]
     pub use_classic_webview: bool,
 
-    // Startup Window Visibility (Diagnosability override: CLI --visible or config.json)
+    //Startup Window Visibility (Diagnosability override: CLI --visible or config.json)
     #[serde(default)]
     pub launch_visible: bool,
+
+    // Auto-Update Channel: "stable" (default) | "beta" (preview)
+    #[serde(default = "default_update_channel")]
+    pub update_channel: String,
 
     // Window Presentation Mode on Wake/Restore: "remember" (default) | "mini" | "full"
     #[serde(default = "default_wake_window_mode")]
@@ -411,6 +415,13 @@ fn default_refresh_rate() -> u32 { 240 }
 fn default_osd_theme() -> String { "cinema".to_string() }
 fn default_osd_scale() -> String { "100%".to_string() }
 fn default_osd_position() -> String { "top-left".to_string() }
+pub fn default_update_channel() -> String {
+    if env!("CARGO_PKG_VERSION").contains('-') {
+        "beta".to_string()
+    } else {
+        "stable".to_string()
+    }
+}
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -500,6 +511,7 @@ impl Default for AppConfig {
             active_profile_id: default_active_profile_id(),
             use_classic_webview: false,
             launch_visible: false,
+            update_channel: default_update_channel(),
             gpu_offset_step: default_gpu_offset_step(),
             gpu_core_offset_max: default_gpu_core_offset_max(),
             gpu_mem_offset_max: default_gpu_mem_offset_max(),

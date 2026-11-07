@@ -17,6 +17,9 @@ export component MainWindow inherits Window {
     // Expand state: false = Mini Drawer (395x632), true = Full Dashboard (1120x760)
     in-out property <bool> is_expanded: false;
     in-out property <string> app_version: "v0.9.7";
+    in-out property <string> update_channel: "stable";
+    in-out property <string> update_feedback: "";
+    in-out property <string> update_feedback_type: "";
 
     width: is_expanded ? 1120px : 395px;
     height: is_expanded ? 760px : 632px;
@@ -331,6 +334,7 @@ export component MainWindow inherits Window {
     in-out property <bool> is_checking_update: false;
     in-out property <bool> show_update_modal: false;
     in-out property <UpdateResultData> update_data;
+    callback change_update_channel(string);
     callback check_for_updates();
     callback start_download_update();
 
@@ -552,6 +556,9 @@ export component MainWindow inherits Window {
 
         redraw_tick: root.redraw_tick;
         app_version: root.app_version;
+        update_channel: root.update_channel;
+        update_feedback: root.update_feedback;
+        update_feedback_type: root.update_feedback_type;
         active_tab <=> root.active_tab;
 
         is_overview_enabled <=> root.is_overview_enabled;
@@ -1053,6 +1060,7 @@ export component MainWindow inherits Window {
         is_checking_update: root.is_checking_update;
         show_update_modal <=> root.show_update_modal;
         update_data: root.update_data;
+        change_update_channel(c) => { root.change_update_channel(c); }
         check_for_updates => { root.check_for_updates(); }
         start_download_update => { root.start_download_update(); }
     }

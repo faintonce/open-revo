@@ -73,6 +73,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   });
 
   const [wakeWindowMode, setWakeWindowMode] = useState<'remember' | 'mini' | 'full'>('remember');
+  const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable');
   const [miniAutoHide, setMiniAutoHide] = useState(true);
   const [useClassicWebview, setUseClassicWebview] = useState(false);
   const [showRestartHint, setShowRestartHint] = useState(false);
@@ -191,6 +192,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       .then((val) => {
         if (typeof val === 'boolean') {
           setUseClassicWebview(val);
+        }
+      })
+      .catch(() => { });
+
+    invoke<string>('get_update_channel')
+      .then((ch) => {
+        if (ch === 'beta' || ch === 'stable') {
+          setUpdateChannel(ch);
         }
       })
       .catch(() => { });
@@ -382,10 +391,19 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     };
   }, []);
 
+  const handleUpdateChannel = async (channel: 'stable' | 'beta') => {
+    setUpdateChannel(channel);
+    try {
+      await invoke('set_update_channel', { channel });
+    } catch (e) {
+      console.error('Failed to set update channel:', e);
+    }
+  };
+
   const handleCheckForUpdates = async (silent: boolean = false) => {
     setCheckingUpdate(true);
     try {
-      const res = await invoke<UpdateCheckResult>('check_for_updates_cmd', { preferredSource: null });
+      const res = await invoke<UpdateCheckResult>('check_for_updates_cmd', { channel: updateChannel, preferredSource: null });
       setUpdateResult(res);
       if (res.has_update) {
         setShowUpdateModal(true);
@@ -394,7 +412,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       }
     } catch (err: any) {
       if (!silent) {
-        alert('检查更新失败: ' + err);
+        const errStr = String(err);
+        if (errStr.includes('404') && updateChannel === 'beta') {
+          alert('暂无预览版更新发布 (尚未在 Release 中找到 preview.json)。');
+        } else if (errStr.includes('404')) {
+          alert('未找到版本发布清单文件 (404 Not Found)。');
+        } else {
+          alert('检查更新失败: ' + err);
+        }
       }
     } finally {
       setCheckingUpdate(false);
@@ -747,14 +772,46 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div className="sys-row-label">软件版本与分发更新</div>
                 <RevBadge variant="info">
-                  {updateResult?.display_version || 'v0.9.5'}
+                  {updateResult?.display_version || 'v0.9.7'}
                 </RevBadge>
               </div>
               <div className="sys-row-desc">
-                支持 GitHub 官方与国内 Gitee 镜像智能双源竞速拉取；适配安装版与绿色便携版
+                {updateChannel === 'beta'
+                  ? '【预览通道】优先接收实验性新特性与先行体验版本；双源智能竞速'
+                  : '【正式通道】仅接收经过充分测试与验证的稳定版本；双源智能竞速'}
               </div>
             </div>
             <div className="sys-row-controls">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'var(--surface-sunken)',
+                  padding: '2px',
+                  borderRadius: 'var(--radius-md, 6px)',
+                  border: '1px solid var(--border-subtle)',
+                  gap: '2px',
+                }}
+              >
+                <button
+                  type="button"
+                  className={`toggle-btn ${updateChannel === 'stable' ? 'active-indigo' : ''}`}
+                  onClick={() => handleUpdateChannel('stable')}
+                  style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                  title="仅检查正式发布版本 (latest.json)"
+                >
+                  正式版 (Stable)
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-btn ${updateChannel === 'beta' ? 'active-indigo' : ''}`}
+                  onClick={() => handleUpdateChannel('beta')}
+                  style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                  title="优先检查先行体验与预发布版本 (preview.json)"
+                >
+                  预览版 (Beta)
+                </button>
+              </div>
               <button
                 onClick={() => handleCheckForUpdates(false)}
                 disabled={checkingUpdate}
