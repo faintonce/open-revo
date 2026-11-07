@@ -4,25 +4,26 @@ use tauri::Manager;
 pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
         "toggle_fan_boost" => {
-            let cfg = crate::system::config::load_config();
-            let next = !cfg.fan_boost;
-            if let Some(app) = app {
-                let state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
-                let _ = crate::commands::hardware_cmd::set_fan_boost(app.clone(), next, state);
+            let bridge = if let Some(app) = app {
+                app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
             } else {
-                let support_flags = crate::driver::wmi_ec::get_hardware_support_flags();
-                if support_flags.has_fan_boost {
-                    let ec = crate::driver::ec_bridge::get_global_ec();
-                    ec.lock().set_fan_boost(next);
-                    let mut cfg = crate::system::config::load_config();
-                    cfg.fan_boost = next;
-                    let _ = crate::system::config::save_config(&cfg);
-                    crate::update_tray_fan_boost(next);
-                    crate::system::osd_window::show_fan_boost(next);
-                    crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(next));
+                crate::driver::ec_bridge::get_global_ec()
+            };
+            let result = {
+                let ec = bridge.lock();
+                let next = !ec.is_fan_boost();
+                ec.set_fan_boost(next).map(|()| next)
+            };
+            match result {
+                Ok(next) => crate::commands::power_cmd::notify_fan_boost(app, next, true),
+                Err(error) => {
+                    crate::log_warn!("SLINT", "Fan Boost change failed: {}", error);
+                    let current = bridge.lock().is_fan_boost();
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state", "fan_boost": current
+                    }));
                 }
             }
-            super::super::sync::sync_slint_switches_state();
             true
         }
         "toggle_camera" => {

@@ -485,46 +485,49 @@ pub fn is_nextgen_oem_magic_ec() -> bool {
 ///   - Disable: ADDR_FAN_BOOST_CLAMP &= !FAN_BOOST_CLAMP_BIT
 /// Instant speed-up and instant release with zero delay.
 pub fn set_fan_boost_hardware(enable: bool) -> bool {
-    let is_tongfang_hardware = is_acpi_driver_available()
+    let direct = is_acpi_driver_available()
         || crate::hal::declarative::load_matched_manifest()
-            .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
+            .map(|manifest| {
+                manifest.channels.values().any(|channel| {
+                    matches!(
+                        channel,
+                        crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. }
+                    )
+                })
+            })
             .unwrap_or(false);
-
-    if !is_tongfang_hardware {
-        let hal = crate::hal::get_hardware_driver();
-        let res = hal.set_fan_boost(enable);
-        crate::log_info!("EC_FAN", "Applied set_fan_boost({}) via HAL ({:?}) -> {:?}", enable, hal.kind(), res);
-        return res.is_ok();
+    if direct {
+        return write_tongfang_fan_boost(enable);
     }
+    let hal = crate::hal::get_hardware_driver();
+    if !hal.is_hardware_supported() {
+        crate::log_error!("EC_FAN", "No hardware driver is available for Fan Boost");
+        return false;
+    }
+    let result = hal.set_fan_boost(enable);
+    crate::log_info!(
+        "EC_FAN",
+        "Set Fan Boost {} via HAL ({:?}): {:?}",
+        enable,
+        hal.kind(),
+        result
+    );
+    result.is_ok()
+}
 
-    if is_legacy_dual_mode_ec() {
-        if enable {
-            wmi_write_ec(ADDR_FAN_BOOST_CLAMP, 0x50);
-        } else {
-            wmi_write_ec(ADDR_FAN_BOOST_CLAMP, 0x10);
-        }
-        crate::log_info!(
-            "EC_FAN",
-            "Hardware FanBoost set to {} (Legacy Dual-Mode): fan_boost_clamp={}",
-            enable,
-            if enable { "0x50" } else { "0x10" }
-        );
+pub(crate) fn write_tongfang_fan_boost(enable: bool) -> bool {
+    let success = crate::hal::fan_control::apply_boost(
+        is_legacy_dual_mode_ec(),
+        enable,
+        |value| wmi_write_ec(ADDR_FAN_BOOST_CLAMP, value),
+        |mask, active| wmi_modify_ec_mask(ADDR_FAN_BOOST_CLAMP, mask, active).is_some(),
+    );
+    if success {
+        crate::log_info!("EC_FAN", "Hardware Fan Boost set to {}", enable);
     } else {
-        if let Some(mut val) = wmi_read_ec(ADDR_FAN_BOOST_CLAMP) {
-            if enable {
-                val |= FAN_BOOST_CLAMP_BIT;
-            } else {
-                val &= !FAN_BOOST_CLAMP_BIT;
-            }
-            wmi_write_ec(ADDR_FAN_BOOST_CLAMP, val);
-        }
-        crate::log_info!(
-            "EC_FAN",
-            "Hardware FanBoost set to {} (40/50-series mode): fan_boost_clamp Bit 6 (0x40)",
-            enable
-        );
+        crate::log_error!("EC_FAN", "Failed to set hardware Fan Boost to {}", enable);
     }
-    true
+    success
 }
 
 /// Direct single-shot trigger for Fan Boost

@@ -51,3 +51,4 @@ pub fn get_hardware_hal() -> &'static dyn MechrevoHardwareHAL {
     get_hardware_driver()
 }
 
+pub mod fan_control;

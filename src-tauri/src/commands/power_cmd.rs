@@ -327,34 +327,12 @@ pub fn set_fan_boost_internal(
     app: Option<&AppHandle>,
     ec_state: &SharedEcBridge,
 ) -> Result<(), String> {
-    let support_flags = crate::driver::wmi_ec::get_hardware_support_flags();
-    if !support_flags.has_fan_boost {
-        crate::log_info!("POWER_CMD", "Fan boost is not supported on this platform.");
-        return Ok(());
-    }
-    ec_state.lock().set_fan_boost(enable);
-    let mut cfg = crate::system::config::load_config();
-    cfg.fan_boost = enable;
-    crate::system::config::save_config(&cfg);
-    crate::update_tray_fan_boost(enable);
-
-    crate::system::osd_window::show_fan_boost(enable);
-    if let Some(app) = app {
-        crate::system::osd_window::wake_osd_if_enabled(app);
-        let _ = app.emit("fan-boost-changed", enable);
-        let _ = app.emit_to("main", "fan-boost-changed", enable);
-        let _ = app.emit_to("osd", "fan-boost-changed", enable);
-        let _ = app.emit("physical-fan-boost-switched", enable);
-        let _ = app.emit_to("main", "physical-fan-boost-switched", enable);
-        let _ = app.emit_to("osd", "physical-fan-boost-switched", enable);
-    }
-    crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(enable));
-    crate::system::slint_window::sync::sync_slint_switches_state();
-
+    ec_state.lock().set_fan_boost(enable)?;
+    notify_fan_boost(app, enable, true);
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_fan_boost(
     app: AppHandle,
     enable: bool,
@@ -1053,4 +1031,30 @@ pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
     cfg.turbo_silent = silent;
     crate::system::config::save_config(&cfg);
     Ok(get_turbo_submode_state())
+}
+
+pub(crate) fn publish_fan_boost_state(app: Option<&AppHandle>, enable: bool) {
+    if let Some(app) = app {
+        let _ = app.emit("fan-boost-changed", enable);
+        let _ = app.emit_to("main", "fan-boost-changed", enable);
+        let _ = app.emit_to("osd", "fan-boost-changed", enable);
+    }
+    crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(enable));
+    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+        "action": "sync_state", "fan_boost": enable
+    }));
+}
+
+pub(crate) fn notify_fan_boost(app: Option<&AppHandle>, enable: bool, show_osd: bool) {
+    if show_osd {
+        crate::system::osd_window::show_fan_boost(enable);
+        if let Some(app) = app { crate::system::osd_window::wake_osd_if_enabled(app); }
+    }
+    publish_fan_boost_state(app, enable);
+    if let Some(app) = app {
+        let _ = app.emit("physical-fan-boost-switched", enable);
+        let _ = app.emit_to("main", "physical-fan-boost-switched", enable);
+        let _ = app.emit_to("osd", "physical-fan-boost-switched", enable);
+    }
+    crate::system::native_wry::broadcast_event("physical-fan-boost-switched", &serde_json::json!(enable));
 }

@@ -364,13 +364,8 @@ pub fn apply_fan_curve_live_internal(
     let cfg = crate::system::config::load_config();
     if (cfg.custom_profile.fan_isolated_output || cfg.custom_profile.fan_curve_enabled) && ec_state.lock().is_fan_boost() {
         crate::log_info!("POWER_MODE", "apply_fan_curve_live: Custom fan isolated output is enabled and Fan Boost is ON. Immediately terminating Fan Boost to yield control to live curve!");
-        ec_state.lock().set_fan_boost(false);
-        crate::update_tray_fan_boost(false);
-        crate::system::osd_window::show_fan_boost(false);
-        if let Some(app) = app {
-            let _ = app.emit("fan-boost-changed", false);
-            let _ = app.emit("physical-fan-boost-switched", false);
-        }
+        ec_state.lock().set_fan_boost(false)?;
+        crate::commands::power_cmd::notify_fan_boost(app, false, true);
     }
 
     crate::driver::wmi_ec::set_custom_mode_ec(true);
@@ -428,13 +423,8 @@ pub fn toggle_fan_isolated_output_internal(
     let ec_state = crate::driver::ec_bridge::get_global_ec();
     if enable && ec_state.lock().is_fan_boost() {
         crate::log_info!("EC_TUNING", "toggle_fan_isolated_output: Enabling fan isolated output while Fan Boost is ON. Terminating Fan Boost to yield to custom curve!");
-        ec_state.lock().set_fan_boost(false);
-        crate::update_tray_fan_boost(false);
-        crate::system::osd_window::show_fan_boost(false);
-        if let Some(app) = app {
-            let _ = app.emit("fan-boost-changed", false);
-            let _ = app.emit("physical-fan-boost-switched", false);
-        }
+        ec_state.lock().set_fan_boost(false)?;
+        crate::commands::power_cmd::notify_fan_boost(app, false, true);
     }
 
     if enable {

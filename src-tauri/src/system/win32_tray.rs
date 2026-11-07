@@ -214,17 +214,19 @@ fn handle_tray_menu_command(_hwnd: HWND, cmd_id: usize) {
         ID_MODE_BEAST => set_power_mode_standalone(3),
         ID_MODE_CUSTOM => set_power_mode_standalone(4),
         ID_TOGGLE_FAN => {
-            if let Some(ec) = GLOBAL_EC_BRIDGE.get() {
-                let next = !ec.lock().is_fan_boost();
-                ec.lock().set_fan_boost(next);
-                let mut cfg = crate::system::config::load_config();
-                cfg.fan_boost = next;
-                let _ = crate::system::config::save_config(&cfg);
-                crate::system::osd_window::show_fan_boost(next);
-                crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
-                    "action": "sync_state",
-                    "fan_boost": next
-                }));
+            if let Some(ec) = GLOBAL_EC_BRIDGE.get().cloned() {
+                std::thread::spawn(move || {
+                    let next = {
+                        let ec = ec.lock();
+                        let next = !ec.is_fan_boost();
+                        if let Err(error) = ec.set_fan_boost(next) {
+                            crate::log_warn!("TRAY", "Fan Boost change failed: {}", error);
+                            return;
+                        }
+                        next
+                    };
+                    crate::commands::power_cmd::notify_fan_boost(None, next, true);
+                });
             }
         }
         ID_TAKEOVER_TOGGLE => {

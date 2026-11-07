@@ -32,6 +32,70 @@ mod tests {
         assert!(value.starts_with("PRO v"));
         assert!(value.contains(env!("CARGO_PKG_VERSION")));
     }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "Run separately: owns a native event loop without windows or hardware"]
+    fn regression_tray_fan_update_returns_while_ui_queries_locked_ec() {
+        use super::*;
+        use std::sync::{atomic::{AtomicBool, Ordering}, mpsc};
+        use std::time::Duration;
+
+        let mut context = tauri::generate_context!();
+        context.config_mut().app.windows.clear();
+        let app = tauri::Builder::default().any_thread().build(context).unwrap();
+        let item = CheckMenuItem::with_id(&app, "test-fan", "Fan", true, false, None::<&str>).unwrap();
+        assert!(TRAY_MENU_CONTROLS.set(TrayMenuControls {
+            full_panel: item.clone(), mini_drawer: item.clone(), office: item.clone(),
+            balance: item.clone(), beast: item.clone(), custom: item.clone(), fan_boost: item.clone(),
+        }).is_ok());
+
+        let ec = Arc::new(Mutex::new(EcBridge::dummy()));
+        let worker_ec = ec.clone();
+        let (held_tx, held_rx) = mpsc::channel();
+        let (query_tx, query_rx) = mpsc::channel();
+        let queried = Arc::new(AtomicBool::new(false));
+        let query_result = queried.clone();
+        let rendered = Arc::new(AtomicBool::new(false));
+        let render_result = rendered.clone();
+        let worker_app = app.handle().clone();
+        let worker = std::thread::spawn(move || {
+            let guard = worker_ec.lock();
+            held_tx.send(()).unwrap();
+            query_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            update_tray_fan_boost(true);
+            drop(guard);
+            let exit_app = worker_app.clone();
+            worker_app.run_on_main_thread(move || {
+                render_result.store(item.is_checked().unwrap_or(false), Ordering::SeqCst);
+                exit_app.exit(0);
+            }).unwrap();
+        });
+        held_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+
+        let (finished_tx, finished_rx) = mpsc::channel();
+        let watchdog_app = app.handle().clone();
+        let watchdog = std::thread::spawn(move || {
+            if finished_rx.recv_timeout(Duration::from_secs(10)).is_err() {
+                watchdog_app.exit(1);
+            }
+        });
+        let mut query_tx = Some(query_tx);
+        let exit_code = app.run_return(move |_, event| {
+            if matches!(event, tauri::RunEvent::Ready) {
+                query_tx.take().unwrap().send(()).unwrap();
+                // A timeout lets the old blocking implementation fail instead of hanging the test.
+                let guard = ec.try_lock_for(Duration::from_secs(2));
+                query_result.store(guard.is_some(), Ordering::SeqCst);
+            }
+        });
+        finished_tx.send(()).unwrap();
+        watchdog.join().unwrap();
+        worker.join().unwrap();
+        assert_eq!(exit_code, 0);
+        assert!(queried.load(Ordering::SeqCst), "Tray update waited for the UI while holding EC");
+        assert!(rendered.load(Ordering::SeqCst), "Queued tray state was not applied");
+    }
 }
 
 pub struct TrayMenuControls {
@@ -72,7 +136,12 @@ pub fn update_tray_power_mode(mode: u8) {
 /// Updates the tray fan boost checkmark state.
 pub fn update_tray_fan_boost(enabled: bool) {
     if let Some(ctrl) = TRAY_MENU_CONTROLS.get() {
-        let _ = ctrl.fan_boost.set_checked(enabled);
+        let item = ctrl.fan_boost.clone();
+        let app = item.app_handle().clone();
+        // Callers may hold the EC lock; do not wait for the UI thread.
+        let _ = app.run_on_main_thread(move || {
+            let _ = item.set_checked(enabled);
+        });
     }
 }
 
@@ -260,22 +329,21 @@ pub fn handle_tray_menu_event(
             }
         }
         "toggle_fan" => {
-            let ec = ec_clone.lock();
-            let current = ec.is_fan_boost();
-            let next = !current;
-            ec.set_fan_boost(next);
-            let mut cfg = crate::system::config::load_config();
-            cfg.fan_boost = next;
-            crate::system::config::save_config(&cfg);
-            update_tray_fan_boost(next);
-            crate::system::osd_window::wake_osd_if_enabled(&app_handle);
-            let _ = app_handle.emit("fan-boost-changed", next);
-            let _ = app_handle.emit_to("main", "fan-boost-changed", next);
-            let _ = app_handle.emit_to("osd", "fan-boost-changed", next);
-            let _ = app_handle.emit("physical-fan-boost-switched", next);
-            let _ = app_handle.emit_to("main", "physical-fan-boost-switched", next);
-            let _ = app_handle.emit_to("osd", "physical-fan-boost-switched", next);
-            crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(next));
+            let app_handle = app_handle.clone();
+            let ec_clone = ec_clone.clone();
+            std::thread::spawn(move || {
+                let next = {
+                    let ec = ec_clone.lock();
+                    let next = !ec.is_fan_boost();
+                    if let Err(error) = ec.set_fan_boost(next) {
+                        crate::log_error!("TRAY", "Failed to toggle Fan Boost: {}", error);
+                        return;
+                    }
+                    next
+                };
+                crate::commands::power_cmd::notify_fan_boost(Some(&app_handle), next, false);
+                crate::system::osd_window::wake_osd_if_enabled(&app_handle);
+            });
         }
         "takeover_toggle" => {
             let is_running = crate::system::process::is_oem_service_running();

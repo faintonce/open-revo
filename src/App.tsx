@@ -214,6 +214,7 @@ export default function App() {
   };
 
   // Instant ref lock: bypasses React state batching & closure lag completely
+  const fanSnapshotRevision = useRef(0);
   const overrideLockRef = useRef<{
     fan_boost?: { val: boolean; expiry: number };
     battery_limit?: { val: number; expiry: number };
@@ -296,6 +297,7 @@ export default function App() {
     if (isBldPreview) return;
     try {
       const state = await invoke<HardwareState>('get_hardware_status');
+      fanSnapshotRevision.current += 1;
       const now = Date.now();
       const lock = overrideLockRef.current;
       setHardwareState((_prev) => {
@@ -328,7 +330,7 @@ export default function App() {
           setHardwareState((prev) => ({
             ...prev,
             power_mode: cfg.power_mode,
-            fan_boost: cfg.fan_boost,
+            fan_boost: fanSnapshotRevision.current > 0 || overrideLockRef.current.fan_boost ? prev.fan_boost : cfg.fan_boost,
             battery_limit: cfg.battery_limit,
             win_key_locked: cfg.win_key_locked,
             refresh_rate: cfg.refresh_rate,
@@ -392,6 +394,7 @@ export default function App() {
     let unlistenTelemetry: (() => void) | undefined;
     listen<HardwareState>('hardware-state-updated', (event) => {
       const state = event.payload;
+      fanSnapshotRevision.current += 1;
       const now = Date.now();
       const lock = overrideLockRef.current;
       setHardwareState((_prev) => {
@@ -585,25 +588,29 @@ export default function App() {
   };
 
   // Fan Boost
+  const fanBoostBusy = useRef(false);
   const handleToggleFanBoost = async (targetRpm?: number) => {
+    if (fanBoostBusy.current) return;
+    fanBoostBusy.current = true;
     const nextVal = !hardwareState.fan_boost;
     const isBld = capabilities?.fan_boost_mode === 'direct_rpm_clamp';
     const rpmVal = typeof targetRpm === 'number' && targetRpm > 0 ? targetRpm : 5800;
-    overrideLockRef.current.fan_boost = { val: nextVal, expiry: Date.now() + 4000 };
-    setHardwareState((prev) => ({
-      ...prev,
-      fan_boost: nextVal,
-    }));
-    if (isTauriEnv) {
-      try {
+    const initialLock = overrideLockRef.current.fan_boost;
+    try {
+      if (isTauriEnv || '__TAURI_INTERNALS__' in window) {
         if (isBld) {
           await invoke('set_bld_fan_speed_cap', { rpm: nextVal ? rpmVal : 0 });
         } else {
           await invoke('set_fan_boost', { enable: nextVal });
         }
-      } catch (e) {
-        console.error('Failed to toggle fan boost:', e);
       }
+      if (overrideLockRef.current.fan_boost !== initialLock) return;
+      overrideLockRef.current.fan_boost = { val: nextVal, expiry: Date.now() + 4000 };
+      setHardwareState((prev) => ({ ...prev, fan_boost: nextVal }));
+    } catch (error) {
+      alert('切换强冷失败：' + String(error));
+    } finally {
+      fanBoostBusy.current = false;
     }
   };
 
