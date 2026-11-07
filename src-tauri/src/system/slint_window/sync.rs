@@ -252,6 +252,26 @@ pub fn sync_slint_power_state() {
     }
 }
 
+pub fn sync_slint_switches_state() {
+    let switches = crate::system::device_switches::get_switches_state();
+    let cfg = crate::system::config::load_config();
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_state",
+        "camera_enabled": switches.camera,
+        "mic_enabled": switches.mic,
+        "win_locked": cfg.win_key_locked,
+        "keep_awake": switches.keep_awake,
+        "autostart": cfg.autostart,
+        "touchpad_locked": !switches.touchpad,
+        "osd_enabled": switches.osd,
+        "fn_locked": switches.fn_lock,
+        "wifi_enabled": switches.wifi,
+        "bt_enabled": switches.bluetooth,
+        "fan_boost": cfg.fan_boost,
+        "power_mode": cfg.power_mode,
+    }));
+}
+
 pub fn sync_slint_lighting_state() {
     let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
     if let Some(app) = app_opt {

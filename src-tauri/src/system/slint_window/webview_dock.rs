@@ -8,15 +8,27 @@ pub fn calc_embedded_geometry(parent_hwnd: windows::Win32::Foundation::HWND) -> 
     use windows::Win32::Foundation::RECT;
     use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetDpiForWindow(hwnd: windows::Win32::Foundation::HWND) -> u32;
+    }
+
+    let dpi = unsafe { GetDpiForWindow(parent_hwnd) };
+    let scale = if dpi > 0 { dpi as f64 / 96.0 } else { 1.0 };
+
     let mut rect = RECT::default();
     unsafe {
         let _ = GetClientRect(parent_hwnd, &mut rect);
     }
-    let total_w = rect.right - rect.left;
-    let total_h = rect.bottom - rect.top;
+    let mut total_w = rect.right - rect.left;
+    let mut total_h = rect.bottom - rect.top;
 
-    if total_w <= 0 || total_h <= 0 {
-        return (200, 79, 919, 680, 9);
+    // If client rect is uninitialized or too small (e.g. from drawer or hidden), use full dashboard expected physical size
+    let min_expected_w = (1000.0 * scale).round() as i32;
+    let min_expected_h = (650.0 * scale).round() as i32;
+    if total_w < min_expected_w || total_h < min_expected_h {
+        total_w = (1120.0 * scale).round() as i32;
+        total_h = (760.0 * scale).round() as i32;
     }
 
     // Slint full dashboard design base: 1120 x 760

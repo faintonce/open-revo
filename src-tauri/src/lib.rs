@@ -140,6 +140,17 @@ pub fn run() {
 }
 
 fn run_slint_pure_daemon() {
+    // 0. Ensure Host process is Per-Monitor DPI Aware V2 so Win32 coordinate queries (GetClientRect) match Slint physical resolution
+    #[cfg(target_os = "windows")]
+    unsafe {
+        #[link(name = "user32")]
+        extern "system" {
+            fn SetProcessDpiAwarenessContext(value: isize) -> i32;
+        }
+        const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
+        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+
     // 0. Single Instance Lock (Native Win32 Mutex)
     unsafe {
         use windows::Win32::System::Threading::CreateMutexW;

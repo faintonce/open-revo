@@ -33,6 +33,11 @@ pub fn run_main_standalone() {
     // Start stdin IPC listener from host process
     ipc::start_ipc_listener(ui_weak.clone());
 
+    let start_expanded = std::env::args().any(|a| a == "--expanded");
+    if start_expanded {
+        window.set_is_expanded(true);
+    }
+
     // Register all callbacks by domain
     callbacks::register_all(&window, ui_weak.clone(), hwnd_holder.clone());
 
@@ -47,7 +52,12 @@ pub fn run_main_standalone() {
         *hwnd_setup.lock().unwrap() = Some(safe);
         *window::HWND_HOLDER.lock().unwrap() = Some(safe);
         initial_hwnd_val = hwnd.0 as isize;
-        window::align_mini_drawer_to_tray(hwnd, 395, 632);
+        if start_expanded {
+            let saved = *window::SAVED_FULL_POS.lock().unwrap();
+            window::expand_native_window(hwnd, 1120, 760, saved);
+        } else {
+            window::align_mini_drawer_to_tray(hwnd, 395, 632);
+        }
         if !std::env::args().any(|a| a == "--visible") {
             unsafe {
                 let _ = ShowWindow(hwnd, SW_HIDE);
@@ -73,7 +83,12 @@ pub fn run_main_standalone() {
                     let safe = SafeHwnd(hwnd.0 as isize);
                     *hwnd_setup.lock().unwrap() = Some(safe);
                     *window::HWND_HOLDER.lock().unwrap() = Some(safe);
-                    window::align_mini_drawer_to_tray(hwnd, 395, 632);
+                    if start_expanded {
+                        let saved = *window::SAVED_FULL_POS.lock().unwrap();
+                        window::expand_native_window(hwnd, 1120, 760, saved);
+                    } else {
+                        window::align_mini_drawer_to_tray(hwnd, 395, 632);
+                    }
                     if !std::env::args().any(|a| a == "--visible") {
                         unsafe {
                             let _ = ShowWindow(hwnd, SW_HIDE);

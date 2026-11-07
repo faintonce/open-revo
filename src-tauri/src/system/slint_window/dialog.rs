@@ -22,7 +22,7 @@ pub fn get_openrevo_main_hwnd() -> isize {
             let len = GetWindowTextW(fg, &mut title);
             if len > 0 {
                 let s = String::from_utf16_lossy(&title[..len as usize]);
-                if s == "OpenRevo" {
+                if s.eq_ignore_ascii_case("openrevo") {
                     return fg.0 as isize;
                 }
             }
@@ -35,7 +35,7 @@ pub fn get_openrevo_main_hwnd() -> isize {
                 let len = GetWindowTextW(hwnd, &mut title);
                 if len > 0 {
                     let s = String::from_utf16_lossy(&title[..len as usize]);
-                    if s == "OpenRevo" {
+                    if s.eq_ignore_ascii_case("openrevo") {
                         let out_ptr = lparam.0 as *mut isize;
                         *out_ptr = hwnd.0 as isize;
                         return BOOL(0); // Stop enumeration

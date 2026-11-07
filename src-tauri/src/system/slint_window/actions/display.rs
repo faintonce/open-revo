@@ -8,10 +8,15 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
     match action {
         "set_gpu_mode" => {
             if let Some(gm) = val.get("gpu_mode").and_then(|m| m.as_str()) {
+                let mode = gm.to_string();
                 if let Some(app) = app {
                     let gpu_state: tauri::State<crate::driver::gpu_bridge::SharedGpuBridge> = app.state();
-                    let _ = crate::commands::hardware_cmd::set_gpu_mode(app.clone(), gm.to_string(), None, gpu_state);
+                    let _ = crate::commands::hardware_cmd::set_gpu_mode(app.clone(), mode, None, gpu_state);
+                } else {
+                    let gpu_state = crate::driver::gpu_bridge::get_global_gpu();
+                    let _ = crate::commands::tuning_cmd::set_gpu_mode_internal(mode, None, &gpu_state);
                 }
+                sync_slint_display_state();
             }
             true
         }
@@ -45,10 +50,15 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "set_brightness" => {
             if let Some(b) = val.get("brightness").and_then(|b| b.as_i64()) {
+                let brightness = b as u8;
                 if let Some(app) = app {
                     let app_clone = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        let _ = crate::commands::hardware_cmd::set_display_brightness(app_clone, b as u8).await;
+                        let _ = crate::commands::hardware_cmd::set_display_brightness(app_clone, brightness).await;
+                    });
+                } else {
+                    std::thread::spawn(move || {
+                        let _ = crate::system::display::set_brightness(brightness);
                     });
                 }
             }

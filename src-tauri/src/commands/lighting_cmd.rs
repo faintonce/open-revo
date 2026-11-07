@@ -271,6 +271,42 @@ pub fn apply_keyboard_lighting(
     custom_script_id: Option<String>,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
 ) -> Result<(), String> {
+    apply_keyboard_lighting_internal(
+        Some(&app),
+        enabled,
+        effect,
+        brightness,
+        speed,
+        direction,
+        color,
+        engine,
+        fps,
+        streamer_effect,
+        streamerEffect,
+        customScriptId,
+        custom_script_id,
+        &lighting_state,
+    )
+}
+
+pub fn apply_keyboard_lighting_internal(
+    app: Option<&tauri::AppHandle>,
+    enabled: bool,
+    effect: u8,
+    brightness: u8,
+    speed: u8,
+    direction: u8,
+    color: String,
+    engine: Option<String>,
+    fps: Option<u32>,
+    streamer_effect: Option<u8>,
+    #[allow(non_snake_case)]
+    streamerEffect: Option<u8>,
+    #[allow(non_snake_case)]
+    customScriptId: Option<String>,
+    custom_script_id: Option<String>,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
+) -> Result<(), String> {
     let se_opt = streamerEffect.or(streamer_effect);
     let csi_opt = customScriptId.or(custom_script_id);
     let (st_snapshot, brightness_changed) = {
@@ -370,10 +406,12 @@ pub fn apply_keyboard_lighting(
 
     if brightness_changed {
         let emit_lvl = if is_on { st_snapshot.kb_brightness } else { 0 };
-        crate::system::osd_window::wake_osd_if_enabled(&app);
-        let _ = app.emit("keyboard-brightness-changed", emit_lvl);
-        let _ = app.emit_to("main", "keyboard-brightness-changed", emit_lvl);
-        let _ = app.emit_to("osd", "keyboard-brightness-changed", emit_lvl);
+        if let Some(app) = app {
+            crate::system::osd_window::wake_osd_if_enabled(app);
+            let _ = app.emit("keyboard-brightness-changed", emit_lvl);
+            let _ = app.emit_to("main", "keyboard-brightness-changed", emit_lvl);
+            let _ = app.emit_to("osd", "keyboard-brightness-changed", emit_lvl);
+        }
     }
     Ok(())
 }

@@ -5,35 +5,33 @@ use super::super::sync::sync_slint_lighting_state;
 pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
         "apply_keyboard_lighting_patch" => {
-            if let Some(app) = app {
-                let enabled = val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
-                let effect = val.get("effect").and_then(|v| v.as_i64()).unwrap_or(101) as u8;
-                let brightness = val.get("brightness").and_then(|v| v.as_i64()).unwrap_or(3) as u8;
-                let speed = val.get("speed").and_then(|v| v.as_i64()).unwrap_or(2) as u8;
-                let direction = val.get("direction").and_then(|v| v.as_i64()).unwrap_or(0) as u8;
-                let color = val.get("color").and_then(|v| v.as_str()).unwrap_or("#6366F1").to_string();
-                let engine = val.get("engine").and_then(|v| v.as_str()).map(|s| s.to_string());
-                let fps = val.get("fps").and_then(|v| v.as_i64()).map(|f| f as u32);
-                let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
+            let enabled = val.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+            let effect = val.get("effect").and_then(|v| v.as_i64()).unwrap_or(101) as u8;
+            let brightness = val.get("brightness").and_then(|v| v.as_i64()).unwrap_or(3) as u8;
+            let speed = val.get("speed").and_then(|v| v.as_i64()).unwrap_or(2) as u8;
+            let direction = val.get("direction").and_then(|v| v.as_i64()).unwrap_or(0) as u8;
+            let color = val.get("color").and_then(|v| v.as_str()).unwrap_or("#6366F1").to_string();
+            let engine = val.get("engine").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let fps = val.get("fps").and_then(|v| v.as_i64()).map(|f| f as u32);
+            let global_lm = crate::driver::ite_lighting::get_global_lighting();
 
-                let _ = crate::commands::lighting_cmd::apply_keyboard_lighting(
-                    app.clone(),
-                    enabled,
-                    effect,
-                    brightness,
-                    speed,
-                    direction,
-                    color,
-                    engine,
-                    fps,
-                    Some(effect),
-                    Some(effect),
-                    None,
-                    None,
-                    lm,
-                );
-                sync_slint_lighting_state();
-            }
+            let _ = crate::commands::lighting_cmd::apply_keyboard_lighting_internal(
+                app,
+                enabled,
+                effect,
+                brightness,
+                speed,
+                direction,
+                color,
+                engine,
+                fps,
+                Some(effect),
+                Some(effect),
+                None,
+                None,
+                &global_lm,
+            );
+            sync_slint_lighting_state();
             true
         }
         "apply_lightbar_lighting" => {

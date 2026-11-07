@@ -46,6 +46,14 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
         crate::log_info!("SLINT_MAIN", "Spawning native Slint Main Window companion: {:?}", exe_path);
         let mut cmd = Command::new(exe_path);
         cmd.arg("--slint-main");
+        let should_expand = match cfg.wake_window_mode.as_str() {
+            "full" => true,
+            "mini" => false,
+            _ => cfg.last_window_expanded,
+        };
+        if should_expand {
+            cmd.arg("--expanded");
+        }
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::null());

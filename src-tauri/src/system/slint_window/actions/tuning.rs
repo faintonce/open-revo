@@ -22,11 +22,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(t) = val.get("temp_wall").and_then(|v| v.as_i64()) {
                 let temp = t as u8;
                 mutate_active_preset_profile(|p| p.cpu_temp_target = temp);
-                if let Some(app) = app {
-                    let _ = crate::commands::tuning_cmd::apply_live_custom_tweak(
-                        app.clone(), None, None, None, Some(temp), None, None, None, None, None, None, None, None, None
-                    );
-                }
+                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                    app, None, None, None, Some(temp), None, None, None, None, None, None, None, None, None
+                );
             }
             true
         }
@@ -34,11 +32,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(w) = val.get("watts").and_then(|v| v.as_i64()) {
                 let watts = w as u16;
                 mutate_active_preset_profile(|p| p.cpu_pl1_watts = watts);
-                if let Some(app) = app {
-                    let _ = crate::commands::tuning_cmd::apply_live_custom_tweak(
-                        app.clone(), Some(watts), None, None, None, None, None, None, None, None, None, None, None, None
-                    );
-                }
+                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                    app, Some(watts), None, None, None, None, None, None, None, None, None, None, None, None
+                );
             }
             true
         }
@@ -46,11 +42,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(w) = val.get("watts").and_then(|v| v.as_i64()) {
                 let watts = w as u16;
                 mutate_active_preset_profile(|p| p.cpu_pl2_watts = watts);
-                if let Some(app) = app {
-                    let _ = crate::commands::tuning_cmd::apply_live_custom_tweak(
-                        app.clone(), None, Some(watts), None, None, None, None, None, None, None, None, None, None, None
-                    );
-                }
+                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                    app, None, Some(watts), None, None, None, None, None, None, None, None, None, None, None
+                );
             }
             true
         }
@@ -58,11 +52,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(w) = val.get("watts").and_then(|v| v.as_i64()) {
                 let watts = w as u16;
                 mutate_active_preset_profile(|p| p.cpu_pl4_watts = watts);
-                if let Some(app) = app {
-                    let _ = crate::commands::tuning_cmd::apply_live_custom_tweak(
-                        app.clone(), None, None, Some(watts), None, None, None, None, None, None, None, None, None, None
-                    );
-                }
+                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                    app, None, None, Some(watts), None, None, None, None, None, None, None, None, None, None
+                );
             }
             true
         }
@@ -75,11 +67,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "tuning_toggle_super_perf" => {
             mutate_active_preset_profile(|p| p.gpu_super_perf = !p.gpu_super_perf);
             let cfg = crate::system::config::load_config();
-            if let Some(app) = app {
-                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak(
-                    app.clone(), None, None, None, None, None, None, None, None, Some(cfg.custom_profile.gpu_super_perf), None, None, None, None
-                );
-            }
+            let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                app, None, None, None, None, None, None, None, None, Some(cfg.custom_profile.gpu_super_perf), None, None, None, None
+            );
             true
         }
         "tuning_set_core_offset" => {
@@ -90,6 +80,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 let mem = cfg.custom_profile.gpu_mem_offset_mhz;
                 if let Some(app) = app {
                     let _ = crate::commands::tuning_cmd::set_gpu_clock_offsets(app.clone(), offset, mem);
+                } else {
+                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                    gpu.lock().set_clock_offsets(offset, mem);
                 }
             }
             true
@@ -102,6 +95,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 let core = cfg.custom_profile.gpu_core_offset_mhz;
                 if let Some(app) = app {
                     let _ = crate::commands::tuning_cmd::set_gpu_clock_offsets(app.clone(), core, offset);
+                } else {
+                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                    gpu.lock().set_clock_offsets(core, offset);
                 }
             }
             true
@@ -109,22 +105,18 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "tuning_toggle_db" => {
             mutate_active_preset_profile(|p| p.gpu_db_enabled = !p.gpu_db_enabled);
             let cfg = crate::system::config::load_config();
-            if let Some(app) = app {
-                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak(
-                    app.clone(), None, None, None, None, None, None, Some(cfg.custom_profile.gpu_db_enabled), None, None, None, None, None, None
-                );
-            }
+            let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                app, None, None, None, None, None, None, Some(cfg.custom_profile.gpu_db_enabled), None, None, None, None, None, None
+            );
             true
         }
         "tuning_set_db_watts" => {
             if let Some(w) = val.get("watts").and_then(|v| v.as_i64()) {
                 let watts = w as u8;
                 mutate_active_preset_profile(|p| p.gpu_db_watts = watts);
-                if let Some(app) = app {
-                    let _ = crate::commands::tuning_cmd::apply_live_custom_tweak(
-                        app.clone(), None, None, None, None, None, None, None, Some(watts), None, None, None, None, None
-                    );
-                }
+                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                    app, None, None, None, None, None, None, None, Some(watts), None, None, None, None, None
+                );
             }
             true
         }
@@ -137,10 +129,12 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "tuning_toggle_isolated" => {
             mutate_active_preset_profile(|p| p.fan_isolated_output = !p.fan_isolated_output);
             let cfg = crate::system::config::load_config();
-            if let Some(app) = app {
-                let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
-                let _ = crate::commands::tuning_cmd::toggle_fan_isolated_output(app.clone(), ec_state, cfg.custom_profile.fan_isolated_output, None, None);
-            }
+            let _ = crate::commands::tuning_cmd::toggle_fan_isolated_output_internal(
+                app,
+                cfg.custom_profile.fan_isolated_output,
+                None,
+                None,
+            );
             true
         }
         "tuning_toggle_link" => {
@@ -167,40 +161,32 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                         p.cpu_fan_curve = c_clone;
                         p.gpu_fan_curve = g_clone;
                     });
-                    if let Some(app) = app {
-                        let app_clone = app.clone();
-                        std::thread::spawn(move || {
-                            let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app_clone.state();
-                            let _ = crate::commands::tuning_cmd::apply_fan_curve_live(app_clone.clone(), ec_state, new_cpu_curve, new_gpu_curve);
-                        });
-                    }
+                    let app_clone = app.cloned();
+                    std::thread::spawn(move || {
+                        let _ = crate::commands::tuning_cmd::apply_fan_curve_live_internal(
+                            app_clone.as_ref(),
+                            new_cpu_curve,
+                            new_gpu_curve,
+                        );
+                    });
                 }
             }
             true
         }
         "tuning_toggle_bld_boost" => {
-            if let Some(app) = app {
-                let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
-                let is_clamped = crate::driver::bld_driver_mgr::is_bld_fan_clamped();
-                let target = if is_clamped { 0 } else { 5800 };
-                let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap(app.clone(), ec_state, target);
-            }
+            let is_clamped = crate::driver::bld_driver_mgr::is_bld_fan_clamped();
+            let target = if is_clamped { 0 } else { 5800 };
+            let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap_internal(app, target);
             true
         }
         "tuning_change_bld_cap" => {
             if let Some(rpm) = val.get("rpm").and_then(|v| v.as_i64()) {
-                if let Some(app) = app {
-                    let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
-                    let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap(app.clone(), ec_state, rpm as u16);
-                }
+                let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap_internal(app, rpm as u16);
             }
             true
         }
         "tuning_restore_bld_auto" => {
-            if let Some(app) = app {
-                let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
-                let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap(app.clone(), ec_state, 0);
-            }
+            let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap_internal(app, 0);
             true
         }
         "tuning_select_preset" => {
