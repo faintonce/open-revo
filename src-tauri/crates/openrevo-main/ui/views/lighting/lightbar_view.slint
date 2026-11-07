@@ -1,0 +1,441 @@
+import { AppTheme } from "../../theme.slint";
+import { ColorPaletteRow } from "color_palette.slint";
+
+export component LightbarView inherits Rectangle {
+    in-out property <bool> lb_enabled: true;
+    in-out property <int> lb_effect: 3; // 1: Static, 2: Breath, 20: Rainbow Breath, 3: Wave, 4: Collision, 6: Meteor, 9: Marquee, 10: Sparkle
+    in-out property <int> lb_brightness: 3; // 0..4
+    in-out property <int> lb_speed: 2; // 0..4
+    in-out property <string> lb_color_hex: "#00FFFF";
+    in-out property <color> lb_color: #00ffff;
+
+    in property <string> hw_desc: "ITE Lightbar4 控制器 (048D:7001)";
+
+    callback toggle_enabled();
+    callback select_effect(int);
+    callback change_brightness(int);
+    callback change_speed(int);
+    callback change_color(string, color);
+
+    border-radius: AppTheme.radius_md;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 16px;
+        alignment: start;
+
+        // 1. Header Banner & Main Power Switch
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 3px;
+                alignment: center;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    Text {
+                        text: "机身前沿海岸灯条";
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 20px;
+                            border-radius: AppTheme.radius_xs;
+                            background: #06b6d420;
+                            border-width: 1px;
+                            border-color: #06b6d450;
+
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                Text {
+                                    text: root.hw_desc;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    color: #22d3ee;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "机身前沿与两侧流光灯带，支持对冲、波浪与流星动效";
+                    font-size: 11px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            // Power Switch
+            VerticalLayout {
+                alignment: center;
+
+                Rectangle {
+                    width: 92px;
+                    height: 32px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.lb_enabled ? #06b6d4 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_enabled ? #22d3ee : AppTheme.border_medium;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_enabled(); }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 6px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/power.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: root.lb_enabled ? #ffffff : AppTheme.text_muted;
+                            }
+                        }
+
+                        Text {
+                            text: root.lb_enabled ? "已开启" : "已关闭";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: root.lb_enabled ? #ffffff : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Lightbar Modes Grid (2 rows of 4 buttons)
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "海岸灯效模式 (Lightbar Modes):";
+                font-size: 11px;
+                font-weight: 700;
+                color: AppTheme.text_muted;
+            }
+
+            // Row 1: Static (1), Breath (2), Rainbow Breath (20), Wave (3)
+            HorizontalLayout {
+                spacing: 8px;
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 1 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 1 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
+                    Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.lb_effect == 1 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 2 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 2 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
+                    Text { text: "能量呼吸"; font-size: 11px; font-weight: 700; color: root.lb_effect == 2 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 20 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 20 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(20); } }
+                    Text { text: "彩虹呼吸"; font-size: 11px; font-weight: 700; color: root.lb_effect == 20 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 3 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 3 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(3); } }
+                    Text { text: "全彩波浪"; font-size: 11px; font-weight: 700; color: root.lb_effect == 3 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+
+            // Row 2: Collision (4), Meteor (6), Marquee (9), Sparkle (10)
+            HorizontalLayout {
+                spacing: 8px;
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 4 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 4 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(4); } }
+                    Text { text: "动态对撞"; font-size: 11px; font-weight: 700; color: root.lb_effect == 4 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 6 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 6 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(6); } }
+                    Text { text: "极速流星"; font-size: 11px; font-weight: 700; color: root.lb_effect == 6 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 9 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 9 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(9); } }
+                    Text { text: "跑马流水"; font-size: 11px; font-weight: 700; color: root.lb_effect == 9 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.lb_effect == 10 ? #06b6d425 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.lb_effect == 10 ? #06b6d4 : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(10); } }
+                    Text { text: "璀璨闪烁"; font-size: 11px; font-weight: 700; color: root.lb_effect == 10 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+        }
+
+        // 3. Controls Sliders Row (Brightness & Speed, Height: 56px)
+        Rectangle {
+            height: 56px;
+            background: AppTheme.surface_sunken;
+            border-radius: AppTheme.radius_md;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 24px;
+
+                // Left: Brightness Slider
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 4px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        HorizontalLayout {
+                            spacing: 4px;
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../../assets/icons/sun.svg");
+                                    width: 12px;
+                                    height: 12px;
+                                    colorize: #f59e0b;
+                                }
+                            }
+                            Text {
+                                text: "灯带亮度";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: root.lb_brightness == 0 ? "关闭 (0)" : (root.lb_brightness + " 档");
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: #22d3ee;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Locked Slider Track
+                    Rectangle {
+                        height: 16px;
+                        background: transparent;
+
+                        Rectangle {
+                            x: 0;
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            height: 4px;
+                            background: AppTheme.surface_pill;
+                            border-radius: 2px;
+
+                            Rectangle {
+                                x: 0;
+                                y: 0;
+                                width: Math.max(0px, (root.lb_brightness / 4.0) * parent.width);
+                                height: parent.height;
+                                background: #06b6d4;
+                                border-radius: 2px;
+                            }
+                        }
+
+                        // Knob
+                        Rectangle {
+                            x: Math.max(0px, Math.min(parent.width - self.width, (root.lb_brightness / 4.0) * parent.width - self.width / 2));
+                            y: (parent.height - self.height) / 2;
+                            width: 12px;
+                            height: 12px;
+                            border-radius: 6px;
+                            background: #ffffff;
+                        }
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            pointer-event(event) => {
+                                if event.kind == PointerEventKind.down {
+                                    let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                    let val = Math.round(ratio * 4.0);
+                                    root.lb_brightness = val;
+                                    root.change_brightness(val);
+                                }
+                            }
+                            moved => {
+                                let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                let val = Math.round(ratio * 4.0);
+                                if val != root.lb_brightness {
+                                    root.lb_brightness = val;
+                                    root.change_brightness(val);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Right: Speed Slider
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 4px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        HorizontalLayout {
+                            spacing: 4px;
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../../assets/icons/zap.svg");
+                                    width: 12px;
+                                    height: 12px;
+                                    colorize: #06b6d4;
+                                }
+                            }
+                            Text {
+                                text: "流动速度";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: (root.lb_speed + 1) + " 档";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: #06b6d4;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Locked Slider Track
+                    Rectangle {
+                        height: 16px;
+                        background: transparent;
+
+                        Rectangle {
+                            x: 0;
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            height: 4px;
+                            background: AppTheme.surface_pill;
+                            border-radius: 2px;
+
+                            Rectangle {
+                                x: 0;
+                                y: 0;
+                                width: Math.max(0px, (root.lb_speed / 4.0) * parent.width);
+                                height: parent.height;
+                                background: #06b6d4;
+                                border-radius: 2px;
+                            }
+                        }
+
+                        // Knob
+                        Rectangle {
+                            x: Math.max(0px, Math.min(parent.width - self.width, (root.lb_speed / 4.0) * parent.width - self.width / 2));
+                            y: (parent.height - self.height) / 2;
+                            width: 12px;
+                            height: 12px;
+                            border-radius: 6px;
+                            background: #ffffff;
+                        }
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            pointer-event(event) => {
+                                if event.kind == PointerEventKind.down {
+                                    let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                    let val = Math.round(ratio * 4.0);
+                                    root.lb_speed = val;
+                                    root.change_speed(val);
+                                }
+                            }
+                            moved => {
+                                let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                let val = Math.round(ratio * 4.0);
+                                if val != root.lb_speed {
+                                    root.lb_speed = val;
+                                    root.change_speed(val);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Color Palette
+        ColorPaletteRow {
+            active_color_hex <=> root.lb_color_hex;
+            active_color <=> root.lb_color;
+            label_text: "灯条主色调:";
+            color_selected(hex, c) => {
+                root.change_color(hex, c);
+            }
+        }
+    }
+}

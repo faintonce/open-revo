@@ -35,7 +35,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
                     }
                     next
                 };
-                crate::commands::power_cmd::publish_fan_boost_state(&app, next_boost);
+                crate::commands::power_cmd::publish_fan_boost_state(Some(&app), next_boost);
                 if osd {
                     crate::system::osd_window::show_fan_boost(next_boost);
                 }

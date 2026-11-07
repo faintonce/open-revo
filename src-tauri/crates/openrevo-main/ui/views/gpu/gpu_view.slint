@@ -1,0 +1,313 @@
+import { MonitorRefreshCard } from "monitor_refresh_card.slint";
+import { AppTheme } from "../../theme.slint";
+import { DisplayTuningModal } from "display_tuning_modal.slint";
+import { CloudIccModal } from "cloud_icc_modal.slint";
+import { GpuBoostCard } from "gpu_boost_card.slint";
+import { MuxSwitchCard } from "mux_switch_card.slint";
+import { BrightnessCard } from "brightness_card.slint";
+import { DisplayTuningBar } from "display_tuning_bar.slint";
+import { ColorProfileBar } from "color_profile_bar.slint";
+import { MuxConfirmModal } from "mux_confirm_modal.slint";
+
+export component DashboardGpuView inherits Rectangle {
+    background: transparent;
+
+    // GPU mode: "dgpu" | "hybrid" | "igpu"
+    in-out property <string> gpu_mode: "dgpu";
+    in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+    in-out property <string> cpu_name: "Intel Core i9-14900HX";
+    in-out property <int> gpu_temp: 51;
+    in-out property <int> gpu_usage: 15;
+    in-out property <string> gpu_watts_text: "22.4 W";
+
+    // Brightness: 0 - 100
+    in-out property <int> brightness: 76;
+
+    // Display & Refresh Rate
+    in-out property <string> monitor_name: "京东方 (主屏)";
+    in-out property <int> refresh_rate: 240;
+    in-out property <bool> auto_min_hz: true;
+    in-out property <[int]> rates_row1: [60, 144, 240];
+    in-out property <[int]> rates_row2: [];
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
+
+    // Display Tuning Engine state
+    in-out property <bool> tuning_enabled: true;
+    in-out property <string> active_preset_id: "preset_vibrant";
+    in-out property <string> active_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <int> tuning_temp_k: 6500;
+    in-out property <int> tuning_saturation: 150;
+    in-out property <int> tuning_contrast: 100;
+    in-out property <int> tuning_gamma: 100;
+    in-out property <int> tuning_gain_r: 100;
+    in-out property <int> tuning_gain_g: 100;
+    in-out property <int> tuning_gain_b: 100;
+    in-out property <bool> tuning_is_modified: false;
+    in-out property <string> tuning_toast: "";
+
+    // Internal Modal Visibility
+    in-out property <bool> is_tuning_modal_open: false;
+
+    // MUX Switch Confirm Dialog State
+    in-out property <bool> show_switch_confirm: false;
+    in-out property <string> pending_mode: "dgpu";
+    in-out property <string> pending_title: "独显直连";
+
+    // Color Calibration state
+    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile_id: "default_native";
+    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
+    in-out property <bool> is_color_dirty: false;
+
+    // Cloud ICC Modal State
+    in-out property <bool> is_cloud_icc_modal_open: false;
+    in-out property <string> cloud_icc_panel_pnp: "未检出";
+    in-out property <string> cloud_icc_panel_sn: "(无独立面板SN)";
+    in-out property <string> cloud_icc_bios_sn: "未检出";
+    in-out property <string> cloud_icc_mac: "未检出";
+    in-out property <string> cloud_icc_arch: "识别中...";
+    in-out property <string> cloud_icc_recommended: "auto";
+    in-out property <string> cloud_icc_mode: "auto";
+    in-out property <bool> cloud_icc_is_searching: false;
+    in-out property <string> cloud_icc_status: "就绪";
+    in-out property <bool> cloud_icc_hit_found: false;
+    in-out property <string> cloud_icc_hit_file_name: "";
+    in-out property <string> cloud_icc_hit_meta: "";
+    in-out property <[string]> cloud_icc_hit_profiles: [];
+    in-out property <int> cloud_icc_selected_profile_idx: 0;
+    in-out property <string> cloud_icc_toast: "";
+
+    callback open_cloud_icc();
+    callback refresh_cloud_icc_identity();
+    callback start_cloud_icc_search(string);
+    callback apply_cloud_icc_profile(int);
+    callback apply_all_cloud_icc_profiles();
+
+    // Callbacks
+    callback set_tuning_enabled(bool);
+    callback set_gpu_mode(string, bool); // mode, restart_immediately
+    callback change_brightness(int);
+    callback switch_hz(int);
+    callback toggle_auto_min_hz();
+    callback select_monitor(string);
+    callback select_monitor_index(int);
+    callback toggle_tuning_enabled();
+    callback apply_tuning_preset(string);
+    callback update_tuning_slider(string, int);
+    callback reset_tuning_preset();
+    callback import_tuning_file();
+    callback export_tuning_file();
+    callback apply_color_profile(string);
+    callback import_color_profile();
+    callback delete_color_profile();
+
+    // GPU Boost & Overclocking Preferences
+    in-out property <bool> balanced_db_enabled: true;
+    in-out property <int> oc_core_mhz: 105;
+    in-out property <int> oc_mem_mhz: 500;
+    in-out property <string> oc_save_hint: "";
+
+    callback toggle_balanced_db(bool);
+    callback change_oc_core(int);
+    callback change_oc_mem(int);
+
+    VerticalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        padding-top: 14px;
+        padding-bottom: 14px;
+        spacing: 10px;
+        alignment: start;
+
+        // 1. MUX Switch Top Header & Mode Cards
+        MuxSwitchCard {
+            gpu_mode: root.gpu_mode;
+            gpu_name: root.gpu_name;
+            cpu_name: root.cpu_name;
+            request_mode_switch(mode, title) => {
+                root.pending_mode = mode;
+                root.pending_title = title;
+                root.show_switch_confirm = true;
+            }
+        }
+
+        // 2. Brightness Control Row
+        BrightnessCard {
+            brightness: root.brightness;
+            change_brightness(b) => {
+                root.brightness = b;
+                root.change_brightness(b);
+            }
+        }
+
+        // 3. Display Tuning Row
+        DisplayTuningBar {
+            tuning_enabled: root.tuning_enabled;
+            active_preset_name: root.active_preset_name;
+            toggle_tuning(en) => {
+                root.tuning_enabled = en;
+                root.set_tuning_enabled(en);
+            }
+            open_modal => {
+                root.is_tuning_modal_open = true;
+            }
+        }
+
+        // 4. Color Management Row
+        ColorProfileBar {
+            active_color_profile: root.active_color_profile;
+            active_color_profile_id: root.active_color_profile_id;
+            color_profiles_list: root.color_profiles_list;
+            color_profiles_ids: root.color_profiles_ids;
+            is_color_dirty: root.is_color_dirty;
+            monitor_name: root.monitor_name;
+            apply_profile(id) => {
+                root.apply_color_profile(id);
+            }
+            import_profile => {
+                root.import_color_profile();
+            }
+            open_cloud_icc => {
+                root.is_cloud_icc_modal_open = true;
+                root.open_cloud_icc();
+            }
+        }
+
+        // 5. Monitor & Refresh Rate Card
+        MonitorRefreshCard {
+            title: "屏幕刷新率";
+            monitor_name: root.monitor_name;
+            refresh_rate: root.refresh_rate;
+            rates_row1: root.rates_row1;
+            rates_row2: root.rates_row2;
+            has_secondary_monitor: root.has_secondary_monitor;
+            primary_monitor_name: root.primary_monitor_name;
+            secondary_monitor_name: root.secondary_monitor_name;
+            refresh_rate_switched(hz) => { root.switch_hz(hz); }
+            select_monitor_index(idx) => { root.select_monitor_index(idx); }
+        }
+
+        // 6. GPU Boost & Overclocking Card
+        GpuBoostCard {
+            balanced_db_enabled <=> root.balanced_db_enabled;
+            oc_core_mhz <=> root.oc_core_mhz;
+            oc_mem_mhz <=> root.oc_mem_mhz;
+            save_hint: root.oc_save_hint;
+
+            toggle_balanced_db(en) => { root.toggle_balanced_db(en); }
+            change_oc_core(val) => { root.change_oc_core(val); }
+            change_oc_mem(val) => { root.change_oc_mem(val); }
+        }
+    }
+
+    // 7. Switch Confirmation Modal
+    if root.show_switch_confirm: MuxConfirmModal {
+        pending_mode: root.pending_mode;
+        pending_title: root.pending_title;
+        cancel => { root.show_switch_confirm = false; }
+        confirm(mode, restart_now) => {
+            root.show_switch_confirm = false;
+            root.set_gpu_mode(mode, restart_now);
+        }
+    }
+
+    // 8. Fullscreen Display Tuning Engine Modal
+    if root.is_tuning_modal_open: DisplayTuningModal {
+        is_open: root.is_tuning_modal_open;
+        tuning_enabled: root.tuning_enabled;
+        active_preset_id <=> root.active_preset_id;
+        cur_temp_k <=> root.tuning_temp_k;
+        cur_saturation <=> root.tuning_saturation;
+        cur_contrast <=> root.tuning_contrast;
+        cur_gamma <=> root.tuning_gamma;
+        cur_gain_r <=> root.tuning_gain_r;
+        cur_gain_g <=> root.tuning_gain_g;
+        cur_gain_b <=> root.tuning_gain_b;
+        is_modified <=> root.tuning_is_modified;
+        toast_message: root.tuning_toast;
+
+        close => { root.is_tuning_modal_open = false; }
+        select_preset(id) => {
+            root.active_preset_id = id;
+            root.active_preset_name = id == "preset_vibrant" ? "多彩鲜艳 (Vibrant)" :
+                                     (id == "preset_internet" ? "互联网/办公 (Internet)" :
+                                     (id == "preset_video" ? "电影娱乐 (Video)" :
+                                     (id == "preset_eyecare" ? "防蓝光护眼 (Eyecare)" :
+                                     (id == "preset_cinema" ? "影院震撼 (Cinema)" : "标准出厂 (Standard)"))));
+            root.apply_tuning_preset(id);
+        }
+        change_temp_k(val) => {
+            root.tuning_temp_k = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("temp_k", val);
+        }
+        change_saturation(val) => {
+            root.tuning_saturation = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("saturation", val);
+        }
+        change_contrast(val) => {
+            root.tuning_contrast = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("contrast", val);
+        }
+        change_gamma(val) => {
+            root.tuning_gamma = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gamma", val);
+        }
+        change_gain_r(val) => {
+            root.tuning_gain_r = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gain_r", val);
+        }
+        change_gain_g(val) => {
+            root.tuning_gain_g = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gain_g", val);
+        }
+        change_gain_b(val) => {
+            root.tuning_gain_b = val;
+            root.tuning_is_modified = true;
+            root.update_tuning_slider("gain_b", val);
+        }
+        reset_preset => {
+            root.tuning_is_modified = false;
+            root.reset_tuning_preset();
+        }
+        import_json => { root.import_tuning_file(); }
+        export_json => { root.export_tuning_file(); }
+    }
+
+    // 9. Cloud ICC Modal
+    if root.is_cloud_icc_modal_open: CloudIccModal {
+        is_open: true;
+        panel_pnp: root.cloud_icc_panel_pnp;
+        panel_sn: root.cloud_icc_panel_sn;
+        bios_sn: root.cloud_icc_bios_sn;
+        mac_address: root.cloud_icc_mac;
+        arch_name: root.cloud_icc_arch;
+        recommended_method: root.cloud_icc_recommended;
+        selected_mode: root.cloud_icc_mode;
+        is_searching: root.cloud_icc_is_searching;
+        status_text: root.cloud_icc_status;
+        hit_found: root.cloud_icc_hit_found;
+        hit_file_name: root.cloud_icc_hit_file_name;
+        hit_meta: root.cloud_icc_hit_meta;
+        hit_profiles: root.cloud_icc_hit_profiles;
+        selected_profile_idx: root.cloud_icc_selected_profile_idx;
+        toast_msg: root.cloud_icc_toast;
+
+        close => { root.is_cloud_icc_modal_open = false; }
+        refresh_identity => { root.refresh_cloud_icc_identity(); }
+        start_search(mode) => {
+            root.cloud_icc_mode = mode;
+            root.start_cloud_icc_search(mode);
+        }
+        apply_profile(idx) => { root.apply_cloud_icc_profile(idx); }
+        apply_all_profiles => { root.apply_all_cloud_icc_profiles(); }
+    }
+}

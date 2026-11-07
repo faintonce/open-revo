@@ -1,0 +1,451 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardSponsorView inherits Rectangle {
+    background: transparent;
+
+    in-out property <string> version_text: "v0.9.7";
+    in-out property <bool> link_copied: false;
+
+    callback open_github();
+    callback copy_sponsor_info();
+
+    flick := Flickable {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+
+        VerticalLayout {
+            padding-left: 20px;
+            padding-right: 24px;
+            padding-top: 14px;
+            padding-bottom: 24px;
+            spacing: 14px;
+            alignment: start;
+
+            // 1. Top Banner Card: Open Source Project Introduction & Star Actions
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.is_mono ? AppTheme.border_subtle : #f43f5e40;
+
+                VerticalLayout {
+                    padding-left: 20px;
+                    padding-right: 20px;
+                    padding-top: 16px;
+                    padding-bottom: 16px;
+                    spacing: 10px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        // Left Title Block
+                        HorizontalLayout {
+                            spacing: 10px;
+
+                            // Heart Badge
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 6px;
+                                background: AppTheme.accent_heart_bg;
+                                border-width: 1px;
+                                border-color: AppTheme.accent_heart_border;
+                                y: (parent.height - self.height) / 2;
+
+                                Image {
+                                    source: @image-url("../../assets/icons/heart.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: AppTheme.accent_heart;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+
+                            Text {
+                                text: "支持 OpenRevo 持续开源";
+                                font-size: 15px;
+                                font-weight: 800;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+
+                            // Free Tag Badge
+                            Rectangle {
+                                height: 20px;
+                                border-radius: 10px;
+                                background: AppTheme.accent_heart_bg;
+                                border-width: 1px;
+                                border-color: AppTheme.accent_heart_border;
+                                y: (parent.height - self.height) / 2;
+
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    Text {
+                                        text: "永久免费 · 无广告 · 纯净逆向";
+                                        font-size: 9.5px;
+                                        font-weight: 700;
+                                        color: AppTheme.accent_heart;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Right Action Buttons
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: end;
+
+                            // GitHub Star Button
+                            Rectangle {
+                                height: 28px;
+                                border-radius: 5px;
+                                background: t_star.has-hover ? #f43f5ecc : #f43f5e;
+                                border-width: 1px;
+                                border-color: #f43f5e;
+
+                                t_star := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.open_github(); }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 5px;
+
+                                    Image {
+                                        source: @image-url("../../assets/icons/star.svg");
+                                        width: 12px;
+                                        height: 12px;
+                                        colorize: #fef08a;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+
+                                    Text {
+                                        text: "GitHub Star 点赞";
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: #ffffff;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // Copy Link Button
+                            Rectangle {
+                                height: 28px;
+                                border-radius: 5px;
+                                background: t_copy.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: AppTheme.border_medium;
+
+                                t_copy := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.link_copied = true;
+                                        root.copy_sponsor_info();
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 5px;
+
+                                    Image {
+                                        source: @image-url("../../assets/icons/copy.svg");
+                                        width: 12px;
+                                        height: 12px;
+                                        colorize: root.link_copied ? #10b981 : AppTheme.text_secondary;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+
+                                    Text {
+                                        text: root.link_copied ? "已复制开源主页链接" : "复制开源链接";
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        color: root.link_copied ? #10b981 : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Project Description Paragraph
+                    Text {
+                        text: "OpenRevo 历经数百小时底层逆向、WMI 通信破译与出厂 EC 深度对齐，打造纯净秒开的机械革命全功能调控中枢。软件不设任何付费门槛与受限功能，如果它切实改善了您的电脑体验，欢迎自愿打赏请作者喝杯咖啡 ☕ 您的认可就是项目持续迭代的最佳动力！";
+                        font-size: 11.5px;
+                        color: AppTheme.text_muted;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            // 2. Anti-Resale Warning Banner
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.is_mono ? AppTheme.surface_pill : #ef444415;
+                border-width: 1px;
+                border-color: AppTheme.is_mono ? AppTheme.border_subtle : #ef444440;
+
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    spacing: 12px;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/shield.svg");
+                            width: 18px;
+                            height: 18px;
+                            colorize: AppTheme.is_mono ? AppTheme.text_primary : #ef4444;
+                        }
+                    }
+
+                    Text {
+                        text: "【反盗版与防倒卖郑重声明】OpenRevo 为 100% 完全免费、公开透明的开源软件，从未授权任何第三方付费分发、加壳改名或二次倒卖。若您通过海鲜市场、贴吧等任何渠道付费购买，请立即向平台申请全额退款并举报不良商家！";
+                        font-size: 11px;
+                        color: AppTheme.is_mono ? AppTheme.text_secondary : #fca5a5;
+                        wrap: word-wrap;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+
+            // 3. Payment QR Codes Dual Columns Grid
+            HorizontalLayout {
+                spacing: 14px;
+
+                // WeChat Pay Card
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 8px;
+                    background: AppTheme.surface_card;
+                    border-width: 1px;
+                    border-color: AppTheme.is_mono ? AppTheme.border_subtle : #10b98135;
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+                        alignment: center;
+
+                        // Header with WeChat Icon Badge
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            Rectangle {
+                                width: 20px;
+                                height: 20px;
+                                border-radius: 10px;
+                                background: #07c160;
+                                Text {
+                                    text: "微";
+                                    font-size: 11px;
+                                    font-weight: 800;
+                                    color: #ffffff;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            Text {
+                                text: "微信支付 (WeChat Pay)";
+                                font-size: 13.5px;
+                                font-weight: 700;
+                                color: AppTheme.is_mono ? AppTheme.text_primary : #10b981;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // White Rounded QR Container (Natural Ratio, Zero Distortion)
+                        Rectangle {
+                            border-radius: 10px;
+                            background: #ffffff;
+                            border-width: 1px;
+                            border-color: #00000015;
+
+                            VerticalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                padding-top: 10px;
+                                padding-bottom: 10px;
+                                alignment: center;
+
+                                Image {
+                                    source: @image-url("../../assets/sponsor/wechat.jpg");
+                                    width: 240px;
+                                    image-fit: contain;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Account Info
+                        VerticalLayout {
+                            spacing: 3px;
+                            alignment: center;
+
+                            Text {
+                                text: "收款人：鱼子饭 (*昱)";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                horizontal-alignment: center;
+                            }
+
+                            Text {
+                                text: "打开微信 [扫一扫] · 任意金额自愿支持";
+                                font-size: 10.5px;
+                                color: AppTheme.text_muted;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Alipay Card
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 8px;
+                    background: AppTheme.surface_card;
+                    border-width: 1px;
+                    border-color: AppTheme.is_mono ? AppTheme.border_subtle : #3b82f635;
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+                        alignment: center;
+
+                        // Header with Alipay Icon Badge
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            Rectangle {
+                                width: 20px;
+                                height: 20px;
+                                border-radius: 10px;
+                                background: #1677ff;
+                                Text {
+                                    text: "支";
+                                    font-size: 11px;
+                                    font-weight: 800;
+                                    color: #ffffff;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            Text {
+                                text: "支付宝 (Alipay)";
+                                font-size: 13.5px;
+                                font-weight: 700;
+                                color: AppTheme.is_mono ? AppTheme.text_primary : #3b82f6;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // White Rounded QR Container (Natural Ratio, Zero Distortion)
+                        Rectangle {
+                            border-radius: 10px;
+                            background: #ffffff;
+                            border-width: 1px;
+                            border-color: #00000015;
+
+                            VerticalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                padding-top: 10px;
+                                padding-bottom: 10px;
+                                alignment: center;
+
+                                Image {
+                                    source: @image-url("../../assets/sponsor/alipay.jpg");
+                                    width: 218px;
+                                    image-fit: contain;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Account Info
+                        VerticalLayout {
+                            spacing: 3px;
+                            alignment: center;
+
+                            Text {
+                                text: "收款人：鱼子饭 (*昱)";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                horizontal-alignment: center;
+                            }
+
+                            Text {
+                                text: "打开支付宝 [扫一扫] · 任意金额自愿支持";
+                                font-size: 10.5px;
+                                color: AppTheme.text_muted;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Bottom Notice & FAQ
+            Rectangle {
+                border-radius: 6px;
+                background: AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    spacing: 8px;
+                    alignment: start;
+
+                    Image {
+                        source: @image-url("../../assets/icons/coffee.svg");
+                        width: 15px;
+                        height: 15px;
+                        colorize: #f59e0b;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    Text {
+                        text: "打赏须知：赞赏完全基于自愿原则，无论是否打赏均享有软件 100% 完整功能与终身免费更新，感谢每一位关注与支持机械革命开源生态的玩家！";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+    }
+
+    // 5. Subtle Custom Scrollbar Indicator (Only appears when content overflows)
+    if flick.content-height > flick.height: Rectangle {
+        x: parent.width - 5px;
+        y: -flick.content-y * (flick.height - self.height) / (flick.content-height - flick.height);
+        width: 3px;
+        height: max(32px, flick.height * flick.height / flick.content-height);
+        border-radius: 1.5px;
+        background: AppTheme.accent_active.transparentize(50%);
+    }
+}

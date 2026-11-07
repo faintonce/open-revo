@@ -69,7 +69,7 @@ fn extract_variant_u32(val: &VARIANT) -> Option<u32> {
 /// Dispatch received ACPI Event code to OpenRevo hardware controllers
 fn dispatch_acpi_event(
     code: u32,
-    app_handle: &AppHandle,
+    app_handle: Option<&AppHandle>,
     ec_bridge: &SharedEcBridge,
     last_switch_time: &mut Instant,
     last_brightness_time: &mut Instant,
@@ -122,12 +122,19 @@ fn dispatch_acpi_event(
 
                 crate::update_tray_power_mode(next_mode);
                 crate::system::osd_window::show_power_mode(next_mode);
+                crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                    "action": "sync_state",
+                    "power_mode": next_mode
+                }));
 
                 // Broadcast to UI so frontend badges, charts, and colors update immediately
-                crate::system::osd_window::wake_osd_if_enabled(app_handle);
-                let _ = app_handle.emit("physical-mode-switched", next_mode);
-                let _ = app_handle.emit_to("main", "physical-mode-switched", next_mode);
-                let _ = app_handle.emit_to("osd", "physical-mode-switched", next_mode);
+                if let Some(app) = app_handle {
+                    crate::system::osd_window::wake_osd_if_enabled(app);
+                    let _ = app.emit("physical-mode-switched", next_mode);
+                    let _ = app.emit_to("main", "physical-mode-switched", next_mode);
+                    let _ = app.emit_to("osd", "physical-mode-switched", next_mode);
+                    crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(next_mode));
+                }
             } else {
                 crate::log_debug!("WMI_LISTENER", "Q-Key debounced (elapsed < 500ms)");
             }
@@ -137,7 +144,7 @@ fn dispatch_acpi_event(
             if last_brightness_time.elapsed() >= Duration::from_millis(150) {
                 *last_brightness_time = Instant::now();
                 let new_lvl =
-                    crate::driver::ite_lighting::adjust_keyboard_brightness_step(false, Some(app_handle));
+                    crate::driver::ite_lighting::adjust_keyboard_brightness_step(false, app_handle);
                 crate::log_info!(
                     "WMI_LISTENER",
                     "Fn+F6 hotkey received! Decreased keyboard brightness to level {}",
@@ -150,7 +157,7 @@ fn dispatch_acpi_event(
             if last_brightness_time.elapsed() >= Duration::from_millis(150) {
                 *last_brightness_time = Instant::now();
                 let new_lvl =
-                    crate::driver::ite_lighting::adjust_keyboard_brightness_step(true, Some(app_handle));
+                    crate::driver::ite_lighting::adjust_keyboard_brightness_step(true, app_handle);
                 crate::log_info!(
                     "WMI_LISTENER",
                     "Fn+F7 hotkey received! Increased keyboard brightness to level {}",
@@ -163,7 +170,7 @@ fn dispatch_acpi_event(
             if last_brightness_time.elapsed() >= Duration::from_millis(150) {
                 *last_brightness_time = Instant::now();
                 let new_lvl =
-                    crate::driver::ite_lighting::cycle_keyboard_brightness(Some(app_handle));
+                    crate::driver::ite_lighting::cycle_keyboard_brightness(app_handle);
                 crate::log_info!(
                     "WMI_LISTENER",
                     "Keyboard brightness cycle hotkey received! New level {}",
@@ -176,7 +183,7 @@ fn dispatch_acpi_event(
             if last_brightness_time.elapsed() >= Duration::from_millis(150) {
                 *last_brightness_time = Instant::now();
                 let lvl = (code - 59) as u8;
-                crate::driver::ite_lighting::set_keyboard_brightness_level(lvl, Some(app_handle));
+                crate::driver::ite_lighting::set_keyboard_brightness_level(lvl, app_handle);
                 crate::log_info!(
                     "WMI_LISTENER",
                     "Direct ACPI keyboard brightness event received: level {}",
@@ -235,7 +242,7 @@ fn dispatch_acpi_event(
 
 /// Start the background WMI ACPI Event Listener for physical chassis keys (Q-Key mode switch & Fan Boost)
 /// Pure Rust in-process implementation via Windows COM (IWbemServices::ExecNotificationQuery)
-pub fn start_wmi_event_listener(app_handle: AppHandle, ec_bridge: SharedEcBridge) {
+pub fn start_wmi_event_listener(app_handle: Option<AppHandle>, ec_bridge: SharedEcBridge) {
     if crate::hal::platform_probe::is_ultrabook() || !crate::hal::platform_probe::has_acpi_physical_key_events() {
         crate::log_info!(
             "WMI_LISTENER",
@@ -341,7 +348,7 @@ pub fn start_wmi_event_listener(app_handle: AppHandle, ec_bridge: SharedEcBridge
                                         crate::log_debug!("WMI_LISTENER", "Raw ACPI Event received: {}", code);
                                         dispatch_acpi_event(
                                             code,
-                                            &app_handle,
+                                            app_handle.as_ref(),
                                             &ec_bridge,
                                             &mut last_switch_time,
                                             &mut last_brightness_time,

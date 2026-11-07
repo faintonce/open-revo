@@ -1,0 +1,263 @@
+import { AppTheme } from "../../theme.slint";
+
+export component LightingCeremonyBar inherits Rectangle {
+    in-out property <bool> ceremony_enabled: true;
+    in property <bool> is_previewing: false;
+    in property <bool> save_success: false;
+
+    callback toggle_ceremony();
+    callback preview_ceremony();
+    callback save_as_startup();
+    callback reset_defaults();
+    callback open_topology_modal();
+
+    height: 44px;
+    background: AppTheme.surface_sunken;
+    border-radius: AppTheme.radius_md;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: space-between;
+
+        // Left: Ceremony Switch & Preview (Vertically Centered)
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: center;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/sparkles.svg");
+                            width: 14px;
+                            height: 14px;
+                            colorize: AppTheme.accent_brand;
+                        }
+                    }
+                    Text {
+                        text: "迎宾仪式";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Ceremony Status Pill Button
+                Rectangle {
+                    height: 28px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.ceremony_enabled ? #6366f120 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.ceremony_enabled ? AppTheme.accent_brand : AppTheme.border_subtle;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_ceremony(); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 6px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 6px;
+                                height: 6px;
+                                border-radius: 3px;
+                                background: root.ceremony_enabled ? AppTheme.accent_brand : AppTheme.text_muted;
+                            }
+                        }
+
+                        Text {
+                            text: root.ceremony_enabled ? "已启用" : "已停用";
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.ceremony_enabled ? AppTheme.text_primary : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Preview Welcome Ceremony Button
+                Rectangle {
+                    height: 28px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.is_previewing ? #6366f160 : AppTheme.accent_brand;
+
+                    TouchArea {
+                        mouse-cursor: root.is_previewing ? default : pointer;
+                        clicked => {
+                            if !root.is_previewing {
+                                root.preview_ceremony();
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 6px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/sparkles.svg");
+                                width: 13px;
+                                height: 13px;
+                                colorize: #ffffff;
+                            }
+                        }
+
+                        Text {
+                            text: root.is_previewing ? "演示中..." : "预览全域仪式";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #ffffff;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right: Startup Default / Reset / Topology (Vertically Centered)
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+
+                // Save As Startup
+                Rectangle {
+                    height: 28px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.save_success ? #10b98120 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.save_success ? #10b981 : AppTheme.border_medium;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.save_as_startup(); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: root.save_success ? @image-url("../../assets/icons/check.svg") : @image-url("../../assets/icons/save.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: root.save_success ? #10b981 : AppTheme.text_muted;
+                            }
+                        }
+
+                        Text {
+                            text: root.save_success ? "已设为开机默认" : "设为默认";
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.save_success ? #10b981 : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Reset Defaults
+                Rectangle {
+                    height: 28px;
+                    border-radius: AppTheme.radius_sm;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.reset_defaults(); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/rotate-ccw.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: AppTheme.text_muted;
+                            }
+                        }
+
+                        Text {
+                            text: "恢复默认";
+                            font-size: 11px;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Hardware Topology Override
+                Rectangle {
+                    height: 28px;
+                    border-radius: AppTheme.radius_sm;
+                    background: #0284c720;
+                    border-width: 1px;
+                    border-color: #0284c7;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open_topology_modal(); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/cpu.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #38bdf8;
+                            }
+                        }
+
+                        Text {
+                            text: "硬件纠偏";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

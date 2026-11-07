@@ -1,0 +1,316 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CoolerPresetCards inherits Rectangle {
+    background: transparent;
+
+    in-out property <string> strategy: "smart"; // "smart", "quiet", "balance", "performance", "custom"
+    in-out property <int> live_max_temp: 55;
+    in-out property <int> live_fan_duty: 0;
+    in-out property <int> live_pump_volt: 0;
+
+    callback update_strategy(string);
+
+    VerticalLayout {
+        spacing: 4px;
+
+        // Header hint row
+        HorizontalLayout {
+            alignment: space-between;
+
+            Text {
+                text: "散热预设策略与运行模式";
+                font-size: 10.5px;
+                font-weight: 700;
+                color: AppTheme.text_muted;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: root.strategy == "custom" ? "当前处于手动自定义调节状态（预设全灭）" : "选择【智慧自适应】自动随动；手调水泵或风扇后自动转为自定义";
+                font-size: 9.5px;
+                font-weight: 500;
+                color: root.strategy == "custom" ? #f59e0b : AppTheme.text_muted;
+                vertical-alignment: center;
+            }
+        }
+
+        // 4 Preset Cards Grid
+        HorizontalLayout {
+            height: 68px;
+            spacing: 7px;
+
+            // 1. Smart Adaptive (智慧自适应)
+            card_smart := Rectangle {
+                height: 68px;
+                horizontal-stretch: 14;
+                border-radius: AppTheme.radius_sm;
+                background: root.strategy == "smart" ? #0284c71a : (smart_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: 1px;
+                border-color: root.strategy == "smart" ? #38bdf8 : AppTheme.border_subtle;
+
+                smart_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.update_strategy("smart"); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    spacing: 2px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        HorizontalLayout {
+                            spacing: 4px;
+                            Image {
+                                source: @image-url("../../assets/icons/shield.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "智慧自适应";
+                                font-size: 11px;
+                                font-weight: 800;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        Rectangle {
+                            height: 15px;
+                            border-radius: 3px;
+                            background: #0284c725;
+                            y: (parent.height - self.height) / 2;
+                            HorizontalLayout {
+                                padding-left: 4px;
+                                padding-right: 4px;
+                                Text {
+                                    text: "温控随动";
+                                    font-size: 8px;
+                                    font-weight: 800;
+                                    color: #38bdf8;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "依据核心温度动态调控，<55°C 风扇停转";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 3px;
+                        Image {
+                            source: @image-url("../../assets/icons/zap.svg");
+                            width: 9px;
+                            height: 9px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "随动: " + root.live_max_temp + "°C → 风扇 " + root.live_fan_duty + "% | 水泵 " + (
+                                root.live_pump_volt >= 11 || root.live_pump_volt == 3 ? "极限狂暴" : (
+                                    root.live_pump_volt == 0 ? "停机" : "标准巡航"
+                                )
+                            );
+                            font-size: 8.5px;
+                            font-weight: 700;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // 2. Quiet (静音策略)
+            card_quiet := Rectangle {
+                height: 68px;
+                horizontal-stretch: 10;
+                border-radius: AppTheme.radius_sm;
+                background: root.strategy == "quiet" ? #0284c71a : (quiet_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: 1px;
+                border-color: root.strategy == "quiet" ? #38bdf8 : AppTheme.border_subtle;
+
+                quiet_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.update_strategy("quiet"); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    spacing: 2px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "静音策略";
+                            font-size: 11px;
+                            font-weight: 800;
+                            color: root.strategy == "quiet" ? #38bdf8 : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        Rectangle {
+                            height: 15px;
+                            border-radius: 3px;
+                            background: AppTheme.surface_card;
+                            y: (parent.height - self.height) / 2;
+                            HorizontalLayout {
+                                padding-left: 4px;
+                                padding-right: 4px;
+                                Text {
+                                    text: "固定";
+                                    font-size: 8px;
+                                    font-weight: 700;
+                                    color: AppTheme.text_muted;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "标准巡航水泵 + 40% 风扇";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                    Text {
+                        text: "适合安静夜间使用";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // 3. Balance (均衡策略)
+            card_balance := Rectangle {
+                height: 68px;
+                horizontal-stretch: 10;
+                border-radius: AppTheme.radius_sm;
+                background: root.strategy == "balance" ? #6366f120 : (bal_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: 1px;
+                border-color: root.strategy == "balance" ? #818cf8 : AppTheme.border_subtle;
+
+                bal_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.update_strategy("balance"); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    spacing: 2px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "均衡策略";
+                            font-size: 11px;
+                            font-weight: 800;
+                            color: root.strategy == "balance" ? #818cf8 : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        Rectangle {
+                            height: 15px;
+                            border-radius: 3px;
+                            background: AppTheme.surface_card;
+                            y: (parent.height - self.height) / 2;
+                            HorizontalLayout {
+                                padding-left: 4px;
+                                padding-right: 4px;
+                                Text {
+                                    text: "固定";
+                                    font-size: 8px;
+                                    font-weight: 700;
+                                    color: AppTheme.text_muted;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "标准巡航水泵 + 65% 风扇";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                    Text {
+                        text: "兼顾散热与风噪";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // 4. Performance (极速狂暴)
+            card_perf := Rectangle {
+                height: 68px;
+                horizontal-stretch: 10;
+                border-radius: AppTheme.radius_sm;
+                background: root.strategy == "performance" ? #ef444420 : (perf_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: 1px;
+                border-color: root.strategy == "performance" ? #ef4444 : AppTheme.border_subtle;
+
+                perf_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.update_strategy("performance"); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    spacing: 2px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "极速狂暴";
+                            font-size: 11px;
+                            font-weight: 800;
+                            color: root.strategy == "performance" ? #ef4444 : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                        Rectangle {
+                            height: 15px;
+                            border-radius: 3px;
+                            background: #ef444430;
+                            y: (parent.height - self.height) / 2;
+                            HorizontalLayout {
+                                padding-left: 4px;
+                                padding-right: 4px;
+                                Text {
+                                    text: "满血";
+                                    font-size: 8px;
+                                    font-weight: 800;
+                                    color: #ef4444;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "极限狂暴水泵 + 100% 风扇";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                    Text {
+                        text: "极限压榨散热性能";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+        }
+    }
+}
+

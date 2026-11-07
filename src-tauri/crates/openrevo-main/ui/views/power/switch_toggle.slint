@@ -1,0 +1,36 @@
+import { AppTheme } from "../../theme.slint";
+
+export component SwitchToggle inherits Rectangle {
+    in-out property <bool> checked: false;
+    in-out property <color> active_color: #10b981;
+    callback toggled();
+
+    width: 38px;
+    height: 20px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+
+    border-radius: 10px;
+    background: checked ? active_color : AppTheme.surface_pill;
+    border-width: 1px;
+    border-color: checked ? active_color : AppTheme.border_medium;
+    clip: true;
+
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+
+    Rectangle {
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: #ffffff;
+        x: root.checked ? (root.width - self.width - 3px) : 3px;
+        y: (root.height - self.height) / 2;
+        animate x { duration: 150ms; easing: ease-out; }
+    }
+}
+

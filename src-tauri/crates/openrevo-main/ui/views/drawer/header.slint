@@ -1,0 +1,161 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DrawerHeader inherits Rectangle {
+    height: 30px;
+    background: transparent;
+
+    in-out property <string> app_version: "v0.9.7";
+    in-out property <int> power_mode: 2;
+
+    callback toggle_theme();
+    callback open_sponsor();
+    callback minimize_clicked();
+    callback close_clicked();
+
+    // 1. Full-size background drag region (enables dragging across the entire header bar)
+    WindowMoveArea {
+        width: 100%;
+        height: 100%;
+    }
+
+    // 2. Foreground content: Brand info (left), spacer (center), controls (right)
+    HorizontalLayout {
+        padding-left: 2px;
+        padding-right: 2px;
+        alignment: space-between;
+
+        HorizontalLayout {
+            spacing: 7px;
+            alignment: start;
+
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/logo.png");
+                    width: 22px;
+                    height: 22px;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: "OPENREVO";
+                    font-size: 13.5px;
+                    font-weight: 800;
+                    letter-spacing: 0.8px;
+                    color: AppTheme.text_primary;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    border-radius: 4px;
+                    background: AppTheme.accent_brand;
+                    height: 16px;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: root.app_version;
+                            font-size: 8.5px;
+                            font-weight: 800;
+                            color: AppTheme.tag_brand_text;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Center space: passes through to background WindowMoveArea
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        // Right-side control buttons: TouchAreas capture mouse clicks without drag conflicts
+        HorizontalLayout {
+            spacing: 3px;
+            alignment: end;
+
+            // Palette (Theme Toggle)
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_pal.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_pal := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_theme(); }
+                }
+                Image {
+                    source: @image-url("../../assets/icons/palette.svg");
+                    width: 14px;
+                    height: 14px;
+                    colorize: t_pal.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Sponsor (Heart)
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_sp.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_sp := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open_sponsor(); }
+                }
+                Text {
+                    text: "♡";
+                    font-size: 14px;
+                    color: t_sp.has-hover ? #fb7185 : #f43f5e;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Minimize
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_min.has-hover ? AppTheme.surface_card_hover : transparent;
+                t_min := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.minimize_clicked(); }
+                }
+                Rectangle {
+                    width: 10px;
+                    height: 1.5px;
+                    background: t_min.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Close (hide)
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: t_cls.has-hover ? #ef444430 : transparent;
+                t_cls := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.close_clicked(); }
+                }
+                Image {
+                    source: @image-url("../../assets/icons/x.svg");
+                    width: 11px;
+                    height: 11px;
+                    colorize: t_cls.has-hover ? #ef4444 : AppTheme.text_secondary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+    }
+}

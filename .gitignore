@@ -57,3 +57,7 @@ safe_*.ps1
 run_*.bat
 check_vault_leaks.ps1
 scripts/
+AGENTS.md
+agents.md
+docs/*踩坑*.md
+docs/slint移植踩坑报告.md

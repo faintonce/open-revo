@@ -89,7 +89,7 @@ pub fn get_realtime_touchpad_state(has_ec_switches: bool, fallback: bool) -> boo
 
 /// Start kernel-level registry notification listener on PrecisionTouchPad status
 /// Automatically wakes on Fn+F5 or Windows settings toggle and broadcasts to Tauri UI
-pub fn start_touchpad_listener(app: tauri::AppHandle) {
+pub fn start_touchpad_listener(app: Option<tauri::AppHandle>) {
     std::thread::spawn(move || {
         crate::log_info!("DEVICE_SWITCH", "Starting Touchpad PrecisionTouchPad registry kernel listener thread...");
         let sub_key = w!(r"Software\Microsoft\Windows\CurrentVersion\PrecisionTouchPad\Status");
@@ -159,12 +159,18 @@ pub fn start_touchpad_listener(app: tauri::AppHandle) {
                         }
 
                         // 3. Emit event to frontend
-                        use tauri::Emitter;
                         crate::system::osd_window::show_key_lock_toast("touchpad", !new_state);
-                        crate::system::osd_window::wake_osd_if_enabled(&app);
-                        let _ = app.emit("touchpad-state-changed", new_state);
-                        let _ = app.emit_to("main", "touchpad-state-changed", new_state);
-                        let _ = app.emit_to("osd", "touchpad-state-changed", new_state);
+                        crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                            "action": "sync_state",
+                            "touchpad_locked": !new_state
+                        }));
+                        if let Some(ref a) = app {
+                            crate::system::osd_window::wake_osd_if_enabled(a);
+                            use tauri::Emitter;
+                            let _ = a.emit("touchpad-state-changed", new_state);
+                            let _ = a.emit_to("main", "touchpad-state-changed", new_state);
+                            let _ = a.emit_to("osd", "touchpad-state-changed", new_state);
+                        }
                     }
                 }
             }

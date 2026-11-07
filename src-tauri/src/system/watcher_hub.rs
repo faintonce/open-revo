@@ -580,7 +580,7 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
                 };
                 let result = state.lock().set_fan_boost(*enable);
                 match result {
-                    Ok(()) => crate::commands::power_cmd::publish_fan_boost_state(&handle, *enable),
+                    Ok(()) => crate::commands::power_cmd::publish_fan_boost_state(Some(&handle), *enable),
                     Err(error) => crate::log_warn!("WATCHER_HUB", "Fan Boost action failed: {}", error),
                 }
             } else {

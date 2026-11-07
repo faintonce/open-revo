@@ -99,18 +99,20 @@ fn spawn_lock_notifier(
     Ok((sender, worker))
 }
 
-fn init_lock_notifications(app: AppHandle) {
+fn init_lock_notifications(app: Option<AppHandle>) {
     if LOCK_NOTIFICATIONS.get().is_some() {
         return;
     }
     match spawn_lock_notifier(move |(name, locked)| {
         crate::log_info!("HOOKS", "{} Lock toggled to {}", name, locked);
         crate::system::osd_window::show_key_lock_toast(name, locked);
-        crate::system::osd_window::wake_osd_if_enabled(&app);
-        let event = format!("{}-lock-changed", name);
-        let _ = app.emit(&event, locked);
-        let _ = app.emit_to("main", &event, locked);
-        let _ = app.emit_to("osd", &event, locked);
+        if let Some(ref a) = app {
+            crate::system::osd_window::wake_osd_if_enabled(a);
+            let event = format!("{}-lock-changed", name);
+            let _ = a.emit(&event, locked);
+            let _ = a.emit_to("main", &event, locked);
+            let _ = a.emit_to("osd", &event, locked);
+        }
     }) {
         Ok((sender, _worker)) => {
             let _ = LOCK_NOTIFICATIONS.set(sender);
@@ -202,7 +204,7 @@ unsafe extern "system" fn low_level_keyboard_proc(
         // At this hook callback point, GetKeyState returns the state BEFORE the key toggle takes effect;
         // checking `(GetKeyState(vk) & 1) == 0` guarantees the exact new state after this toggle.
         if msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN {
-            if APP_HANDLE.get().is_some() {
+            if LOCK_NOTIFICATIONS.get().is_some() {
                 if vk == VK_CAPITAL.0 {
                     let mut last = LAST_CAPS_PRESS.lock();
                     let should_fire = match *last {
@@ -263,9 +265,11 @@ pub fn is_win_key_locked() -> bool {
 }
 
 /// Initialize the permanent low-level keyboard hook with its dedicated message pump
-pub fn init_hooks(app: &AppHandle) {
-    let _ = APP_HANDLE.set(app.clone());
-    init_lock_notifications(app.clone());
+pub fn init_hooks(app: Option<&AppHandle>) {
+    if let Some(a) = app {
+        let _ = APP_HANDLE.set(a.clone());
+    }
+    init_lock_notifications(app.cloned());
 
     // Query initial hardware toggle states
     unsafe {
