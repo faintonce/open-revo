@@ -33,3 +33,5 @@ mod tests {
         }
     }
 }
+
+pub use openrevo_core::hal::vault::power;
