@@ -1,0 +1,653 @@
+import { AppTheme } from "../../theme.slint";
+
+export struct CustomPluginItem {
+    id: string,
+    name: string,
+    version: string,
+    author: string,
+    description: string,
+    plugin_type: string,
+    enabled: bool,
+    tag: string,
+    min_version: string,
+    dir_name: string,
+}
+
+component PluginSwitch inherits Rectangle {
+    in-out property <bool> checked: false;
+    callback toggled();
+
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: checked ? (AppTheme.is_mono ? #ffffff : #10b981) : AppTheme.surface_pill;
+    border-width: 1px;
+    border-color: checked ? (AppTheme.is_mono ? #ffffff : #10b981) : AppTheme.border_medium;
+
+    animate background { duration: 150ms; }
+    animate border-color { duration: 150ms; }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+
+    Rectangle {
+        width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        background: checked ? (AppTheme.is_mono ? #000000 : #ffffff) : (AppTheme.is_mono ? #777777 : #94a3b8);
+        x: checked ? parent.width - 21px : 3px;
+        y: 2px;
+        animate x { duration: 150ms; easing: ease-out; }
+    }
+}
+
+component ActionButton inherits Rectangle {
+    in-out property <string> text;
+    in-out property <image> icon;
+    callback clicked();
+
+    height: 30px;
+    border-radius: 6px;
+    background: touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+    border-width: 1px;
+    border-color: touch.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        alignment: center;
+
+        Image {
+            source: root.icon;
+            width: 13px;
+            height: 13px;
+            colorize: touch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+            y: (parent.height - self.height) / 2;
+        }
+
+        Text {
+            text: root.text;
+            font-size: 11px;
+            font-weight: 600;
+            color: touch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component BuiltinModuleCard inherits Rectangle {
+    in-out property <string> title;
+    in-out property <string> tag_id;
+    in-out property <string> desc;
+    in-out property <image> icon;
+    in-out property <bool> enabled: true;
+    callback toggled();
+
+    height: 64px;
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+                background: AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                Image {
+                    source: root.icon;
+                    width: 18px;
+                    height: 18px;
+                    colorize: root.enabled ? AppTheme.accent_active : AppTheme.text_muted;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 3px;
+            horizontal-stretch: 1;
+
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: root.title;
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+                Rectangle {
+                    border-radius: 3px;
+                    background: AppTheme.surface_pill;
+                    height: 18px;
+                    y: (parent.height - self.height) / 2;
+                    HorizontalLayout {
+                        padding-left: 5px;
+                        padding-right: 5px;
+                        Text {
+                            text: "[" + root.tag_id + "]";
+                            font-size: 9px;
+                            font-weight: 600;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            Text {
+                text: root.desc;
+                font-size: 11px;
+                color: AppTheme.text_secondary;
+                overflow: elide;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            PluginSwitch {
+                checked: root.enabled;
+                toggled => { root.toggled(); }
+            }
+        }
+    }
+}
+
+component CustomPluginCard inherits Rectangle {
+    in-out property <CustomPluginItem> item;
+    callback toggled();
+
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 8px;
+
+        HorizontalLayout {
+            spacing: 12px;
+
+            VerticalLayout {
+                alignment: start;
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 8px;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    Image {
+                        source: @image-url("../../assets/icons/layers.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: root.item.enabled ? #10b981 : AppTheme.text_muted;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 5px;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+
+                    Text {
+                        text: root.item.name;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle {
+                        border-radius: 3px;
+                        background: AppTheme.surface_pill;
+                        height: 18px;
+                        y: (parent.height - self.height) / 2;
+                        HorizontalLayout {
+                            padding-left: 4px;
+                            padding-right: 4px;
+                            Text {
+                                text: "[" + root.item.id + "]";
+                                font-size: 9px;
+                                font-weight: 600;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        border-radius: 3px;
+                        background: AppTheme.accent_active_bg;
+                        border-width: 1px;
+                        border-color: AppTheme.accent_active_border;
+                        height: 18px;
+                        y: (parent.height - self.height) / 2;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.item.version;
+                                font-size: 9px;
+                                font-weight: 700;
+                                color: AppTheme.accent_active;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    if root.item.tag != "": Rectangle {
+                        border-radius: 3px;
+                        background: AppTheme.surface_pill;
+                        height: 18px;
+                        y: (parent.height - self.height) / 2;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.item.tag;
+                                font-size: 9px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    if root.item.min_version != "": Rectangle {
+                        border-radius: 3px;
+                        background: AppTheme.surface_pill;
+                        height: 18px;
+                        y: (parent.height - self.height) / 2;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.item.min_version;
+                                font-size: 9px;
+                                font-weight: 600;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: root.item.description;
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                    wrap: word-wrap;
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    Text {
+                        text: "作者: " + root.item.author;
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                    }
+                    Text {
+                        text: "目录: " + root.item.dir_name;
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                PluginSwitch {
+                    checked: root.item.enabled;
+                    toggled => { root.toggled(); }
+                }
+            }
+        }
+    }
+}
+
+export component DashboardPluginsView inherits Rectangle {
+    background: AppTheme.bg_root;
+
+    in-out property <bool> is_overview_enabled: true;
+    in-out property <bool> is_gpu_enabled: true;
+    in-out property <bool> is_tuning_enabled: true;
+    in-out property <bool> is_lighting_enabled: true;
+    in-out property <bool> is_water_enabled: true;
+
+    in-out property <[CustomPluginItem]> custom_plugins: [
+        {
+            id: "battery-hardware-limit",
+            name: "电池充电上限守护者",
+            version: "v2.1.0",
+            author: "OpenRevo Official & Community",
+            description: "官方推荐插件，基于内核级驱动精准锁定电池硬件限制充电阈值。智能切换养护模式与安全过放极限锁死，降低鼓包 1-100% 充电阈值，无需常驻后台无锁屏待机功耗。",
+            plugin_type: "service",
+            enabled: true,
+            tag: "后台守护",
+            min_version: "v0.9.4+",
+            dir_name: "battery-hardware-limit"
+        },
+        {
+            id: "cpu-guardian",
+            name: "13/14代 CPU 防缩卫士",
+            version: "v1.0.0",
+            author: "OpenRevo Community",
+            description: "针对 Intel 13/14 代 HX 处理器高电压缩频隐患，提供动态 CEP 状态监测、PL4 突发电流钳位守护与过热过压拦截预警机制。",
+            plugin_type: "service",
+            enabled: true,
+            tag: "后台守护",
+            min_version: "v0.9.4+",
+            dir_name: "cpu-guardian"
+        }
+    ];
+
+    callback toggle_builtin_module(string, bool);
+    callback toggle_custom_plugin(string, bool);
+    callback open_plugins_dir();
+    callback reload_plugins();
+
+    Flickable {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+
+        VerticalLayout {
+            padding-left: 20px;
+            padding-right: 24px;
+            padding-top: 14px;
+            padding-bottom: 24px;
+            spacing: 16px;
+            alignment: start;
+
+            // 1. Top Section - Builtin Plugins
+            VerticalLayout {
+                spacing: 10px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/layers.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: AppTheme.accent_active;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "内置插件";
+                                font-size: 13.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                border-radius: 4px;
+                                background: AppTheme.accent_active_bg;
+                                border-width: 1px;
+                                border-color: AppTheme.accent_active_border;
+                                height: 20px;
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    padding-right: 6px;
+                                    Text {
+                                        text: "Safe-Mode 驱动级隔离";
+                                        font-size: 9.5px;
+                                        font-weight: 700;
+                                        color: AppTheme.accent_active;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "共 5 项";
+                            font-size: 11px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "系统核心功能组件，可根据您的机型配置与使用偏好随时启用或禁用。关闭的插件将从侧边栏导航与后台调度中隐退";
+                    font-size: 11px;
+                    color: AppTheme.text_muted;
+                }
+
+                // 5 Builtin Cards
+                VerticalLayout {
+                    spacing: 6px;
+
+                    BuiltinModuleCard {
+                        title: "状态总览";
+                        tag_id: "overview";
+                        desc: "整机实时传感器监控、模式切换仪表盘与电池健康看板";
+                        icon: @image-url("../../assets/icons/grid.svg");
+                        enabled: root.is_overview_enabled;
+                        toggled => {
+                            root.is_overview_enabled = !root.is_overview_enabled;
+                            root.toggle_builtin_module("overview", root.is_overview_enabled);
+                        }
+                    }
+
+                    BuiltinModuleCard {
+                        title: "显卡模式";
+                        tag_id: "gpu";
+                        desc: "独显直连/混合输出 MUX 切换、动态超频、屏幕亮度与 ICC 校色";
+                        icon: @image-url("../../assets/icons/monitor.svg");
+                        enabled: root.is_gpu_enabled;
+                        toggled => {
+                            root.is_gpu_enabled = !root.is_gpu_enabled;
+                            root.toggle_builtin_module("gpu", root.is_gpu_enabled);
+                        }
+                    }
+
+                    BuiltinModuleCard {
+                        title: "电源管理";
+                        tag_id: "tuning";
+                        desc: "CPU PL1/PL2/PL4 功耗墙精调、风扇双通道曲线与温度保护墙";
+                        icon: @image-url("../../assets/icons/zap.svg");
+                        enabled: root.is_tuning_enabled;
+                        toggled => {
+                            root.is_tuning_enabled = !root.is_tuning_enabled;
+                            root.toggle_builtin_module("tuning", root.is_tuning_enabled);
+                        }
+                    }
+
+                    BuiltinModuleCard {
+                        title: "RGB 灯效工坊";
+                        tag_id: "lighting";
+                        desc: "四区全彩背光键盘、尾翼光带、Logo 灯与自定义流光特效";
+                        icon: @image-url("../../assets/icons/keyboard.svg");
+                        enabled: root.is_lighting_enabled;
+                        toggled => {
+                            root.is_lighting_enabled = !root.is_lighting_enabled;
+                            root.toggle_builtin_module("lighting", root.is_lighting_enabled);
+                        }
+                    }
+
+                    BuiltinModuleCard {
+                        title: "水冷魔盒 (BLE)";
+                        tag_id: "water";
+                        desc: "第二代外置水冷低功耗蓝牙控制、水温遥测与智能温控曲线";
+                        icon: @image-url("../../assets/icons/droplet.svg");
+                        enabled: root.is_water_enabled;
+                        toggled => {
+                            root.is_water_enabled = !root.is_water_enabled;
+                            root.toggle_builtin_module("water", root.is_water_enabled);
+                        }
+                    }
+                }
+            }
+
+            // Divider between Builtin and Custom
+            Rectangle {
+                height: 1px;
+                background: AppTheme.border_subtle;
+            }
+
+            // 2. Bottom Section - Custom Plugins
+            VerticalLayout {
+                spacing: 10px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/layers.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: #10b981;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "自定义插件";
+                                font-size: 13.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                border-radius: 4px;
+                                background: #10b98118;
+                                border-width: 1px;
+                                border-color: #10b98140;
+                                height: 20px;
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    padding-right: 6px;
+                                    Text {
+                                        text: "沙箱安全隔离";
+                                        font-size: 9.5px;
+                                        font-weight: 700;
+                                        color: #10b981;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        ActionButton {
+                            text: "打开插件目录";
+                            icon: @image-url("../../assets/icons/folder.svg");
+                            clicked => { root.open_plugins_dir(); }
+                        }
+                        ActionButton {
+                            text: "刷新";
+                            icon: @image-url("../../assets/icons/rotate-ccw.svg");
+                            clicked => { root.reload_plugins(); }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "支持社区或自研开发的外置功能扩展（桌面通知插件、后台脚本、自选控制面板等），基于安全沙箱运行";
+                    font-size: 11px;
+                    color: AppTheme.text_muted;
+                }
+
+                // Custom Plugin Cards
+                VerticalLayout {
+                    spacing: 8px;
+
+                    for plugin[idx] in root.custom_plugins: CustomPluginCard {
+                        item: plugin;
+                        toggled => {
+                            root.toggle_custom_plugin(plugin.id, !plugin.enabled);
+                        }
+                    }
+
+                    if root.custom_plugins.length == 0: Rectangle {
+                        height: 90px;
+                        border-radius: 8px;
+                        background: AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 6px;
+
+                            Text {
+                                text: "暂未检出已激活的自定义扩展包";
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: "您可以点击上方「打开插件目录」，放入插件后点击「刷新」即可载入";
+                                font-size: 10px;
+                                color: AppTheme.text_muted;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

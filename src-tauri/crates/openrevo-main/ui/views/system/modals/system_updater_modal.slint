@@ -1,0 +1,217 @@
+import { AppTheme } from "../../../theme.slint";
+import { UpdateResultData } from "../system_types.slint";
+
+export component SystemUpdaterModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+    in-out property <UpdateResultData> update_data;
+
+    callback close();
+    callback start_download();
+
+    background: #000000bd;
+    TouchArea { }
+
+    Rectangle {
+        width: Math.min(parent.width - 60px, 560px);
+        height: Math.min(parent.height - 40px, 460px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #141721;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #38bdf855;
+        clip: true;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            alignment: space-between;
+
+            // Header
+            HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 8px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        Image {
+                            source: @image-url("../../../assets/icons/download.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: #38bdf8;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "发现新版本 " + root.update_data.display_version;
+                            font-size: 15px;
+                            font-weight: 800;
+                            color: AppTheme.text_primary;
+                        }
+                        Rectangle {
+                            border-radius: 3px;
+                            background: #10b98120;
+                            border-width: 1px;
+                            border-color: #10b98160;
+                            height: 18px;
+                            HorizontalLayout {
+                                padding-left: 5px;
+                                padding-right: 5px;
+                                Text {
+                                    text: root.update_data.chosen_source == "gitee" ? "Gitee 镜像加速" : "GitHub 官方源";
+                                    font-size: 10px;
+                                    font-weight: 700;
+                                    color: #10b981;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: "形态: " + (root.update_data.asset_type == "installer" ? "安装包覆盖升级" : "绿色版脱壳热更") + " · 文件: " + root.update_data.filename;
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Changelog Box
+            VerticalLayout {
+                spacing: 6px;
+                Text {
+                    text: "更新日志与变更说明：";
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: AppTheme.text_secondary;
+                }
+
+                Rectangle {
+                    height: 180px;
+                    border-radius: 8px;
+                    background: AppTheme.surface_sunken;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    Flickable {
+                        content-height: 300px;
+                        VerticalLayout {
+                            padding: 12px;
+                            Text {
+                                text: root.update_data.notes != "" ? root.update_data.notes : "暂无详细更新日志。";
+                                font-size: 11px;
+                                color: AppTheme.text_secondary;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Progress / Stats Area
+            if root.update_data.downloading: VerticalLayout {
+                spacing: 6px;
+
+                // Progress Bar
+                Rectangle {
+                    height: 8px;
+                    border-radius: 4px;
+                    background: AppTheme.surface_pill;
+                    clip: true;
+
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        width: Math.max(0px, Math.min(parent.width, root.update_data.progress_pct * parent.width));
+                        height: parent.height;
+                        border-radius: 4px;
+                        background: #38bdf8;
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: root.update_data.progress_downloaded_mb + " / " + root.update_data.progress_total_mb + " MB";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                    }
+                    Text {
+                        text: root.update_data.progress_speed_mb + " MB/s (" + Math.round(root.update_data.progress_pct * 100) + "%)";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #38bdf8;
+                    }
+                }
+            }
+
+            // Action Buttons
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: end;
+
+                // Later
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: t_cancel.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    t_cancel := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.update_data.downloading {
+                                root.close();
+                            }
+                        }
+                    }
+                    Text {
+                        text: "稍后再说";
+                        font-size: 12px;
+                        color: AppTheme.text_primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Download/Install Button
+                Rectangle {
+                    width: 130px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: root.update_data.downloading ? #0284c780 : (t_confirm.has-hover ? #0284c7 : #0369a1);
+                    border-width: 1px;
+                    border-color: #38bdf8;
+                    t_confirm := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.update_data.downloading {
+                                root.start_download();
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.update_data.downloading ? "正在下载升级..." : "立即下载并升级";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+

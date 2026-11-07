@@ -1,12 +1,22 @@
 // OpenRevo - Tongfang Cloud ICC Color Profile Discovery & Retrieval Engine
 // Pure ASCII Policy strictly enforced.
+// 100% Native Win32 API implementation (Zero PowerShell).
 // Probes local hardware identity (EDID PnP ID, Panel SN, Motherboard BIOS SN, Physical MAC)
 // and queries Uniwill / Aistone OEM cloud calibration servers to retrieve factory ICC/ICM profiles.
 
 use serde::{Deserialize, Serialize};
+use std::ffi::{c_void, CString};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use windows::core::{w, PCSTR, PCWSTR};
+use windows::Win32::Graphics::Gdi::{
+    EnumDisplayDevicesA, DISPLAY_DEVICEA, DISPLAY_DEVICE_ATTACHED_TO_DESKTOP,
+};
+use windows::Win32::System::Registry::{
+    RegCloseKey, RegEnumKeyExW, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE,
+    KEY_READ, REG_BINARY, REG_SZ,
+};
 
 pub const SERVER_UNIWILL: &str = "http://iccprofile.uniwill.com.tw/api/iccprofile/";
 pub const SERVER_AISTONE: &str = "http://iccprofile.aistoneglobal.com:8001/api/iccprofile/";
@@ -52,114 +62,270 @@ pub struct CloudIccFetchHit {
     pub icc_profiles: Vec<ExtractedIccItem>,
 }
 
-#[derive(Debug, Deserialize)]
-struct PsRawMonitor {
-    pnp: Option<String>,
-    serial: Option<String>,
-    friendly: Option<String>,
-    raw: Option<String>,
+// ----------------------------------------------------------------------------
+// Win32 IP Helper API: Query Physical MAC Addresses without PowerShell (0ms)
+// ----------------------------------------------------------------------------
+
+#[repr(C)]
+struct IpAdapterAddressesLh {
+    length: u32,
+    if_index: u32,
+    next: *mut IpAdapterAddressesLh,
+    adapter_name: *const i8,
+    first_unicast_address: *mut c_void,
+    first_anycast_address: *mut c_void,
+    first_multicast_address: *mut c_void,
+    first_dns_server_address: *mut c_void,
+    dns_suffix: *const u16,
+    description: *const u16,
+    friendly_name: *const u16,
+    physical_address: [u8; 8],
+    physical_address_length: u32,
+    flags: u32,
+    mtu: u32,
+    if_type: u32,
+    oper_status: u32,
 }
 
-#[derive(Debug, Deserialize)]
-struct PsRawIdentity {
-    bios_serial: Option<String>,
-    macs: Option<Vec<String>>,
-    monitors: Option<Vec<PsRawMonitor>>,
+#[link(name = "iphlpapi")]
+extern "system" {
+    fn GetAdaptersAddresses(
+        family: u32,
+        flags: u32,
+        reserved: *mut c_void,
+        adapter_addresses: *mut IpAdapterAddressesLh,
+        size_pointer: *mut u32,
+    ) -> u32;
 }
 
-/// Retrieve machine identity for cloud ICC lookup.
-pub fn get_cloud_icc_identity() -> Result<CloudIccIdentity, String> {
-    // 1. Prepare UTF-16 Base64 encoded PowerShell script to avoid shell quotation parsing issues
-    let ps_code = r#"
-$b = (Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue).SerialNumber;
-$m = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | ForEach-Object { ($_.MacAddress -replace '[-:]','').ToUpperInvariant() } | Where-Object { $_ });
-$d = @(Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorID -ErrorAction SilentlyContinue | ForEach-Object {
-    $p = (($_.ManufacturerName | Where-Object { $_ -gt 0 } | ForEach-Object { [char]$_ }) -join '') + (($_.ProductCodeID | Where-Object { $_ -gt 0 } | ForEach-Object { [char]$_ }) -join '');
-    $s = (($_.SerialNumberID | Where-Object { $_ -gt 0 } | ForEach-Object { [char]$_ }) -join '');
-    if ($s -eq '0') { $s = '' }
-    $f = (($_.UserFriendlyName | Where-Object { $_ -gt 0 } | ForEach-Object { [char]$_ }) -join '');
-    [pscustomobject]@{ pnp = $p; serial = $s; friendly = $f; raw = $_.InstanceName }
-});
-[pscustomobject]@{ bios_serial = $b; macs = $m; monitors = $d } | ConvertTo-Json -Compress
-"#;
-
-    let utf16_bytes: Vec<u8> = ps_code
-        .encode_utf16()
-        .flat_map(|u| u.to_le_bytes())
-        .collect();
-    
-    // Custom base64 encoder without external crate dependency
-    const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut b64 = String::new();
-    let chunks = utf16_bytes.chunks(3);
-    for chunk in chunks {
-        let b0 = chunk[0] as usize;
-        let b1 = chunk.get(1).copied().unwrap_or(0) as usize;
-        let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
-        let n = (b0 << 16) | (b1 << 8) | b2;
-        b64.push(B64_CHARS[(n >> 18) & 63] as char);
-        b64.push(B64_CHARS[(n >> 12) & 63] as char);
-        if chunk.len() > 1 {
-            b64.push(B64_CHARS[(n >> 6) & 63] as char);
-        } else {
-            b64.push('=');
+pub fn get_physical_mac_addresses() -> Vec<String> {
+    let mut macs = Vec::new();
+    let mut buf_len = 0u32;
+    unsafe {
+        let _ = GetAdaptersAddresses(0, 0, std::ptr::null_mut(), std::ptr::null_mut(), &mut buf_len);
+        if buf_len == 0 {
+            return macs;
         }
-        if chunk.len() > 2 {
-            b64.push(B64_CHARS[n & 63] as char);
-        } else {
-            b64.push('=');
+        let mut buffer: Vec<u8> = vec![0; buf_len as usize];
+        let res = GetAdaptersAddresses(
+            0,
+            0,
+            std::ptr::null_mut(),
+            buffer.as_mut_ptr() as *mut IpAdapterAddressesLh,
+            &mut buf_len,
+        );
+        if res == 0 {
+            let mut curr = buffer.as_ptr() as *const IpAdapterAddressesLh;
+            while !curr.is_null() {
+                let item = &*curr;
+                // 6 is MIB_IF_TYPE_ETHERNET, 71 is IF_TYPE_IEEE80211
+                if item.physical_address_length == 6 && (item.if_type == 6 || item.if_type == 71) {
+                    let hex = format!(
+                        "{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
+                        item.physical_address[0],
+                        item.physical_address[1],
+                        item.physical_address[2],
+                        item.physical_address[3],
+                        item.physical_address[4],
+                        item.physical_address[5],
+                    );
+                    if hex != "000000000000" && !macs.contains(&hex) {
+                        macs.push(hex);
+                    }
+                }
+                curr = item.next;
+            }
         }
     }
+    macs
+}
 
-    #[cfg(target_os = "windows")]
-    let output = {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        std::process::Command::new("powershell.exe")
-            .args(&["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", &b64])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .map_err(|e| format!("Failed to spawn PowerShell for hardware probe: {}", e))?
+// ----------------------------------------------------------------------------
+// Win32 Registry API: Read BIOS Serial Number (0ms)
+// ----------------------------------------------------------------------------
+
+pub fn get_bios_serial_number() -> String {
+    let read_reg = |sub: PCWSTR, val: PCWSTR| -> Option<String> {
+        unsafe {
+            let mut hkey = HKEY::default();
+            if RegOpenKeyExW(HKEY_LOCAL_MACHINE, sub, 0, KEY_READ, &mut hkey).is_ok() {
+                let mut data_type = REG_SZ;
+                let mut buf = [0u16; 256];
+                let mut data_size = (buf.len() * 2) as u32;
+                let status = RegQueryValueExW(
+                    hkey,
+                    val,
+                    None,
+                    Some(&mut data_type),
+                    Some(buf.as_mut_ptr() as *mut u8),
+                    Some(&mut data_size),
+                );
+                let _ = RegCloseKey(hkey);
+                if status.is_ok() {
+                    let len = (data_size / 2) as usize;
+                    let trimmed_len = if len > 0 && buf[len - 1] == 0 { len - 1 } else { len };
+                    let s = String::from_utf16_lossy(&buf[..trimmed_len]).trim().to_string();
+                    if !s.is_empty() && s != "None" && s != "Default string" && s != "Standard" {
+                        return Some(s);
+                    }
+                }
+            }
+        }
+        None
     };
 
-    #[cfg(not(target_os = "windows"))]
-    return Err("Cloud ICC probe is only supported on Windows".into());
-
-    let raw_stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if raw_stdout.is_empty() {
-        return Err("Empty response from identity probe".into());
+    if let Some(sn) = read_reg(w!(r"HARDWARE\DESCRIPTION\System\BIOS"), w!("SystemSerialNumber")) {
+        return sn;
     }
+    if let Some(sn) = read_reg(w!(r"HARDWARE\DESCRIPTION\System\BIOS"), w!("BaseBoardSerialNumber")) {
+        return sn;
+    }
+    String::new()
+}
 
-    let parsed: PsRawIdentity = serde_json::from_str(&raw_stdout)
-        .map_err(|e| format!("Failed to parse identity JSON: {} (raw: {})", e, raw_stdout))?;
+// ----------------------------------------------------------------------------
+// Win32 EDID Parser: Read Panel Serial Number from Registry EDID (0ms)
+// ----------------------------------------------------------------------------
 
-    let bios_serial = parsed.bios_serial.unwrap_or_default().trim().to_string();
-    let macs: Vec<String> = parsed
-        .macs
-        .unwrap_or_default()
-        .into_iter()
-        .map(|s| s.trim().to_uppercase())
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    let mut monitors = Vec::new();
-    for m in parsed.monitors.unwrap_or_default() {
-        let pnp = m.pnp.unwrap_or_default().trim().to_string();
-        let serial = m.serial.unwrap_or_default().trim().to_string();
-        let friendly = m.friendly.unwrap_or_default().trim().to_string();
-        let raw = m.raw.unwrap_or_default().trim().to_string();
-        if pnp.is_empty() && friendly.is_empty() {
-            continue;
+fn get_edid_serial_number(pnp: &str) -> Option<String> {
+    unsafe {
+        let pnp_w: Vec<u16> = format!("SYSTEM\\CurrentControlSet\\Enum\\DISPLAY\\{}\0", pnp)
+            .encode_utf16()
+            .collect();
+        let mut h_pnp = HKEY::default();
+        if RegOpenKeyExW(HKEY_LOCAL_MACHINE, PCWSTR(pnp_w.as_ptr()), 0, KEY_READ, &mut h_pnp).is_err() {
+            return None;
         }
-        let is_internal = raw.to_uppercase().contains("UID4353") || raw.to_uppercase().contains("INTERNAL") || monitors.is_empty();
-        monitors.push(CloudIccMonitorInfo {
-            pnp,
-            panel_serial: serial,
-            friendly_name: friendly,
-            instance_name: raw,
-            is_internal,
-        });
+
+        let mut sub_name = [0u16; 256];
+        let mut sub_len = sub_name.len() as u32;
+        let mut found_sn: Option<String> = None;
+
+        if RegEnumKeyExW(
+            h_pnp,
+            0,
+            windows::core::PWSTR(sub_name.as_mut_ptr()),
+            &mut sub_len,
+            None,
+            windows::core::PWSTR::null(),
+            None,
+            None,
+        )
+        .is_ok()
+        {
+            let sub_str = String::from_utf16_lossy(&sub_name[..sub_len as usize]);
+            let params_path = format!("SYSTEM\\CurrentControlSet\\Enum\\DISPLAY\\{}\\{}\\Device Parameters\0", pnp, sub_str);
+            let params_w: Vec<u16> = params_path.encode_utf16().collect();
+            let mut h_params = HKEY::default();
+
+            if RegOpenKeyExW(HKEY_LOCAL_MACHINE, PCWSTR(params_w.as_ptr()), 0, KEY_READ, &mut h_params).is_ok() {
+                let mut edid_buf = [0u8; 512];
+                let mut edid_len = edid_buf.len() as u32;
+                let mut data_type = REG_BINARY;
+                if RegQueryValueExW(
+                    h_params,
+                    w!("EDID"),
+                    None,
+                    Some(&mut data_type),
+                    Some(edid_buf.as_mut_ptr()),
+                    Some(&mut edid_len),
+                )
+                .is_ok() && edid_len >= 128
+                {
+                    // Scan standard EDID descriptor blocks for 0x00, 0x00, 0x00, 0xFF (Serial Number)
+                    for off in [54, 72, 90, 108] {
+                        if off + 18 <= edid_len as usize
+                            && edid_buf[off] == 0
+                            && edid_buf[off + 1] == 0
+                            && edid_buf[off + 2] == 0
+                            && edid_buf[off + 3] == 0xFF
+                        {
+                            let sn_bytes = &edid_buf[off + 5..off + 18];
+                            let sn_str = String::from_utf8_lossy(sn_bytes).trim().to_string();
+                            if !sn_str.is_empty() {
+                                found_sn = Some(sn_str);
+                                break;
+                            }
+                        }
+                    }
+                }
+                let _ = RegCloseKey(h_params);
+            }
+        }
+        let _ = RegCloseKey(h_pnp);
+        found_sn
     }
+}
+
+fn cstr_to_string(bytes: &[i8]) -> String {
+    let u8_slice = unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const u8, bytes.len()) };
+    let len = u8_slice.iter().position(|&c| c == 0).unwrap_or(u8_slice.len());
+    String::from_utf8_lossy(&u8_slice[..len]).trim().to_string()
+}
+
+pub fn get_monitors_for_cloud_icc() -> Vec<CloudIccMonitorInfo> {
+    let mut list = Vec::new();
+    unsafe {
+        let mut dev_num = 0u32;
+        let mut adapter: DISPLAY_DEVICEA = std::mem::zeroed();
+        adapter.cb = std::mem::size_of::<DISPLAY_DEVICEA>() as u32;
+
+        while EnumDisplayDevicesA(None, dev_num, &mut adapter, 0).as_bool() {
+            if (adapter.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) != 0 {
+                let name = cstr_to_string(&adapter.DeviceName);
+                if let Ok(c_name) = CString::new(name.clone()) {
+                    let pc_name = PCSTR(c_name.as_ptr() as *const u8);
+                    let mut mon_dev: DISPLAY_DEVICEA = std::mem::zeroed();
+                    mon_dev.cb = std::mem::size_of::<DISPLAY_DEVICEA>() as u32;
+                    let mut mon_idx = 0u32;
+                    while mon_idx < 4 {
+                        if EnumDisplayDevicesA(pc_name, mon_idx, &mut mon_dev, 0).as_bool() {
+                            let m_id = cstr_to_string(&mon_dev.DeviceID);
+                            let m_str = cstr_to_string(&mon_dev.DeviceString);
+                            if !m_id.is_empty() {
+                                // Extract PnP ID from DeviceID: "MONITOR\BOE0B87\{...}\..."
+                                let parts: Vec<&str> = m_id.split('\\').collect();
+                                let pnp = if parts.len() > 1 {
+                                    parts[1].to_string()
+                                } else {
+                                    m_id.clone()
+                                };
+                                let is_internal = m_id.contains("UID4353")
+                                    || m_id.contains("INTERNAL")
+                                    || list.is_empty();
+
+                                let panel_serial = get_edid_serial_number(&pnp).unwrap_or_default();
+
+                                list.push(CloudIccMonitorInfo {
+                                    pnp,
+                                    panel_serial,
+                                    friendly_name: if !m_str.is_empty() {
+                                        m_str
+                                    } else {
+                                        name.clone()
+                                    },
+                                    instance_name: m_id,
+                                    is_internal,
+                                });
+                            }
+                        }
+                        mon_idx += 1;
+                    }
+                }
+            }
+            adapter = std::mem::zeroed();
+            adapter.cb = std::mem::size_of::<DISPLAY_DEVICEA>() as u32;
+            dev_num += 1;
+        }
+    }
+    list
+}
+
+/// Retrieve machine identity for cloud ICC lookup using 100% native Win32 APIs (0ms, 0 PowerShell)
+pub fn get_cloud_icc_identity() -> Result<CloudIccIdentity, String> {
+    let bios_serial = get_bios_serial_number();
+    let macs = get_physical_mac_addresses();
+    let monitors = get_monitors_for_cloud_icc();
 
     // Build candidate arrays
     let mut c1 = Vec::new();
@@ -206,9 +372,9 @@ $d = @(Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorID -ErrorAction 
     // Query declarative hardware ground truth (OemMagicVariable vs UniWillVariable)
     let is_50 = crate::driver::wmi_ec::is_nextgen_oem_magic_ec();
     let arch_name = if is_50 {
-        "OemMagicVariable (50系)".to_string()
+        "OemMagicVariable (50 series)".to_string()
     } else {
-        "UniWillVariable (40系)".to_string()
+        "UniWillVariable (40 series)".to_string()
     };
     let recommended_method = if is_50 { "50".to_string() } else { "40".to_string() };
 
@@ -225,7 +391,7 @@ $d = @(Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorID -ErrorAction 
     })
 }
 
-/// Unpack archive via native Windows tar.exe or PowerShell Expand-Archive
+/// Unpack archive via native Windows tar.exe (Pure Win32, Zero PowerShell)
 fn unpack_zip_native(archive: &Path, dest: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -242,23 +408,7 @@ fn unpack_zip_native(archive: &Path, dest: &Path) -> Result<(), String> {
                 return Ok(());
             }
         }
-
-        let ps_cmd = format!(
-            "Expand-Archive -LiteralPath '{}' -DestinationPath '{}' -Force",
-            archive.to_string_lossy().replace("'", "''"),
-            dest.to_string_lossy().replace("'", "''")
-        );
-
-        let ps_res = std::process::Command::new("powershell.exe")
-            .args(&["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &ps_cmd])
-            .creation_flags(CREATE_NO_WINDOW)
-            .status()
-            .map_err(|e| format!("PowerShell unzip invocation failed: {}", e))?;
-
-        if ps_res.success() {
-            return Ok(());
-        }
-        Err("Native archive expansion failed".into())
+        Err("tar.exe failed to expand archive".into())
     }
     #[cfg(not(target_os = "windows"))]
     Err("Unpack zip only supported on Windows".into())
@@ -272,9 +422,9 @@ fn collect_icc_files_recursive(dir: &Path) -> Vec<PathBuf> {
             let path = entry.path();
             if path.is_dir() {
                 results.extend(collect_icc_files_recursive(&path));
-            } else if path.is_file() {
-                let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
-                if ext == "icm" || ext == "icc" {
+            } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                let e = ext.to_lowercase();
+                if e == "icm" || e == "icc" {
                     results.push(path);
                 }
             }
@@ -347,7 +497,11 @@ pub fn probe_single_candidate(
                     if path.metadata().map(|m| m.len()).unwrap_or(0) > 128 {
                         if let Ok(content) = fs::read(&path) {
                             if is_valid_icc_bytes(&content) {
-                                let fname = path.file_name().and_then(|s| s.to_str()).unwrap_or("profile.icm").to_string();
+                                let fname = path
+                                    .file_name()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("profile.icm")
+                                    .to_string();
                                 let size = content.len();
                                 extracted_items.push(ExtractedIccItem {
                                     file_name: fname,

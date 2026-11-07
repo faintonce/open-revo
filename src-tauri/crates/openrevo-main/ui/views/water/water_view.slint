@@ -1,0 +1,174 @@
+import { AppTheme } from "../../theme.slint";
+import { WaterCoolerDeviceItem } from "cooler_types.slint";
+import { CoolerHeaderTelemetry } from "cooler_header_telemetry.slint";
+import { CoolerPresetCards } from "cooler_preset_cards.slint";
+import { CoolerCurvePanel } from "cooler_curve_panel.slint";
+import { CoolerManualRgbPanel } from "cooler_manual_rgb_panel.slint";
+import { CoolerDeviceModal } from "cooler_device_modal.slint";
+
+export component DashboardWaterView inherits Rectangle {
+    background: transparent;
+
+    // Telemetry & Device State
+    in-out property <bool> is_connected: false;
+    in-out property <bool> is_connecting: false;
+    in-out property <bool> is_pairing: false;
+    in-out property <bool> is_priming: false;
+    in-out property <string> mac_address: "";
+    in-out property <bool> is_flow_ok: true;
+    in-out property <int> meter_state: 1;
+    in-out property <int> live_max_temp: 55;
+    in-out property <int> cpu_temp: 55;
+    in-out property <int> gpu_temp: 41;
+    in-out property <int> pump_tier: 2;
+    in-out property <int> pump_voltage: 7;
+    in-out property <int> fan_duty: 37;
+    in-out property <int> pump_rpm: 2400;
+    in-out property <int> fan_rpm: 1200;
+
+    // Strategy & Curve
+    in-out property <string> strategy: "smart";
+    in-out property <string> curve_template: "standard";
+    in-out property <[int]> curve_temps: [45, 55, 65, 80, 90, 95];
+    in-out property <[int]> curve_duties: [0, 35, 50, 60, 75, 100];
+    in-out property <int> pump_start_temp: 55;
+    in-out property <int> pump_turbo_temp: 90;
+    in-out property <int> live_fan_duty: 0;
+    in-out property <bool> is_curve_dragging: false;
+
+    // LED
+    in-out property <bool> led_on: true;
+    in-out property <int> led_mode: 2;
+    in-out property <int> led_r: 0;
+    in-out property <int> led_g: 128;
+    in-out property <int> led_b: 0;
+
+    // Device Modal
+    in-out property <bool> is_device_modal_open: false;
+    in-out property <bool> is_scanning_devices: false;
+    in-out property <[WaterCoolerDeviceItem]> devices: [];
+    in-out property <string> modal_error_msg: "";
+
+    // Callbacks
+    callback connect_cooler();
+    callback disconnect_cooler();
+    callback pair_cooler();
+    callback fill_water();
+    callback reset_default();
+
+    callback update_strategy(string);
+    callback set_cooler_speed(int, int); // pump_tier, fan_duty
+    callback set_curve_point(int, int, int); // idx, temp, duty
+    callback commit_curve();
+    callback pump_thresholds_changing(int, int);
+    callback commit_pump_thresholds(int, int);
+    callback apply_curve_template(string);
+
+    callback set_led_enabled(bool);
+    callback set_led_mode(int);
+    callback set_led_color(int, int, int);
+
+    callback open_device_selector();
+    callback close_device_selector();
+    callback refresh_devices();
+    callback select_device(string);
+
+    // Main Layout (Clean VerticalLayout without Flickable, strictly fitting desktop canvas)
+    VerticalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 9px;
+
+        // 1. Header & Telemetry Cards
+        CoolerHeaderTelemetry {
+            vertical-stretch: 0;
+            is_connected: root.is_connected;
+            is_connecting: root.is_connecting;
+            is_pairing: root.is_pairing;
+            is_priming: root.is_priming;
+            mac_address: root.mac_address;
+            is_flow_ok: root.is_flow_ok;
+            meter_state: root.meter_state;
+            live_max_temp: root.live_max_temp;
+            cpu_temp: root.cpu_temp;
+            gpu_temp: root.gpu_temp;
+            pump_tier: root.pump_tier;
+            pump_voltage: root.pump_voltage;
+            fan_duty: root.fan_duty;
+            pump_rpm: root.pump_rpm;
+            fan_rpm: root.fan_rpm;
+
+            connect_clicked => { root.connect_cooler(); }
+            disconnect_clicked => { root.disconnect_cooler(); }
+            pair_clicked => { root.pair_cooler(); }
+            fill_water_clicked => { root.fill_water(); }
+            reset_default_clicked => { root.reset_default(); }
+            open_device_selector => { root.open_device_selector(); }
+        }
+
+        // 2. Preset Cards (Smart, Quiet, Balance, Performance)
+        CoolerPresetCards {
+            vertical-stretch: 0;
+            strategy: root.strategy;
+            live_max_temp: root.live_max_temp;
+            live_fan_duty: root.live_fan_duty;
+            live_pump_volt: root.pump_voltage;
+
+            update_strategy(strat) => { root.update_strategy(strat); }
+        }
+
+        // 3. Adaptive Curve Panel (Interactive Fan & Pump Threshold Canvas)
+        CoolerCurvePanel {
+            vertical-stretch: 1;
+            strategy: root.strategy;
+            curve_template: root.curve_template;
+            curve_temps <=> root.curve_temps;
+            curve_duties <=> root.curve_duties;
+            pump_start_temp <=> root.pump_start_temp;
+            pump_turbo_temp <=> root.pump_turbo_temp;
+            live_max_temp: root.live_max_temp;
+            live_fan_duty: root.live_fan_duty;
+            is_dragging <=> root.is_curve_dragging;
+
+            set_point(idx, t, d) => { root.set_curve_point(idx, t, d); }
+            commit_curve => { root.commit_curve(); }
+            pump_thresholds_changing(st, tb) => { root.pump_thresholds_changing(st, tb); }
+            commit_pump_thresholds(st, tb) => { root.commit_pump_thresholds(st, tb); }
+            apply_template(tpl) => { root.apply_curve_template(tpl); }
+        }
+
+        // 4. Manual Pump/Fan Controls & RGB Studio Bar
+        CoolerManualRgbPanel {
+            vertical-stretch: 0;
+            pump_tier: root.pump_tier;
+            pump_voltage: root.pump_voltage;
+            fan_duty: root.fan_duty;
+            led_on: root.led_on;
+            led_mode: root.led_mode;
+            led_r: root.led_r;
+            led_g: root.led_g;
+            led_b: root.led_b;
+
+            set_pump_tier(tier) => { root.set_cooler_speed(tier, root.fan_duty); }
+            set_fan_duty(duty) => { root.set_cooler_speed(root.pump_tier, duty); }
+            set_led_enabled(en) => { root.set_led_enabled(en); }
+            set_led_mode(m) => { root.set_led_mode(m); }
+            set_led_color(r, g, b) => { root.set_led_color(r, g, b); }
+        }
+    }
+
+    // Modal Layer: Device Selector
+    if root.is_device_modal_open: CoolerDeviceModal {
+        is_open: true;
+        is_scanning: root.is_scanning_devices;
+        current_mac: root.mac_address;
+        devices: root.devices;
+        error_msg: root.modal_error_msg;
+
+        close => { root.close_device_selector(); }
+        refresh_devices => { root.refresh_devices(); }
+        select_device(mac) => { root.select_device(mac); }
+    }
+}

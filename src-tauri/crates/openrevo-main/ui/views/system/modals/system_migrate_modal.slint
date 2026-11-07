@@ -1,0 +1,191 @@
+import { AppTheme } from "../../../theme.slint";
+
+export component SystemMigrateModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+    in-out property <bool> is_processing: false;
+    in-out property <string> target_path: "D:\\OpenRevoData";
+
+    callback close();
+    callback confirm(string);
+
+    background: #000000bd;
+    TouchArea { }
+
+    Rectangle {
+        width: Math.min(parent.width - 60px, 500px);
+        height: Math.min(parent.height - 40px, 320px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #141721;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #38bdf855;
+        clip: true;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: space-between;
+
+            // Header
+            HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 8px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        Image {
+                            source: @image-url("../../../assets/icons/folder.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: #38bdf8;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    Text {
+                        text: "迁移用户数据存储目录";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: AppTheme.text_primary;
+                    }
+                    Text {
+                        text: "将配置预设无损复制至新目录并建立重定向指针 (data_dir.ptr)";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Path Selection Box
+            VerticalLayout {
+                spacing: 8px;
+                Text {
+                    text: "目标目录路径：";
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: AppTheme.text_secondary;
+                }
+
+                Rectangle {
+                    height: 34px;
+                    border-radius: 6px;
+                    background: AppTheme.surface_sunken;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        Text {
+                            text: root.target_path;
+                            font-size: 12px;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "快捷建议:";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: AppTheme.surface_pill;
+                        height: 22px;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.target_path = "D:\\OpenRevoData"; }
+                        }
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text { text: "D:\\OpenRevoData"; font-size: 10px; color: AppTheme.text_secondary; vertical-alignment: center; }
+                        }
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: AppTheme.surface_pill;
+                        height: 22px;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.target_path = "E:\\OpenRevoData"; }
+                        }
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text { text: "E:\\OpenRevoData"; font-size: 10px; color: AppTheme.text_secondary; vertical-alignment: center; }
+                        }
+                    }
+                }
+            }
+
+            // Action Buttons
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: end;
+
+                // Cancel
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: t_cancel.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    t_cancel := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.close(); }
+                    }
+                    Text {
+                        text: "取消";
+                        font-size: 12px;
+                        color: AppTheme.text_primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Confirm Action
+                Rectangle {
+                    width: 120px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: root.is_processing ? #0284c780 : (t_confirm.has-hover ? #0284c7 : #0369a1);
+                    border-width: 1px;
+                    border-color: #38bdf8;
+                    t_confirm := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.is_processing {
+                                root.confirm(root.target_path);
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.is_processing ? "正在迁移..." : "确认立即迁移";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+

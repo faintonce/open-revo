@@ -1,0 +1,126 @@
+import { AppTheme } from "../../theme.slint";
+
+export component MuxConfirmModal inherits Rectangle {
+    in-out property <string> pending_mode: "dgpu";
+    in-out property <string> pending_title: "独显直连";
+
+    callback cancel();
+    callback confirm(string, bool); // (mode, restart_now)
+
+    background: #000000aa;
+    TouchArea { }
+
+    Rectangle {
+        width: 420px;
+        height: 210px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #111726;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: #38bdf860;
+        clip: true;
+
+        VerticalLayout {
+            padding: 18px;
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 10px;
+                Image {
+                    source: @image-url("../../assets/icons/shield.svg");
+                    width: 20px;
+                    height: 20px;
+                    colorize: #38bdf8;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "切换显卡输出模式";
+                    font-size: 14px;
+                    font-weight: 800;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                text: "即将切换主板硬件 MUX 至【" + root.pending_title + "】。\n\n配置写入 UEFI NVRAM 后需要重启电脑以生效物理链路。请选择是否立即重启电脑？";
+                font-size: 11px;
+                color: AppTheme.text_secondary;
+                wrap: word-wrap;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+
+                // Cancel
+                Rectangle {
+                    width: 70px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.cancel(); }
+                    }
+                    Text {
+                        text: "取消";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Save Only
+                Rectangle {
+                    width: 110px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.confirm(root.pending_mode, false);
+                        }
+                    }
+                    Text {
+                        text: "仅写入稍后重启";
+                        font-size: 11px;
+                        color: AppTheme.text_primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Reboot Now
+                Rectangle {
+                    width: 100px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: #0284c7;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.confirm(root.pending_mode, true);
+                        }
+                    }
+                    Text {
+                        text: "立即重启电脑";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+

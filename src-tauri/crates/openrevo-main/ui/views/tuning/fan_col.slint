@@ -1,0 +1,129 @@
+import { AppTheme } from "../../theme.slint";
+import { FanBldPanel } from "fan_bld_panel.slint";
+import { FanControlsCard } from "fan_controls_card.slint";
+import { FanCurveCanvas } from "fan_curve_canvas.slint";
+
+export component FanTuningCol inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: AppTheme.radius_md;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    // Model characteristics
+    in-out property <bool> is_bld: false; // Baolongda BM5235 Direct RPM mode
+
+    // BLD Props
+    in-out property <int> bld_rpm_cap: 5800;
+    in-out property <bool> bld_boost: false;
+    in-out property <int> cpu_temp: 67;
+    in-out property <int> gpu_temp: 54;
+    in-out property <int> cpu_rpm: 3166;
+    in-out property <int> gpu_rpm: 2123;
+
+    // Normal Fan Curve Props
+    in-out property <bool> smooth_transition: true;
+    in-out property <string> smooth_time: "300ms";
+    in-out property <bool> fan_isolated_output: true;
+    in-out property <int> active_fan_tab: 0; // 0: CPU, 1: GPU
+    in-out property <bool> fan_linked: true;
+
+    // 8 Points Duty Cycle (0 .. 100)
+    in-out property <[int]> cpu_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+    in-out property <[int]> gpu_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+
+    // Callbacks
+    callback toggle_smooth();
+    callback toggle_isolated();
+    callback toggle_link();
+    callback select_fan_tab(int);
+    callback adjust_point(int, int); // index, delta (+1 or -1)
+    callback set_point(int, int);    // index, new_duty (0..100)
+    callback toggle_bld_boost();
+    callback change_bld_cap(int);
+    callback restore_bld_auto();
+
+    property <[int]> active_curve: active_fan_tab == 0 ? cpu_curve : gpu_curve;
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+
+        // 1. Header
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 6px;
+                Image {
+                    source: @image-url("../../assets/icons/wind.svg");
+                    width: 15px;
+                    height: 15px;
+                    colorize: #818cf8;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: root.is_bld ? "原厂散热策略与闭环温控" : "风扇策略与曲线";
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #818cf8;
+                    vertical-alignment: center;
+                }
+            }
+
+            if root.is_bld: Rectangle {
+                width: 60px;
+                height: 20px;
+                border-radius: 3px;
+                background: AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_medium;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.restore_bld_auto(); }
+                }
+                Text {
+                    text: "恢复默认";
+                    font-size: 9.5px;
+                    color: AppTheme.text_secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // 2. BLD MODE
+        if root.is_bld: FanBldPanel {
+            bld_rpm_cap <=> root.bld_rpm_cap;
+            bld_boost <=> root.bld_boost;
+            cpu_temp: root.cpu_temp;
+            gpu_temp: root.gpu_temp;
+            cpu_rpm: root.cpu_rpm;
+            gpu_rpm: root.gpu_rpm;
+            toggle_bld_boost => { root.toggle_bld_boost(); }
+            change_bld_cap(cap) => { root.change_bld_cap(cap); }
+        }
+
+        // 3. NORMAL 8-POINT CURVE MODE
+        if !root.is_bld: VerticalLayout {
+            spacing: 7px;
+            vertical-stretch: 1;
+
+            FanControlsCard {
+                smooth_transition <=> root.smooth_transition;
+                smooth_time: root.smooth_time;
+                fan_isolated_output <=> root.fan_isolated_output;
+                toggle_smooth => { root.toggle_smooth(); }
+                toggle_isolated => { root.toggle_isolated(); }
+            }
+
+            FanCurveCanvas {
+                active_fan_tab <=> root.active_fan_tab;
+                fan_linked <=> root.fan_linked;
+                active_curve: root.active_curve;
+                toggle_link => { root.toggle_link(); }
+                select_fan_tab(tab) => { root.select_fan_tab(tab); }
+                adjust_point(idx, delta) => { root.adjust_point(idx, delta); }
+                set_point(idx, duty) => { root.set_point(idx, duty); }
+            }
+        }
+    }
+}

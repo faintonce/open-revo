@@ -208,6 +208,45 @@ pub fn save_app_config(cfg: crate::system::config::AppConfig) -> Result<(), Stri
 }
 
 #[tauri::command]
+pub fn get_classic_webview() -> bool {
+    crate::system::config::load_config().use_classic_webview
+}
+
+#[tauri::command]
+pub fn set_classic_webview(enabled: bool) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.use_classic_webview = enabled;
+    crate::system::config::save_config(&cfg);
+    crate::log_info!("CONFIG", "use_classic_webview set to: {}", enabled);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_update_channel() -> String {
+    crate::system::config::load_config().update_channel
+}
+
+#[tauri::command]
+pub fn set_update_channel(channel: String) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.update_channel = channel.clone();
+    crate::system::config::save_config(&cfg);
+    crate::log_info!("CONFIG", "update_channel set to: {}", channel);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restart_app(app: AppHandle) -> Result<(), String> {
+    crate::log_info!("APP", "Restarting application...");
+    crate::system::tray::IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = std::process::Command::new(exe).spawn();
+    }
+    app.exit(0);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_unlock_battery_power_limit(
     enable: bool,
     app: AppHandle,

@@ -1,0 +1,357 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardSwitchesGrid inherits Rectangle {
+    height: 125px;
+    background: transparent;
+
+    in-out property <bool> wifi_enabled: true;
+    in-out property <bool> bt_enabled: true;
+    in-out property <bool> touchpad_locked: false;
+    in-out property <bool> camera_enabled: true;
+    in-out property <bool> mic_enabled: true;
+    in-out property <bool> osd_enabled: true;
+    in-out property <bool> win_locked: false;
+    in-out property <bool> fn_locked: false;
+    in-out property <bool> keep_awake: false;
+
+    callback toggle_wifi();
+    callback toggle_bt();
+    callback toggle_touchpad();
+    callback toggle_camera();
+    callback toggle_mic();
+    callback toggle_osd();
+    callback toggle_win_lock();
+    callback toggle_fn_lock();
+    callback toggle_keep_awake();
+    callback turn_off_screen();
+
+    VerticalLayout {
+        spacing: 10px;
+
+        // Header Row: Accent Bar + Title & Subtitle
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 6px;
+                Rectangle {
+                    width: 3px;
+                    height: 12px;
+                    border-radius: 1.5px;
+                    background: #38bdf8;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "快捷设备硬件开关";
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+            }
+            Text {
+                text: "原厂电竞级热键与外设直控";
+                font-size: 10px;
+                color: AppTheme.text_muted;
+                vertical-alignment: center;
+            }
+        }
+
+        // 10 Switches Grid (10 Columns, cyber corners design)
+        HorizontalLayout {
+            spacing: 8px;
+            height: 90px;
+
+            // 1. WIFI
+            btn_wifi := Rectangle {
+                border-radius: 6px;
+                background: wifi_enabled ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: wifi_enabled ? #38bdf880 : AppTheme.border_subtle;
+                t_wifi := TouchArea { mouse-cursor: pointer; clicked => { toggle_wifi(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/wifi.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: wifi_enabled ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "WIFI";
+                        font-size: 10.5px;
+                        font-weight: wifi_enabled ? 700 : 500;
+                        color: wifi_enabled ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 2. 蓝牙
+            btn_bt := Rectangle {
+                border-radius: 6px;
+                background: bt_enabled ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: bt_enabled ? #38bdf880 : AppTheme.border_subtle;
+                t_bt := TouchArea { mouse-cursor: pointer; clicked => { toggle_bt(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/bluetooth.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: bt_enabled ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "蓝牙";
+                        font-size: 10.5px;
+                        font-weight: bt_enabled ? 700 : 500;
+                        color: bt_enabled ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 3. 触摸板
+            btn_tp := Rectangle {
+                border-radius: 6px;
+                background: !touchpad_locked ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: !touchpad_locked ? #38bdf880 : AppTheme.border_subtle;
+                t_tp := TouchArea { mouse-cursor: pointer; clicked => { toggle_touchpad(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/touchpad.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: !touchpad_locked ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "触摸板";
+                        font-size: 10.5px;
+                        font-weight: !touchpad_locked ? 700 : 500;
+                        color: !touchpad_locked ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 4. 摄像头
+            btn_cam := Rectangle {
+                border-radius: 6px;
+                background: camera_enabled ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: camera_enabled ? #38bdf880 : AppTheme.border_subtle;
+                t_cam := TouchArea { mouse-cursor: pointer; clicked => { toggle_camera(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/camera.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: camera_enabled ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: camera_enabled ? "摄像头" : "相机关";
+                        font-size: 10.5px;
+                        font-weight: camera_enabled ? 700 : 500;
+                        color: camera_enabled ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 5. 麦克风
+            btn_mic := Rectangle {
+                border-radius: 6px;
+                background: mic_enabled ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: mic_enabled ? #38bdf880 : AppTheme.border_subtle;
+                t_mic := TouchArea { mouse-cursor: pointer; clicked => { toggle_mic(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/mic.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: mic_enabled ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: mic_enabled ? "麦克风" : "静音中";
+                        font-size: 10.5px;
+                        font-weight: mic_enabled ? 700 : 500;
+                        color: mic_enabled ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 6. OSD显示
+            btn_osd := Rectangle {
+                border-radius: 6px;
+                background: osd_enabled ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: osd_enabled ? #38bdf880 : AppTheme.border_subtle;
+                t_osd := TouchArea { mouse-cursor: pointer; clicked => { toggle_osd(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/monitor.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: osd_enabled ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: osd_enabled ? "OSD开" : "OSD关";
+                        font-size: 10.5px;
+                        font-weight: osd_enabled ? 700 : 500;
+                        color: osd_enabled ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 7. Win键锁
+            btn_win := Rectangle {
+                border-radius: 6px;
+                background: win_locked ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: win_locked ? #38bdf880 : AppTheme.border_subtle;
+                t_win := TouchArea { mouse-cursor: pointer; clicked => { toggle_win_lock(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/lock.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: win_locked ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: win_locked ? "Win已锁" : "Win键锁";
+                        font-size: 10.5px;
+                        font-weight: win_locked ? 700 : 500;
+                        color: win_locked ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 8. FN 锁
+            btn_fn := Rectangle {
+                border-radius: 6px;
+                background: fn_locked ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: fn_locked ? #38bdf880 : AppTheme.border_subtle;
+                t_fn := TouchArea { mouse-cursor: pointer; clicked => { toggle_fn_lock(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Text {
+                            text: "FN";
+                            font-size: 16px;
+                            font-weight: 800;
+                            color: fn_locked ? #38bdf8 : AppTheme.text_secondary;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                    Text {
+                        text: "F1-F12";
+                        font-size: 10.5px;
+                        font-weight: fn_locked ? 700 : 500;
+                        color: fn_locked ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 9. 防休眠
+            btn_awk := Rectangle {
+                border-radius: 6px;
+                background: keep_awake ? #38bdf818 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: keep_awake ? #38bdf880 : AppTheme.border_subtle;
+                t_awk := TouchArea { mouse-cursor: pointer; clicked => { toggle_keep_awake(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/coffee.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: keep_awake ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: keep_awake ? "保持清醒" : "防休眠";
+                        font-size: 10.5px;
+                        font-weight: keep_awake ? 700 : 500;
+                        color: keep_awake ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 10. 关闭屏幕
+            btn_scr := Rectangle {
+                border-radius: 6px;
+                background: t_scr.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+                t_scr := TouchArea { mouse-cursor: pointer; clicked => { turn_off_screen(); } }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/moon.svg");
+                            width: 22px;
+                            height: 22px;
+                            colorize: AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "关闭屏幕";
+                        font-size: 10.5px;
+                        font-weight: 500;
+                        color: AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+

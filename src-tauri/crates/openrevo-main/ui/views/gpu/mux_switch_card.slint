@@ -1,0 +1,392 @@
+import { AppTheme } from "../../theme.slint";
+
+export component MuxSwitchCard inherits Rectangle {
+    in-out property <string> gpu_mode: "dgpu";
+    in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
+    in-out property <string> cpu_name: "Intel Core i9-14900HX";
+
+    callback request_mode_switch(string, string); // (mode, title)
+
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 10px;
+
+        // Row 1: Title + Hardware Spec Badge
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 8px;
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../assets/icons/monitor.svg");
+                        width: 16px;
+                        height: 16px;
+                        colorize: #38bdf8;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: "显卡模式 (双显三模)";
+                        font-size: 13px;
+                        font-weight: 800;
+                        color: AppTheme.text_primary;
+                    }
+                    Text {
+                        text: "主板硬件级 MUX 物理切换 · 由 BIOS POST 或高级动态 PCIe 链路与物理开关控制";
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Right: CPU + GPU chip badge
+            Rectangle {
+                height: 26px;
+                border-radius: 5px;
+                background: AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 6px;
+                    Image {
+                        source: @image-url("../../assets/icons/cpu.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: #60a5fa;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: root.gpu_name + " · " + root.cpu_name;
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Row 2: Sub-banner with Shield badge
+        Rectangle {
+            height: 30px;
+            border-radius: 6px;
+            background: AppTheme.is_light ? #f3f4f6 : #0d121c;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "主板原生硬件 MUX 切换架构";
+                        font-size: 10.5px;
+                        font-weight: 700;
+                        color: #38bdf8;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "· 物理通道直通信号开关，保证杜绝降频与转接损耗";
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 5px;
+                    Image {
+                        source: @image-url("../../assets/icons/shield.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: #38bdf8;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "HARDWARE MUX LINK";
+                        font-size: 9.5px;
+                        font-weight: 800;
+                        color: #38bdf8;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Row 3: 3 MUX Mode Big Cards
+        HorizontalLayout {
+            spacing: 12px;
+
+            // 1. dGPU Card
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 135px;
+                border-radius: 8px;
+                background: root.gpu_mode == "dgpu" ? #38bdf815 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.gpu_mode == "dgpu" ? #38bdf8aa : AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 12px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Rectangle {
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 6px;
+                            background: root.gpu_mode == "dgpu" ? #38bdf825 : transparent;
+                            border-width: 1px;
+                            border-color: root.gpu_mode == "dgpu" ? #38bdf860 : AppTheme.border_subtle;
+                            Image {
+                                source: @image-url("../../assets/icons/zap.svg");
+                                width: 15px;
+                                height: 15px;
+                                colorize: #38bdf8;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        if root.gpu_mode == "dgpu": Rectangle {
+                            height: 20px;
+                            border-radius: 4px;
+                            background: #38bdf825;
+                            border-width: 1px;
+                            border-color: #38bdf870;
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                Text {
+                                    text: "✔ 硬件生效中";
+                                    font-size: 9.5px;
+                                    font-weight: 700;
+                                    color: #38bdf8;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "独立显卡物理直连内屏幕。避开核显中转，发挥极致电竞帧率与超低显示延迟。";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 5px;
+                        background: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if (root.gpu_mode != "dgpu") {
+                                    root.request_mode_switch("dgpu", "独显直连 (dGPU)");
+                                }
+                            }
+                        }
+                        Text {
+                            text: "独显直连";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.gpu_mode == "dgpu" ? #000000 : AppTheme.text_primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // 2. Hybrid Card
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 135px;
+                border-radius: 8px;
+                background: root.gpu_mode == "hybrid" ? #a855f718 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.gpu_mode == "hybrid" ? #a855f7aa : AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 12px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Rectangle {
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 6px;
+                            background: root.gpu_mode == "hybrid" ? #a855f725 : transparent;
+                            border-width: 1px;
+                            border-color: root.gpu_mode == "hybrid" ? #a855f760 : AppTheme.border_subtle;
+                            Image {
+                                source: @image-url("../../assets/icons/layers.svg");
+                                width: 15px;
+                                height: 15px;
+                                colorize: #c084fc;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        if root.gpu_mode == "hybrid": Rectangle {
+                            height: 20px;
+                            border-radius: 4px;
+                            background: #a855f725;
+                            border-width: 1px;
+                            border-color: #a855f770;
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                Text {
+                                    text: "✔ 硬件生效中";
+                                    font-size: 9.5px;
+                                    font-weight: 700;
+                                    color: #c084fc;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "轻量任务核显输出保证续航，复杂 3D 渲染与电竞游戏时自动介入独显加速。";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 5px;
+                        background: root.gpu_mode == "hybrid" ? #a855f7 : AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: root.gpu_mode == "hybrid" ? #a855f7 : AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if (root.gpu_mode != "hybrid") {
+                                    root.request_mode_switch("hybrid", "混合输出 (Hybrid)");
+                                }
+                            }
+                        }
+                        Text {
+                            text: "混合输出";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.gpu_mode == "hybrid" ? #ffffff : AppTheme.text_primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // 3. iGPU Card
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 135px;
+                border-radius: 8px;
+                background: root.gpu_mode == "igpu" ? #10b98118 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.gpu_mode == "igpu" ? #10b981aa : AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 12px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Rectangle {
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 6px;
+                            background: root.gpu_mode == "igpu" ? #10b98125 : transparent;
+                            border-width: 1px;
+                            border-color: root.gpu_mode == "igpu" ? #10b98160 : AppTheme.border_subtle;
+                            Image {
+                                source: @image-url("../../assets/icons/zap-off.svg");
+                                width: 15px;
+                                height: 15px;
+                                colorize: #34d399;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        if root.gpu_mode == "igpu": Rectangle {
+                            height: 20px;
+                            border-radius: 4px;
+                            background: #10b98125;
+                            border-width: 1px;
+                            border-color: #10b98170;
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                Text {
+                                    text: "✔ 硬件生效中";
+                                    font-size: 9.5px;
+                                    font-weight: 700;
+                                    color: #34d399;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "彻底切断独显供电与 PCIe 供电链路开关，消除独显待机功耗，超长离电续航。";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 5px;
+                        background: root.gpu_mode == "igpu" ? #10b981 : AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: root.gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if (root.gpu_mode != "igpu") {
+                                    root.request_mode_switch("igpu", "纯集显模式 (iGPU)");
+                                }
+                            }
+                        }
+                        Text {
+                            text: "核显模式";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.gpu_mode == "igpu" ? #000000 : AppTheme.text_primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -1,0 +1,166 @@
+import { AppTheme } from "../../../theme.slint";
+
+export component SystemRestorePlanModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+    in-out property <bool> is_processing: false;
+
+    callback close();
+    callback confirm();
+
+    background: #000000bd;
+    TouchArea { }
+
+    Rectangle {
+        width: Math.min(parent.width - 60px, 560px);
+        height: Math.min(parent.height - 40px, 420px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #141721;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #38bdf855;
+        clip: true;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            alignment: space-between;
+
+            // Header
+            HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 8px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        Image {
+                            source: @image-url("../../../assets/icons/rotate-ccw.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: #38bdf8;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    Text {
+                        text: "修复并重置为官方出厂电源计划";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: AppTheme.text_primary;
+                    }
+                    Text {
+                        text: "对齐官方控制台逻辑，消除待机高温与 0.8GHz 异常锁频";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Info Box
+            Rectangle {
+                border-radius: 8px;
+                background: AppTheme.is_light ? #f0fdf4 : #0f1c1f;
+                border-width: 1px;
+                border-color: #10b98135;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "💡 该操作将执行以下安全修复（完全对齐 OEM 出厂标准）：";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #34d399;
+                    }
+                    Text {
+                        text: "• 消除待机异常高温：重置激进性能滑块覆盖层，恢复 CPU 核心休眠 (Core Parking) 与 C-State 深睡，解决待机 20W+ 积热。";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "• 彻底清除锁频残留：外科手术式剔除所有静态频率限制键值 (75b0ae3f)，彻底解除 0.8GHz 或 25W 锁频陷阱。";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "• 重新注入官方 OEM 预配包：自适应注入出厂 PPM 调度包（宝龙达 AMD 官方 Provisioning / 同方 PPM 策略包）。";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "• 激活官方平衡方案：切回 Windows 官方平衡计划。若您有自建的个性化电源计划，它们会被完整保留，不会被删除。";
+                        font-size: 10.5px;
+                        color: AppTheme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            // Action Buttons
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: end;
+
+                // Cancel
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: t_cancel.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    t_cancel := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.close(); }
+                    }
+                    Text {
+                        text: "取消";
+                        font-size: 12px;
+                        color: AppTheme.text_primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Confirm Action
+                Rectangle {
+                    width: 140px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: root.is_processing ? #0284c780 : (t_confirm.has-hover ? #0284c7 : #0369a1);
+                    border-width: 1px;
+                    border-color: #38bdf8;
+                    t_confirm := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.is_processing {
+                                root.confirm();
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.is_processing ? "正在修复..." : "确认执行安全修复";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -1,0 +1,154 @@
+﻿import { AppTheme } from "../../theme.slint";
+
+export component DrawerBatteryCard inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    height: 68px;
+
+    in-out property <int> battery_limit: 60; // 60, 80, 100
+    in-out property <bool> is_ac_online: true;
+
+    callback set_battery_limit(int);
+
+    VerticalLayout {
+        padding: 7px;
+        spacing: 6px;
+
+        // Header Row
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 5px;
+                // Battery outline icon
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 13px;
+                        height: 9px;
+                        border-radius: 2px;
+                        border-width: 1px;
+                        border-color: #2dd4bf;
+                        // Fill
+                        Rectangle {
+                            x: 1px;
+                            y: 1px;
+                            width: (parent.width - 2px) * (battery_limit / 100.0);
+                            height: parent.height - 2px;
+                            background: #2dd4bf;
+                            border-radius: 1px;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "电池健康:";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: battery_limit == 60 ? "工作站模式" : (battery_limit == 80 ? "平衡模式" : "长效模式");
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #2dd4bf;
+                    vertical-alignment: center;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 4px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 5px;
+                        height: 5px;
+                        border-radius: 2.5px;
+                        background: is_ac_online ? #10b981 : #fbbf24;
+                    }
+                }
+                Text {
+                    text: is_ac_online ? "AC 已连接" : "电池供电";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // 3-Segment Buttons Grid: 工作站 | 平衡 | 长效 (Height 28px)
+        HorizontalLayout {
+            spacing: 5px;
+            height: 28px;
+
+            // 工作站 (60%)
+            btn_60 := Rectangle {
+                border-radius: 5px;
+                background: battery_limit == 60 ? #2dd4bf25 : (t_60.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: battery_limit == 60 ? 1.5px : 1px;
+                border-color: battery_limit == 60 ? #2dd4bf : AppTheme.border_subtle;
+
+                t_60 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_battery_limit(60); }
+                }
+
+                Text {
+                    text: "工作站";
+                    font-size: 10.5px;
+                    font-weight: battery_limit == 60 ? 700 : 500;
+                    color: battery_limit == 60 ? #2dd4bf : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // 平衡 (80%)
+            btn_80 := Rectangle {
+                border-radius: 5px;
+                background: battery_limit == 80 ? #2dd4bf25 : (t_80.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: battery_limit == 80 ? 1.5px : 1px;
+                border-color: battery_limit == 80 ? #2dd4bf : AppTheme.border_subtle;
+
+                t_80 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_battery_limit(80); }
+                }
+
+                Text {
+                    text: "平衡";
+                    font-size: 10.5px;
+                    font-weight: battery_limit == 80 ? 700 : 500;
+                    color: battery_limit == 80 ? #2dd4bf : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // 长效 (100%)
+            btn_100 := Rectangle {
+                border-radius: 5px;
+                background: battery_limit == 100 ? #2dd4bf25 : (t_100.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: battery_limit == 100 ? 1.5px : 1px;
+                border-color: battery_limit == 100 ? #2dd4bf : AppTheme.border_subtle;
+
+                t_100 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_battery_limit(100); }
+                }
+
+                Text {
+                    text: "长效";
+                    font-size: 10.5px;
+                    font-weight: battery_limit == 100 ? 700 : 500;
+                    color: battery_limit == 100 ? #2dd4bf : AppTheme.text_primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

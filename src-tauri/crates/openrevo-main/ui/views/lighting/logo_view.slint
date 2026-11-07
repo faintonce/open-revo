@@ -1,0 +1,366 @@
+import { AppTheme } from "../../theme.slint";
+import { ColorPaletteRow } from "color_palette.slint";
+
+export component LogoLightingView inherits Rectangle {
+    in-out property <bool> logo_enabled: true;
+    in-out property <int> logo_effect: 1; // 1: Static, 2: Breath, 20: Rainbow Breath, 3: Wave, 4: Collision, 6: Meteor, 9: Marquee
+    in-out property <int> logo_brightness: 3; // 0..4
+    in-out property <string> logo_color_hex: "#00FFFF";
+    in-out property <color> logo_color: #00ffff;
+
+    in property <string> hw_desc: "全彩发光徽标控制器";
+    in property <bool> is_ec_logo: false;
+
+    callback toggle_enabled();
+    callback select_effect(int);
+    callback change_brightness(int);
+    callback change_color(string, color);
+
+    border-radius: AppTheme.radius_md;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 16px;
+        alignment: start;
+
+        // 1. Header Banner & Main Power Switch
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 3px;
+                alignment: center;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    Text {
+                        text: "A面 炫彩徽标";
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 20px;
+                            border-radius: AppTheme.radius_xs;
+                            background: #f43f5e20;
+                            border-width: 1px;
+                            border-color: #f43f5e50;
+
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                Text {
+                                    text: root.hw_desc;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    color: #fb7185;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "A面独立炫彩发光徽标，支持跑马灯、波浪、对冲、流星等全彩流光动效";
+                    font-size: 11px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            // Power Switch
+            VerticalLayout {
+                alignment: center;
+
+                Rectangle {
+                    width: 92px;
+                    height: 32px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.logo_enabled ? #f43f5e : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_enabled ? #fb7185 : AppTheme.border_medium;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_enabled(); }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 6px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/power.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: root.logo_enabled ? #ffffff : AppTheme.text_muted;
+                            }
+                        }
+
+                        Text {
+                            text: root.logo_enabled ? "已开启" : "已关闭";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: root.logo_enabled ? #ffffff : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Modes Grid
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "LOGO 发光模式 (Logo Modes):";
+                font-size: 11px;
+                font-weight: 700;
+                color: AppTheme.text_muted;
+            }
+
+            // If EC Logo: 3 modes (Static, Breath, Rainbow)
+            if root.is_ec_logo : HorizontalLayout {
+                spacing: 8px;
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 1 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 1 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
+                    Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.logo_effect == 1 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 2 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 2 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
+                    Text { text: "单色呼吸"; font-size: 11px; font-weight: 700; color: root.logo_effect == 2 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 20 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 20 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(20); } }
+                    Text { text: "彩虹呼吸"; font-size: 11px; font-weight: 700; color: root.logo_effect == 20 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+
+            // Standard / ITE Logo: 7 modes
+            if !root.is_ec_logo : HorizontalLayout {
+                spacing: 8px;
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 1 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 1 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
+                    Text { text: "单色常亮"; font-size: 10px; font-weight: 700; color: root.logo_effect == 1 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 2 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 2 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
+                    Text { text: "单色呼吸"; font-size: 10px; font-weight: 700; color: root.logo_effect == 2 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 20 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 20 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(20); } }
+                    Text { text: "彩虹呼吸"; font-size: 10px; font-weight: 700; color: root.logo_effect == 20 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 3 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 3 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(3); } }
+                    Text { text: "全彩波浪"; font-size: 10px; font-weight: 700; color: root.logo_effect == 3 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 4 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 4 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(4); } }
+                    Text { text: "动态对撞"; font-size: 10px; font-weight: 700; color: root.logo_effect == 4 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 6 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 6 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(6); } }
+                    Text { text: "穿梭流星"; font-size: 10px; font-weight: 700; color: root.logo_effect == 6 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 38px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.logo_effect == 9 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.logo_effect == 9 ? #f43f5e : AppTheme.border_subtle;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(9); } }
+                    Text { text: "全彩跑马"; font-size: 10px; font-weight: 700; color: root.logo_effect == 9 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+        }
+
+        // 3. Brightness Slider Row (56px)
+        Rectangle {
+            height: 56px;
+            background: AppTheme.surface_sunken;
+            border-radius: AppTheme.radius_md;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        HorizontalLayout {
+                            spacing: 4px;
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../../assets/icons/sun.svg");
+                                    width: 12px;
+                                    height: 12px;
+                                    colorize: #f59e0b;
+                                }
+                            }
+                            Text {
+                                text: "LOGO 亮度";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: root.logo_brightness == 0 ? "关闭 (0)" : (root.logo_brightness + " 档");
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: #fb7185;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 16px;
+                        background: transparent;
+
+                        Rectangle {
+                            x: 0;
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            height: 4px;
+                            background: AppTheme.surface_pill;
+                            border-radius: 2px;
+
+                            Rectangle {
+                                x: 0;
+                                y: 0;
+                                width: Math.max(0px, (root.logo_brightness / 4.0) * parent.width);
+                                height: parent.height;
+                                background: #f43f5e;
+                                border-radius: 2px;
+                            }
+                        }
+
+                        Rectangle {
+                            x: Math.max(0px, Math.min(parent.width - self.width, (root.logo_brightness / 4.0) * parent.width - self.width / 2));
+                            y: (parent.height - self.height) / 2;
+                            width: 12px;
+                            height: 12px;
+                            border-radius: 6px;
+                            background: #ffffff;
+                        }
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            pointer-event(event) => {
+                                if event.kind == PointerEventKind.down {
+                                    let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                    let val = Math.round(ratio * 4.0);
+                                    root.logo_brightness = val;
+                                    root.change_brightness(val);
+                                }
+                            }
+                            moved => {
+                                let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                let val = Math.round(ratio * 4.0);
+                                if val != root.logo_brightness {
+                                    root.logo_brightness = val;
+                                    root.change_brightness(val);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Color Palette
+        ColorPaletteRow {
+            active_color_hex <=> root.logo_color_hex;
+            active_color <=> root.logo_color;
+            label_text: "LOGO主色调:";
+            color_selected(hex, c) => {
+                root.change_color(hex, c);
+            }
+        }
+    }
+}

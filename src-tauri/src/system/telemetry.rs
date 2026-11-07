@@ -89,6 +89,7 @@ pub fn is_telemetry_active() -> bool {
     MAIN_WINDOW_VISIBLE.load(Ordering::Relaxed)
         || ACTIVE_SUBSCRIBERS.load(Ordering::Relaxed) > 0
         || crate::system::watcher_hub::has_active_telemetry_watchers()
+        || !crate::system::config::load_config().use_classic_webview
 }
 
 /// Determine whether NVIDIA dGPU queries (NVAPI) should be executed
@@ -118,7 +119,7 @@ pub fn should_query_gpu() -> bool {
 
 /// Start the background dynamic telemetry heartbeat loop
 pub fn start_telemetry_loop(
-    app: AppHandle,
+    app: Option<AppHandle>,
     ec_bridge: SharedEcBridge,
     gpu_bridge: SharedGpuBridge,
 ) {
@@ -144,8 +145,14 @@ pub fn start_telemetry_loop(
                     let query_gpu = should_query_gpu();
                     let state = collect_hardware_state(&ec_bridge, &gpu_bridge, query_gpu);
                     if !SCREEN_SUSPENDED.load(Ordering::SeqCst) && !REBOOT_FREEZE.load(Ordering::SeqCst) {
-                        let _ = app.emit("hardware-state-updated", &state);
+                        if let Some(ref a) = app {
+                            let _ = a.emit("hardware-state-updated", &state);
+                        }
+                        if let Ok(v) = serde_json::to_value(&state) {
+                            crate::system::native_wry::broadcast_event("hardware-state-updated", &v);
+                        }
                         crate::system::watcher_hub::evaluate_telemetry_watchers(&state);
+                        crate::system::slint_window::sync_slint_telemetry(&state);
                     }
                     std::thread::sleep(Duration::from_millis(1500));
                 } else {

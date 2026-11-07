@@ -1,0 +1,131 @@
+﻿import { AppTheme } from "../../theme.slint";
+
+export component DrawerFooter inherits Rectangle {
+    height: 32px;
+    background: transparent;
+
+    in-out property <bool> autostart: false;
+    callback toggle_autostart();
+    callback toggle_oem();
+    callback expand_dashboard();
+
+    HorizontalLayout {
+        alignment: space-between;
+
+        // Left Controls: Autostart + Restore OEM
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            // Autostart Checkbox
+            Rectangle {
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { toggle_autostart(); }
+                }
+
+                HorizontalLayout {
+                    spacing: 5px;
+                    alignment: start;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 15px;
+                            height: 15px;
+                            border-radius: 3px;
+                            background: autostart ? #38bdf8 : transparent;
+                            border-width: 1px;
+                            border-color: autostart ? #38bdf8 : AppTheme.border_medium;
+
+                            Text {
+                                text: autostart ? "✓" : "";
+                                font-size: 10px;
+                                font-weight: 800;
+                                color: #ffffff;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "开机自启";
+                        font-size: 10.5px;
+                        font-weight: autostart ? 600 : 400;
+                        color: autostart ? #f8fafc : AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Restore OEM Button (Height 28px)
+            Rectangle {
+                border-radius: 5px;
+                background: t_oem.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+                height: 28px;
+
+                t_oem := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { toggle_oem(); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 5px;
+                    Image {
+                        source: @image-url("../../assets/icons/refresh-cw.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "恢复官方控制台";
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Right Button: 展开大面板 (Height 28px)
+        Rectangle {
+            border-radius: 5px;
+            background: t_exp.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+            border-width: 1px;
+            border-color: AppTheme.border_medium;
+            height: 28px;
+
+            t_exp := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { expand_dashboard(); }
+            }
+
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 5px;
+                Image {
+                    source: @image-url("../../assets/icons/maximize2.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: AppTheme.text_primary;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "展开大面板";
+                    font-size: 10.5px;
+                    font-weight: 600;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
