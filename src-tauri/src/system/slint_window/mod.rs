@@ -56,6 +56,11 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                     // Send initial state sync
                     let switches = crate::system::device_switches::get_switches_state();
                     let (live_percent, live_ac, _) = crate::commands::power_cmd::get_live_power_status();
+                    let should_expand = match cfg.wake_window_mode.as_str() {
+                        "full" => true,
+                        "mini" => false,
+                        _ => cfg.last_window_expanded,
+                    };
                     let line = format!("{}\n", serde_json::json!({
                         "action": "sync_state",
                         "app_version": format!("v{}", env!("CARGO_PKG_VERSION")),
@@ -95,6 +100,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "oc_mem_mhz": cfg.gpu_oc_mem_mhz,
                         "unlock_battery_limit": cfg.unlock_battery_power_limit,
                         "wake_window_mode": crate::commands::window_cmd::get_wake_window_mode(),
+                        "is_expanded": should_expand,
                         "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
                         "use_classic_webview": cfg.use_classic_webview,
                         "full_window_x": cfg.full_window_x,
@@ -127,14 +133,14 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
 
                 // Listen for stdout from companion
                 if let Some(stdout) = child.stdout.take() {
-                    let app_opt = app.cloned();
                     std::thread::Builder::new()
                         .name("slint-companion-stdout-reader".into())
                         .spawn(move || {
                             let reader = BufReader::new(stdout);
                             for line_res in reader.lines() {
                                 if let Ok(line) = line_res {
-                                    handle_slint_incoming_action(&line, app_opt.as_ref());
+                                    let app_fallback = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
+                                    handle_slint_incoming_action(&line, app_fallback.as_ref());
                                 }
                             }
                             crate::log_info!("SLINT_MAIN", "Slint companion process terminated, clearing STDIN handle.");
@@ -195,7 +201,16 @@ pub fn send_slint_ipc_message(payload: serde_json::Value) {
 pub fn show_slint_window() {
     let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
     ensure_slint_main_process(app_opt.as_ref());
-    send_slint_ipc_message(serde_json::json!({ "action": "show" }));
+    let cfg = crate::system::config::load_config();
+    let should_expand = match cfg.wake_window_mode.as_str() {
+        "full" => true,
+        "mini" => false,
+        _ => cfg.last_window_expanded,
+    };
+    send_slint_ipc_message(serde_json::json!({
+        "action": "show",
+        "is_expanded": should_expand,
+    }));
 }
 
 pub fn hide_slint_window() {

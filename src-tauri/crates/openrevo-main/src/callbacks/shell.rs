@@ -148,7 +148,9 @@ pub fn register(
             unsafe {
                 let hwnd = h.to_hwnd();
                 if let Some(ui) = ui_close.upgrade() {
-                    if ui.get_is_expanded() {
+                    let is_exp = ui.get_is_expanded();
+                    ipc::send_action_to_host("record_window_mode", serde_json::json!({ "is_expanded": is_exp }));
+                    if is_exp {
                         let mut rect = RECT::default();
                         if GetWindowRect(hwnd, &mut rect).is_ok() {
                             *SAVED_FULL_POS.lock().unwrap() = Some((rect.left, rect.top));

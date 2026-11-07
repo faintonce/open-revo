@@ -53,6 +53,26 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
         }
         "expand_dashboard" => {
             crate::log_info!("SLINT_MAIN", "Dashboard expanded to full native view");
+            let mut cfg = crate::system::config::load_config();
+            cfg.last_window_expanded = true;
+            let _ = crate::system::config::save_config(&cfg);
+            crate::system::tray::update_tray_window_mode(true);
+            true
+        }
+        "collapse_dashboard" => {
+            crate::log_info!("SLINT_MAIN", "Dashboard collapsed to mini drawer view");
+            let mut cfg = crate::system::config::load_config();
+            cfg.last_window_expanded = false;
+            let _ = crate::system::config::save_config(&cfg);
+            crate::system::tray::update_tray_window_mode(false);
+            true
+        }
+        "record_window_mode" => {
+            if let Some(is_exp) = val.get("is_expanded").and_then(|v| v.as_bool()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.last_window_expanded = is_exp;
+                let _ = crate::system::config::save_config(&cfg);
+            }
             true
         }
         "set_wake_window_mode" => {

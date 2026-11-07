@@ -59,8 +59,11 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "toggle_osd" => {
             let state = crate::system::device_switches::get_switches_state();
             let next = !state.osd;
-            if let Some(app) = app {
-                let _ = crate::commands::switches_cmd::set_device_switch(app.clone(), "osd".into(), next);
+            let app_handle = app.cloned().or_else(|| crate::system::slint_window::SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone()));
+            if let Some(a) = app_handle {
+                let _ = crate::commands::switches_cmd::set_device_switch(a, "osd".into(), next);
+            } else {
+                let _ = crate::system::device_switches::set_switch("osd", next);
             }
             true
         }
@@ -138,8 +141,11 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "set_osd_enabled" => {
             if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
-                if let Some(app) = app {
-                    let _ = crate::commands::switches_cmd::set_device_switch(app.clone(), "osd".into(), en);
+                let app_handle = app.cloned().or_else(|| crate::system::slint_window::SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone()));
+                if let Some(a) = app_handle {
+                    let _ = crate::commands::switches_cmd::set_device_switch(a, "osd".into(), en);
+                } else {
+                    let _ = crate::system::device_switches::set_switch("osd", en);
                 }
             }
             true

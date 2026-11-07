@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::process::{ChildStdin, Command, Stdio};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -7,6 +7,11 @@ static OSD_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
 
 /// Ensure the native companion OSD process is spawned and acquire direct stdin handle
 pub fn ensure_companion_process() {
+    let cfg = crate::system::config::load_config();
+    if !cfg.osd_enabled {
+        return;
+    }
+
     let mut lock = match OSD_STDIN.lock() {
         Ok(l) => l,
         Err(poisoned) => poisoned.into_inner(),
@@ -21,14 +26,12 @@ pub fn ensure_companion_process() {
         let mut cmd = Command::new(exe_path);
         cmd.arg("--osd-companion");
         cmd.stdin(Stdio::piped());
-        cmd.stdout(Stdio::null());
+        cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::null());
-
 
         match cmd.spawn() {
             Ok(mut child) => {
                 if let Some(mut stdin) = child.stdin.take() {
-                    let cfg = crate::system::config::load_config();
                     let line = format!("{}\n", serde_json::json!({
                         "action": "config",
                         "theme": cfg.osd_theme,
@@ -39,6 +42,22 @@ pub fn ensure_companion_process() {
                     let _ = stdin.flush();
                     *lock = Some(stdin);
                     crate::log_info!("OSD", "Native OSD companion stdin pipe established & initial config synced: theme={}, scale={}, pos={}", cfg.osd_theme, cfg.osd_scale, cfg.osd_position);
+                }
+
+                if let Some(stdout) = child.stdout.take() {
+                    std::thread::Builder::new()
+                        .name("osd-companion-stdout-reader".into())
+                        .spawn(move || {
+                            let reader = BufReader::new(stdout);
+                            for _line in reader.lines() {
+                                // Keep pipe open until companion terminates
+                            }
+                            crate::log_info!("OSD", "OSD companion process terminated, clearing STDIN handle.");
+                            if let Ok(mut g) = OSD_STDIN.lock() {
+                                *g = None;
+                            }
+                        })
+                        .ok();
                 }
             }
             Err(e) => {

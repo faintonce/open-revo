@@ -286,8 +286,10 @@ pub fn is_window_expanded(window: &WebviewWindow) -> bool {
 
 /// Explicitly switches window to Full Panel mode and updates tray checkmarks.
 pub fn switch_to_full_panel(app: &tauri::AppHandle) {
-    let cfg = crate::system::config::load_config();
+    let mut cfg = crate::system::config::load_config();
     if !cfg.use_classic_webview {
+        cfg.last_window_expanded = true;
+        let _ = crate::system::config::save_config(&cfg);
         crate::system::slint_window::send_slint_ipc_message(serde_json::json!({ "action": "expand_dashboard" }));
         crate::system::slint_window::show_slint_window();
         crate::system::tray::update_tray_window_mode(true);
@@ -307,8 +309,10 @@ pub fn switch_to_full_panel(app: &tauri::AppHandle) {
 
 /// Explicitly switches window to Mini Drawer mode and updates tray checkmarks.
 pub fn switch_to_mini_drawer(app: &tauri::AppHandle) {
-    let cfg = crate::system::config::load_config();
+    let mut cfg = crate::system::config::load_config();
     if !cfg.use_classic_webview {
+        cfg.last_window_expanded = false;
+        let _ = crate::system::config::save_config(&cfg);
         crate::system::slint_window::send_slint_ipc_message(serde_json::json!({ "action": "collapse_dashboard" }));
         crate::system::slint_window::show_slint_window();
         crate::system::tray::update_tray_window_mode(false);

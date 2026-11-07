@@ -214,6 +214,10 @@ pub struct AppConfig {
     #[serde(default = "default_wake_window_mode")]
     pub wake_window_mode: String,
 
+    // Last recorded dashboard mode (true: full panel, false: mini drawer)
+    #[serde(default)]
+    pub last_window_expanded: bool,
+
     // Mini Drawer Auto Hide on Blur (Focus Lost to Desktop or Other App)
     #[serde(default = "default_true")]
     pub mini_auto_hide_on_blur: bool,
@@ -489,6 +493,7 @@ impl Default for AppConfig {
             full_window_x: None,
             full_window_y: None,
             wake_window_mode: default_wake_window_mode(),
+            last_window_expanded: false,
             mini_auto_hide_on_blur: true,
 
             custom_profile: CustomProfileConfig::default(),

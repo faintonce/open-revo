@@ -165,6 +165,18 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(wm) = val.get("wake_window_mode").and_then(|v| v.as_str()) {
                 ui.set_wake_window_mode(wm.into());
             }
+            if let Some(exp) = val.get("is_expanded").and_then(|v| v.as_bool()) {
+                ui.set_is_expanded(exp);
+                if let Some(h) = *crate::window::HWND_HOLDER.lock().unwrap() {
+                    let hwnd = h.to_hwnd();
+                    if exp {
+                        let saved = *crate::window::SAVED_FULL_POS.lock().unwrap();
+                        crate::window::expand_native_window(hwnd, 1120, 760, saved);
+                    } else {
+                        crate::window::align_mini_drawer_to_tray(hwnd, 395, 632);
+                    }
+                }
+            }
             if let Some(mah) = val.get("mini_auto_hide").and_then(|v| v.as_bool()) {
                 ui.set_mini_auto_hide(mah);
             }
@@ -194,6 +206,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             true
         }
         "show" => {
+            if let Some(exp) = val.get("is_expanded").and_then(|v| v.as_bool()) {
+                ui.set_is_expanded(exp);
+            }
             let mut hwnd_opt = *crate::window::HWND_HOLDER.lock().unwrap();
             if hwnd_opt.is_none() {
                 if let Some(h) = crate::window::find_thread_hwnd() {
@@ -203,11 +218,17 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 }
             }
             if let Some(h) = hwnd_opt {
+                let hwnd = h.to_hwnd();
+                if ui.get_is_expanded() {
+                    let saved = *crate::window::SAVED_FULL_POS.lock().unwrap();
+                    crate::window::expand_native_window(hwnd, 1120, 760, saved);
+                } else {
+                    crate::window::align_mini_drawer_to_tray(hwnd, 395, 632);
+                }
                 unsafe {
                     use windows::Win32::UI::WindowsAndMessaging::{
                         SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
                     };
-                    let hwnd = h.to_hwnd();
                     let _ = ShowWindow(hwnd, SW_RESTORE);
                     let _ = ShowWindow(hwnd, SW_SHOW);
                     let _ = SetForegroundWindow(hwnd);
@@ -247,6 +268,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                         std::thread::sleep(std::time::Duration::from_millis(30));
                         std::process::exit(0);
                     } else {
+                        if ui.get_is_expanded() {
+                            let saved = *crate::window::SAVED_FULL_POS.lock().unwrap();
+                            crate::window::expand_native_window(hwnd, 1120, 760, saved);
+                        } else {
+                            crate::window::align_mini_drawer_to_tray(hwnd, 395, 632);
+                        }
                         let _ = ShowWindow(hwnd, SW_RESTORE);
                         let _ = ShowWindow(hwnd, SW_SHOW);
                         let _ = SetForegroundWindow(hwnd);
