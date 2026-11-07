@@ -1,5 +1,5 @@
 import { AppTheme } from "../../theme.slint";
-import { MonitorRefreshCard } from "../gpu/monitor_refresh_card.slint";
+import { OsdConfigData } from "../system/system_types.slint";
 
 export component DashboardQuickActions inherits Rectangle {
     height: 76px;
@@ -7,19 +7,19 @@ export component DashboardQuickActions inherits Rectangle {
 
     in-out property <bool> fan_boost: false;
     in-out property <bool> auto_min_hz: true;
-    in-out property <int> refresh_rate: 240;
-    in-out property <string> monitor_name: "京东方";
-    in-out property <[int]> rates_row1: [60, 144, 240];
-    in-out property <[int]> rates_row2: [];
-    in-out property <bool> has_secondary_monitor: false;
-    in-out property <string> primary_monitor_name: "内置主屏";
-    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <OsdConfigData> osd_config: {
+        enabled: true,
+        theme: "fade",
+        scale: "140%",
+        position: "top-left"
+    };
 
     callback toggle_fan_boost();
     callback toggle_auto_min_hz();
-    callback switch_hz(int);
-    callback select_monitor(string);
-    callback select_monitor_index(int);
+    callback change_osd_theme(string);
+    callback change_osd_scale(string);
+    callback change_osd_position(string);
+    callback trigger_osd_preview();
 
     HorizontalLayout {
         spacing: 12px;
@@ -166,19 +166,292 @@ export component DashboardQuickActions inherits Rectangle {
             }
         }
 
-        // 3. Monitor Refresh Rate Control (Reusing shared MonitorRefreshCard)
-        MonitorRefreshCard {
+        // 3. OSD 悬浮提示设置 (horizontal-stretch: 1)
+        card_osd := Rectangle {
             horizontal-stretch: 1;
-            title: "屏幕刷新率";
-            monitor_name: root.monitor_name;
-            refresh_rate: root.refresh_rate;
-            rates_row1: root.rates_row1;
-            rates_row2: root.rates_row2;
-            has_secondary_monitor: root.has_secondary_monitor;
-            primary_monitor_name: root.primary_monitor_name;
-            secondary_monitor_name: root.secondary_monitor_name;
-            refresh_rate_switched(hz) => { root.switch_hz(hz); }
-            select_monitor_index(idx) => { root.select_monitor_index(idx); }
+            background: AppTheme.surface_card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: start;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/layers.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: #38bdf8;
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: "OSD 悬浮提示";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                            Rectangle {
+                                border-radius: 3px;
+                                background: #38bdf820;
+                                border-width: 1px;
+                                border-color: #38bdf860;
+                                height: 16px;
+                                HorizontalLayout {
+                                    padding-left: 4px;
+                                    padding-right: 4px;
+                                    Text {
+                                        text: "HUD";
+                                        font-size: 9px;
+                                        font-weight: 700;
+                                        color: #38bdf8;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            text: "风格 / 尺寸 / 屏幕位置";
+                            font-size: 9.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+                }
+
+                // Controls: Theme, Scale, Position, Preview
+                VerticalLayout {
+                    alignment: center;
+                    HorizontalLayout {
+                        spacing: 6px;
+
+                        // 1. Theme Dropdown
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: t_theme.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_medium;
+                            t_theme := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { theme_popup.show(); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 4px;
+                                Text {
+                                    text: root.osd_config.theme == "cinema" ? "电影字幕" : (root.osd_config.theme == "fade" ? "向右羽化" : "磨砂胶囊");
+                                    font-size: 11px;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+                                Image {
+                                    source: @image-url("../../assets/icons/chevron-down.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: AppTheme.text_muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                            theme_popup := PopupWindow {
+                                x: 0;
+                                y: parent.height + 4px;
+                                width: 100px;
+                                Rectangle {
+                                    background: AppTheme.surface_elevated;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: AppTheme.border_medium;
+                                    VerticalLayout {
+                                        padding: 4px;
+                                        spacing: 2px;
+                                        Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: t_th1.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_th1 := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => { root.change_osd_theme("cinema"); }
+                                            }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "电影字幕"; font-size: 11px; vertical-alignment: center; } }
+                                        }
+                                        Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: t_th2.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_th2 := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => { root.change_osd_theme("fade"); }
+                                            }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "向右羽化"; font-size: 11px; vertical-alignment: center; } }
+                                        }
+                                        Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: t_th3.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_th3 := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => { root.change_osd_theme("pill"); }
+                                            }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "磨砂胶囊"; font-size: 11px; vertical-alignment: center; } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. Scale Dropdown
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: t_scale.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_medium;
+                            t_scale := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { scale_popup.show(); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 4px;
+                                Text { text: root.osd_config.scale; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                Image {
+                                    source: @image-url("../../assets/icons/chevron-down.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: AppTheme.text_muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                            scale_popup := PopupWindow {
+                                x: 0;
+                                y: parent.height + 4px;
+                                width: 80px;
+                                Rectangle {
+                                    background: AppTheme.surface_elevated;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: AppTheme.border_medium;
+                                    VerticalLayout {
+                                        padding: 4px;
+                                        spacing: 2px;
+                                        for sc in ["80%", "100%", "120%", "140%"]: Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: t_sc.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_sc := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => { root.change_osd_scale(sc); }
+                                            }
+                                            HorizontalLayout { padding-left: 8px; Text { text: sc; font-size: 11px; vertical-alignment: center; } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Position Dropdown
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: t_pos.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_medium;
+                            t_pos := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { pos_popup.show(); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 4px;
+                                Text {
+                                    text: root.osd_config.position == "top-left" ? "左上角" : (root.osd_config.position == "bottom-center" ? "下方中央" : "屏幕正中");
+                                    font-size: 11px;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+                                Image {
+                                    source: @image-url("../../assets/icons/chevron-down.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: AppTheme.text_muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                            pos_popup := PopupWindow {
+                                x: 0;
+                                y: parent.height + 4px;
+                                width: 90px;
+                                Rectangle {
+                                    background: AppTheme.surface_elevated;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: AppTheme.border_medium;
+                                    VerticalLayout {
+                                        padding: 4px;
+                                        spacing: 2px;
+                                        Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: t_p1.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_p1 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("top-left"); } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "左上角"; font-size: 11px; vertical-alignment: center; } }
+                                        }
+                                        Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: t_p2.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_p2 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("bottom-center"); } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "下方中央"; font-size: 11px; vertical-alignment: center; } }
+                                        }
+                                        Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: t_p3.has-hover ? AppTheme.surface_pill : transparent;
+                                            t_p3 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("center"); } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "屏幕正中"; font-size: 11px; vertical-alignment: center; } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 4. Preview Button
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 4px;
+                            background: t_prev.has-hover ? #6366f125 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: #6366f155;
+                            t_prev := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.trigger_osd_preview(); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                Text { text: "预览"; font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

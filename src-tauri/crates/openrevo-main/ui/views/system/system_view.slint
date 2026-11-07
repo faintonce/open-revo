@@ -14,20 +14,7 @@ export component DashboardSystemView inherits Rectangle {
     in-out property <bool> autostart: false;
     callback toggle_autostart();
 
-    // 2. OSD Config
-    in-out property <OsdConfigData> osd_config: {
-        enabled: true,
-        theme: "fade",
-        scale: "140%",
-        position: "top-left"
-    };
-    callback change_osd_theme(string);
-    callback change_osd_scale(string);
-    callback change_osd_position(string);
-    callback toggle_osd_enabled(bool);
-    callback trigger_osd_preview();
-
-    // 3. Unlock Battery Limit
+    // 2. Unlock Battery Limit
     in-out property <bool> unlock_battery_limit: false;
     in-out property <bool> show_unlock_battery_confirm: false;
     in-out property <bool> toggling_unlock_battery: false;
@@ -92,13 +79,6 @@ export component DashboardSystemView inherits Rectangle {
         SystemSwitchesCard {
             autostart: root.autostart;
             toggle_autostart => { root.toggle_autostart(); }
-
-            osd_config: root.osd_config;
-            change_osd_theme(t) => { root.change_osd_theme(t); }
-            change_osd_scale(s) => { root.change_osd_scale(s); }
-            change_osd_position(p) => { root.change_osd_position(p); }
-            toggle_osd_enabled(en) => { root.toggle_osd_enabled(en); }
-            trigger_osd_preview => { root.trigger_osd_preview(); }
 
             unlock_battery_limit: root.unlock_battery_limit;
             request_toggle_unlock_battery => {

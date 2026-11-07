@@ -595,18 +595,13 @@ export component FullDashboard inherits Rectangle {
 
                 fan_boost: root.fan_boost;
                 auto_min_hz: root.auto_min_hz;
-                refresh_rate: root.refresh_rate;
-                monitor_name: root.monitor_name;
-                rates_row1: root.rates_row1;
-                rates_row2: root.rates_row2;
-                has_secondary_monitor: root.has_secondary_monitor;
-                primary_monitor_name: root.primary_monitor_name;
-                secondary_monitor_name: root.secondary_monitor_name;
                 toggle_fan_boost => { root.toggle_fan_boost(); }
                 toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
-                switch_hz(hz) => { root.switch_hz(hz); }
-                select_monitor(m) => { root.select_monitor(m); }
-                select_monitor_index(idx) => { root.select_monitor_index(idx); }
+                osd_config: root.osd_config;
+                change_osd_theme(t) => { root.change_osd_theme(t); }
+                change_osd_scale(s) => { root.change_osd_scale(s); }
+                change_osd_position(p) => { root.change_osd_position(p); }
+                trigger_osd_preview => { root.trigger_osd_preview(); }
 
                 wifi_enabled: root.wifi_enabled;
                 bt_enabled: root.bt_enabled;
@@ -798,6 +793,9 @@ export component FullDashboard inherits Rectangle {
                 monitor_name: root.monitor_name;
                 rates_row1: root.rates_row1;
                 rates_row2: root.rates_row2;
+                has_secondary_monitor: root.has_secondary_monitor;
+                primary_monitor_name: root.primary_monitor_name;
+                secondary_monitor_name: root.secondary_monitor_name;
 
                 tuning_enabled: root.tuning_enabled;
                 active_preset_id: root.active_preset_id;
@@ -1082,13 +1080,6 @@ export component FullDashboard inherits Rectangle {
 
                 autostart: root.autostart;
                 toggle_autostart => { root.toggle_autostart(); }
-
-                osd_config: root.osd_config;
-                change_osd_theme(t) => { root.change_osd_theme(t); }
-                change_osd_scale(s) => { root.change_osd_scale(s); }
-                change_osd_position(p) => { root.change_osd_position(p); }
-                toggle_osd_enabled(en) => { root.toggle_osd_enabled(en); }
-                trigger_osd_preview => { root.trigger_osd_preview(); }
 
                 unlock_battery_limit: root.unlock_battery_limit;
                 show_unlock_battery_confirm <=> root.show_unlock_battery_confirm;

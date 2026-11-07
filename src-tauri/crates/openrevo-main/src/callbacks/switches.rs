@@ -74,7 +74,11 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_osd_toggled(move || {
         ipc::send_action_to_host("toggle_osd", serde_json::json!({}));
         if let Some(ui) = ui_cb.upgrade() {
-            ui.set_osd_enabled(!ui.get_osd_enabled());
+            let next = !ui.get_osd_enabled();
+            ui.set_osd_enabled(next);
+            let mut cfg = ui.get_osd_config();
+            cfg.enabled = next;
+            ui.set_osd_config(cfg);
         }
     });
 

@@ -3,6 +3,7 @@ import { DashboardTelemetryCards } from "telemetry_cards.slint";
 import { DashboardPowerProfiles } from "power_profiles.slint";
 import { DashboardQuickActions } from "quick_actions.slint";
 import { DashboardSwitchesGrid } from "switches_grid.slint";
+import { OsdConfigData } from "../system/system_types.slint";
 
 export component DashboardOverviewView inherits Rectangle {
     background: transparent;
@@ -37,18 +38,18 @@ export component DashboardOverviewView inherits Rectangle {
     // Quick Actions Props & Callbacks
     in-out property <bool> fan_boost: false;
     in-out property <bool> auto_min_hz: true;
-    in-out property <int> refresh_rate: 240;
-    in-out property <string> monitor_name: "京东方";
-    in-out property <[int]> rates_row1: [60, 144, 240];
-    in-out property <[int]> rates_row2: [];
-    in-out property <bool> has_secondary_monitor: false;
-    in-out property <string> primary_monitor_name: "内置主屏";
-    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <OsdConfigData> osd_config: {
+        enabled: true,
+        theme: "fade",
+        scale: "140%",
+        position: "top-left"
+    };
     callback toggle_fan_boost();
     callback toggle_auto_min_hz();
-    callback switch_hz(int);
-    callback select_monitor(string);
-    callback select_monitor_index(int);
+    callback change_osd_theme(string);
+    callback change_osd_scale(string);
+    callback change_osd_position(string);
+    callback trigger_osd_preview();
 
     // Hardware Switches Props & Callbacks
     in-out property <bool> wifi_enabled: true;
@@ -114,18 +115,13 @@ export component DashboardOverviewView inherits Rectangle {
         DashboardQuickActions {
             fan_boost: root.fan_boost;
             auto_min_hz: root.auto_min_hz;
-            refresh_rate: root.refresh_rate;
-            monitor_name: root.monitor_name;
-            rates_row1: root.rates_row1;
-            rates_row2: root.rates_row2;
-            has_secondary_monitor: root.has_secondary_monitor;
-            primary_monitor_name: root.primary_monitor_name;
-            secondary_monitor_name: root.secondary_monitor_name;
+            osd_config: root.osd_config;
             toggle_fan_boost => { root.toggle_fan_boost(); }
             toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
-            switch_hz(hz) => { root.switch_hz(hz); }
-            select_monitor(m) => { root.select_monitor(m); }
-            select_monitor_index(idx) => { root.select_monitor_index(idx); }
+            change_osd_theme(t) => { root.change_osd_theme(t); }
+            change_osd_scale(s) => { root.change_osd_scale(s); }
+            change_osd_position(p) => { root.change_osd_position(p); }
+            trigger_osd_preview => { root.trigger_osd_preview(); }
         }
 
         // 4. Switches Grid (Height: 125px)

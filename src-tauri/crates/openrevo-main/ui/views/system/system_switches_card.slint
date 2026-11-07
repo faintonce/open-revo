@@ -1,6 +1,5 @@
 import { AppTheme } from "../../theme.slint";
 import { PowerSchemeItem, UserDataDirInfo, OsdConfigData } from "system_types.slint";
-import { OsdSettingRow } from "osd_setting_row.slint";
 import { PowerSchemeRow } from "power_scheme_row.slint";
 import { StorageManagementRow } from "storage_management_row.slint";
 import { WakeWindowModeRow } from "wake_window_mode_row.slint";
@@ -10,20 +9,7 @@ export component SystemSwitchesCard inherits Rectangle {
     in-out property <bool> autostart: false;
     callback toggle_autostart();
 
-    // 2. OSD Config
-    in-out property <OsdConfigData> osd_config: {
-        enabled: true,
-        theme: "fade",
-        scale: "140%",
-        position: "top-left"
-    };
-    callback change_osd_theme(string);
-    callback change_osd_scale(string);
-    callback change_osd_position(string);
-    callback toggle_osd_enabled(bool);
-    callback trigger_osd_preview();
-
-    // 3. Unlock Battery Limit
+    // 2. Unlock Battery Limit
     in-out property <bool> unlock_battery_limit: false;
     callback request_toggle_unlock_battery();
 
@@ -246,22 +232,7 @@ export component SystemSwitchesCard inherits Rectangle {
         Rectangle { height: 1px; background: AppTheme.border_subtle; }
 
         // =====================================================================
-        // Row 2: OSD 屏幕悬浮提示 (HUD)
-        // =====================================================================
-        OsdSettingRow {
-            osd_config: root.osd_config;
-            change_osd_theme(t) => { root.change_osd_theme(t); }
-            change_osd_scale(s) => { root.change_osd_scale(s); }
-            change_osd_position(p) => { root.change_osd_position(p); }
-            toggle_osd_enabled(en) => { root.toggle_osd_enabled(en); }
-            trigger_osd_preview => { root.trigger_osd_preview(); }
-        }
-
-        // Divider
-        Rectangle { height: 1px; background: AppTheme.border_subtle; }
-
-        // =====================================================================
-        // Row 3: 解除离电限制 (Power Gating)
+        // Row 2: 解除离电限制 (Power Gating)
         // =====================================================================
         HorizontalLayout {
             alignment: space-between;

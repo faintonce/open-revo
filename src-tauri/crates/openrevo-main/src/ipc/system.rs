@@ -75,6 +75,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             if let Some(osd) = val.get("osd_enabled").and_then(|v| v.as_bool()) {
                 ui.set_osd_enabled(osd);
+                let mut cfg = ui.get_osd_config();
+                cfg.enabled = osd;
+                ui.set_osd_config(cfg);
             }
             if let Some(fn_l) = val.get("fn_locked").and_then(|v| v.as_bool()) {
                 ui.set_fn_locked(fn_l);
