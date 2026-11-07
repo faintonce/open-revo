@@ -851,6 +851,13 @@ fn spawn_embedded_child(
 
 // --- Public Facade APIs ---
 
+fn get_active_proxy() -> Option<EventLoopProxy<NativeWryMessage>> {
+    if IS_SHUTTING_DOWN.load(Ordering::SeqCst) {
+        return None;
+    }
+    PROXY_HOLDER.lock().clone()
+}
+
 pub fn open_popout(plugin_id: &str) {
     if let Some(proxy) = ensure_native_wry_loop() {
         let _ = proxy.send_event(NativeWryMessage::OpenPopout {
@@ -860,7 +867,7 @@ pub fn open_popout(plugin_id: &str) {
 }
 
 pub fn close_popout(plugin_id: &str) {
-    if let Some(proxy) = ensure_native_wry_loop() {
+    if let Some(proxy) = get_active_proxy() {
         let _ = proxy.send_event(NativeWryMessage::ClosePopout {
             plugin_id: plugin_id.to_string(),
         });
@@ -878,13 +885,13 @@ pub fn attach_or_switch_embedded(parent_hwnd: isize, plugin_id: &str, rect: (i32
 }
 
 pub fn update_embedded_bounds(rect: (i32, i32, i32, i32)) {
-    if let Some(proxy) = ensure_native_wry_loop() {
+    if let Some(proxy) = get_active_proxy() {
         let _ = proxy.send_event(NativeWryMessage::UpdateEmbeddedBounds { rect });
     }
 }
 
 pub fn hide_embedded() {
-    if let Some(proxy) = ensure_native_wry_loop() {
+    if let Some(proxy) = get_active_proxy() {
         let _ = proxy.send_event(NativeWryMessage::HideEmbedded);
     }
 }
@@ -894,7 +901,10 @@ pub fn get_running_popouts() -> Vec<String> {
 }
 
 pub fn broadcast_event(event: &str, payload: &serde_json::Value) {
-    if let Some(proxy) = ensure_native_wry_loop() {
+    if let Some(proxy) = get_active_proxy() {
+        if ACTIVE_EMBEDDED_PLUGIN.read().is_none() && get_running_popouts_set().read().is_empty() {
+            return;
+        }
         let _ = proxy.send_event(NativeWryMessage::BroadcastEvent {
             event: event.to_string(),
             payload_json: payload.to_string(),
