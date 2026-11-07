@@ -22,6 +22,10 @@ export component DrawerView inherits Rectangle {
     in-out property <string> gpu_mode: "dgpu";
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
+    in-out property <string> monitor_name: "京东方";
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
     in-out property <int> brightness: 76;
     in-out property <bool> is_single_color: false;
     in-out property <bool> is_single_zone: false;
@@ -54,6 +58,7 @@ export component DrawerView inherits Rectangle {
     callback gpu_mode_clicked(string);
     callback refresh_rate_switched(int);
     callback auto_min_hz_toggled();
+    callback select_monitor_index(int);
     callback brightness_changed(int);
     callback select_drawer_kbd_effect(int, bool);
     callback select_drawer_kbd_color(string, color);
@@ -111,8 +116,13 @@ export component DrawerView inherits Rectangle {
         DrawerDisplayCard {
             refresh_rate: root.refresh_rate;
             auto_min_hz: root.auto_min_hz;
+            monitor_name: root.monitor_name;
+            has_secondary_monitor: root.has_secondary_monitor;
+            primary_monitor_name: root.primary_monitor_name;
+            secondary_monitor_name: root.secondary_monitor_name;
             switch_hz(hz) => { root.refresh_rate_switched(hz); }
             toggle_auto_min_hz => { root.auto_min_hz_toggled(); }
+            select_monitor_index(idx) => { root.select_monitor_index(idx); }
         }
 
         // 5. Display Brightness Card

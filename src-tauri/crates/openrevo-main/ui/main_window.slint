@@ -509,6 +509,10 @@ export component MainWindow inherits Window {
         gpu_mode: root.gpu_mode;
         refresh_rate: root.refresh_rate;
         auto_min_hz: root.auto_min_hz;
+        monitor_name: root.monitor_name;
+        has_secondary_monitor: root.has_secondary_monitor;
+        primary_monitor_name: root.primary_monitor_name;
+        secondary_monitor_name: root.secondary_monitor_name;
         brightness: root.brightness;
         is_single_color: root.is_single_color;
         is_single_zone: root.is_single_zone;
@@ -538,6 +542,7 @@ export component MainWindow inherits Window {
         gpu_mode_clicked(m) => { root.gpu_mode_clicked(m); }
         refresh_rate_switched(hz) => { root.refresh_rate_switched(hz); }
         auto_min_hz_toggled => { root.auto_min_hz_toggled(); }
+        select_monitor_index(idx) => { root.select_monitor_index(idx); }
         brightness_changed(b) => { root.brightness_changed(b); }
         select_drawer_kbd_effect(effect, enabled) => {
             root.kb_effect = effect;
