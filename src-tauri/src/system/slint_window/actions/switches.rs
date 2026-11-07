@@ -221,7 +221,11 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "set_unlock_battery_limit" => {
             if let Some(enable) = val.get("enabled").and_then(|v| v.as_bool()) {
-                let ec = crate::driver::ec_bridge::get_global_ec();
+                let ec = if let Some(app) = app {
+                app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
+            } else {
+                crate::driver::ec_bridge::get_global_ec()
+            };
                 if let Err(error) = crate::commands::system_cmd::set_unlock_battery_power_limit_internal(enable, app, &ec) {
                     crate::log_warn!("SLINT", "Power limit setting failed: {}", error);
                     let current = ec.lock().get_power_mode();

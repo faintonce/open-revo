@@ -85,7 +85,11 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                     crate::log_warn!("SLINT", "Invalid performance mode: {}", mode);
                     return true;
                 };
-                let ec = crate::driver::ec_bridge::get_global_ec();
+                let ec = if let Some(app) = app {
+                app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
+            } else {
+                crate::driver::ec_bridge::get_global_ec()
+            };
                 if let Err(error) = crate::commands::power_cmd::set_power_mode_internal(mode, app, &ec) {
                     crate::log_warn!("SLINT", "Performance mode change failed: {}", error);
                     let current = ec.lock().get_power_mode();
