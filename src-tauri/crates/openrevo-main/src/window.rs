@@ -208,7 +208,36 @@ pub fn apply_window_decorations(hwnd: HWND) {
     }
 }
 
-pub fn align_mini_drawer_to_tray(hwnd: HWND, target_w: i32, target_h: i32) {
+#[link(name = "user32")]
+extern "system" {
+    fn GetDpiForWindow(hwnd: HWND) -> u32;
+}
+
+pub fn get_window_scale_factor(hwnd: HWND) -> f64 {
+    unsafe {
+        let dpi = GetDpiForWindow(hwnd);
+        if dpi > 0 {
+            return dpi as f64 / 96.0;
+        }
+    }
+    if let Ok(guard) = SLINT_UI_WEAK.lock() {
+        if let Some(weak) = guard.as_ref() {
+            if let Some(ui) = weak.upgrade() {
+                let s = ui.window().scale_factor();
+                if s > 0.1 {
+                    return s as f64;
+                }
+            }
+        }
+    }
+    1.0
+}
+
+pub fn align_mini_drawer_to_tray(hwnd: HWND, target_logical_w: i32, target_logical_h: i32) {
+    let scale = get_window_scale_factor(hwnd);
+    let target_w = (target_logical_w as f64 * scale).round() as i32;
+    let target_h = (target_logical_h as f64 * scale).round() as i32;
+
     unsafe {
         let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
         let mut mi = MONITORINFO {
@@ -217,12 +246,8 @@ pub fn align_mini_drawer_to_tray(hwnd: HWND, target_w: i32, target_h: i32) {
         };
         if GetMonitorInfoW(monitor, &mut mi).as_bool() {
             let rc = mi.rcWork;
-            let mut rect = RECT::default();
-            let (real_w, real_h) = if GetWindowRect(hwnd, &mut rect).is_ok() && (rect.right - rect.left) > 100 {
-                (rect.right - rect.left, rect.bottom - rect.top)
-            } else {
-                (target_w, target_h)
-            };
+            let real_w = target_w;
+            let real_h = target_h;
             let margin = 16;
             let x = rc.right - real_w - margin;
             let y = rc.bottom - real_h - margin;
@@ -240,7 +265,11 @@ pub fn align_mini_drawer_to_tray(hwnd: HWND, target_w: i32, target_h: i32) {
     }
 }
 
-pub fn expand_native_window(hwnd: HWND, target_w: i32, target_h: i32, saved_pos: Option<(i32, i32)>) {
+pub fn expand_native_window(hwnd: HWND, target_logical_w: i32, target_logical_h: i32, saved_pos: Option<(i32, i32)>) {
+    let scale = get_window_scale_factor(hwnd);
+    let target_w = (target_logical_w as f64 * scale).round() as i32;
+    let target_h = (target_logical_h as f64 * scale).round() as i32;
+
     unsafe {
         let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
         let mut mi = MONITORINFO {
