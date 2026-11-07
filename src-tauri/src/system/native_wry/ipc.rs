@@ -167,10 +167,88 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             serde_json::to_value(res).map_err(|e| e.to_string())
         }
 
-        // System
-        "close_custom_widget" => {
+        // Hardware Telemetry & System Controls
+        "get_hardware_status" => {
+            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+                use tauri::Manager;
+                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
+                let gpu_state = app.state::<crate::driver::gpu_bridge::SharedGpuBridge>();
+                let state = crate::commands::system_cmd::collect_hardware_state(ec_state.inner(), gpu_state.inner(), true);
+                serde_json::to_value(state).map_err(|e| e.to_string())
+            } else {
+                Err("AppHandle not initialized yet".to_string())
+            }
+        }
+        "set_fan_boost" => {
+            let enable = args.get("enable").and_then(|v| v.as_bool())
+                .or_else(|| args.as_bool())
+                .unwrap_or(false);
+            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+                use tauri::Manager;
+                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
+                crate::commands::power_cmd::set_fan_boost(app.clone(), enable, ec_state)?;
+                super::broadcast_event("fan-boost-changed", &serde_json::json!(enable));
+                Ok(Value::Bool(true))
+            } else {
+                Err("AppHandle not initialized yet".to_string())
+            }
+        }
+        "set_power_mode" => {
+            let mode = args.get("mode").and_then(|v| v.as_u64())
+                .or_else(|| args.as_u64())
+                .unwrap_or(2) as u8;
+            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+                use tauri::Manager;
+                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
+                crate::commands::power_cmd::set_power_mode(mode, app.clone(), ec_state)?;
+                super::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
+                Ok(Value::Bool(true))
+            } else {
+                Err("AppHandle not initialized yet".to_string())
+            }
+        }
+        "set_battery_limit" => {
+            let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(80) as u8;
+            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+                use tauri::Manager;
+                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
+                crate::commands::power_cmd::set_battery_limit(limit, ec_state)?;
+                Ok(Value::Bool(true))
+            } else {
+                Err("AppHandle not initialized yet".to_string())
+            }
+        }
+        "get_power_settings" => {
+            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+                use tauri::Manager;
+                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
+                let res = crate::commands::power_cmd::get_power_settings(ec_state);
+                serde_json::to_value(res).map_err(|e| e.to_string())
+            } else {
+                Err("AppHandle not initialized yet".to_string())
+            }
+        }
+        "widget_ready" => {
             let pid = args.get("pluginId").or_else(|| args.get("plugin_id")).and_then(|v| v.as_str()).unwrap_or(plugin_id);
+            crate::system::telemetry::register_consumer(pid, &[
+                "cpu_temp".into(), "cpu_fan_rpm".into(), "cpu_power_w".into(),
+                "power_mode".into(), "fan_boost".into(), "battery_level".into(), "is_charging".into()
+            ]);
+            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+                let _ = crate::system::widget_manager::widget_ready(app, pid.to_string());
+            }
+            Ok(Value::Bool(true))
+        }
+
+        // System
+        "close_widget" | "close_custom_widget" => {
+            let pid = args.get("pluginId").or_else(|| args.get("plugin_id")).and_then(|v| v.as_str()).unwrap_or(plugin_id);
+            crate::system::telemetry::unregister_consumer(pid);
             super::close_popout(pid);
+            let mut cfg = crate::system::config::load_config();
+            cfg.custom_plugin_toggles.insert(pid.to_string(), false);
+            let _ = crate::system::config::save_config(&cfg);
+            crate::system::slint_window::sync::sync_slint_plugins_state();
             Ok(Value::Bool(true))
         }
         "get_running_widgets" => {

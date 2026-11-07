@@ -158,6 +158,14 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
     }
   };
 
+  let lastDragTime = 0;
+  function safeStartDrag() {
+    const now = Date.now();
+    if (now - lastDragTime < 300) return;
+    lastDragTime = now;
+    callRpc("start_dragging", { pluginId: pluginId });
+  }
+
   const bridge = {
     invoke: callRpc,
     pluginId: pluginId,
@@ -177,7 +185,7 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
     },
     getCurrentWebviewWindow: function() {
       return {
-        startDragging: function() { return callRpc("start_dragging", { pluginId: pluginId }); },
+        startDragging: safeStartDrag,
         close: function() { return callRpc("close_custom_widget", { pluginId: pluginId }); },
         hide: function() { return callRpc("close_custom_widget", { pluginId: pluginId }); },
         show: function() {},
@@ -188,9 +196,7 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
     getCurrentWindow: function() {
       return this.getCurrentWebviewWindow();
     },
-    startDragging: function() {
-      return callRpc("start_dragging", { pluginId: pluginId });
-    },
+    startDragging: safeStartDrag,
     close: function() {
       return callRpc("close_custom_widget", { pluginId: pluginId });
     },
@@ -248,10 +254,10 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
   document.addEventListener("pointerdown", function(e) {
     if (e.target && e.target.closest) {
       if (e.target.closest("[data-no-drag]")) return;
-      if (e.target.closest("button, [role=\"button\"], input, select, textarea, .tool-btn")) return;
+      if (e.target.closest("button, [role=\"button\"], input, select, textarea, .tool-btn, .clickable, .status-card, .core-disc")) return;
       if (e.target.closest("[data-tauri-drag-region]")) {
         if (e.button === 0) {
-          callRpc("start_dragging", { pluginId: pluginId });
+          safeStartDrag();
         }
       }
     }
@@ -442,6 +448,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     if win.id() == window_id {
                         crate::log_info!("NATIVE_WRY", "Destroying popout window for plugin '{}'", pid);
                         get_running_popouts_set().write().remove(pid);
+                        crate::system::telemetry::unregister_consumer(pid);
                         let mut cfg = crate::system::config::load_config();
                         cfg.custom_plugin_toggles.insert(pid.clone(), false);
                         let _ = crate::system::config::save_config(&cfg);
@@ -451,6 +458,22 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                         true
                     }
                 });
+            }
+
+            tao::event::Event::WindowEvent {
+                window_id,
+                event: tao::event::WindowEvent::Resized(size),
+                ..
+            } => {
+                for (_, (win, view)) in popouts.iter() {
+                    if win.id() == window_id {
+                        let _ = view.set_bounds(Rect {
+                            position: wry::dpi::Position::Physical(tao::dpi::PhysicalPosition::new(0, 0)),
+                            size: wry::dpi::Size::Physical(tao::dpi::PhysicalSize::new(size.width, size.height)),
+                        });
+                        break;
+                    }
+                }
             }
 
             tao::event::Event::WindowEvent {
@@ -468,14 +491,28 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
 
             tao::event::Event::UserEvent(msg) => match msg {
                 NativeWryMessage::DragWindow { plugin_id } => {
-                    if let Some((win, _)) = popouts.get(&plugin_id) {
-                        let _ = win.drag_window();
+                    static LAST_DRAG: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+                    let prev = LAST_DRAG.load(std::sync::atomic::Ordering::Relaxed);
+                    if now.saturating_sub(prev) > 250 {
+                        LAST_DRAG.store(now, std::sync::atomic::Ordering::Relaxed);
+                        if let Some((win, _)) = popouts.get(&plugin_id) {
+                            let _ = win.drag_window();
+                        }
                     }
                 }
 
                 NativeWryMessage::SetWindowSize { plugin_id, width, height } => {
-                    if let Some((win, _)) = popouts.get(&plugin_id) {
+                    if let Some((win, view)) = popouts.get(&plugin_id) {
                         win.set_inner_size(tao::dpi::LogicalSize::new(width, height));
+                        let phys = win.inner_size();
+                        let _ = view.set_bounds(Rect {
+                            position: wry::dpi::Position::Physical(tao::dpi::PhysicalPosition::new(0, 0)),
+                            size: wry::dpi::Size::Physical(tao::dpi::PhysicalSize::new(phys.width, phys.height)),
+                        });
                     }
                 }
 
@@ -523,6 +560,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
 
                 NativeWryMessage::ClosePopout { plugin_id } => {
                     get_running_popouts_set().write().remove(&plugin_id);
+                    crate::system::telemetry::unregister_consumer(&plugin_id);
                     if let Some((win, _)) = popouts.remove(&plugin_id) {
                         win.set_visible(false);
                         drop(win);
@@ -733,6 +771,11 @@ fn spawn_popout_window(
     window.set_visible(true);
     if !is_widget {
         window.set_focus();
+    } else {
+        crate::system::telemetry::register_consumer(plugin_id, &[
+            "cpu_temp".into(), "cpu_fan_rpm".into(), "cpu_power_w".into(),
+            "power_mode".into(), "fan_boost".into(), "battery_level".into(), "is_charging".into()
+        ]);
     }
 
     #[cfg(target_os = "windows")]
@@ -742,6 +785,17 @@ fn spawn_popout_window(
         use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SetForegroundWindow, SW_SHOW};
         let hwnd = HWND(window.hwnd() as *mut _);
         unsafe {
+            if transparent {
+                use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;
+                use windows::Win32::UI::Controls::MARGINS;
+                let margins = MARGINS {
+                    cxLeftWidth: -1,
+                    cxRightWidth: -1,
+                    cyTopHeight: -1,
+                    cyBottomHeight: -1,
+                };
+                let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
+            }
             let _ = ShowWindow(hwnd, SW_SHOW);
             if !is_widget {
                 let _ = SetForegroundWindow(hwnd);

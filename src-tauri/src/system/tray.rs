@@ -193,6 +193,7 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit("physical-mode-switched", 1);
             let _ = app_handle.emit_to("main", "physical-mode-switched", 1);
             let _ = app_handle.emit_to("osd", "physical-mode-switched", 1);
+            crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(1));
         }
         "mode_balance" => {
             ec_clone.lock().set_power_mode(2);
@@ -210,6 +211,7 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit("physical-mode-switched", 2);
             let _ = app_handle.emit_to("main", "physical-mode-switched", 2);
             let _ = app_handle.emit_to("osd", "physical-mode-switched", 2);
+            crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(2));
         }
         "mode_beast" => {
             let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
@@ -231,6 +233,7 @@ pub fn handle_tray_menu_event(
                 let _ = app_handle.emit("physical-mode-switched", 3);
                 let _ = app_handle.emit_to("main", "physical-mode-switched", 3);
                 let _ = app_handle.emit_to("osd", "physical-mode-switched", 3);
+                crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(3));
             }
         }
         "mode_custom" => {
@@ -253,6 +256,7 @@ pub fn handle_tray_menu_event(
                 let _ = app_handle.emit("physical-mode-switched", 4);
                 let _ = app_handle.emit_to("main", "physical-mode-switched", 4);
                 let _ = app_handle.emit_to("osd", "physical-mode-switched", 4);
+                crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(4));
             }
         }
         "toggle_fan" => {
@@ -271,6 +275,7 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit("physical-fan-boost-switched", next);
             let _ = app_handle.emit_to("main", "physical-fan-boost-switched", next);
             let _ = app_handle.emit_to("osd", "physical-fan-boost-switched", next);
+            crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(next));
         }
         "takeover_toggle" => {
             let is_running = crate::system::process::is_oem_service_running();

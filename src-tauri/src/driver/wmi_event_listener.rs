@@ -128,6 +128,7 @@ fn dispatch_acpi_event(
                 let _ = app_handle.emit("physical-mode-switched", next_mode);
                 let _ = app_handle.emit_to("main", "physical-mode-switched", next_mode);
                 let _ = app_handle.emit_to("osd", "physical-mode-switched", next_mode);
+                crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(next_mode));
             } else {
                 crate::log_debug!("WMI_LISTENER", "Q-Key debounced (elapsed < 500ms)");
             }
@@ -217,6 +218,7 @@ fn dispatch_acpi_event(
                     let _ = app_handle.emit("physical-fan-boost-switched", next_state);
                     let _ = app_handle.emit_to("main", "physical-fan-boost-switched", next_state);
                     let _ = app_handle.emit_to("osd", "physical-fan-boost-switched", next_state);
+                    crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(next_state));
                 }
             } else {
                 crate::log_debug!("WMI_LISTENER", "Fn+1 hotkey event {} debounced (elapsed < 500ms)", code);

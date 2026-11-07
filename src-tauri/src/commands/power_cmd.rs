@@ -307,6 +307,7 @@ pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBrid
     let _ = app.emit("physical-mode-switched", mode);
     let _ = app.emit_to("main", "physical-mode-switched", mode);
     let _ = app.emit_to("osd", "physical-mode-switched", mode);
+    crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
     Ok(())
 }
 
@@ -335,6 +336,7 @@ pub fn set_fan_boost(
     let _ = app.emit("physical-fan-boost-switched", enable);
     let _ = app.emit_to("main", "physical-fan-boost-switched", enable);
     let _ = app.emit_to("osd", "physical-fan-boost-switched", enable);
+    crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(enable));
 
     Ok(())
 }
