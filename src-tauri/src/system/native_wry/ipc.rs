@@ -174,64 +174,39 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
 
         // Hardware Telemetry & System Controls
         "get_hardware_status" => {
-            if let Some(app) = get_app() {
-                use tauri::Manager;
-                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
-                let gpu_state = app.state::<crate::driver::gpu_bridge::SharedGpuBridge>();
-                let state = crate::commands::system_cmd::collect_hardware_state(ec_state.inner(), gpu_state.inner(), true);
-                serde_json::to_value(state).map_err(|e| e.to_string())
-            } else {
-                Err("AppHandle not initialized yet".to_string())
-            }
+            let ec = crate::driver::ec_bridge::get_global_ec();
+            let gpu = crate::driver::gpu_bridge::get_global_gpu();
+            let state = crate::commands::system_cmd::collect_hardware_state(&ec, &gpu, true);
+            serde_json::to_value(state).map_err(|e| e.to_string())
         }
         "set_fan_boost" => {
             let enable = args.get("enable").and_then(|v| v.as_bool())
                 .or_else(|| args.as_bool())
                 .unwrap_or(false);
-            if let Some(app) = get_app() {
-                use tauri::Manager;
-                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
-                crate::commands::power_cmd::set_fan_boost(app.clone(), enable, ec_state)?;
-                super::broadcast_event("fan-boost-changed", &serde_json::json!(enable));
-                Ok(Value::Bool(true))
-            } else {
-                Err("AppHandle not initialized yet".to_string())
-            }
+            let ec = crate::driver::ec_bridge::get_global_ec();
+            let app = get_app();
+            crate::commands::power_cmd::set_fan_boost_internal(enable, app.as_ref(), &ec)?;
+            Ok(Value::Bool(true))
         }
         "set_power_mode" => {
             let mode = args.get("mode").and_then(|v| v.as_u64())
                 .or_else(|| args.as_u64())
                 .unwrap_or(2) as u8;
-            if let Some(app) = get_app() {
-                use tauri::Manager;
-                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
-                crate::commands::power_cmd::set_power_mode(mode, app.clone(), ec_state)?;
-                super::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
-                Ok(Value::Bool(true))
-            } else {
-                Err("AppHandle not initialized yet".to_string())
-            }
+            let ec = crate::driver::ec_bridge::get_global_ec();
+            let app = get_app();
+            crate::commands::power_cmd::set_power_mode_internal(mode, app.as_ref(), &ec)?;
+            Ok(Value::Bool(true))
         }
         "set_battery_limit" => {
             let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(80) as u8;
-            if let Some(app) = get_app() {
-                use tauri::Manager;
-                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
-                crate::commands::power_cmd::set_battery_limit(limit, ec_state)?;
-                Ok(Value::Bool(true))
-            } else {
-                Err("AppHandle not initialized yet".to_string())
-            }
+            let ec = crate::driver::ec_bridge::get_global_ec();
+            crate::commands::power_cmd::set_battery_limit_internal(limit, &ec)?;
+            Ok(Value::Bool(true))
         }
         "get_power_settings" => {
-            if let Some(app) = get_app() {
-                use tauri::Manager;
-                let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
-                let res = crate::commands::power_cmd::get_power_settings(ec_state);
-                serde_json::to_value(res).map_err(|e| e.to_string())
-            } else {
-                Err("AppHandle not initialized yet".to_string())
-            }
+            let ec = crate::driver::ec_bridge::get_global_ec();
+            let res = crate::commands::power_cmd::read_power_settings(&ec);
+            serde_json::to_value(res).map_err(|e| e.to_string())
         }
         "widget_ready" => {
             let pid = args.get("pluginId").or_else(|| args.get("plugin_id")).and_then(|v| v.as_str()).unwrap_or(plugin_id);

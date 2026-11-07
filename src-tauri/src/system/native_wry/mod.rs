@@ -200,6 +200,10 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
     close: function() {
       return callRpc("close_custom_widget", { pluginId: pluginId });
     },
+    LogicalSize: function(width, height) {
+      this.width = width;
+      this.height = height;
+    },
     storage: {
       get: function() { return callRpc("get_plugin_storage", { pluginId: pluginId }); },
       set: function(data) { return callRpc("set_plugin_storage", { pluginId: pluginId, data: data }); },
