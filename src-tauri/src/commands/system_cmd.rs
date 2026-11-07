@@ -213,11 +213,58 @@ pub fn save_app_config(cfg: crate::system::config::AppConfig) -> Result<(), Stri
     Ok(())
 }
 
+#[tauri::command]
+pub fn get_classic_webview() -> bool {
+    crate::system::config::load_config().use_classic_webview
+}
+
+#[tauri::command]
+pub fn set_classic_webview(enabled: bool) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.use_classic_webview = enabled;
+    crate::system::config::save_config(&cfg);
+    crate::log_info!("CONFIG", "use_classic_webview set to: {}", enabled);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_update_channel() -> String {
+    crate::system::config::load_config().update_channel
+}
+
+#[tauri::command]
+pub fn set_update_channel(channel: String) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.update_channel = channel.clone();
+    crate::system::config::save_config(&cfg);
+    crate::log_info!("CONFIG", "update_channel set to: {}", channel);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restart_app(app: AppHandle) -> Result<(), String> {
+    crate::log_info!("APP", "Restarting application...");
+    crate::system::tray::IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = std::process::Command::new(exe).spawn();
+    }
+    app.exit(0);
+    Ok(())
+}
+
 #[tauri::command(async)]
 pub fn set_unlock_battery_power_limit(
     enable: bool,
     app: AppHandle,
     ec_state: State<'_, SharedEcBridge>,
+) -> Result<bool, String> {
+    set_unlock_battery_power_limit_internal(enable, Some(&app), ec_state.inner())
+}
+
+pub(crate) fn set_unlock_battery_power_limit_internal(
+    enable: bool,
+    app: Option<&AppHandle>,
+    ec_state: &SharedEcBridge,
 ) -> Result<bool, String> {
     let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     let mut cfg = crate::system::config::load_config();
@@ -228,11 +275,13 @@ pub fn set_unlock_battery_power_limit(
     {
         cfg.power_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
         ec_state.lock().set_power_mode_with_config(&cfg)?;
-        super::power_cmd::publish_power_mode(&app, cfg.power_mode);
+        super::power_cmd::publish_power_mode(app, cfg.power_mode);
     } else {
         crate::system::config::try_save_config(&cfg)?;
     }
-    let _ = app.emit("unlock-battery-power-limit-changed", enable);
+    if let Some(app) = app {
+        let _ = app.emit("unlock-battery-power-limit-changed", enable);
+    }
     Ok(enable)
 }
 

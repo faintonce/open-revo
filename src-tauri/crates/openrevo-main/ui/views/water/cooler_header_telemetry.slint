@@ -1,0 +1,492 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CoolerHeaderTelemetry inherits Rectangle {
+    background: transparent;
+
+    in-out property <bool> is_connected: false;
+    in-out property <bool> is_connecting: false;
+    in-out property <bool> is_pairing: false;
+    in-out property <bool> is_priming: false;
+    in-out property <string> mac_address: "";
+    in-out property <bool> is_flow_ok: true;
+    in-out property <int> meter_state: 1; // 0=No Flow, 1=Normal, 2=Priming/Trickle
+    in-out property <int> live_max_temp: 55;
+    in-out property <int> cpu_temp: 55;
+    in-out property <int> gpu_temp: 41;
+    in-out property <int> pump_tier: 2; // 0=Stop, 1=Silent, 2=Standard, 3=Turbo
+    in-out property <int> pump_voltage: 7;
+    in-out property <int> fan_duty: 37;
+    in-out property <int> pump_rpm: 2400;
+    in-out property <int> fan_rpm: 1200;
+
+    callback connect_clicked();
+    callback disconnect_clicked();
+    callback pair_clicked();
+    callback fill_water_clicked();
+    callback reset_default_clicked();
+    callback open_device_selector();
+
+    VerticalLayout {
+        spacing: 8px;
+
+        // 1. Top connection status & actions row
+        HorizontalLayout {
+            alignment: space-between;
+
+            // Left brand & MAC badge
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "外置水冷魔盒";
+                    font-size: 13.5px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+
+                // BLE badge
+                Rectangle {
+                    height: 20px;
+                    border-radius: AppTheme.radius_xs;
+                    background: #0284c71a;
+                    border-width: 1px;
+                    border-color: #0284c740;
+                    y: (parent.height - self.height) / 2;
+
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: "BLE 原生直连";
+                            font-size: 9px;
+                            font-weight: 600;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // MAC pill / Device selector button
+                mac_btn := Rectangle {
+                    height: 22px;
+                    border-radius: AppTheme.radius_xs;
+                    background: mac_touch.has-hover ? AppTheme.surface_pill : AppTheme.surface_card;
+                    border-width: 1px;
+                    border-color: root.mac_address != "" ? AppTheme.border_medium : #38bdf860;
+                    y: (parent.height - self.height) / 2;
+
+                    mac_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open_device_selector(); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 7px;
+                        padding-right: 7px;
+                        spacing: 4px;
+
+                        Image {
+                            source: @image-url("../../assets/icons/bluetooth.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: #38bdf8;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        Text {
+                            text: root.mac_address != "" ? "MAC: " + root.mac_address : "选择水冷魔盒";
+                            font-size: 9.5px;
+                            font-weight: 600;
+                            color: root.mac_address != "" ? AppTheme.text_secondary : #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Right action buttons
+            HorizontalLayout {
+                spacing: 6px;
+
+                // Connection indicator pill
+                Rectangle {
+                    height: 22px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.is_connected ? #10b98118 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.is_connected ? #10b98160 : AppTheme.border_subtle;
+                    y: (parent.height - self.height) / 2;
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 5px;
+
+                        // Dot
+                        Rectangle {
+                            width: 6px;
+                            height: 6px;
+                            border-radius: 3px;
+                            background: root.is_connected ? #10b981 : AppTheme.text_muted;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        Text {
+                            text: root.is_connected ? "已直连受控" : "未连接";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: root.is_connected ? #10b981 : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                if root.is_connected: HorizontalLayout {
+                    spacing: 6px;
+
+                    // Fill water prime button
+                    prime_btn := Rectangle {
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: root.is_priming ? #f43f5e : (prime_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                        border-width: 1px;
+                        border-color: root.is_priming ? #f43f5e : AppTheme.border_medium;
+                        y: (parent.height - self.height) / 2;
+
+                        prime_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.fill_water_clicked(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+
+                            Image {
+                                source: @image-url("../../assets/icons/droplet.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: root.is_priming ? #ffffff : #06b6d4;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: root.is_priming ? "排气注水中..." : "注水排气";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: root.is_priming ? #ffffff : AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Default curve button
+                    reset_btn := Rectangle {
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: reset_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        y: (parent.height - self.height) / 2;
+
+                        reset_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.reset_default_clicked(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+
+                            Image {
+                                source: @image-url("../../assets/icons/rotate-ccw.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: AppTheme.text_secondary;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: "默认曲线";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Disconnect button
+                    disc_btn := Rectangle {
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: disc_touch.has-hover ? #ef444430 : #ef444415;
+                        border-width: 1px;
+                        border-color: #ef444450;
+                        y: (parent.height - self.height) / 2;
+
+                        disc_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.disconnect_clicked(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+
+                            Text {
+                                text: "断开水冷";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: #f87171;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                if !root.is_connected: HorizontalLayout {
+                    spacing: 6px;
+
+                    // Direct connect button
+                    conn_btn := Rectangle {
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: conn_touch.has-hover ? #0284c7 : #0ea5e9;
+                        border-width: 1px;
+                        border-color: #38bdf8;
+                        y: (parent.height - self.height) / 2;
+
+                        conn_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.connect_clicked(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 9px;
+                            padding-right: 9px;
+                            spacing: 4px;
+
+                            Image {
+                                source: @image-url("../../assets/icons/zap.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: #ffffff;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: root.is_connecting ? "正在直连..." : "立即直连";
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Pair button
+                    pair_btn := Rectangle {
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: pair_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        y: (parent.height - self.height) / 2;
+
+                        pair_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.pair_clicked(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+
+                            Image {
+                                source: @image-url("../../assets/icons/bluetooth.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: root.is_pairing ? "⟳ 扫描中..." : "搜索配对";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. 4 Metrics pill row
+        HorizontalLayout {
+            height: 52px;
+            spacing: 8px;
+
+            // 1. Water flow state
+            Rectangle {
+                height: 52px;
+                horizontal-stretch: 1;
+                background: AppTheme.surface_sunken;
+                border-radius: AppTheme.radius_sm;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 2px;
+
+                    Text {
+                        text: "当前水流状态";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                    }
+
+                    Text {
+                        text: root.is_connected ? (
+                            root.is_flow_ok || root.meter_state == 2 || root.meter_state == 1 ? "正常 (Flowing)" :
+                            (root.meter_state == 3 ? "微流/建立中" : "无流量")
+                        ) : "--";
+                        font-size: 13px;
+                        font-weight: 800;
+                        color: root.is_connected ? (root.is_flow_ok ? #10b981 : #f59e0b) : AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // 2. Core Max Temp max(CPU, GPU)
+            Rectangle {
+                height: 52px;
+                horizontal-stretch: 1;
+                background: AppTheme.surface_sunken;
+                border-radius: AppTheme.radius_sm;
+                border-width: 1px;
+                border-color: #38bdf835;
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 2px;
+
+                    Text {
+                        text: "核心综合温度 MAX(CPU, GPU)";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.live_max_temp + " °C";
+                            font-size: 13px;
+                            font-weight: 800;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "(CPU " + root.cpu_temp + "° / GPU " + root.gpu_temp + "°)";
+                            font-size: 9.5px;
+                            font-weight: 500;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // 3. Pump tier & status
+            Rectangle {
+                height: 52px;
+                horizontal-stretch: 1;
+                background: AppTheme.surface_sunken;
+                border-radius: AppTheme.radius_sm;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 2px;
+
+                    Text {
+                        text: "水泵运行工况 / 档位";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                    }
+
+                    Text {
+                        text: !root.is_connected ? "--" : (
+                            root.pump_tier == 0 || root.pump_voltage == 0 ? "已停机 (0%)" : (
+                                root.pump_tier == 3 || root.pump_voltage >= 11 ? "极限狂暴 (100%)" : (
+                                    root.pump_tier == 1 ? "极静巡航 (30%)" : "标准巡航 (45%)"
+                                )
+                            )
+                        );
+                        font-size: 13px;
+                        font-weight: 800;
+                        color: !root.is_connected ? AppTheme.text_muted : (
+                            root.pump_tier == 3 || root.pump_voltage >= 11 ? #f43f5e : (
+                                root.pump_tier == 0 || root.pump_voltage == 0 ? AppTheme.text_muted : #38bdf8
+                            )
+                        );
+                    }
+                }
+            }
+
+            // 4. Radiator Fan duty & RPM
+            Rectangle {
+                height: 52px;
+                horizontal-stretch: 1;
+                background: AppTheme.surface_sunken;
+                border-radius: AppTheme.radius_sm;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 2px;
+
+                    Text {
+                        text: "冷排风扇实时转速";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.is_connected ? root.fan_duty + "%" : "--";
+                            font-size: 13px;
+                            font-weight: 800;
+                            color: #a855f7;
+                            vertical-alignment: center;
+                        }
+                        if root.is_connected && root.fan_rpm > 0: Text {
+                            text: root.fan_rpm + " RPM";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

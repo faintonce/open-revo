@@ -44,12 +44,14 @@ pub fn start_idle_watcher(mgr_ref: &Arc<IteLightingManager>) {
                 if idle_ms >= timeout_ms {
                     // User idle timeout reached -> turn off all lights if not already sleeping
                     if !mgr.is_sleeping.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                        crate::log_info!("IDLE_WATCHER", "System idle timeout ({}ms >= {}ms) reached. Dimming all lighting zones...", idle_ms, timeout_ms);
                         mgr.turn_off_all();
                     }
                 } else {
                     // User has recent input activity (pressed any key or moved mouse)
                     // If currently sleeping, instantly wake up & restore preset effects!
                     if mgr.is_sleeping.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                        crate::log_info!("IDLE_WATCHER", "User activity detected. Instantly restoring all lighting zones from sleep...");
                         crate::driver::ite_streamer::get_global_streamer().set_unsupported(false);
                         watchdog_retries = 0;
                         mgr.restore_all();
@@ -245,9 +247,9 @@ pub fn set_keyboard_brightness_level(level: u8, app_handle: Option<&AppHandle>) 
         );
         crate::log_info!("WMI_KEYBOARD", "Four-zone keyboard brightness updated to: level {}", target_level);
     } else if is_sz {
-        if let Some(cur_fan_isolated) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_FAN_ISOLATED) {
-            if (cur_fan_isolated & 0x07) != 0 {
-                let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_FAN_ISOLATED, cur_fan_isolated & 0xF8);
+        if let Some(cur_rgb_ctrl) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_RGB_CONTROL) {
+            if (cur_rgb_ctrl & 0x07) != 0 {
+                let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_RGB_CONTROL, cur_rgb_ctrl & 0xF8);
             }
         }
         let cur_trigger_byte = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);

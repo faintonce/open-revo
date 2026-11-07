@@ -102,11 +102,9 @@ pub fn apply_display_color_preset(
     } else {
         let _ = display_tuning::save_custom_preset_file(&preset);
     }
+    cfg.enabled = true;
     display_tuning::save_display_tuning_config(&cfg);
-
-    if cfg.enabled {
-        display_tuning::apply_color_preset(&preset)?;
-    }
+    display_tuning::apply_color_preset(&preset)?;
     Ok(())
 }
 
@@ -337,30 +335,6 @@ fn write_oem_miniled_registry(enabled: bool) {
     }
 }
 
-fn execute_miniled_cmd_fallback(cmd: u64) -> bool {
-    use std::os::windows::process::CommandExt;
-    use std::process::Command;
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    let ps_script = format!(
-        r#"$inst = Get-CimInstance -Namespace 'root\WMI' -ClassName 'AcpiTest_MULong' -ErrorAction Stop | Where-Object {{ $_.InstanceName -like '*1_1' }} | Select-Object -First 1; if (-not $inst) {{ $inst = Get-CimInstance -Namespace 'root\WMI' -ClassName 'AcpiTest_MULong' -ErrorAction Stop | Select-Object -First 1 }}; if ($inst) {{ $cmd = [uint64]{}; Invoke-CimMethod -InputObject $inst -MethodName 'GetSetULong' -Arguments @{{ Data = $cmd }} -ErrorAction Stop; exit 0 }} else {{ exit 1 }}"#,
-        cmd
-    );
-
-    let status = Command::new("powershell")
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &ps_script])
-        .status();
-
-    match status {
-        Ok(s) => s.success(),
-        Err(e) => {
-            crate::log_warn!("MINILED", "PowerShell CIM fallback failed to launch: {}", e);
-            false
-        }
-    }
-}
-
 #[tauri::command]
 pub fn get_miniled_status() -> Result<bool, String> {
     if let Some(oem_status) = read_oem_miniled_registry() {
@@ -370,28 +344,29 @@ pub fn get_miniled_status() -> Result<bool, String> {
     Ok(cfg.miniled_enabled)
 }
 
+pub fn set_miniled_hardware_state(enabled: bool) -> bool {
+    let cmd = if enabled {
+        crate::hal::vault::miniled::CMD_MINILED_ON
+    } else {
+        crate::hal::vault::miniled::CMD_MINILED_OFF
+    };
+
+    let ok = crate::driver::wmi_mulong::mulong_exec_raw(cmd);
+    if ok {
+        write_oem_miniled_registry(enabled);
+    }
+    ok
+}
+
 #[tauri::command]
 pub async fn set_miniled_status(enabled: bool) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let cmd = if enabled {
-            crate::hal::vault::miniled::CMD_MINILED_ON
-        } else {
-            crate::hal::vault::miniled::CMD_MINILED_OFF
-        };
-
-        let mut ok = crate::driver::wmi_mulong::mulong_exec_raw(cmd);
-        if !ok {
-            crate::log_info!("MINILED", "Native COM mulong_exec_raw returned false, running resilient CIM fallback...");
-            ok = execute_miniled_cmd_fallback(cmd);
-        }
+        let ok = set_miniled_hardware_state(enabled);
 
         if ok {
             let mut cfg = crate::system::config::load_config();
             cfg.miniled_enabled = enabled;
             crate::system::config::save_config(&cfg);
-
-            // Sync with OEM registry so official control center UI stays coherent
-            write_oem_miniled_registry(enabled);
 
             crate::log_info!("MINILED", "MiniLED local dimming toggled to: {}", enabled);
             Ok(enabled)

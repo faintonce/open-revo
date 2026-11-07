@@ -42,6 +42,14 @@ impl WebviewOrchestrator {
     pub fn bind_app_handle(&self, app: AppHandle) {
         if self.app.set(app.clone()).is_ok() {
             crate::log_info!("ORCHESTRATOR", "AppHandle successfully bound to WebviewOrchestrator");
+            let cfg = crate::system::config::load_config();
+            if !cfg.use_classic_webview {
+                self.is_main_ready.store(true, Ordering::SeqCst);
+                crate::log_info!(
+                    "ORCHESTRATOR",
+                    "Native Slint mode active: Sub-webview FIFO pipeline unlocked immediately by host microkernel."
+                );
+            }
             self.ensure_worker();
         }
     }
@@ -70,6 +78,7 @@ impl WebviewOrchestrator {
 
     /// Enqueue a secondary window creation task
     pub fn enqueue(&self, task: WindowTaskType) {
+        crate::log_info!("ORCHESTRATOR", "Enqueue requested for task: {:?}", task);
         {
             let mut q = self.queue.lock();
             // Prevent duplicate tasks in queue
@@ -170,6 +179,7 @@ impl WebviewOrchestrator {
                 WindowTaskType::Widget { plugin_id } => {
                     let app_clone = app.clone();
                     let pid = plugin_id.clone();
+                    crate::log_info!("ORCHESTRATOR", "Spawning widget window for '{}'...", pid);
                     let build_future = tokio::time::timeout(
                         Duration::from_millis(2500),
                         async move {

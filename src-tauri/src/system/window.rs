@@ -202,6 +202,11 @@ pub fn restore_and_sync_window(window: &WebviewWindow) {
 
     // Step 1: Determine presentation mode and apply resize/sync while window is still hidden
     let cfg = crate::system::config::load_config();
+    if !cfg.use_classic_webview {
+        crate::system::slint_window::show_slint_window();
+        return;
+    }
+
     let is_expanded = match cfg.wake_window_mode.as_str() {
         "full" => true,
         "mini" => false,
@@ -281,6 +286,15 @@ pub fn is_window_expanded(window: &WebviewWindow) -> bool {
 
 /// Explicitly switches window to Full Panel mode and updates tray checkmarks.
 pub fn switch_to_full_panel(app: &tauri::AppHandle) {
+    let mut cfg = crate::system::config::load_config();
+    if !cfg.use_classic_webview {
+        cfg.last_window_expanded = true;
+        let _ = crate::system::config::save_config(&cfg);
+        crate::system::slint_window::send_slint_ipc_message(serde_json::json!({ "action": "expand_dashboard" }));
+        crate::system::slint_window::show_slint_window();
+        crate::system::tray::update_tray_window_mode(true);
+        return;
+    }
     if let Some(window) = ensure_window_alive(app) {
         crate::system::telemetry::set_main_window_visible(true);
         let _ = crate::commands::window_cmd::resize_window(app.clone(), true);
@@ -295,6 +309,15 @@ pub fn switch_to_full_panel(app: &tauri::AppHandle) {
 
 /// Explicitly switches window to Mini Drawer mode and updates tray checkmarks.
 pub fn switch_to_mini_drawer(app: &tauri::AppHandle) {
+    let mut cfg = crate::system::config::load_config();
+    if !cfg.use_classic_webview {
+        cfg.last_window_expanded = false;
+        let _ = crate::system::config::save_config(&cfg);
+        crate::system::slint_window::send_slint_ipc_message(serde_json::json!({ "action": "collapse_dashboard" }));
+        crate::system::slint_window::show_slint_window();
+        crate::system::tray::update_tray_window_mode(false);
+        return;
+    }
     if let Some(window) = ensure_window_alive(app) {
         crate::system::telemetry::set_main_window_visible(true);
         let _ = crate::commands::window_cmd::resize_window(app.clone(), false);
@@ -309,13 +332,55 @@ pub fn switch_to_mini_drawer(app: &tauri::AppHandle) {
     }
 }
 
-/// Safely retrieves the main WebviewWindow instance if alive.
+/// Dynamically builds the main WebviewWindow instance when classic WebView2 mode is active.
+pub fn create_main_webview_window(app: &tauri::AppHandle) -> Option<WebviewWindow> {
+    if let Some(win) = app.get_webview_window("main") {
+        return Some(win);
+    }
+    let target_url = tauri::WebviewUrl::App("index.html".into());
+    let builder = tauri::WebviewWindowBuilder::new(app, "main", target_url)
+        .title("OpenRevo")
+        .inner_size(395.0, 622.0)
+        .resizable(false)
+        .fullscreen(false)
+        .decorations(false)
+        .transparent(true)
+        .shadow(true)
+        .drag_and_drop(false)
+        .visible(false);
+
+    match builder.build() {
+        Ok(win) => {
+            init_main_window(&win);
+            Some(win)
+        }
+        Err(e) => {
+            crate::log_error!("WINDOW", "Failed to dynamically create 'main' WebviewWindow: {:?}", e);
+            None
+        }
+    }
+}
+
+/// Safely retrieves or creates the main WebviewWindow instance when classic WebView2 is enabled.
 pub fn ensure_window_alive(app: &tauri::AppHandle) -> Option<WebviewWindow> {
-    app.get_webview_window("main")
+    let cfg = crate::system::config::load_config();
+    if !cfg.use_classic_webview {
+        return None;
+    }
+    if let Some(win) = app.get_webview_window("main") {
+        Some(win)
+    } else {
+        create_main_webview_window(app)
+    }
 }
 
 /// Toggles between hiding and restoring the mini drawer window.
 pub fn show_or_toggle_drawer(app: &tauri::AppHandle) {
+    let cfg = crate::system::config::load_config();
+    if !cfg.use_classic_webview {
+        crate::system::slint_window::toggle_slint_window();
+        return;
+    }
     if let Some(window) = ensure_window_alive(app) {
         let is_min = window.is_minimized().unwrap_or(false);
         let is_vis = window.is_visible().unwrap_or(false);

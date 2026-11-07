@@ -1,0 +1,312 @@
+import { AppTheme } from "../../theme.slint";
+
+export component BatteryHealthCard inherits Rectangle {
+    in-out property <int> battery_percent: 99;
+    in-out property <bool> is_ac_online: true;
+    in-out property <string> battery_mode: "station"; // "long_life" | "balance" | "station"
+    in-out property <int> battery_limit: 60;          // 100 | 80 | 60
+
+    callback select_battery_mode(string);
+
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: "电池健康";
+                font-size: 11.5px;
+                font-weight: 700;
+                color: AppTheme.text_muted;
+            }
+            Text {
+                text: "主板硬件级充电控制 · 电池健康长寿模式";
+                font-size: 9.5px;
+                color: AppTheme.text_muted;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+
+            // Left Column: 3 Radio Mode Cards
+            VerticalLayout {
+                horizontal-stretch: 13;
+                spacing: 6px;
+
+                // Mode 1: 长效模式 (100%)
+                Rectangle {
+                    height: 44px;
+                    border-radius: 6px;
+                    background: (root.battery_mode == "long_life" || root.battery_limit == 100) ? #10b98114 : (t_m1.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                    border-width: 1px;
+                    border-color: (root.battery_mode == "long_life" || root.battery_limit == 100) ? #10b98170 : AppTheme.border_subtle;
+
+                    t_m1 := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_battery_mode("long_life"); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 10px;
+                        alignment: start;
+
+                        // Radio Circle
+                        Rectangle {
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: transparent;
+                            border-width: 1.5px;
+                            border-color: (root.battery_mode == "long_life" || root.battery_limit == 100) ? #10b981 : AppTheme.border_highlight;
+                            y: (parent.height - self.height) / 2;
+
+                            if (root.battery_mode == "long_life" || root.battery_limit == 100): Rectangle {
+                                width: 6px;
+                                height: 6px;
+                                border-radius: 3px;
+                                background: #10b981;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: "长效模式 (100% 满充)";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: (root.battery_mode == "long_life" || root.battery_limit == 100) ? #10b981 : AppTheme.text_primary;
+                            }
+                            Text {
+                                text: "适合很长时间使用电池工作的环境。";
+                                font-size: 8.5px;
+                                color: AppTheme.text_muted;
+                            }
+                        }
+                    }
+                }
+
+                // Mode 2: 平衡模式 (80%)
+                Rectangle {
+                    height: 44px;
+                    border-radius: 6px;
+                    background: (root.battery_mode == "balance" || root.battery_limit == 80) ? #3b82f614 : (t_m2.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                    border-width: 1px;
+                    border-color: (root.battery_mode == "balance" || root.battery_limit == 80) ? #3b82f670 : AppTheme.border_subtle;
+
+                    t_m2 := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_battery_mode("balance"); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 10px;
+                        alignment: start;
+
+                        // Radio Circle
+                        Rectangle {
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: transparent;
+                            border-width: 1.5px;
+                            border-color: (root.battery_mode == "balance" || root.battery_limit == 80) ? #3b82f6 : AppTheme.border_highlight;
+                            y: (parent.height - self.height) / 2;
+
+                            if (root.battery_mode == "balance" || root.battery_limit == 80): Rectangle {
+                                width: 6px;
+                                height: 6px;
+                                border-radius: 3px;
+                                background: #3b82f6;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: "平衡模式 (80% 养护)";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: (root.battery_mode == "balance" || root.battery_limit == 80) ? #3b82f6 : AppTheme.text_primary;
+                            }
+                            Text {
+                                text: "偶而会携带电脑工作，且不需要多余靠电池供电。";
+                                font-size: 8.5px;
+                                color: AppTheme.text_muted;
+                            }
+                        }
+                    }
+                }
+
+                // Mode 3: 工作站模式 (60%)
+                Rectangle {
+                    height: 44px;
+                    border-radius: 6px;
+                    background: (root.battery_mode == "station" || root.battery_limit == 60) ? #06b6d414 : (t_m3.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                    border-width: 1px;
+                    border-color: (root.battery_mode == "station" || root.battery_limit == 60) ? #06b6d470 : AppTheme.border_subtle;
+
+                    t_m3 := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_battery_mode("station"); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 10px;
+                        alignment: start;
+
+                        // Radio Circle
+                        Rectangle {
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: transparent;
+                            border-width: 1.5px;
+                            border-color: (root.battery_mode == "station" || root.battery_limit == 60) ? #06b6d4 : AppTheme.border_highlight;
+                            y: (parent.height - self.height) / 2;
+
+                            if (root.battery_mode == "station" || root.battery_limit == 60): Rectangle {
+                                width: 6px;
+                                height: 6px;
+                                border-radius: 3px;
+                                background: #06b6d4;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: "工作站模式 (60% 养护)";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: (root.battery_mode == "station" || root.battery_limit == 60) ? #06b6d4 : AppTheme.text_primary;
+                            }
+                            Text {
+                                text: "如果很容易接续适配器工作，无携带电脑外出需求，强烈建议使用。";
+                                font-size: 8.5px;
+                                color: AppTheme.text_muted;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Right Column: Battery Gauge Box
+            Rectangle {
+                horizontal-stretch: 10;
+                border-radius: 6px;
+                background: AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                VerticalLayout {
+                    padding: 12px;
+                    alignment: center;
+                    spacing: 8px;
+
+                    // Battery Shell Graphic
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 2px;
+
+                        // Main Body
+                        Rectangle {
+                            width: 120px;
+                            height: 30px;
+                            border-radius: 4px;
+                            background: #00000030;
+                            border-width: 1.5px;
+                            border-color: AppTheme.border_highlight;
+                            clip: true;
+
+                            // Dynamic Battery Level Bar
+                            Rectangle {
+                                x: 3px;
+                                y: 3px;
+                                width: Math.max(0px, Math.min(parent.width - 6px, (root.battery_percent / 100.0) * (parent.width - 6px)));
+                                height: parent.height - 6px;
+                                border-radius: 2px;
+                                background: root.battery_percent <= 20 ? #f43f5e : (root.battery_percent <= 50 ? #f59e0b : #10b981);
+                                animate width { duration: 300ms; easing: ease-out; }
+                            }
+                        }
+
+                        // Battery Positive Tip (Nipple)
+                        Rectangle {
+                            width: 4px;
+                            height: 12px;
+                            border-radius: 1px;
+                            background: AppTheme.border_highlight;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+
+                    // Large Battery Percentage Display
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 2px;
+
+                        Text {
+                            text: root.battery_percent;
+                            font-size: 26px;
+                            font-weight: 900;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: bottom;
+                        }
+                        Text {
+                            text: "%";
+                            font-size: 13px;
+                            font-weight: 800;
+                            color: root.battery_percent <= 20 ? #f43f5e : (root.battery_percent <= 50 ? #f59e0b : #10b981);
+                            vertical-alignment: bottom;
+                        }
+                    }
+
+                    // AC Line Status Indicator
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 5px;
+
+                        Image {
+                            source: root.is_ac_online ? @image-url("../../assets/icons/plug.svg") : @image-url("../../assets/icons/battery.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: root.is_ac_online ? #10b981 : #f59e0b;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        Text {
+                            text: root.is_ac_online ? "已连接电源适配器" : "正在使用电池供电";
+                            font-size: 10px;
+                            font-weight: 600;
+                            color: root.is_ac_online ? #10b981 : #f59e0b;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

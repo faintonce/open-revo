@@ -1,6 +1,6 @@
 [package]
 name = "openrevo-ffi"
-version = "0.9.6"
+version = "0.9.7"
 edition = "2021"
 description = "Native C-ABI Dynamic Library (DLL/SO) and SDK bindings for OpenRevo Core Engine"
 license = "GPL-3.0-or-later"

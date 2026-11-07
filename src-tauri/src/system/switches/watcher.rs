@@ -8,7 +8,7 @@ use windows::Win32::System::Power::{
 /// Polls every 600ms (direct EC & WinRT in-process COM call, ~0.5ms execution, 0.0% CPU)
 /// and emits events to Tauri whenever external keyboard hotkeys or control center changes occur.
 pub fn start_hardware_state_watcher(
-    app: tauri::AppHandle,
+    app: Option<tauri::AppHandle>,
     ec_bridge: std::sync::Arc<parking_lot::Mutex<crate::driver::ec_bridge::EcBridge>>,
 ) {
     std::thread::spawn(move || {
@@ -109,12 +109,18 @@ pub fn start_hardware_state_watcher(
                     let mut cfg = crate::system::config::load_config();
                     cfg.win_key_locked = current_win;
                     crate::system::config::save_config(&cfg);
-                    use tauri::Emitter;
                     crate::system::osd_window::show_key_lock_toast("win", current_win);
-                    crate::system::osd_window::wake_osd_if_enabled(&app);
-                    let _ = app.emit("win-lock-state-changed", current_win);
-                    let _ = app.emit_to("main", "win-lock-state-changed", current_win);
-                    let _ = app.emit_to("osd", "win-lock-state-changed", current_win);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state",
+                        "win_locked": current_win
+                    }));
+                    if let Some(ref a) = app {
+                        use tauri::Emitter;
+                        crate::system::osd_window::wake_osd_if_enabled(a);
+                        let _ = a.emit("win-lock-state-changed", current_win);
+                        let _ = a.emit_to("main", "win-lock-state-changed", current_win);
+                        let _ = a.emit_to("osd", "win-lock-state-changed", current_win);
+                    }
                 } else {
                     crate::log_debug!("DEVICE_SWITCH", "Win Key lock rapid transition suppressed by debounce (<180ms)");
                 }
@@ -132,12 +138,18 @@ pub fn start_hardware_state_watcher(
                             let mut cfg = crate::system::config::load_config();
                             cfg.fn_lock_enabled = current_fn;
                             crate::system::config::save_config(&cfg);
-                            use tauri::Emitter;
                             crate::system::osd_window::show_key_lock_toast("fn", current_fn);
-                            crate::system::osd_window::wake_osd_if_enabled(&app);
-                            let _ = app.emit("fn-lock-state-changed", current_fn);
-                            let _ = app.emit_to("main", "fn-lock-state-changed", current_fn);
-                            let _ = app.emit_to("osd", "fn-lock-state-changed", current_fn);
+                            crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                "action": "sync_state",
+                                "fn_locked": current_fn
+                            }));
+                            if let Some(ref a) = app {
+                                use tauri::Emitter;
+                                crate::system::osd_window::wake_osd_if_enabled(a);
+                                let _ = a.emit("fn-lock-state-changed", current_fn);
+                                let _ = a.emit_to("main", "fn-lock-state-changed", current_fn);
+                                let _ = a.emit_to("osd", "fn-lock-state-changed", current_fn);
+                            }
                         } else {
                             crate::log_debug!("DEVICE_SWITCH", "Fn Lock rapid transition suppressed by debounce (<180ms)");
                         }
@@ -210,12 +222,18 @@ pub fn start_hardware_state_watcher(
                     let mut cfg = crate::system::config::load_config();
                     cfg.bluetooth_enabled = current_bt;
                     crate::system::config::save_config(&cfg);
-                    use tauri::Emitter;
                     crate::system::osd_window::show_device_switch("bluetooth", current_bt);
-                    crate::system::osd_window::wake_osd_if_enabled(&app);
-                    let _ = app.emit("bluetooth-state-changed", current_bt);
-                    let _ = app.emit_to("main", "bluetooth-state-changed", current_bt);
-                    let _ = app.emit_to("osd", "bluetooth-state-changed", current_bt);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state",
+                        "bt_enabled": current_bt
+                    }));
+                    if let Some(ref a) = app {
+                        use tauri::Emitter;
+                        crate::system::osd_window::wake_osd_if_enabled(a);
+                        let _ = a.emit("bluetooth-state-changed", current_bt);
+                        let _ = a.emit_to("main", "bluetooth-state-changed", current_bt);
+                        let _ = a.emit_to("osd", "bluetooth-state-changed", current_bt);
+                    }
                 }
             }
 
@@ -227,12 +245,18 @@ pub fn start_hardware_state_watcher(
                     let mut cfg = crate::system::config::load_config();
                     cfg.wifi_enabled = current_wifi;
                     crate::system::config::save_config(&cfg);
-                    use tauri::Emitter;
                     crate::system::osd_window::show_device_switch("wifi", current_wifi);
-                    crate::system::osd_window::wake_osd_if_enabled(&app);
-                    let _ = app.emit("wifi-state-changed", current_wifi);
-                    let _ = app.emit_to("main", "wifi-state-changed", current_wifi);
-                    let _ = app.emit_to("osd", "wifi-state-changed", current_wifi);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state",
+                        "wifi_enabled": current_wifi
+                    }));
+                    if let Some(ref a) = app {
+                        use tauri::Emitter;
+                        crate::system::osd_window::wake_osd_if_enabled(a);
+                        let _ = a.emit("wifi-state-changed", current_wifi);
+                        let _ = a.emit_to("main", "wifi-state-changed", current_wifi);
+                        let _ = a.emit_to("osd", "wifi-state-changed", current_wifi);
+                    }
                 }
             }
 
@@ -244,12 +268,18 @@ pub fn start_hardware_state_watcher(
                 let mut cfg = crate::system::config::load_config();
                 cfg.camera_enabled = current_cam;
                 crate::system::config::save_config(&cfg);
-                use tauri::Emitter;
                 crate::system::osd_window::show_device_switch("camera", current_cam);
-                crate::system::osd_window::wake_osd_if_enabled(&app);
-                let _ = app.emit("camera-state-changed", current_cam);
-                let _ = app.emit_to("main", "camera-state-changed", current_cam);
-                let _ = app.emit_to("osd", "camera-state-changed", current_cam);
+                crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                    "action": "sync_state",
+                    "camera_enabled": current_cam
+                }));
+                if let Some(ref a) = app {
+                    use tauri::Emitter;
+                    crate::system::osd_window::wake_osd_if_enabled(a);
+                    let _ = a.emit("camera-state-changed", current_cam);
+                    let _ = a.emit_to("main", "camera-state-changed", current_cam);
+                    let _ = a.emit_to("osd", "camera-state-changed", current_cam);
+                }
             }
 
             // 4. Watch Microphone Mute State
@@ -260,12 +290,18 @@ pub fn start_hardware_state_watcher(
                     let mut cfg = crate::system::config::load_config();
                     cfg.mic_enabled = current_mic;
                     crate::system::config::save_config(&cfg);
-                    use tauri::Emitter;
                     crate::system::osd_window::show_device_switch("mic", current_mic);
-                    crate::system::osd_window::wake_osd_if_enabled(&app);
-                    let _ = app.emit("mic-state-changed", current_mic);
-                    let _ = app.emit_to("main", "mic-state-changed", current_mic);
-                    let _ = app.emit_to("osd", "mic-state-changed", current_mic);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state",
+                        "mic_enabled": current_mic
+                    }));
+                    if let Some(ref a) = app {
+                        use tauri::Emitter;
+                        crate::system::osd_window::wake_osd_if_enabled(a);
+                        let _ = a.emit("mic-state-changed", current_mic);
+                        let _ = a.emit_to("main", "mic-state-changed", current_mic);
+                        let _ = a.emit_to("osd", "mic-state-changed", current_mic);
+                    }
                 }
             }
 
@@ -286,7 +322,10 @@ pub fn start_hardware_state_watcher(
                 // Never force switch to Beast on AC plug, and never force Balance on battery.
                 if let Some(last_dc) = last_dc_line {
                     if last_dc != is_dc {
-                        let _ = app.emit("dc-status-changed", is_dc);
+                        if let Some(ref a) = app {
+                            use tauri::Emitter;
+                            let _ = a.emit("dc-status-changed", is_dc);
+                        }
                     }
                 }
             } else if !retry_waiting {
@@ -319,16 +358,24 @@ pub fn start_hardware_state_watcher(
                                 &mut mode_restore_failed,
                             ) {
                                 crate::update_tray_power_mode(target_mode);
-                                crate::system::osd_window::wake_osd_if_enabled(&app);
-                                let _ = app.emit("physical-mode-switched", target_mode);
-                                let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                                let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                                crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                    "action": "sync_state", "power_mode": target_mode
+                                }));
+                                if let Some(ref a) = app {
+                                    crate::system::osd_window::wake_osd_if_enabled(a);
+                                    let _ = a.emit("physical-mode-switched", target_mode);
+                                    let _ = a.emit_to("main", "physical-mode-switched", target_mode);
+                                    let _ = a.emit_to("osd", "physical-mode-switched", target_mode);
+                                }
                             }
                         } else {
                             crate::log_info!("POWER_WATCHER", "DC round adapter unplugged: unlock_battery_power_limit enabled, keeping current power mode {}", cur_mode);
                             let _ = crate::system::config::try_save_config(&updated_cfg);
                         }
-                        let _ = app.emit("dc-status-changed", false);
+                        if let Some(ref a) = app {
+                            use tauri::Emitter;
+                            let _ = a.emit("dc-status-changed", false);
+                        }
                         crate::system::watcher_hub::notify_power_event("ac_disconnected");
                     } else if !last_dc && is_dc {
                         // DC round adapter plugged back in (Transition: On Battery/Type-C -> DC Online)
@@ -354,12 +401,17 @@ pub fn start_hardware_state_watcher(
                         cfg.power_mode = target_mode;
                         if restore_auto_power_mode(&ec_bridge, &cfg, &mut mode_restore_failed) {
                             crate::update_tray_power_mode(target_mode);
-                            crate::system::osd_window::wake_osd_if_enabled(&app);
-                            let _ = app.emit("physical-mode-switched", target_mode);
-                            let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                            let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                            crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                "action": "sync_state", "power_mode": target_mode
+                            }));
+                            if let Some(ref a) = app {
+                                crate::system::osd_window::wake_osd_if_enabled(a);
+                                let _ = a.emit("physical-mode-switched", target_mode);
+                                let _ = a.emit_to("main", "physical-mode-switched", target_mode);
+                                let _ = a.emit_to("osd", "physical-mode-switched", target_mode);
+                            }
                         }
-                        let _ = app.emit("dc-status-changed", true);
+                        if let Some(ref a) = app { let _ = a.emit("dc-status-changed", true); }
                         crate::system::watcher_hub::notify_power_event("ac_connected");
                     }
                 } else if is_dc {
@@ -381,9 +433,14 @@ pub fn start_hardware_state_watcher(
                         cfg.power_mode = target_mode;
                         if restore_auto_power_mode(&ec_bridge, &cfg, &mut mode_restore_failed) {
                             crate::update_tray_power_mode(target_mode);
-                            let _ = app.emit("physical-mode-switched", target_mode);
-                            let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                            let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                            crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                "action": "sync_state", "power_mode": target_mode
+                            }));
+                            if let Some(ref a) = app {
+                                let _ = a.emit("physical-mode-switched", target_mode);
+                                let _ = a.emit_to("main", "physical-mode-switched", target_mode);
+                                let _ = a.emit_to("osd", "physical-mode-switched", target_mode);
+                            }
                         }
                     }
                 } else if !is_dc && !is_thin_light {
@@ -403,9 +460,14 @@ pub fn start_hardware_state_watcher(
                         cfg.power_mode = target_mode;
                         if restore_auto_power_mode(&ec_bridge, &cfg, &mut mode_restore_failed) {
                             crate::update_tray_power_mode(target_mode);
-                            let _ = app.emit("physical-mode-switched", target_mode);
-                            let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-                            let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+                            crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                "action": "sync_state", "power_mode": target_mode
+                            }));
+                            if let Some(ref a) = app {
+                                let _ = a.emit("physical-mode-switched", target_mode);
+                                let _ = a.emit_to("main", "physical-mode-switched", target_mode);
+                                let _ = a.emit_to("osd", "physical-mode-switched", target_mode);
+                            }
                         }
                     }
                 }
@@ -436,8 +498,14 @@ pub fn start_hardware_state_watcher(
                                     let mut updated_cfg = crate::system::config::load_config();
                                     updated_cfg.refresh_rate = min_rate;
                                     crate::system::config::save_config(&updated_cfg);
-                                    use tauri::Emitter;
-                                    let _ = app.emit("refresh-rate-changed", min_rate);
+                                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                        "action": "sync_state",
+                                        "refresh_rate": min_rate
+                                    }));
+                                    if let Some(ref a) = app {
+                                        use tauri::Emitter;
+                                        let _ = a.emit("refresh-rate-changed", min_rate);
+                                    }
                                 }
                             }
                         }
@@ -469,8 +537,10 @@ pub fn start_hardware_state_watcher(
                                     st_snapshot.kb_direction,
                                     &st_snapshot.kb_color,
                                 );
-                                use tauri::Emitter;
-                                let _ = app.emit("kb-engine-changed", "hardware");
+                                if let Some(ref a) = app {
+                                    use tauri::Emitter;
+                                    let _ = a.emit("kb-engine-changed", "hardware");
+                                }
                             }
                         }
                     }
@@ -487,8 +557,14 @@ pub fn start_hardware_state_watcher(
                                     let mut updated_cfg = crate::system::config::load_config();
                                     updated_cfg.refresh_rate = max_rate;
                                     crate::system::config::save_config(&updated_cfg);
-                                    use tauri::Emitter;
-                                    let _ = app.emit("refresh-rate-changed", max_rate);
+                                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                        "action": "sync_state",
+                                        "refresh_rate": max_rate
+                                    }));
+                                    if let Some(ref a) = app {
+                                        use tauri::Emitter;
+                                        let _ = a.emit("refresh-rate-changed", max_rate);
+                                    }
                                 }
                             }
                         }
@@ -520,8 +596,10 @@ pub fn start_hardware_state_watcher(
                             };
                             streamer.update_params(sp);
                             streamer.start();
-                            use tauri::Emitter;
-                            let _ = app.emit("kb-engine-changed", "streamer");
+                            if let Some(ref a) = app {
+                                use tauri::Emitter;
+                                let _ = a.emit("kb-engine-changed", "streamer");
+                            }
                         }
 
                         // Auto-restore lighting on AC plug-in (Wake from EC power cut / sleep lock)
@@ -626,9 +704,11 @@ pub fn start_hardware_state_watcher(
                     last_color_profiles.insert(mon.device_name.clone(), cur_icm);
                 }
                 if changed {
-                    use tauri::Emitter;
-                    let _ = app.emit("color-calibration-changed", ());
-                    let _ = app.emit_to("main", "color-calibration-changed", ());
+                    if let Some(ref a) = app {
+                        use tauri::Emitter;
+                        let _ = a.emit("color-calibration-changed", ());
+                        let _ = a.emit_to("main", "color-calibration-changed", ());
+                    }
                 }
             }
         }

@@ -1,0 +1,162 @@
+import { AppTheme } from "../../theme.slint";
+import { SwitchToggle } from "switch_toggle.slint";
+import { SleepGuardCard } from "sleep_guard_card.slint";
+import { HardwarePowerOptionsCard } from "hardware_power_options_card.slint";
+import { BatteryHealthCard } from "battery_health_card.slint";
+
+export component DashboardPowerView inherits Rectangle {
+    background: transparent;
+
+    // Power & Battery State
+    in-out property <int> battery_percent: 99;
+    in-out property <bool> is_ac_online: true;
+    in-out property <string> battery_mode: "station"; // "long_life" | "balance" | "station"
+    in-out property <int> battery_limit: 60;          // 100 | 80 | 60
+
+    // Hardware Power Options
+    in-out property <bool> usb_charge_enabled: false;
+    in-out property <bool> ac_recovery_enabled: false;
+    in-out property <bool> high_perf_scheme: true;
+
+    // Modern Standby & Sleep Guard Policies
+    in-out property <bool> sleep_guard_enabled: false;
+    in-out property <bool> sleep_disconnect_net: false;
+    in-out property <bool> sleep_block_away: false;
+    in-out property <bool> sleep_ignore_sysreq: false;
+    in-out property <bool> sleep_disable_wake_timers: false;
+    in-out property <bool> sleep_deep_sleep: false;
+    in-out property <bool> sleep_hibernate_30m: false;
+    in-out property <bool> sleep_auto_office: false;
+
+    // Callbacks to Host
+    callback toggle_sleep_auto_office();
+    callback toggle_master_sleep_guard();
+    callback toggle_sleep_guard_option(string);
+    callback toggle_power_option(string);
+    callback select_battery_mode(string);
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 10px;
+        alignment: start;
+
+        // 1. Top Header Bar with Auto-Office on Sleep/Unplug Switch
+        HorizontalLayout {
+            alignment: space-between;
+            height: 38px;
+
+            HorizontalLayout {
+                spacing: 10px;
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: #38bdf818;
+                    border-width: 1px;
+                    border-color: #38bdf840;
+                    y: (parent.height - self.height) / 2;
+
+                    Image {
+                        source: @image-url("../../assets/icons/zap.svg");
+                        width: 16px;
+                        height: 16px;
+                        colorize: #38bdf8;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: "电源与电池管理 (Power & Battery Management)";
+                        font-size: 13.5px;
+                        font-weight: 700;
+                        color: AppTheme.text_primary;
+                    }
+                    Text {
+                        text: "主板硬件充放电控制 · 电池健康长寿模式 · 关机反向供电";
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            // Top Right Quick Card: 睡眠时自动进入办公模式
+            Rectangle {
+                border-radius: 6px;
+                background: root.sleep_auto_office ? #38bdf814 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.sleep_auto_office ? #38bdf860 : AppTheme.border_subtle;
+                height: 38px;
+                y: (parent.height - self.height) / 2;
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_sleep_auto_office(); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 12px;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 1px;
+                        Text {
+                            text: "睡眠时自动进入办公模式";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                        }
+                        Text {
+                            text: "合盖前自动降频限功耗 · 防狂暴模式带热入睡";
+                            font-size: 9px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+
+                    SwitchToggle {
+                        checked: root.sleep_auto_office;
+                        active_color: #38bdf8;
+                        y: (parent.height - self.height) / 2;
+                        toggled => { root.toggle_sleep_auto_office(); }
+                    }
+                }
+            }
+        }
+
+        // 2. Section 1: 智能睡眠守护 / 背包防烫模式
+        SleepGuardCard {
+            sleep_guard_enabled: root.sleep_guard_enabled;
+            sleep_disconnect_net: root.sleep_disconnect_net;
+            sleep_block_away: root.sleep_block_away;
+            sleep_ignore_sysreq: root.sleep_ignore_sysreq;
+            sleep_disable_wake_timers: root.sleep_disable_wake_timers;
+            sleep_deep_sleep: root.sleep_deep_sleep;
+            sleep_hibernate_30m: root.sleep_hibernate_30m;
+            toggle_master_sleep_guard => { root.toggle_master_sleep_guard(); }
+            toggle_sleep_guard_option(opt) => { root.toggle_sleep_guard_option(opt); }
+        }
+
+        // 3. Section 2: 电源与供电选项
+        HardwarePowerOptionsCard {
+            usb_charge_enabled: root.usb_charge_enabled;
+            ac_recovery_enabled: root.ac_recovery_enabled;
+            high_perf_scheme: root.high_perf_scheme;
+            toggle_power_option(opt) => { root.toggle_power_option(opt); }
+        }
+
+        // 4. Section 3: 电池健康与充电模式
+        BatteryHealthCard {
+            battery_percent: root.battery_percent;
+            is_ac_online: root.is_ac_online;
+            battery_mode: root.battery_mode;
+            battery_limit: root.battery_limit;
+            select_battery_mode(mode) => { root.select_battery_mode(mode); }
+        }
+    }
+}

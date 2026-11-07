@@ -327,3 +327,12 @@ pub fn get_running_oem_processes() -> Vec<(String, u32)> {
     procs
 }
 
+/// Trims the calling process working set, reclaiming unused physical memory and cold DLL pages.
+pub fn trim_process_working_set() {
+    #[cfg(windows)]
+    unsafe {
+        use windows::Win32::System::Threading::{GetCurrentProcess, SetProcessWorkingSetSize};
+        let _ = SetProcessWorkingSetSize(GetCurrentProcess(), usize::MAX, usize::MAX);
+    }
+}
+

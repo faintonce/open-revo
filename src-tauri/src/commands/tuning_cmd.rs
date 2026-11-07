@@ -4,7 +4,7 @@
 use tauri::{AppHandle, Emitter, State};
 use crate::driver::ec_bridge::SharedEcBridge;
 use crate::driver::gpu_bridge::SharedGpuBridge;
-use super::power_cmd::{check_dgpu_present, is_dc_round_plugged_in, set_fan_boost};
+use super::power_cmd::{check_dgpu_present, is_dc_round_plugged_in};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GpuModeInfo {
@@ -45,9 +45,8 @@ pub fn check_igpu_present() -> bool {
     })
 }
 
-#[tauri::command]
-pub fn get_gpu_mode_info(
-    gpu_state: State<'_, SharedGpuBridge>,
+pub fn get_gpu_mode_info_internal(
+    gpu_bridge: &crate::driver::gpu_bridge::SharedGpuBridge,
 ) -> GpuModeInfo {
     let mut cfg = crate::system::config::load_config();
     let hw = crate::driver::uefi_nvram::read_gpu_mode();
@@ -58,7 +57,7 @@ pub fn get_gpu_mode_info(
     } else {
         check_dgpu_present()
     };
-    let gpu_name = gpu_state.lock().get_name(0);
+    let gpu_name = gpu_bridge.lock().get_name(0);
 
     let effective_mode = if !has_dgpu {
         "igpu".to_string()
@@ -87,11 +86,16 @@ pub fn get_gpu_mode_info(
 }
 
 #[tauri::command]
-pub fn set_gpu_mode(
-    app: AppHandle,
+pub fn get_gpu_mode_info(
+    gpu_state: State<'_, SharedGpuBridge>,
+) -> GpuModeInfo {
+    get_gpu_mode_info_internal(&gpu_state)
+}
+
+pub fn set_gpu_mode_internal(
     mode: String,
     restart: Option<bool>,
-    gpu_state: State<'_, SharedGpuBridge>,
+    gpu_bridge: &crate::driver::gpu_bridge::SharedGpuBridge,
 ) -> Result<GpuModeInfo, String> {
     if !check_dgpu_present() {
         return Err("当前设备为纯核显架构轻薄本（无物理独立显卡与 MUX 切换芯片），无需且不支持显卡模式切换。".to_string());
@@ -122,9 +126,19 @@ pub fn set_gpu_mode(
     cfg.gpu_mode = mode;
     crate::system::config::save_config(&cfg);
 
-    let info = get_gpu_mode_info(gpu_state);
-    let _ = app.emit("gpu-mode-changed", info.clone());
+    let info = get_gpu_mode_info_internal(gpu_bridge);
+    Ok(info)
+}
 
+#[tauri::command]
+pub fn set_gpu_mode(
+    app: AppHandle,
+    mode: String,
+    restart: Option<bool>,
+    gpu_state: State<'_, SharedGpuBridge>,
+) -> Result<GpuModeInfo, String> {
+    let info = set_gpu_mode_internal(mode, restart, &gpu_state)?;
+    let _ = app.emit("gpu-mode-changed", info.clone());
     Ok(info)
 }
 
@@ -326,10 +340,8 @@ pub fn sync_custom_profile_to_declarative_hardware(
     Ok(())
 }
 
-#[tauri::command]
-pub fn apply_fan_curve_live(
-    app: AppHandle,
-    ec_state: State<'_, SharedEcBridge>,
+pub fn apply_fan_curve_live_internal(
+    app: Option<&AppHandle>,
     cpu_curve: Vec<crate::system::config::FanCurvePoint>,
     gpu_curve: Vec<crate::system::config::FanCurvePoint>,
 ) -> Result<(), String> {
@@ -349,10 +361,17 @@ pub fn apply_fan_curve_live(
         return Ok(());
     }
 
+    let ec_state = crate::driver::ec_bridge::get_global_ec();
     let cfg = crate::system::config::load_config();
     if (cfg.custom_profile.fan_isolated_output || cfg.custom_profile.fan_curve_enabled) && ec_state.lock().is_fan_boost() {
         crate::log_info!("POWER_MODE", "apply_fan_curve_live: Custom fan isolated output is enabled and Fan Boost is ON. Immediately terminating Fan Boost to yield control to live curve!");
-        let _ = set_fan_boost(app, false, ec_state);
+        ec_state.lock().set_fan_boost(false);
+        crate::update_tray_fan_boost(false);
+        crate::system::osd_window::show_fan_boost(false);
+        if let Some(app) = app {
+            let _ = app.emit("fan-boost-changed", false);
+            let _ = app.emit("physical-fan-boost-switched", false);
+        }
     }
 
     crate::driver::wmi_ec::set_custom_mode_ec(true);
@@ -365,9 +384,17 @@ pub fn apply_fan_curve_live(
 }
 
 #[tauri::command]
-pub fn toggle_fan_isolated_output(
+pub fn apply_fan_curve_live(
     app: AppHandle,
-    ec_state: State<'_, SharedEcBridge>,
+    _ec_state: State<'_, SharedEcBridge>,
+    cpu_curve: Vec<crate::system::config::FanCurvePoint>,
+    gpu_curve: Vec<crate::system::config::FanCurvePoint>,
+) -> Result<(), String> {
+    apply_fan_curve_live_internal(Some(&app), cpu_curve, gpu_curve)
+}
+
+pub fn toggle_fan_isolated_output_internal(
+    app: Option<&AppHandle>,
     enable: bool,
     cpu_curve: Option<Vec<crate::system::config::FanCurvePoint>>,
     gpu_curve: Option<Vec<crate::system::config::FanCurvePoint>>,
@@ -399,9 +426,16 @@ pub fn toggle_fan_isolated_output(
         return Ok(enable);
     }
 
+    let ec_state = crate::driver::ec_bridge::get_global_ec();
     if enable && ec_state.lock().is_fan_boost() {
         crate::log_info!("EC_TUNING", "toggle_fan_isolated_output: Enabling fan isolated output while Fan Boost is ON. Terminating Fan Boost to yield to custom curve!");
-        let _ = set_fan_boost(app, false, ec_state);
+        ec_state.lock().set_fan_boost(false);
+        crate::update_tray_fan_boost(false);
+        crate::system::osd_window::show_fan_boost(false);
+        if let Some(app) = app {
+            let _ = app.emit("fan-boost-changed", false);
+            let _ = app.emit("physical-fan-boost-switched", false);
+        }
     }
 
     if enable {
@@ -419,6 +453,17 @@ pub fn toggle_fan_isolated_output(
     }
     crate::log_info!("EC_TUNING", "toggle_fan_isolated_output: enable={} -> ok={}", enable, ok);
     Ok(ok)
+}
+
+#[tauri::command]
+pub fn toggle_fan_isolated_output(
+    app: AppHandle,
+    _ec_state: State<'_, SharedEcBridge>,
+    enable: bool,
+    cpu_curve: Option<Vec<crate::system::config::FanCurvePoint>>,
+    gpu_curve: Option<Vec<crate::system::config::FanCurvePoint>>,
+) -> Result<bool, String> {
+    toggle_fan_isolated_output_internal(Some(&app), enable, cpu_curve, gpu_curve)
 }
 
 #[tauri::command]
@@ -583,7 +628,8 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
     }
 
     let mut cfg = crate::system::config::load_config();
-    if cfg.active_profile_id == id {
+    if cfg.active_profile_id == id || cfg.active_profile_id.is_empty() {
+        cfg.active_profile_id = id.clone();
         cfg.custom_profile = target.profile.clone();
         cfg.cpu_temp_target_max = target.profile.cpu_temp_target.max(95);
         let fp_opt = crate::system::power_mode::get_cached_factory_power_presets();
@@ -695,6 +741,31 @@ pub fn import_profile_preset(
 pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str) -> Option<std::path::PathBuf> {
     use std::os::windows::ffi::OsStrExt;
     use std::ffi::OsStr;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
+
+    // Concurrency protection: ignore re-entrant clicks when dialog is already visible
+    if crate::system::slint_window::IS_FILE_DIALOG_ACTIVE.compare_exchange(false, true, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst).is_err() {
+        crate::log_warn!("DIALOG", "File dialog is already active; ignoring duplicate invocation");
+        return None;
+    }
+
+    struct DialogGuard;
+    impl Drop for DialogGuard {
+        fn drop(&mut self) {
+            crate::system::slint_window::IS_FILE_DIALOG_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    let _guard = DialogGuard;
+
+    let hwnd_owner = crate::system::slint_window::get_openrevo_main_hwnd();
+    if hwnd_owner != 0 {
+        unsafe {
+            let hwnd = HWND(hwnd_owner as *mut _);
+            let _ = SetForegroundWindow(hwnd);
+            let _ = BringWindowToTop(hwnd);
+        }
+    }
 
     #[repr(C)]
     #[allow(non_snake_case)]
@@ -734,15 +805,24 @@ pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str)
     let copy_len = default_name_w.len().min(1023);
     file_buf[..copy_len].copy_from_slice(&default_name_w[..copy_len]);
 
-    let filter_str = format!("{} (*.{})\0*.{}\0All Files (*.*)\0*.*\0\0", filter_name, filter_ext, filter_ext);
+    let spec = if filter_ext.starts_with("*.") {
+        filter_ext.to_string()
+    } else {
+        format!("*.{}", filter_ext.trim_start_matches('.'))
+    };
+
+    let filter_str = format!("{} ({})\0{}\0All Files (*.*)\0*.*\0\0", filter_name, spec, spec);
     let filter_w: Vec<u16> = filter_str.encode_utf16().collect();
 
-    let def_ext_w: Vec<u16> = OsStr::new(filter_ext).encode_wide().chain(std::iter::once(0)).collect();
+    let def_ext_w: Vec<u16> = OsStr::new(filter_ext.trim_start_matches('.')).encode_wide().chain(std::iter::once(0)).collect();
     let title_w: Vec<u16> = OsStr::new("导出配置文件").encode_wide().chain(std::iter::once(0)).collect();
+
+    // OFN_OVERWRITEPROMPT (0x2) | OFN_PATHMUSTEXIST (0x800) | OFN_NOCHANGEDIR (0x8) | OFN_EXPLORER (0x80000) | OFN_ENABLESIZING (0x800000)
+    let flags = 0x00000002 | 0x00000800 | 0x00000008 | 0x00080000 | 0x00800000;
 
     let mut ofn = OPENFILENAMEW {
         lStructSize: std::mem::size_of::<OPENFILENAMEW>() as u32,
-        hwndOwner: 0,
+        hwndOwner: hwnd_owner,
         hInstance: 0,
         lpstrFilter: filter_w.as_ptr(),
         lpstrCustomFilter: std::ptr::null_mut(),
@@ -754,7 +834,7 @@ pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str)
         nMaxFileTitle: 0,
         lpstrInitialDir: std::ptr::null(),
         lpstrTitle: title_w.as_ptr(),
-        Flags: 0x00000002 | 0x00000800 | 0x00000004,
+        Flags: flags,
         nFileOffset: 0,
         nFileExtension: 0,
         lpstrDefExt: def_ext_w.as_ptr(),
@@ -800,9 +880,8 @@ pub fn export_profile_preset(id: String) -> Result<Option<String>, String> {
     }
 }
 
-#[tauri::command]
-pub fn apply_live_custom_tweak(
-    app: AppHandle,
+pub fn apply_live_custom_tweak_internal(
+    app: Option<&AppHandle>,
     pl1: Option<u16>,
     pl2: Option<u16>,
     pl4: Option<u16>,
@@ -937,30 +1016,72 @@ pub fn apply_live_custom_tweak(
         if let (Some(c), Some(m)) = (gpu_core_offset, gpu_mem_offset) {
             let gpu = crate::driver::gpu_bridge::get_global_gpu();
             gpu.lock().set_clock_offsets(c, m);
-            let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
-                "core_offset_mhz": c,
-                "mem_offset_mhz": m
-            }));
+            if let Some(app) = app {
+                let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+                    "core_offset_mhz": c,
+                    "mem_offset_mhz": m
+                }));
+            }
         } else if let Some(c) = gpu_core_offset {
             let gpu = crate::driver::gpu_bridge::get_global_gpu();
             let m = gpu.lock().get_mem_offset();
             gpu.lock().set_clock_offsets(c, m);
-            let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
-                "core_offset_mhz": c,
-                "mem_offset_mhz": m
-            }));
+            if let Some(app) = app {
+                let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+                    "core_offset_mhz": c,
+                    "mem_offset_mhz": m
+                }));
+            }
         } else if let Some(m) = gpu_mem_offset {
             let gpu = crate::driver::gpu_bridge::get_global_gpu();
             let c = gpu.lock().get_core_offset();
             gpu.lock().set_clock_offsets(c, m);
-            let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
-                "core_offset_mhz": c,
-                "mem_offset_mhz": m
-            }));
+            if let Some(app) = app {
+                let _ = app.emit("gpu-clock-offsets-changed", serde_json::json!({
+                    "core_offset_mhz": c,
+                    "mem_offset_mhz": m
+                }));
+            }
         }
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn apply_live_custom_tweak(
+    app: AppHandle,
+    pl1: Option<u16>,
+    pl2: Option<u16>,
+    pl4: Option<u16>,
+    temp_target: Option<u8>,
+    _ctgp_enabled: Option<bool>,
+    ctgp_watts: Option<u8>,
+    db_enabled: Option<bool>,
+    db_watts: Option<u8>,
+    super_perf: Option<bool>,
+    gpu_core_offset: Option<i32>,
+    gpu_mem_offset: Option<i32>,
+    fan_speed_cap: Option<u16>,
+    #[allow(non_snake_case)]
+    fanSpeedCap: Option<u16>,
+) -> Result<(), String> {
+    apply_live_custom_tweak_internal(
+        Some(&app),
+        pl1,
+        pl2,
+        pl4,
+        temp_target,
+        _ctgp_enabled,
+        ctgp_watts,
+        db_enabled,
+        db_watts,
+        super_perf,
+        gpu_core_offset,
+        gpu_mem_offset,
+        fan_speed_cap,
+        fanSpeedCap,
+    )
 }
 
 #[tauri::command]
@@ -1093,13 +1214,12 @@ pub fn import_models_json(json_content: String) -> Result<String, String> {
     Ok(format!("成功导入 {} 项机型配置！当前本机识别为：{}", count, my_alias))
 }
 
-#[tauri::command]
-pub fn set_bld_fan_speed_cap(
-    app: AppHandle,
-    ec_state: State<'_, SharedEcBridge>,
+pub fn set_bld_fan_speed_cap_internal(
+    app: Option<&AppHandle>,
     rpm: u16,
 ) -> Result<(), String> {
     let mut cfg = crate::system::config::load_config();
+    let ec_state = crate::driver::ec_bridge::get_global_ec();
     if rpm == 0 {
         crate::driver::bld_driver_mgr::restore_bld_fan_auto();
         crate::log_info!("BLD_FAN", "BLD restored factory auto thermal policy via restore_bld_fan_auto");
@@ -1109,8 +1229,10 @@ pub fn set_bld_fan_speed_cap(
         ec_state.lock().set_fan_boost_from_hardware(false);
 
         crate::update_tray_fan_boost(false);
-        let _ = app.emit("fan-boost-changed", false);
-        let _ = app.emit("physical-fan-boost-switched", false);
+        if let Some(app) = app {
+            let _ = app.emit("fan-boost-changed", false);
+            let _ = app.emit("physical-fan-boost-switched", false);
+        }
     } else {
         let raw_cap = if rpm > 100 { (rpm / 100) as u8 } else { rpm as u8 };
         if raw_cap == 0 {
@@ -1122,8 +1244,10 @@ pub fn set_bld_fan_speed_cap(
             ec_state.lock().set_fan_boost_from_hardware(false);
 
             crate::update_tray_fan_boost(false);
-            let _ = app.emit("fan-boost-changed", false);
-            let _ = app.emit("physical-fan-boost-switched", false);
+            if let Some(app) = app {
+                let _ = app.emit("fan-boost-changed", false);
+                let _ = app.emit("physical-fan-boost-switched", false);
+            }
         } else {
             let cap_val = raw_cap.clamp(22, 58);
             let target_rpm = (cap_val as u16) * 100;
@@ -1135,11 +1259,22 @@ pub fn set_bld_fan_speed_cap(
             ec_state.lock().set_fan_boost_from_hardware(true);
 
             crate::update_tray_fan_boost(true);
-            let _ = app.emit("fan-boost-changed", true);
-            let _ = app.emit("physical-fan-boost-switched", true);
+            if let Some(app) = app {
+                let _ = app.emit("fan-boost-changed", true);
+                let _ = app.emit("physical-fan-boost-switched", true);
+            }
         }
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn set_bld_fan_speed_cap(
+    app: AppHandle,
+    _ec_state: State<'_, SharedEcBridge>,
+    rpm: u16,
+) -> Result<(), String> {
+    set_bld_fan_speed_cap_internal(Some(&app), rpm)
 }
 
 

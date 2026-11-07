@@ -221,6 +221,10 @@ fn apply_shortcut_power_mode(app: &AppHandle, mode: u8, osd: bool) -> Result<(),
         crate::system::osd_window::show_power_mode(mode);
     }
     let _ = app.emit("physical-mode-switched", mode);
+    crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
+    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+        "action": "sync_state", "power_mode": mode
+    }));
     Ok(())
 }
 

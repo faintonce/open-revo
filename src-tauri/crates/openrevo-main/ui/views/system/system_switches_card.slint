@@ -1,0 +1,576 @@
+import { AppTheme } from "../../theme.slint";
+import { PowerSchemeItem, UserDataDirInfo, OsdConfigData } from "system_types.slint";
+import { PowerSchemeRow } from "power_scheme_row.slint";
+import { StorageManagementRow } from "storage_management_row.slint";
+import { WakeWindowModeRow } from "wake_window_mode_row.slint";
+
+export component SystemSwitchesCard inherits Rectangle {
+    property <bool> show_restart_hint: false;
+    // 1. Autostart
+    in-out property <bool> autostart: false;
+    callback toggle_autostart();
+
+    // 2. Unlock Battery Limit
+    in-out property <bool> unlock_battery_limit: false;
+    callback request_toggle_unlock_battery();
+
+    // 4. Wake Window Mode ("remember" | "mini" | "full")
+    in-out property <string> wake_window_mode: "remember";
+    callback change_wake_window_mode(string);
+
+    // 5. Mini Auto Hide
+    in-out property <bool> mini_auto_hide: true;
+    callback toggle_mini_auto_hide(bool);
+
+    // 6. User Data Directory
+    in-out property <UserDataDirInfo> data_dir_info: {
+        path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
+        mode: "appdata"
+    };
+    callback open_user_data_dir();
+    callback request_migrate_data();
+    callback request_clear_data();
+
+    // 7. Windows Power Schemes
+    in-out property <[PowerSchemeItem]> power_schemes: [
+        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+    ];
+    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> restore_plan_msg: "";
+    callback request_restore_power_plan();
+    callback switch_power_scheme(string);
+    callback refresh_power_schemes();
+
+    // 8. Software Version & Updater
+    in-out property <string> app_version: "v0.9.7";
+    in-out property <string> update_channel: "stable";
+    in-out property <string> update_feedback: "";
+    in-out property <string> update_feedback_type: "";
+    in-out property <bool> is_checking_update: false;
+    callback change_update_channel(string);
+    callback check_for_updates();
+
+    // 9. Classic WebView2 Frontend Switch
+    in-out property <bool> use_classic_webview: false;
+    callback toggle_classic_webview(bool);
+    callback restart_openrevo();
+
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Card Title
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/settings.svg");
+                    width: 16px;
+                    height: 16px;
+                    colorize: #38bdf8;
+                }
+            }
+            Text {
+                text: "系统配置与通用选项";
+                font-size: 13px;
+                font-weight: 700;
+                color: AppTheme.text_primary;
+                vertical-alignment: center;
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 1: 开机自动启动
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: "开机自动启动 (最小化至托盘)";
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: "系统登录时静默启动并在托盘常驻，保障温控与功耗策略平稳运行";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.autostart ? #38bdf8 : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_autostart(); }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.autostart ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 1b: 使用经典 WebView2 前端
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "使用经典 WebView2 前端";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: root.use_classic_webview ? #f59e0b20 : #10b98120;
+                        border-width: 1px;
+                        border-color: root.use_classic_webview ? #f59e0b60 : #10b98160;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.use_classic_webview ? "WEBVIEW2" : "SLINT 原生";
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: root.use_classic_webview ? #f59e0b : #10b981;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "默认使用 Slint 原生渲染引擎（低内存、零延迟）。开启后切换回经典 Web 前端（需要重启生效）";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+
+                    Rectangle {
+                        visible: root.show_restart_hint;
+                        border-radius: 4px;
+                        background: t_rst_btn.has-hover ? #38bdf835 : #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 24px;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text {
+                                text: "重启生效";
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                        t_rst_btn := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.restart_openrevo(); }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 44px;
+                        height: 24px;
+                        border-radius: 12px;
+                        background: root.use_classic_webview ? #38bdf8 : AppTheme.surface_pill;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.show_restart_hint = true;
+                                root.toggle_classic_webview(!root.use_classic_webview);
+                            }
+                        }
+
+                        Rectangle {
+                            width: 18px;
+                            height: 18px;
+                            border-radius: 9px;
+                            background: #ffffff;
+                            x: root.use_classic_webview ? parent.width - 21px : 3px;
+                            y: 3px;
+                            animate x { duration: 150ms; }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 2: 解除离电限制 (Power Gating)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "解除离电限制";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: root.unlock_battery_limit ? #f59e0b20 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.unlock_battery_limit ? #f59e0b60 : AppTheme.border_subtle;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.unlock_battery_limit ? "已解除限制 (风险自担)" : "出厂安全限制";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: root.unlock_battery_limit ? #f59e0b : AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #6366f120;
+                        border-width: 1px;
+                        border-color: #6366f160;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: "Power Gating"; font-size: 10px; font-weight: 700; color: #818cf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: "允许在拔掉充电器或 Type-C 供电时自由切换狂暴与极客调校，且拔电时不强制降级为平衡模式";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.unlock_battery_limit ? #f59e0b : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.request_toggle_unlock_battery(); }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.unlock_battery_limit ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 4: 唤醒面板形态 (WinSize)
+        // =====================================================================
+        WakeWindowModeRow {
+            wake_window_mode: root.wake_window_mode;
+            change_wake_window_mode(m) => { root.change_wake_window_mode(m); }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 5: 迷你抽屉点击外部自动收起 (Mini Drawer)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "迷你抽屉点击外部自动收起";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: "Mini Drawer"; font-size: 10px; font-weight: 700; color: #38bdf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: "在迷你抽屉模式下，点击桌面或其他应用窗口时自动回收抽屉；完整面板不受此影响";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.mini_auto_hide ? #38bdf8 : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.mini_auto_hide = !root.mini_auto_hide;
+                            root.toggle_mini_auto_hide(root.mini_auto_hide);
+                        }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.mini_auto_hide ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 6: 数据存储管理
+        // =====================================================================
+        StorageManagementRow {
+            data_dir_info: root.data_dir_info;
+            open_user_data_dir => { root.open_user_data_dir(); }
+            request_migrate_data => { root.request_migrate_data(); }
+            request_clear_data => { root.request_clear_data(); }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 7: Windows 基础电源方案 (powercfg)
+        // =====================================================================
+        PowerSchemeRow {
+            power_schemes: root.power_schemes;
+            active_power_scheme_name: root.active_power_scheme_name;
+            restore_plan_msg: root.restore_plan_msg;
+            request_restore_power_plan => { root.request_restore_power_plan(); }
+            switch_power_scheme(guid) => { root.switch_power_scheme(guid); }
+            refresh_power_schemes => { root.refresh_power_schemes(); }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 8: 软件版本与分发更新 (放到最后一个)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "软件版本与分发更新";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: #38bdf820;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text { text: root.app_version; font-size: 10px; font-weight: 700; color: #38bdf8; vertical-alignment: center; }
+                        }
+                    }
+                }
+                Text {
+                    text: root.update_feedback != ""
+                        ? root.update_feedback
+                        : (root.update_channel == "beta"
+                            ? "【预览通道】优先接收实验性新特性与先行体验版本；双源智能竞速"
+                            : "【正式通道】仅接收经过充分测试与验证的稳定版本；双源智能竞速");
+                    font-size: 10px;
+                    color: root.update_feedback != ""
+                        ? (root.update_feedback_type == "error" ? #ef4444 : (root.update_feedback_type == "latest" ? #10b981 : (root.update_feedback_type == "not_found" ? #f59e0b : #38bdf8)))
+                        : (root.update_channel == "beta" ? #f59e0b : AppTheme.text_muted);
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                // 通道分段控制器 (统一 26px 高度与右侧按钮完美对齐，上下 padding 2px，内层 22px 绝对垂直居中)
+                Rectangle {
+                    height: 26px;
+                    border-radius: 4px;
+                    background: AppTheme.surface_sunken;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    HorizontalLayout {
+                        padding: 2px;
+                        spacing: 2px;
+                        alignment: center;
+
+                        // 1. 正式版 (Stable)
+                        Rectangle {
+                            height: 22px;
+                            border-radius: 3px;
+                            background: root.update_channel == "stable" ? #6366f1 : (t_ch1.has-hover ? AppTheme.surface_card_hover : transparent);
+                            t_ch1 := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.change_update_channel("stable"); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: "正式版 (Stable)";
+                                    font-size: 10.5px;
+                                    font-weight: root.update_channel == "stable" ? 700 : 500;
+                                    color: root.update_channel == "stable" ? #ffffff : AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // 2. 预览版 (Beta)
+                        Rectangle {
+                            height: 22px;
+                            border-radius: 3px;
+                            background: root.update_channel == "beta" ? #6366f1 : (t_ch2.has-hover ? AppTheme.surface_card_hover : transparent);
+                            t_ch2 := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.change_update_channel("beta"); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: "预览版 (Beta)";
+                                    font-size: 10.5px;
+                                    font-weight: root.update_channel == "beta" ? 700 : 500;
+                                    color: root.update_channel == "beta" ? #ffffff : AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 检查更新按钮
+                Rectangle {
+                    height: 26px;
+                    border-radius: 4px;
+                    background: root.is_checking_update ? #6366f125 : (t_chk.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                    border-width: 1px;
+                    border-color: root.is_checking_update ? #6366f1 : AppTheme.border_medium;
+                    t_chk := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            if !root.is_checking_update {
+                                root.check_for_updates();
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 4px;
+                        Image {
+                            source: @image-url("../../assets/icons/refresh-cw.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: root.is_checking_update ? #818cf8 : AppTheme.text_secondary;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: root.is_checking_update ? "正在检测..." : (root.update_feedback != "" ? (root.update_feedback_type == "latest" ? "已是最新" : (root.update_feedback_type == "not_found" ? "暂无新版" : "重新检测")) : "检查更新");
+                            font-size: 11px;
+                            font-weight: root.is_checking_update ? 700 : 500;
+                            color: root.is_checking_update ? #818cf8 : AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -5,8 +5,22 @@ use std::time::Duration;
 use semver::Version;
 use super::types::{AssetInfo, ReleaseManifest, UpdateCheckResult};
 
-pub const DEFAULT_GITHUB_URL: &str = "https://github.com/faintonce/open-revo/releases/latest/download/latest.json";
-pub const DEFAULT_GITEE_URL: &str = "https://gitee.com/faintonce/open-revo/raw/master/latest.json";
+pub const STABLE_GITHUB_URL: &str = "https://github.com/faintonce/open-revo/releases/latest/download/latest.json";
+pub const STABLE_GITEE_URL: &str = "https://gitee.com/faintonce/open-revo/raw/master/latest.json";
+
+pub const PREVIEW_GITHUB_URL: &str = "https://github.com/faintonce/open-revo/releases/download/preview/preview.json";
+pub const PREVIEW_GITEE_URL: &str = "https://gitee.com/faintonce/open-revo/raw/master/preview.json";
+
+pub const DEFAULT_GITHUB_URL: &str = STABLE_GITHUB_URL;
+pub const DEFAULT_GITEE_URL: &str = STABLE_GITEE_URL;
+
+pub fn get_channel_manifest_urls(channel: &str) -> (&'static str, &'static str) {
+    if channel.eq_ignore_ascii_case("beta") || channel.eq_ignore_ascii_case("preview") {
+        (PREVIEW_GITHUB_URL, PREVIEW_GITEE_URL)
+    } else {
+        (STABLE_GITHUB_URL, STABLE_GITEE_URL)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DistributionType {
@@ -108,8 +122,11 @@ fn fetch_single_manifest(url: &str, timeout_ms: u64) -> Result<ReleaseManifest, 
 
 /// Dual-source race and fallback engine using lightweight threads & mpsc channel
 pub fn race_manifest_fetch_sync(
+    channel: &str,
     preferred_source: Option<&str>,
 ) -> Result<(String, ReleaseManifest), String> {
+    let (target_github_url, target_gitee_url) = get_channel_manifest_urls(channel);
+
     // 1. Check local debug mock override (supports both http(s) URL and direct file path)
     if let Ok(mock_url) = std::env::var("OPENREVO_UPDATE_URL") {
         let trimmed = mock_url.trim();
@@ -137,11 +154,11 @@ pub fn race_manifest_fetch_sync(
     if let Some(pref) = preferred_source {
         match pref.to_lowercase().as_str() {
             "gitee" => {
-                let m = fetch_single_manifest(DEFAULT_GITEE_URL, 5000)?;
+                let m = fetch_single_manifest(target_gitee_url, 5000)?;
                 return Ok(("gitee".to_string(), m));
             }
             "github" => {
-                let m = fetch_single_manifest(DEFAULT_GITHUB_URL, 5000)?;
+                let m = fetch_single_manifest(target_github_url, 5000)?;
                 return Ok(("github".to_string(), m));
             }
             _ => {}
@@ -149,7 +166,7 @@ pub fn race_manifest_fetch_sync(
     }
 
     // 3. Dual-source race: probe both simultaneously with 2000ms threshold
-    crate::log_info!("UPDATER", "Starting dual-source race between Gitee and GitHub via lightweight threads...");
+    crate::log_info!("UPDATER", "Starting dual-source race between Gitee and GitHub via lightweight threads [channel: {}]...", channel);
 
     let (tx, rx) = std::sync::mpsc::channel();
     let tx_gitee = tx.clone();
@@ -158,14 +175,14 @@ pub fn race_manifest_fetch_sync(
     let _ = std::thread::Builder::new()
         .name("updater-race-gitee".to_string())
         .spawn(move || {
-            let res = fetch_single_manifest(DEFAULT_GITEE_URL, 2000);
+            let res = fetch_single_manifest(target_gitee_url, 2000);
             let _ = tx_gitee.send(("gitee".to_string(), res));
         });
 
     let _ = std::thread::Builder::new()
         .name("updater-race-github".to_string())
         .spawn(move || {
-            let res = fetch_single_manifest(DEFAULT_GITHUB_URL, 2000);
+            let res = fetch_single_manifest(target_github_url, 2000);
             let _ = tx_github.send(("github".to_string(), res));
         });
 
@@ -231,8 +248,16 @@ fn select_update_asset(manifest: &ReleaseManifest, dist_type: DistributionType) 
     }).ok_or_else(|| "No executable update asset found; archive updates are not supported".into())
 }
 
-fn check_for_updates_sync(preferred_source: Option<&str>) -> Result<UpdateCheckResult, String> {
-    let (chosen_source, manifest) = race_manifest_fetch_sync(preferred_source)?;
+fn check_for_updates_sync(
+    channel: Option<&str>,
+    preferred_source: Option<&str>,
+) -> Result<UpdateCheckResult, String> {
+    let resolved_channel = channel
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| crate::system::config::load_config().update_channel);
+
+    let (chosen_source, manifest) = race_manifest_fetch_sync(&resolved_channel, preferred_source)?;
 
     let local_version = env!("CARGO_PKG_VERSION");
     let local_commit = option_env!("OPENREVO_GIT_COMMIT").unwrap_or("");
@@ -268,6 +293,7 @@ fn check_for_updates_sync(preferred_source: Option<&str>) -> Result<UpdateCheckR
     let sha256 = asset_info.sha256.clone();
     Ok(UpdateCheckResult {
         has_update,
+        channel: resolved_channel,
         current_version: local_version.to_string(),
         current_commit: local_commit.to_string(),
         latest_version: manifest.version,
@@ -284,9 +310,12 @@ fn check_for_updates_sync(preferred_source: Option<&str>) -> Result<UpdateCheckR
 }
 
 /// Main entry point for checking updates (asynchronous wrapper using spawn_blocking)
-pub async fn check_for_updates(preferred_source: Option<String>) -> Result<UpdateCheckResult, String> {
+pub async fn check_for_updates(
+    channel: Option<String>,
+    preferred_source: Option<String>,
+) -> Result<UpdateCheckResult, String> {
     tokio::task::spawn_blocking(move || {
-        check_for_updates_sync(preferred_source.as_deref())
+        check_for_updates_sync(channel.as_deref(), preferred_source.as_deref())
     })
     .await
     .map_err(|e| format!("Worker thread error: {}", e))?

@@ -464,6 +464,11 @@ pub fn set_switch(switch_name: &str, enable: bool) -> Result<bool, String> {
         }
         "osd" => {
             cfg.osd_enabled = enable;
+            if enable {
+                crate::system::osd_window::ensure_companion_process();
+            } else {
+                crate::system::osd_window::shutdown_osd_process();
+            }
             crate::log_info!("DEVICE_SWITCH", "OSD overlay switch toggled to {}", enable);
         }
         _ => return Err(format!("Unknown switch: {}", switch_name)),

@@ -27,11 +27,18 @@ pub fn format_widget_label(plugin_id: &str) -> String {
 #[tauri::command]
 pub async fn open_custom_widget(app: AppHandle, plugin_id: String) -> Result<String, String> {
     let label = format_widget_label(&plugin_id);
+    crate::log_info!("WIDGET", "open_custom_widget called for plugin '{}', label '{}'", plugin_id, label);
 
     // 1. Persist plugin toggle state
     let mut cfg = crate::system::config::load_config();
     cfg.custom_plugin_toggles.insert(plugin_id.clone(), true);
     crate::system::config::save_config(&cfg);
+
+    if !cfg.use_classic_webview {
+        crate::log_info!("WIDGET", "Native Slint mode active: opening unmanaged Wry popout for '{}'", plugin_id);
+        crate::system::native_wry::open_popout(&plugin_id);
+        return Ok(label);
+    }
 
     // 2. Fast-path: if window already exists (e.g. was hidden), restore and show it instantly
     if let Some(win) = app.get_webview_window(&label) {
@@ -42,18 +49,21 @@ pub async fn open_custom_widget(app: AppHandle, plugin_id: String) -> Result<Str
     }
 
     // 3. Delegate to WebviewOrchestrator queue for safe staggered creation with circuit-breaker protection
+    crate::log_info!("WIDGET", "Enqueuing widget '{}' to WebviewOrchestrator...", plugin_id);
     crate::system::webview_orchestrator::WebviewOrchestrator::global().enqueue_widget(plugin_id.clone());
 
     // 4. Await orchestrator window instantiation (up to 3000ms)
-    for _ in 0..60 {
+    for i in 0..60 {
         if let Some(win) = app.get_webview_window(&label) {
             let _ = win.show();
             let _ = win.unminimize();
+            crate::log_info!("WIDGET", "Widget window '{}' successfully presented after {}ms", label, i * 50);
             return Ok(label);
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
+    crate::log_error!("WIDGET", "Timed out awaiting widget '{}' creation from orchestrator (3000ms)", plugin_id);
     Err(format!("Timed out awaiting widget '{}' creation from orchestrator", plugin_id))
 }
 
@@ -156,6 +166,7 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
         .shadow(has_decorations)
         .always_on_top(win_cfg.always_on_top)
         .skip_taskbar(win_cfg.skip_taskbar)
+        .drag_and_drop(false)
         .initialization_script(&init_script)
         .visible(false); // Conceal during initial DOM mount to avoid white flash
 
@@ -193,8 +204,10 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
         builder = builder.center();
     }
 
+    crate::log_info!("WIDGET", "Executing WebviewWindowBuilder::build for widget '{}'...", label);
     match builder.build() {
         Ok(win) => {
+            crate::log_info!("WIDGET", "WebviewWindowBuilder::build SUCCESS for widget '{}'", label);
             // Watchdog fallback (600ms): if frontend widget_ready event is somehow missed, show gracefully
             let win_fallback = win.clone();
             std::thread::spawn(move || {
@@ -219,6 +232,7 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
             Ok(label)
         }
         Err(e) => {
+            crate::log_error!("WIDGET", "Failed to build widget window '{}': {}", label, e);
             crate::system::telemetry::unregister_consumer(plugin_id);
             let mut active = get_active_widgets().lock();
             active.remove(plugin_id);
@@ -294,6 +308,8 @@ pub fn cleanup_widget_on_close(app: &AppHandle, plugin_id: &str) {
 pub fn close_custom_widget(app: AppHandle, plugin_id: String) -> Result<bool, String> {
     let label = format_widget_label(&plugin_id);
 
+    crate::system::native_wry::close_popout(&plugin_id);
+
     if let Some(win) = app.get_webview_window(&label) {
         let _ = win.destroy();
         crate::log_info!("WIDGET", "Widget window '{}' destroyed cleanly.", label);
@@ -306,8 +322,14 @@ pub fn close_custom_widget(app: AppHandle, plugin_id: String) -> Result<bool, St
 /// Get all currently active widget plugin IDs
 #[tauri::command]
 pub fn get_running_widgets() -> Result<Vec<String>, String> {
+    let mut list = crate::system::native_wry::get_running_popouts();
     let active = get_active_widgets().lock();
-    Ok(active.keys().cloned().collect())
+    for k in active.keys() {
+        if !list.contains(k) {
+            list.push(k.clone());
+        }
+    }
+    Ok(list)
 }
 
 /// Automatically restore and spawn enabled widget windows on OpenRevo boot via orchestrator queue
@@ -325,11 +347,10 @@ pub fn restore_active_widgets_on_boot(_app: &AppHandle) {
                         if p_type == "widget" || p_type == "skin" {
                             crate::log_info!(
                                 "WIDGET",
-                                "Auto-restoring enabled widget '{}' on startup via orchestrator queue...",
+                                "Auto-restoring enabled widget '{}' on startup via native Wry runtime...",
                                 plugin_id
                             );
-                            crate::system::webview_orchestrator::WebviewOrchestrator::global()
-                                .enqueue_widget(plugin_id.clone());
+                            crate::system::native_wry::open_popout(plugin_id);
                         }
                     }
                 }

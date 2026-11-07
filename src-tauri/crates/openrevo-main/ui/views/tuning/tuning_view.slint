@@ -1,0 +1,531 @@
+import { AppTheme } from "../../theme.slint";
+import { CpuTuningCol } from "cpu_col.slint";
+import { GpuTuningCol } from "gpu_col.slint";
+import { FanTuningCol } from "fan_col.slint";
+
+export component DashboardCustomTuningView inherits Rectangle {
+    background: transparent;
+
+    // Platform Props
+    in-out property <string> cpu_vendor: "intel";
+    in-out property <string> cpu_tuning_type: "intel_pl";
+    in-out property <bool> cpu_supports_fppt: true;
+    in-out property <bool> is_bld: false;
+
+    // CPU values
+    in-out property <int> temp_wall: 95;
+    in-out property <bool> temp_wall_enabled: true;
+    in-out property <int> temp_wall_max: 95;
+    in-out property <int> pl1: 75;
+    in-out property <int> pl1_max: 230;
+    in-out property <int> pl2: 75;
+    in-out property <int> pl2_max: 230;
+    in-out property <int> pl4: 126;
+    in-out property <int> pl4_max: 275;
+    in-out property <bool> bios_oc_enabled: true;
+
+    // GPU values
+    in-out property <string> gpu_name: "NVIDIA GeForce RTX 4090 Laptop GPU";
+    in-out property <bool> super_perf: true;
+    in-out property <int> core_offset: 0;
+    in-out property <int> mem_offset: 0;
+    in-out property <bool> db_enabled: true;
+    in-out property <int> db_watts: 25;
+    in-out property <int> base_tgp: 150;
+
+    // Fan values
+    in-out property <bool> smooth_transition: true;
+    in-out property <string> smooth_time: "300ms";
+    in-out property <bool> fan_isolated_output: true;
+    in-out property <int> active_fan_tab: 0;
+    in-out property <bool> fan_linked: true;
+    in-out property <[int]> cpu_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+    in-out property <[int]> gpu_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+    in-out property <int> bld_rpm_cap: 5800;
+    in-out property <bool> bld_boost: false;
+
+    // Telemetry
+    in-out property <int> cpu_temp: 67;
+    in-out property <int> cpu_rpm: 3166;
+    in-out property <string> cpu_watts: "19.9 W";
+    in-out property <int> gpu_temp: 54;
+    in-out property <int> gpu_rpm: 2123;
+    in-out property <string> gpu_watts: "20.4 W";
+
+    // Presets
+    in-out property <string> active_preset_name: "均衡电竞";
+    in-out property <[string]> preset_ids: ["preset_office", "preset_balanced", "preset_turbo"];
+    in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
+    in-out property <bool> show_preset_menu: false;
+
+    // Callbacks
+    callback back_to_overview();
+    callback select_preset(string);
+    callback create_preset();
+    callback reset_preset();
+    callback rename_preset();
+    callback export_preset();
+    callback import_preset();
+    callback open_preset_dir();
+    callback delete_preset();
+
+    // CPU Callbacks
+    callback toggle_temp_wall();
+    callback change_temp_wall(int);
+    callback adjust_temp_wall_max(int);
+    callback change_pl1(int);
+    callback adjust_pl1_max(int);
+    callback change_pl2(int);
+    callback adjust_pl2_max(int);
+    callback change_pl4(int);
+    callback adjust_pl4_max(int);
+    callback toggle_bios_oc();
+
+    // GPU Callbacks
+    callback toggle_super_perf();
+    callback change_core_offset(int);
+    callback change_mem_offset(int);
+    callback toggle_db();
+    callback change_db_watts(int);
+
+    // Fan Callbacks
+    callback toggle_smooth();
+    callback toggle_isolated();
+    callback toggle_link();
+    callback select_fan_tab(int);
+    callback adjust_point(int, int);
+    callback set_point(int, int);
+    callback toggle_bld_boost();
+    callback change_bld_cap(int);
+    callback restore_bld_auto();
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+
+        // 1. Top Navigation & Preset Bar
+        HorizontalLayout {
+            alignment: space-between;
+
+            // Left: Back button + Title
+            HorizontalLayout {
+                spacing: 10px;
+
+                // Back Button
+                Rectangle {
+                    width: 72px;
+                    height: 28px;
+                    border-radius: AppTheme.radius_xs;
+                    background: t_back.has-hover ? #c084fc25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: t_back.has-hover ? #c084fc : AppTheme.border_medium;
+
+                    t_back := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.back_to_overview(); }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        Image {
+                            source: @image-url("../../assets/icons/arrow-left.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: #c084fc;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "返回";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #c084fc;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    Image {
+                        source: @image-url("../../assets/icons/sliders-horizontal.svg");
+                        width: 16px;
+                        height: 16px;
+                        colorize: #c084fc;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "极客自定义调校";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Right: Preset Manager Bar
+            HorizontalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "方案:";
+                    font-size: 11px;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+
+                // Preset Dropdown
+                preset_box := Rectangle {
+                    width: 130px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: t_drop.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.show_preset_menu ? #818cf8 : AppTheme.border_medium;
+
+                    t_drop := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.show_preset_menu = !root.show_preset_menu;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        padding-left: 8px;
+                        padding-right: 8px;
+
+                        HorizontalLayout {
+                            spacing: 4px;
+                            Image {
+                                source: @image-url("../../assets/icons/zap.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: root.active_preset_name;
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        Text {
+                            text: root.show_preset_menu ? "∧" : "∨";
+                            font-size: 9px;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Action Buttons: +, reset, edit, upload, download, folder, trash
+                // + New
+                Rectangle {
+                    width: 24px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: t_add.has-hover ? #6366f125 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: t_add.has-hover ? #6366f1 : AppTheme.border_medium;
+                    t_add := TouchArea { mouse-cursor: pointer; clicked => { root.create_preset(); } }
+                    Image {
+                        source: @image-url("../../assets/icons/plus.svg");
+                        width: 12px; height: 12px;
+                        colorize: t_add.has-hover ? #6366f1 : AppTheme.text_secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+
+                // Reset (复原方案并清除异常锁功耗)
+                Rectangle {
+                    width: 24px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: t_rst.has-hover ? #f59e0b25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: t_rst.has-hover ? #f59e0b : AppTheme.border_medium;
+                    t_rst := TouchArea { mouse-cursor: pointer; clicked => { root.reset_preset(); } }
+                    Image {
+                        source: @image-url("../../assets/icons/rotate-ccw.svg");
+                        width: 12px; height: 12px;
+                        colorize: t_rst.has-hover ? #f59e0b : AppTheme.text_secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+
+                // Edit/Rename
+                Rectangle {
+                    width: 24px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.rename_preset(); } }
+                    Image {
+                        source: @image-url("../../assets/icons/edit.svg");
+                        width: 12px; height: 12px;
+                        colorize: AppTheme.text_secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+
+                // Export (Upload)
+                Rectangle {
+                    width: 24px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.export_preset(); } }
+                    Image {
+                        source: @image-url("../../assets/icons/upload.svg");
+                        width: 12px; height: 12px;
+                        colorize: AppTheme.text_secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+
+                // Import (Download)
+                Rectangle {
+                    width: 24px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.import_preset(); } }
+                    Image {
+                        source: @image-url("../../assets/icons/download.svg");
+                        width: 12px; height: 12px;
+                        colorize: AppTheme.text_secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+
+                // Folder
+                Rectangle {
+                    width: 24px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.open_preset_dir(); } }
+                    Image {
+                        source: @image-url("../../assets/icons/folder.svg");
+                        width: 12px; height: 12px;
+                        colorize: AppTheme.text_secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+
+                // Trash/Delete
+                Rectangle {
+                    width: 24px;
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.delete_preset(); } }
+                    Image {
+                        source: @image-url("../../assets/icons/trash.svg");
+                        width: 12px; height: 12px;
+                        colorize: #f43f5e;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // 2. Main Three Columns (CPU, GPU, Fan)
+        HorizontalLayout {
+            spacing: 12px;
+            vertical-stretch: 1;
+
+            // Col 1: CPU
+            CpuTuningCol {
+                horizontal-stretch: 1;
+                cpu_vendor <=> root.cpu_vendor;
+                cpu_tuning_type <=> root.cpu_tuning_type;
+                cpu_supports_fppt <=> root.cpu_supports_fppt;
+                temp_wall <=> root.temp_wall;
+                temp_wall_enabled <=> root.temp_wall_enabled;
+                temp_wall_max <=> root.temp_wall_max;
+                pl1 <=> root.pl1;
+                pl1_max <=> root.pl1_max;
+                pl2 <=> root.pl2;
+                pl2_max <=> root.pl2_max;
+                pl4 <=> root.pl4;
+                pl4_max <=> root.pl4_max;
+                bios_oc_enabled <=> root.bios_oc_enabled;
+                cpu_temp <=> root.cpu_temp;
+                cpu_rpm <=> root.cpu_rpm;
+                cpu_watts <=> root.cpu_watts;
+                gpu_temp <=> root.gpu_temp;
+                gpu_rpm <=> root.gpu_rpm;
+                gpu_watts <=> root.gpu_watts;
+
+                toggle_temp_wall => { root.toggle_temp_wall(); }
+                change_temp_wall(t) => { root.change_temp_wall(t); }
+                adjust_temp_wall_max(delta) => { root.adjust_temp_wall_max(delta); }
+                change_pl1(w) => { root.change_pl1(w); }
+                adjust_pl1_max(delta) => { root.adjust_pl1_max(delta); }
+                change_pl2(w) => { root.change_pl2(w); }
+                adjust_pl2_max(delta) => { root.adjust_pl2_max(delta); }
+                change_pl4(w) => { root.change_pl4(w); }
+                adjust_pl4_max(delta) => { root.adjust_pl4_max(delta); }
+                toggle_bios_oc => { root.toggle_bios_oc(); }
+            }
+
+            // Col 2: GPU
+            GpuTuningCol {
+                horizontal-stretch: 1;
+                gpu_name <=> root.gpu_name;
+                super_perf <=> root.super_perf;
+                core_offset <=> root.core_offset;
+                mem_offset <=> root.mem_offset;
+                db_enabled <=> root.db_enabled;
+                db_watts <=> root.db_watts;
+                base_tgp <=> root.base_tgp;
+
+                toggle_super_perf => { root.toggle_super_perf(); }
+                change_core_offset(o) => { root.change_core_offset(o); }
+                change_mem_offset(o) => { root.change_mem_offset(o); }
+                toggle_db => { root.toggle_db(); }
+                change_db_watts(w) => { root.change_db_watts(w); }
+            }
+
+            // Col 3: Fan
+            FanTuningCol {
+                horizontal-stretch: 1;
+                is_bld <=> root.is_bld;
+                bld_rpm_cap <=> root.bld_rpm_cap;
+                bld_boost <=> root.bld_boost;
+                cpu_temp <=> root.cpu_temp;
+                gpu_temp <=> root.gpu_temp;
+                cpu_rpm <=> root.cpu_rpm;
+                gpu_rpm <=> root.gpu_rpm;
+                smooth_transition <=> root.smooth_transition;
+                smooth_time <=> root.smooth_time;
+                fan_isolated_output <=> root.fan_isolated_output;
+                active_fan_tab <=> root.active_fan_tab;
+                fan_linked <=> root.fan_linked;
+                cpu_curve <=> root.cpu_curve;
+                gpu_curve <=> root.gpu_curve;
+
+                toggle_smooth => { root.toggle_smooth(); }
+                toggle_isolated => { root.toggle_isolated(); }
+                toggle_link => { root.toggle_link(); }
+                select_fan_tab(tab) => { root.select_fan_tab(tab); }
+                adjust_point(idx, delta) => { root.adjust_point(idx, delta); }
+                set_point(idx, duty) => { root.set_point(idx, duty); }
+                toggle_bld_boost => { root.toggle_bld_boost(); }
+                change_bld_cap(rpm) => { root.change_bld_cap(rpm); }
+                restore_bld_auto => { root.restore_bld_auto(); }
+            }
+        }
+
+        // 3. Bottom Disclaimer Banner (Compact single-line)
+        Rectangle {
+            height: 22px;
+            background: #f59e0b12;
+            border-radius: AppTheme.radius_xs;
+            border-width: 1px;
+            border-color: #f59e0b40;
+
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+
+                Text {
+                    text: "⚠ 免责声明: OpenRevo 仅提供底层硬件操控能力，参数配置权完全归属用户。超出出厂规格的极限功耗、温控或频率偏移可能导致硬件保护性黑屏、断电或重置，请谨慎调校。";
+                    font-size: 9.5px;
+                    color: #f59e0b;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+
+    // Top-level Overlay for Preset Dropdown Menu (绝不被任何下层卡片遮挡)
+    if root.show_preset_menu: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+
+        // Dismiss backdrop (全屏透明捕获，点击任何空白处即刻回收)
+        TouchArea {
+            width: 100%;
+            height: 100%;
+            clicked => {
+                root.show_preset_menu = false;
+            }
+        }
+
+        // Dropdown Menu Card (精确对齐右上角方案栏下方，高度随方案实际数量动态适配)
+        Rectangle {
+            x: parent.width - 346px;
+            y: 40px;
+            width: 130px;
+            height: (root.preset_names.length * 28px) + 8px;
+            background: AppTheme.surface_elevated;
+            border-radius: AppTheme.radius_xs;
+            border-width: 1px;
+            border-color: AppTheme.border_medium;
+            clip: true;
+
+            VerticalLayout {
+                padding: 4px;
+                spacing: 2px;
+
+                for name[idx] in root.preset_names: Rectangle {
+                    height: 26px;
+                    border-radius: 3px;
+                    background: t_item.has-hover ? AppTheme.surface_pill : (name == root.active_preset_name ? #6366f120 : transparent);
+
+                    t_item := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.active_preset_name = name;
+                            root.show_preset_menu = false;
+                            if (idx < root.preset_ids.length) {
+                                root.select_preset(root.preset_ids[idx]);
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 6px;
+
+                        Image {
+                            source: @image-url("../../assets/icons/zap.svg");
+                            width: 10px;
+                            height: 10px;
+                            colorize: name == root.active_preset_name ? #38bdf8 : AppTheme.text_muted;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        Text {
+                            text: name;
+                            font-size: 10.5px;
+                            font-weight: name == root.active_preset_name ? 700 : 500;
+                            color: name == root.active_preset_name ? AppTheme.text_primary : AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
