@@ -6,6 +6,37 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 pub static DATA_IO: parking_lot::ReentrantMutex<()> = parking_lot::ReentrantMutex::new(());
 
+pub fn recycle_path(path: &Path) -> Result<(), String> {
+    if !path.is_absolute() || path.parent().is_none() {
+        return Err("Refusing to recycle a relative path or filesystem root".into());
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let script = r#"
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName Microsoft.VisualBasic
+$path = (Resolve-Path -LiteralPath $env:OPENREVO_RECYCLE_PATH -ErrorAction Stop).ProviderPath
+if ([IO.Directory]::Exists($path)) {
+    [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($path, 'OnlyErrorDialogs', 'SendToRecycleBin')
+} else {
+    [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($path, 'OnlyErrorDialogs', 'SendToRecycleBin')
+}
+"#;
+        let result = std::process::Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .env("OPENREVO_RECYCLE_PATH", path)
+            .creation_flags(0x08000000)
+            .output().map_err(|e| e.to_string())?;
+        if !result.status.success() {
+            return Err(format!("Cannot recycle {}: {}", path.display(), String::from_utf8_lossy(&result.stderr)));
+        }
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    Err("Recycling user data requires Windows".into())
+}
+
 pub fn atomic_write(path: &Path, content: &[u8]) -> Result<(), String> {
     static NEXT_WRITE: AtomicU64 = AtomicU64::new(0);
     let mut name = path
@@ -61,6 +92,12 @@ pub fn merge_changes(current: &mut Value, baseline: &Value, updated: &Value) {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn regression_recycling_rejects_relative_paths_and_roots() {
+        assert!(recycle_path(Path::new("relative")).is_err());
+        assert!(recycle_path(Path::new("C:\\")).is_err());
+    }
 
     #[test]
     fn regression_merges_independent_config_and_map_edits() {

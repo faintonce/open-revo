@@ -715,53 +715,19 @@ pub fn open_user_data_dir() -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn clear_user_data_dir() -> Result<String, String> {
+    let _io = crate::system::config_io::DATA_IO.lock();
     let dir = crate::system::config::get_config_dir();
-
-    // Inviolable security boundaries:
-    // Must be absolute, must not touch root drive, must match active config dir
-    if !dir.is_absolute() {
-        return Err("安全拦截: 路径不是绝对路径".into());
+    let targets = crate::system::data_dir::clearable_entries(&dir)?;
+    for path in &targets {
+        crate::system::config_io::recycle_path(path)?;
     }
-    if dir.parent().is_none() || dir.to_string_lossy().len() <= 3 {
-        return Err("安全拦截: 拒绝删除磁盘根目录".into());
-    }
-
-    if !dir.exists() {
-        return Ok("数据目录已为空".into());
-    }
-
-    // Safely iterate through entries in OpenRevo directory
-    let read_res = std::fs::read_dir(&dir).map_err(|e| format!("无法读取数据目录: {}", e))?;
-
-    let mut deleted_count = 0;
-    for entry_res in read_res {
-        if let Ok(entry) = entry_res {
-            let entry_path = entry.path();
-            let file_name = entry.file_name().to_string_lossy().to_string();
-
-            // Do not delete currently executing binaries or drivers if locked by OS
-            if file_name.ends_with(".exe") || file_name == "driver" {
-                continue;
-            }
-
-            if entry_path.is_dir() {
-                let _ = std::fs::remove_dir_all(&entry_path);
-                deleted_count += 1;
-            } else if entry_path.is_file() {
-                let _ = std::fs::remove_file(&entry_path);
-                deleted_count += 1;
-            }
-        }
-    }
-
-    // Re-create pristine base directories
-    let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::create_dir_all(crate::system::config::get_profiles_dir());
-
-    crate::log_info!("SYSTEM", "User data cleared successfully. Total {} items removed from {:?}", deleted_count, dir);
-    Ok("用户数据已成功清除".into())
+    crate::system::config::reset_config_cache();
+    openrevo_core::system::config::reset_config_cache();
+    crate::system::config::get_profiles_dir();
+    crate::log_info!("SYSTEM", "Recycled {} OpenRevo data entries from {:?}", targets.len(), dir);
+    Ok("OpenRevo 已知用户数据已移入回收站，其他文件已保留。".into())
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
