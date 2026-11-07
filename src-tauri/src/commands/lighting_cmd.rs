@@ -337,6 +337,16 @@ pub fn apply_keyboard_lighting_internal(
         if let Some(ref eng) = engine {
             st.kb_engine = eng.clone();
         }
+        if effect >= 100 && effect < 200 {
+            st.kb_engine = "streamer".to_string();
+            st.streamer_effect = effect;
+        } else if effect >= 200 {
+            st.kb_engine = "custom".to_string();
+            st.streamer_effect = effect;
+        } else if effect > 0 && effect < 100 {
+            st.kb_engine = "hardware".to_string();
+            st.kb_effect = effect;
+        }
         if let Some(csi) = csi_opt {
             st.custom_script_id = csi;
         }
@@ -404,6 +414,10 @@ pub fn apply_keyboard_lighting_internal(
         streamer.update_params(sp.clone());
         crate::log_info!("STREAMER", "BetterRGB streamer params applied: effect={}, fps={}, br={}, enabled={}", sp.effect, sp.fps, sp.brightness_pct, is_on);
     } else {
+        if contract.keyboard_type == "PerKey" {
+            let streamer = crate::driver::ite_streamer::get_global_streamer();
+            streamer.stop();
+        }
         let hw_effect = if st_snapshot.kb_effect > 0 && st_snapshot.kb_effect < 100 {
             st_snapshot.kb_effect
         } else {

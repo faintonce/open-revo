@@ -63,6 +63,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(wm) = val.get("wake_window_mode").and_then(|v| v.as_str()) {
                 ui.set_wake_window_mode(wm.into());
             }
+            if let Some(tm) = val.get("theme_mode").and_then(|v| v.as_i64()) {
+                ui.set_theme_mode(tm as i32);
+            }
             if let Some(mah) = val.get("mini_auto_hide").and_then(|v| v.as_bool()) {
                 ui.set_mini_auto_hide(mah);
             }

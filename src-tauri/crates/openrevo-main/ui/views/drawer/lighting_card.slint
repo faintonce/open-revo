@@ -36,7 +36,11 @@ export component DrawerLightingCard inherits Rectangle {
                                 root.kb_effect == 106 ? "全彩彩虹" : (
                                     root.kb_effect == 1 ? "静态恒亮" : (
                                         root.kb_effect == 2 ? "单色呼吸" : (
-                                            root.kb_effect == 3 ? "波浪流光" : "极客波浪"
+                                            root.kb_effect == 3 ? "炫彩波浪" : (
+                                                root.kb_effect == 5 ? "炫彩彩虹" : (
+                                                    root.kb_effect == 21 ? "游戏高亮" : "极客波浪"
+                                                )
+                                            )
                                         )
                                     )
                                 )
@@ -317,6 +321,32 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px;
                                     Text { text: "静态恒亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_pk5.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_pk5 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(2, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "单色呼吸"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_pk6.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_pk6 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(3, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "炫彩波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
 

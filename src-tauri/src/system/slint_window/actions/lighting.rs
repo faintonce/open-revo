@@ -14,6 +14,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             let engine = val.get("engine").and_then(|v| v.as_str()).map(|s| s.to_string());
             let fps = val.get("fps").and_then(|v| v.as_i64()).map(|f| f as u32);
 
+            let streamer_eff = if effect >= 100 { Some(effect) } else { None };
             let _ = crate::commands::lighting_cmd::apply_keyboard_lighting_internal(
                 app,
                 enabled,
@@ -24,8 +25,8 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 color,
                 engine,
                 fps,
-                Some(effect),
-                Some(effect),
+                streamer_eff,
+                streamer_eff,
                 None,
                 None,
                 &global_lm,

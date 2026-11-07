@@ -109,6 +109,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "unlock_battery_limit": cfg.unlock_battery_power_limit,
                         "wake_window_mode": crate::commands::window_cmd::get_wake_window_mode(),
                         "is_expanded": should_expand,
+                        "theme_mode": cfg.theme_mode,
                         "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
                         "use_classic_webview": cfg.use_classic_webview,
                         "update_channel": cfg.update_channel,

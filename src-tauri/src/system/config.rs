@@ -226,6 +226,10 @@ pub struct AppConfig {
     #[serde(default = "default_true")]
     pub mini_auto_hide_on_blur: bool,
 
+    // Theme Mode (0: Dark, 1: Light, 2: Mono)
+    #[serde(default)]
+    pub theme_mode: u8,
+
     // Custom Performance Tuning & Fan Strategy (Decoupled into %APPDATA%\OpenRevo\profiles\*.json)
     #[serde(skip_serializing, default)]
     pub custom_profile: CustomProfileConfig,
@@ -535,6 +539,7 @@ impl Default for AppConfig {
             widget_positions: std::collections::HashMap::new(),
             active_skin: None,
             active_background: None,
+            theme_mode: 0,
         }
     }
 }

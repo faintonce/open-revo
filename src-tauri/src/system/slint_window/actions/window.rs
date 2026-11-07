@@ -68,6 +68,15 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             crate::system::tray::update_tray_window_mode(true);
             true
         }
+        "set_theme_mode" => {
+            if let Some(mode) = val.get("theme_mode").and_then(|v| v.as_i64()) {
+                crate::log_info!("SLINT_MAIN", "Persisting user theme_mode: {}", mode);
+                let mut cfg = crate::system::config::load_config();
+                cfg.theme_mode = mode as u8;
+                let _ = crate::system::config::save_config(&cfg);
+            }
+            true
+        }
         "collapse_dashboard" => {
             crate::log_info!("SLINT_MAIN", "Dashboard collapsed to mini drawer view");
             let mut cfg = crate::system::config::load_config();

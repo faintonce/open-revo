@@ -23,13 +23,12 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
                 ui.set_kb_brightness(brightness);
             }
             let is_hw = ui.get_is_single_color() || ui.get_is_single_zone() || ui.get_is_four_zone();
-            let engine = if is_hw {
-                "hardware".to_string()
-            } else if ui.get_kb_engine() == 0 {
+            let engine = if is_hw || effect < 100 {
                 "hardware".to_string()
             } else {
                 "streamer".to_string()
             };
+            ui.set_kb_engine(if engine == "hardware" { 0 } else { 1 });
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": enabled,
                 "effect": effect,

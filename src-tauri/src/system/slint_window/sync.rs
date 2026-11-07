@@ -272,6 +272,7 @@ pub fn sync_slint_switches_state() {
         "bt_enabled": switches.bluetooth,
         "fan_boost": cfg.fan_boost,
         "power_mode": cfg.power_mode,
+        "theme_mode": cfg.theme_mode,
         "model_name": &model_alias,
         "custom_status_text": &model_alias,
     }));

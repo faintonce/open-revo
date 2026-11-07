@@ -126,11 +126,11 @@ export component DrawerView inherits Rectangle {
             is_single_color: root.is_single_color;
             is_single_zone: root.is_single_zone;
             is_four_zone: root.is_four_zone;
-            kb_enabled: root.kb_enabled;
-            kb_effect: root.kb_effect;
-            kb_brightness: root.kb_brightness;
-            kb_color_hex: root.kb_color_hex;
-            kb_color: root.kb_color;
+            kb_enabled <=> root.kb_enabled;
+            kb_effect <=> root.kb_effect;
+            kb_brightness <=> root.kb_brightness;
+            kb_color_hex <=> root.kb_color_hex;
+            kb_color <=> root.kb_color;
             select_effect(effect, enabled) => { root.select_drawer_kbd_effect(effect, enabled); }
             select_color(hex, clr) => { root.select_drawer_kbd_color(hex, clr); }
             select_brightness(b) => { root.select_drawer_kbd_brightness(b); }
