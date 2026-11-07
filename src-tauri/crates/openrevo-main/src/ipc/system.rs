@@ -216,14 +216,15 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             true
         }
-        "hide" => {
+        "hide" | "quit" | "shutdown" | "exit" => {
             if let Some(h) = *crate::window::HWND_HOLDER.lock().unwrap() {
                 unsafe {
                     use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
                     let _ = ShowWindow(h.to_hwnd(), SW_HIDE);
                 }
             }
-            true
+            std::thread::sleep(std::time::Duration::from_millis(30));
+            std::process::exit(0);
         }
         "toggle" => {
             let mut hwnd_opt = *crate::window::HWND_HOLDER.lock().unwrap();
@@ -243,6 +244,8 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                     let hwnd = h.to_hwnd();
                     if IsWindowVisible(hwnd).as_bool() && !IsIconic(hwnd).as_bool() {
                         let _ = ShowWindow(hwnd, SW_HIDE);
+                        std::thread::sleep(std::time::Duration::from_millis(30));
+                        std::process::exit(0);
                     } else {
                         let _ = ShowWindow(hwnd, SW_RESTORE);
                         let _ = ShowWindow(hwnd, SW_SHOW);

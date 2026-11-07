@@ -159,6 +159,8 @@ pub fn register(
                 let _ = ShowWindow(hwnd, SW_HIDE);
             }
         }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::process::exit(0);
     });
 
     let ui_theme = ui_weak.clone();

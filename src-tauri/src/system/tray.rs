@@ -292,6 +292,8 @@ pub fn handle_tray_menu_event(
             IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
             crate::system::native_wry::shutdown_all();
             crate::system::webview_orchestrator::WebviewOrchestrator::global().safe_shutdown_all_subviews();
+            crate::system::osd_window::shutdown_osd_process();
+            crate::system::slint_window::shutdown_slint_process();
             safe_hardware_shutdown_on_exit();
             crate::system::plugin_service::shutdown_all_plugin_services();
             app_handle.exit(0);

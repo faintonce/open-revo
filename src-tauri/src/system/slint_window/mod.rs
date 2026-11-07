@@ -123,6 +123,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                 sync_slint_power_state();
                 sync_slint_water_state(None, None);
                 sync_slint_power_schemes(None);
+                sync_slint_plugins_state();
 
                 // Listen for stdout from companion
                 if let Some(stdout) = child.stdout.take() {
@@ -135,6 +136,10 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                                 if let Ok(line) = line_res {
                                     handle_slint_incoming_action(&line, app_opt.as_ref());
                                 }
+                            }
+                            crate::log_info!("SLINT_MAIN", "Slint companion process terminated, clearing STDIN handle.");
+                            if let Ok(mut g) = SLINT_STDIN.lock() {
+                                *g = None;
                             }
                         })
                         .ok();
@@ -177,17 +182,38 @@ pub fn send_slint_ipc_message(payload: serde_json::Value) {
 
     if let Some(ref mut stdin) = *lock {
         let line = format!("{}\n", payload);
-        let _ = stdin.write_all(line.as_bytes());
-        let _ = stdin.flush();
+        if let Err(e) = stdin.write_all(line.as_bytes()) {
+            crate::log_warn!("SLINT_MAIN", "Failed writing to companion stdin: {}, resetting", e);
+            *lock = None;
+        } else if let Err(e) = stdin.flush() {
+            crate::log_warn!("SLINT_MAIN", "Failed flushing companion stdin: {}, resetting", e);
+            *lock = None;
+        }
     }
 }
 
 pub fn show_slint_window() {
+    let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
+    ensure_slint_main_process(app_opt.as_ref());
     send_slint_ipc_message(serde_json::json!({ "action": "show" }));
 }
 
 pub fn hide_slint_window() {
     send_slint_ipc_message(serde_json::json!({ "action": "hide" }));
+}
+
+/// Explicitly shut down and terminate the Slint main companion process
+pub fn shutdown_slint_process() {
+    let mut lock = match SLINT_STDIN.lock() {
+        Ok(l) => l,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Some(mut stdin) = lock.take() {
+        let _ = stdin.write_all(b"{\"action\":\"quit\"}\n");
+        let _ = stdin.flush();
+        drop(stdin);
+        crate::log_info!("SLINT_MAIN", "Slint companion process cleanly shut down.");
+    }
 }
 
 pub fn toggle_slint_window() {
@@ -201,6 +227,19 @@ pub fn toggle_slint_window() {
         }
     }
     *last = Some(std::time::Instant::now());
-    send_slint_ipc_message(serde_json::json!({ "action": "toggle" }));
+
+    let is_running = {
+        let lock = match SLINT_STDIN.lock() {
+            Ok(l) => l,
+            Err(p) => p.into_inner(),
+        };
+        lock.is_some()
+    };
+
+    if !is_running {
+        show_slint_window();
+    } else {
+        send_slint_ipc_message(serde_json::json!({ "action": "toggle" }));
+    }
 }
 

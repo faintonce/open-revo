@@ -82,9 +82,24 @@ pub fn send_osd_ipc_message(payload: serde_json::Value) {
         if let Err(e) = stdin.write_all(line.as_bytes()) {
             crate::log_error!("OSD", "Failed writing to companion stdin: {}", e);
             *lock = None; // Invalidate broken pipe
-        } else {
-            let _ = stdin.flush();
+        } else if let Err(e) = stdin.flush() {
+            crate::log_error!("OSD", "Failed flushing companion stdin: {}", e);
+            *lock = None; // Invalidate broken pipe
         }
+    }
+}
+
+/// Explicitly shut down and terminate the OSD companion process
+pub fn shutdown_osd_process() {
+    let mut lock = match OSD_STDIN.lock() {
+        Ok(l) => l,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Some(mut stdin) = lock.take() {
+        let _ = stdin.write_all(b"{\"action\":\"quit\"}\n");
+        let _ = stdin.flush();
+        drop(stdin);
+        crate::log_info!("OSD", "OSD companion process cleanly shut down.");
     }
 }
 
@@ -380,17 +395,19 @@ fn handle_set_osd(
     crate::system::config::save_config(&cfg);
 
     if !cfg.use_classic_webview {
-        send_osd_ipc_message(serde_json::json!({
-            "action": "config",
-            "theme": new_theme.clone(),
-            "scale": new_scale.clone(),
-            "position": new_position.clone(),
-        }));
-
         if new_enabled {
+            ensure_companion_process();
+            send_osd_ipc_message(serde_json::json!({
+                "action": "config",
+                "theme": new_theme.clone(),
+                "scale": new_scale.clone(),
+                "position": new_position.clone(),
+            }));
             send_osd_ipc_message(serde_json::json!({
                 "action": "preview",
             }));
+        } else {
+            shutdown_osd_process();
         }
     } else {
         update_osd_position(app, &new_position);

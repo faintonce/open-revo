@@ -440,7 +440,17 @@ pub fn run() {
 
             // Step 6.3b: Initialize Slint native main companion if enabled
             crate::system::boot_trace::boot_scope("Step 6.3b: Slint Main Companion", || {
-                crate::system::slint_window::ensure_slint_main_process(Some(&app.handle()));
+                if let Ok(mut g) = crate::system::slint_window::SLINT_APP_HANDLE.lock() {
+                    *g = Some(app.handle().clone());
+                }
+                let args: Vec<String> = std::env::args().collect();
+                let cli_visible = args.iter().any(|a| a == "--visible" || a == "--show");
+                let cfg = crate::system::config::load_config();
+                if !cfg.use_classic_webview && (cli_visible || cfg.launch_visible) {
+                    crate::system::slint_window::show_slint_window();
+                } else {
+                    crate::log_info!("BOOT", "Zero-footprint standby: Slint main companion will spawn on demand upon tray click.");
+                }
             });
 
             // Step 6.4: Start dedicated Windows power event watcher (Sleep, Hibernate, Lid Close, Shutdown)
