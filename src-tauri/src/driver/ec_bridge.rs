@@ -41,6 +41,12 @@ pub struct EcBridge {
     pub oem_conflict_detected: bool,
 }
 
+static GLOBAL_EC: std::sync::OnceLock<SharedEcBridge> = std::sync::OnceLock::new();
+
+pub fn get_global_ec() -> SharedEcBridge {
+    GLOBAL_EC.get_or_init(|| Arc::new(Mutex::new(EcBridge::auto_load()))).clone()
+}
+
 impl EcBridge {
     pub fn new(conflict: bool) -> Self {
         let initial_cfg = crate::system::config::load_config();

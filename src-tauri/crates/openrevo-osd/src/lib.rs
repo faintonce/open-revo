@@ -338,7 +338,7 @@ pub fn handle_ipc_message(
                 }
             });
         }
-        "quit" => {
+        "quit" | "shutdown" | "exit" => {
             std::process::exit(0);
         }
         _ => {}

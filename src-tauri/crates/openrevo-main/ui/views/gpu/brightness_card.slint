@@ -1,0 +1,169 @@
+import { AppTheme } from "../../theme.slint";
+
+export component BrightnessCard inherits Rectangle {
+    in-out property <int> brightness: 76; // 0 - 100
+
+    callback change_brightness(int);
+
+    height: 46px;
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+
+        // Left Icon + Title
+        HorizontalLayout {
+            spacing: 10px;
+            width: 180px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 6px;
+                    background: #f59e0b20;
+                    border-width: 1px;
+                    border-color: #f59e0b50;
+                    Image {
+                        source: @image-url("../../assets/icons/sun.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: #f59e0b;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 1px;
+                Text {
+                    text: "屏幕亮度调节";
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: "当前亮度: " + root.brightness + "%";
+                    font-size: 9.5px;
+                    color: AppTheme.text_muted;
+                }
+            }
+        }
+
+        // Center: Golden Slider Track
+        HorizontalLayout {
+            horizontal-stretch: 1;
+            spacing: 8px;
+
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/sun.svg");
+                    width: 11px;
+                    height: 11px;
+                    colorize: AppTheme.text_muted;
+                }
+            }
+
+            // Slider Area
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 22px;
+
+                Rectangle {
+                    x: 0;
+                    y: (parent.height - self.height) / 2;
+                    width: parent.width;
+                    height: 4px;
+                    background: AppTheme.surface_pill;
+                    border-radius: 2px;
+
+                    // 填充激活金色条
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        width: parent.width * Math.max(0.0, Math.min(1.0, root.brightness / 100.0));
+                        height: 100%;
+                        background: #fbbf24;
+                        border-radius: 2px;
+                    }
+                }
+
+                // 白芯金圈 Thumb
+                Rectangle {
+                    x: (parent.width - self.width) * Math.max(0.0, Math.min(1.0, root.brightness / 100.0));
+                    y: (parent.height - self.height) / 2;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 7px;
+                    background: #ffffff;
+                    border-width: 3px;
+                    border-color: #fbbf24;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        if (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move) {
+                            if (self.pressed) {
+                                root.change_brightness(Math.max(5, Math.min(100, Math.round(self.mouse-x / parent.width * 100))));
+                            }
+                        }
+                    }
+                    clicked => {
+                        root.change_brightness(Math.max(5, Math.min(100, Math.round(self.mouse-x / parent.width * 100))));
+                    }
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/sun.svg");
+                    width: 13px;
+                    height: 13px;
+                    colorize: #fbbf24;
+                }
+            }
+        }
+
+        // Right Quick Buttons (25% | 60% | 100%)
+        HorizontalLayout {
+            spacing: 5px;
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 5px;
+                    for q_val in [25, 60, 100]: Rectangle {
+                        width: 38px;
+                        height: 24px;
+                        border-radius: 4px;
+                        background: root.brightness == q_val ? #fbbf2425 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.brightness == q_val ? #fbbf2480 : AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.change_brightness(q_val); }
+                        }
+                        Text {
+                            text: q_val + "%";
+                            font-size: 10px;
+                            font-weight: root.brightness == q_val ? 700 : 500;
+                            color: root.brightness == q_val ? #fbbf24 : AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { HardwareState, PowerMode, POWER_MODES } from '../types/hardware';
 import { OverviewView } from './OverviewView';
-import type { CoolerTelemetry } from './WaterCoolerView';
-import type { OsdConfig } from './SystemSettingsView';
-import type { CustomPluginItem } from './PluginsView';
+import { LightingStudio } from './LightingStudio';
+import { GpuModeView } from './GpuModeView';
+import { PowerTuningView } from './PowerTuningView';
+import { SponsorView } from './SponsorView';
+import { CustomTuningPanel } from './CustomTuningPanel';
+import { WaterCoolerView, CoolerTelemetry } from './WaterCoolerView';
+import { SystemSettingsView, OsdConfig } from './SystemSettingsView';
+import { PluginsView, CustomPluginItem } from './PluginsView';
 import { PluginTabHost } from './PluginTabHost';
 import { ModuleErrorBoundary } from './ModuleErrorBoundary';
 import { BUILTIN_MODULE_SLOTS, BuiltinTabId, isSlotActive, ModelCapabilities } from '../plugins/plugin_manifest';
@@ -21,15 +26,6 @@ import {
   Copy,
   Layers,
 } from 'lucide-react';
-
-const LightingStudio = lazy(() => import('./LightingStudio').then((module) => ({ default: module.LightingStudio })));
-const GpuModeView = lazy(() => import('./GpuModeView').then((module) => ({ default: module.GpuModeView })));
-const PowerTuningView = lazy(() => import('./PowerTuningView').then((module) => ({ default: module.PowerTuningView })));
-const SponsorView = lazy(() => import('./SponsorView').then((module) => ({ default: module.SponsorView })));
-const CustomTuningPanel = lazy(() => import('./CustomTuningPanel').then((module) => ({ default: module.CustomTuningPanel })));
-const WaterCoolerView = lazy(() => import('./WaterCoolerView').then((module) => ({ default: module.WaterCoolerView })));
-const SystemSettingsView = lazy(() => import('./SystemSettingsView').then((module) => ({ default: module.SystemSettingsView })));
-const PluginsView = lazy(() => import('./PluginsView').then((module) => ({ default: module.PluginsView })));
 
 export type TabId = BuiltinTabId | string;
 
@@ -648,7 +644,6 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
 
       {/* Main Body Viewport Slot */}
       <div className="shell-viewport" data-slot="viewport">
-        <Suspense fallback={<div className="sys-sub-panel" role="status">正在加载模块…</div>}>
         {activeTab === 'overview' && (
           <ModuleErrorBoundary moduleName="状态概览">
             <OverviewView
@@ -750,12 +745,10 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             />
           </ModuleErrorBoundary>
         )}
-        </Suspense>
       </div>
 
       {/* Global Custom Tuning Modal Overlay */}
       {isCustomTuningOpen && (
-        <Suspense fallback={<div className="sys-modal-backdrop"><div className="sys-modal-card" role="status">正在加载调校面板…</div></div>}>
         <CustomTuningPanel
           status={status}
           capabilities={capabilities}
@@ -768,7 +761,6 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             setProfileVersion((v) => v + 1);
           }}
         />
-        </Suspense>
       )}
 
       {/* OEM Running Modal Alert */}

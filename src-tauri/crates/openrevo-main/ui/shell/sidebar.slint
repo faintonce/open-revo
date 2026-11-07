@@ -1,0 +1,379 @@
+import { AppTheme } from "../theme.slint";
+
+export struct PluginItemData {
+    id: string,
+    name: string,
+}
+
+// Reusable individual navigation button
+export component SidebarNavItem inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> is_active: false;
+    in property <color> active_color: AppTheme.accent_active;
+    in property <bool> is_accent_icon: false;
+    in property <color> accent_icon_color: AppTheme.accent_heart;
+    in property <bool> has_badge: false;
+    in property <string> badge_text: "";
+    in property <color> badge_color: AppTheme.accent_fan;
+
+    callback clicked();
+
+    height: 36px;
+    border-radius: 6px;
+    background: is_active ? AppTheme.accent_active_bg : (touch.has-hover ? AppTheme.surface_card_hover : transparent);
+    border-width: is_active ? 1px : 0px;
+    border-color: AppTheme.accent_active_border;
+
+    animate background { duration: 120ms; easing: ease-out; }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    // Left active accent indicator
+    if is_active: Rectangle {
+        x: 0px;
+        y: 8px;
+        width: 3px;
+        height: parent.height - 16px;
+        border-radius: 1.5px;
+        background: active_color;
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 10px;
+        spacing: 9px;
+
+        Image {
+            source: root.icon;
+            width: 15px;
+            height: 15px;
+            colorize: root.is_active ? root.active_color : (root.is_accent_icon ? root.accent_icon_color : AppTheme.text_secondary);
+            y: (parent.height - self.height) / 2;
+        }
+
+        Text {
+            text: root.text;
+            font-size: 12.5px;
+            font-weight: root.is_active ? 700 : 500;
+            color: root.is_active ? root.active_color : (touch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+
+        if root.has_badge: Rectangle {
+            height: 17px;
+            border-radius: 4px;
+            background: root.badge_color.transparentize(82%);
+            border-width: 1px;
+            border-color: root.badge_color.transparentize(50%);
+            y: (parent.height - self.height) / 2;
+
+            HorizontalLayout {
+                padding-left: 5px;
+                padding-right: 5px;
+                Text {
+                    text: root.badge_text;
+                    font-size: 8.5px;
+                    font-weight: 700;
+                    color: root.badge_color;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+
+export component DashboardSidebar inherits Rectangle {
+    in-out property <int> redraw_tick: 0;
+    width: 200px;
+    background: (Math.mod(root.redraw_tick, 2) == 0) ? AppTheme.surface_base : @linear-gradient(180deg, AppTheme.surface_base 0%, AppTheme.surface_base 100%);
+
+    // Right border divider
+    Rectangle {
+        x: parent.width - 1px;
+        width: 1px;
+        height: 100%;
+        background: AppTheme.border_subtle;
+    }
+
+    in-out property <string> app_version: "v0.9.7";
+    in-out property <int> active_tab: 0; // 0: 概览, 1: 显卡, 2: 电源, 3: RGB, 4: 水冷, 5: 插件, 6: 系统, 7: 赞助
+    in-out property <bool> is_water_connected: false;
+    in-out property <string> active_plugin_id: "";
+    in-out property <[PluginItemData]> plugin_items: [];
+
+    // Builtin Module Visibility Toggles
+    in-out property <bool> is_overview_enabled: true;
+    in-out property <bool> is_gpu_enabled: true;
+    in-out property <bool> is_tuning_enabled: true;
+    in-out property <bool> is_lighting_enabled: true;
+    in-out property <bool> is_water_enabled: true;
+
+    callback select_tab(int);
+    callback select_plugin_tab(string);
+    callback collapse_to_mini();
+
+    VerticalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 4px;
+
+        // 1. Top Brand & WindowMoveArea Drag Handle (Dynamic Version Tag via Theme Tokens)
+        WindowMoveArea {
+            height: 38px;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../assets/logo.png");
+                        width: 22px;
+                        height: 22px;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: "OPENREVO";
+                        font-size: 13.5px;
+                        font-weight: 800;
+                        letter-spacing: 0.8px;
+                        color: AppTheme.text_primary;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        border-radius: 3px;
+                        background: AppTheme.accent_brand;
+                        height: 16px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.app_version;
+                                font-size: 8.5px;
+                                font-weight: 800;
+                                color: AppTheme.tag_brand_text;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider below brand
+        Rectangle {
+            height: 1px;
+            background: AppTheme.border_subtle;
+        }
+
+        Rectangle { height: 2px; }
+
+        // 2. Core Hardware Navigation Items (Top-Aligned, Pure Clean List without Section Labels)
+        VerticalLayout {
+            spacing: 2px;
+
+            if root.is_overview_enabled: SidebarNavItem {
+                text: "状态总览";
+                icon: @image-url("../assets/icons/grid.svg");
+                is_active: root.active_tab == 0 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(0);
+                }
+            }
+
+            if root.is_gpu_enabled: SidebarNavItem {
+                text: "显卡模式";
+                icon: @image-url("../assets/icons/monitor.svg");
+                is_active: root.active_tab == 1 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(1);
+                }
+            }
+
+            if root.is_tuning_enabled: SidebarNavItem {
+                text: "电源管理";
+                icon: @image-url("../assets/icons/zap.svg");
+                is_active: root.active_tab == 2 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(2);
+                }
+            }
+
+            if root.is_lighting_enabled: SidebarNavItem {
+                text: "RGB 灯效工坊";
+                icon: @image-url("../assets/icons/keyboard.svg");
+                is_active: root.active_tab == 3 && root.active_plugin_id == "";
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(3);
+                }
+            }
+
+            if root.is_water_enabled: SidebarNavItem {
+                text: "水冷魔盒 (BLE)";
+                icon: @image-url("../assets/icons/droplet.svg");
+                is_active: root.active_tab == 4 && root.active_plugin_id == "";
+                has_badge: true;
+                badge_text: root.is_water_connected ? "已连" : "未连";
+                badge_color: root.is_water_connected ? AppTheme.accent_fan : AppTheme.text_muted;
+                clicked => {
+                    root.active_plugin_id = "";
+                    root.select_tab(4);
+                }
+            }
+        }
+
+        // Divider between Hardware and Plugin Center
+        Rectangle { height: 2px; }
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+        Rectangle { height: 2px; }
+
+        // 3. Plugin Center Item
+        SidebarNavItem {
+            text: "插件中心";
+            icon: @image-url("../assets/icons/layers.svg");
+            is_active: root.active_tab == 5 && root.active_plugin_id == "";
+            clicked => {
+                root.active_plugin_id = "";
+                root.select_tab(5);
+            }
+        }
+
+        // Divider immediately following Plugin Center
+        Rectangle { height: 2px; }
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+        Rectangle { height: 2px; }
+
+        // 4. Dynamic Tab Plugins Area (Scrollable Flickable for Active Tab Plugins)
+        VerticalLayout {
+            vertical-stretch: 1;
+
+            Flickable {
+                vertical-stretch: 1;
+
+                VerticalLayout {
+                    spacing: 2px;
+                    alignment: start;
+
+                    // Dynamic Active Plugins List (Supports 20+ plugins with scrolling)
+                    for plugin in root.plugin_items: SidebarNavItem {
+                        text: plugin.name;
+                        icon: @image-url("../assets/icons/layers.svg");
+                        is_active: root.active_plugin_id == plugin.id;
+                        clicked => {
+                            root.active_plugin_id = plugin.id;
+                            root.select_plugin_tab(plugin.id);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider above bottom bar
+        Rectangle {
+            height: 1px;
+            background: AppTheme.border_subtle;
+        }
+
+        // 5. Bottom Horizontal Dual Buttons (System Settings & Sponsor)
+        HorizontalLayout {
+            height: 34px;
+            spacing: 6px;
+
+            // System Settings Button (Tab 6)
+            btn_sys := Rectangle {
+                horizontal-stretch: 1;
+                height: 34px;
+                border-radius: 6px;
+                background: root.active_tab == 6 ? AppTheme.accent_active_bg : (t_sys.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: root.active_tab == 6 ? 1px : 0px;
+                border-color: AppTheme.accent_active_border;
+
+                t_sys := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.active_plugin_id = "";
+                        root.select_tab(6);
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 5px;
+
+                    Image {
+                        source: @image-url("../assets/icons/settings.svg");
+                        width: 13px;
+                        height: 13px;
+                        colorize: root.active_tab == 6 ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    Text {
+                        text: "系统设置";
+                        font-size: 11px;
+                        font-weight: root.active_tab == 6 ? 700 : 500;
+                        color: root.active_tab == 6 ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Sponsor Button (Tab 7)
+            btn_sp := Rectangle {
+                horizontal-stretch: 1;
+                height: 34px;
+                border-radius: 6px;
+                background: root.active_tab == 7 ? AppTheme.accent_heart_bg : (t_sp.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: root.active_tab == 7 ? 1px : 0px;
+                border-color: AppTheme.accent_heart_border;
+
+                t_sp := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.active_plugin_id = "";
+                        root.select_tab(7);
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 5px;
+
+                    Image {
+                        source: @image-url("../assets/icons/heart.svg");
+                        width: 13px;
+                        height: 13px;
+                        colorize: AppTheme.accent_heart;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    Text {
+                        text: "支持作者";
+                        font-size: 11px;
+                        font-weight: root.active_tab == 7 ? 700 : 500;
+                        color: root.active_tab == 7 ? AppTheme.accent_heart : (t_sp.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

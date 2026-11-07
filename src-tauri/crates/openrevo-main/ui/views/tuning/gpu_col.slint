@@ -1,0 +1,462 @@
+import { AppTheme } from "../../theme.slint";
+
+export component GpuTuningCol inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: AppTheme.radius_md;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    // GPU Props
+    in-out property <string> gpu_name: "NVIDIA GeForce RTX 4090 Laptop GPU";
+    in-out property <bool> super_perf: true;
+    in-out property <int> core_offset: 0;        // -200 .. +250 MHz
+    in-out property <int> mem_offset: 0;         // -500 .. +1000 MHz
+    in-out property <bool> db_enabled: true;
+    in-out property <int> db_watts: 25;          // 5 .. 25 W
+    in-out property <int> base_tgp: 150;         // Base TGP (e.g. 150W)
+
+    // Callbacks
+    callback toggle_super_perf();
+    callback change_core_offset(int);
+    callback change_mem_offset(int);
+    callback toggle_db();
+    callback change_db_watts(int);
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 9px;
+
+        // 1. Header
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 6px;
+                Image {
+                    source: @image-url("../../assets/icons/flame.svg");
+                    width: 15px;
+                    height: 15px;
+                    colorize: #10b981;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "GPU 释放与超频";
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #10b981;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                text: root.gpu_name;
+                font-size: 9.5px;
+                color: AppTheme.text_muted;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+
+        // 2. Super Perf Card
+        Rectangle {
+            background: root.super_perf ? #10b98118 : AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: root.super_perf ? #10b98170 : AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding: 10px;
+                alignment: space-between;
+
+                Text {
+                    text: "超性能 (Super Perf)";
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: root.super_perf ? #10b981 : AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+
+                // Switch
+                Rectangle {
+                    width: 36px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: root.super_perf ? #10b981 : AppTheme.surface_card;
+                    border-width: 1px;
+                    border-color: root.super_perf ? #10b981 : AppTheme.border_medium;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.super_perf = !root.super_perf;
+                            root.toggle_super_perf();
+                        }
+                    }
+
+                    Rectangle {
+                        x: root.super_perf ? 18px : 2px;
+                        y: 2px;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                    }
+                }
+            }
+        }
+
+        // 3. Core Clock Offset
+        Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 6px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "核心频率偏移:";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                    }
+                    Text {
+                        text: (root.core_offset > 0 ? "+" : "") + root.core_offset + " MHz";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: root.core_offset != 0 ? #38bdf8 : AppTheme.text_primary;
+                    }
+                }
+
+                // Slider container (Core Offset)
+                Rectangle {
+                    height: 20px;
+                    background: transparent;
+                    vertical-stretch: 0;
+
+                    // Track line
+                    Rectangle {
+                        height: 6px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 3px;
+                        background: AppTheme.surface_card;
+                        width: 100%;
+
+                        // Thumb
+                        Rectangle {
+                            x: (parent.width - self.width) * Math.clamp((root.core_offset + 200) / 450, 0, 1);
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: #ffffff;
+                            border-width: 2px;
+                            border-color: #38bdf8;
+                        }
+                    }
+
+                    TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let val = Math.clamp(-200 + Math.round(ratio * 450), -200, 250);
+                                root.core_offset = val;
+                                root.change_core_offset(val);
+                            }
+                        }
+                        moved => {
+                            if self.pressed {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let val = Math.clamp(-200 + Math.round(ratio * 450), -200, 250);
+                                root.core_offset = val;
+                                root.change_core_offset(val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Memory Clock Offset
+        Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 6px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "显存频率偏移:";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                    }
+                    Text {
+                        text: (root.mem_offset > 0 ? "+" : "") + root.mem_offset + " MHz";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: root.mem_offset != 0 ? #818cf8 : AppTheme.text_primary;
+                    }
+                }
+
+                // Slider container (Mem Offset)
+                Rectangle {
+                    height: 20px;
+                    background: transparent;
+                    vertical-stretch: 0;
+
+                    // Track line
+                    Rectangle {
+                        height: 6px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 3px;
+                        background: AppTheme.surface_card;
+                        width: 100%;
+
+                        // Thumb
+                        Rectangle {
+                            x: (parent.width - self.width) * Math.clamp((root.mem_offset + 500) / 1500, 0, 1);
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: #ffffff;
+                            border-width: 2px;
+                            border-color: #818cf8;
+                        }
+                    }
+
+                    TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let val = Math.clamp(-500 + Math.round(ratio * 1500), -500, 1000);
+                                root.mem_offset = val;
+                                root.change_mem_offset(val);
+                            }
+                        }
+                        moved => {
+                            if self.pressed {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let val = Math.clamp(-500 + Math.round(ratio * 1500), -500, 1000);
+                                root.mem_offset = val;
+                                root.change_mem_offset(val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Dynamic Boost Card
+        Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+            opacity: root.super_perf ? 0.45 : 1.0;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 6px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "Dynamic Boost:";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "+" + root.db_watts + " W";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #10b981;
+                            vertical-alignment: center;
+                        }
+
+                        Rectangle {
+                            width: 36px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background: root.db_enabled ? #10b981 : AppTheme.surface_card;
+                            border-width: 1px;
+                            border-color: root.db_enabled ? #10b981 : AppTheme.border_medium;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.db_enabled = !root.db_enabled;
+                                    root.toggle_db();
+                                }
+                            }
+
+                            Rectangle {
+                                x: root.db_enabled ? 18px : 2px;
+                                y: 2px;
+                                width: 14px;
+                                height: 14px;
+                                border-radius: 7px;
+                                background: #ffffff;
+                            }
+                        }
+                    }
+                }
+
+                // Slider container (DB Watts)
+                Rectangle {
+                    height: 20px;
+                    background: transparent;
+                    vertical-stretch: 0;
+
+                    // Track line
+                    Rectangle {
+                        height: 6px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 3px;
+                        background: AppTheme.surface_card;
+                        width: 100%;
+
+                        // Thumb
+                        Rectangle {
+                            x: (parent.width - self.width) * Math.clamp((root.db_watts - 5) / 20, 0, 1);
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: #ffffff;
+                            border-width: 2px;
+                            border-color: #10b981;
+                        }
+                    }
+
+                    TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let val = Math.clamp(5 + Math.round(ratio * 20), 5, 25);
+                                root.db_watts = val;
+                                root.change_db_watts(val);
+                            }
+                        }
+                        moved => {
+                            if self.pressed {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let val = Math.clamp(5 + Math.round(ratio * 20), 5, 25);
+                                root.db_watts = val;
+                                root.change_db_watts(val);
+                            }
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "+5 W";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                    Text {
+                        text: "+25 W";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+        }
+
+        // 6. Comprehensive Release Big Badge (综合释放大徽章)
+        Rectangle {
+            background: #0284c718;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: #38bdf860;
+
+            HorizontalLayout {
+                padding: 10px;
+                alignment: center;
+                spacing: 8px;
+
+                Image {
+                    source: @image-url("../../assets/icons/zap.svg");
+                    width: 16px;
+                    height: 16px;
+                    colorize: #38bdf8;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                Text {
+                    text: (root.base_tgp + (root.db_enabled ? root.db_watts : 0)) + " W (基础 " + root.base_tgp + "W + DB " + (root.db_enabled ? root.db_watts : 0) + "W)";
+                    font-size: 13px;
+                    font-weight: 800;
+                    color: #38bdf8;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // 7. Factory Preset Reference Card (模具原厂建议功耗参考)
+        Rectangle {
+            background: AppTheme.surface_sunken;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 5px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "⚠ 模具原厂建议功耗参考";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: #f59e0b;
+                        }
+                    }
+                    Text {
+                        text: "EC 硬件直读";
+                        font-size: 9.5px;
+                        font-weight: 700;
+                        color: #10b981;
+                    }
+                }
+
+                Text {
+                    text: "• CPU 原厂预设: 办公 45W / 平衡 75W / 狂暴 205W";
+                    font-size: 9px;
+                    color: AppTheme.text_secondary;
+                }
+
+                Text {
+                    text: "• GPU 原厂预设: 基础 150W + DB 25W (原厂最大 175W)";
+                    font-size: 9px;
+                    color: AppTheme.text_secondary;
+                }
+            }
+        }
+    }
+}

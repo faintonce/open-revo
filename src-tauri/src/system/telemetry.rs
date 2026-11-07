@@ -53,7 +53,6 @@ pub fn unregister_consumer(consumer_id: &str) {
 pub fn set_main_window_visible(visible: bool) {
     let old = MAIN_WINDOW_VISIBLE.swap(visible, Ordering::SeqCst);
     if old != visible {
-        emit_main_visibility();
         crate::log_info!(
             "TELEMETRY",
             "Main window visibility changed to: {}. (Heartbeat policy updated)",
@@ -67,7 +66,6 @@ static REBOOT_FREEZE: AtomicBool = AtomicBool::new(false);
 /// Report system reboot in progress to completely freeze telemetry polling and GPU hardware access
 pub fn set_reboot_freeze(freeze: bool) {
     REBOOT_FREEZE.store(freeze, Ordering::SeqCst);
-    emit_main_visibility();
     if freeze {
         crate::log_info!("TELEMETRY", "System reboot initiated: telemetry heartbeat completely frozen.");
     }
@@ -77,22 +75,11 @@ pub fn set_reboot_freeze(freeze: bool) {
 pub fn set_screen_suspended(suspended: bool) {
     let old = SCREEN_SUSPENDED.swap(suspended, Ordering::SeqCst);
     if old != suspended {
-        emit_main_visibility();
         crate::log_info!(
             "TELEMETRY",
             "Screen suspended changed to: {}. (Telemetry loop parked/resumed)",
             suspended
         );
-    }
-}
-
-fn main_polling_allowed() -> bool {
-    MAIN_WINDOW_VISIBLE.load(Ordering::SeqCst) && !SCREEN_SUSPENDED.load(Ordering::SeqCst) && !REBOOT_FREEZE.load(Ordering::SeqCst)
-}
-
-fn emit_main_visibility() {
-    if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
-        let _ = app.emit_to("main", "main-telemetry-visibility", main_polling_allowed());
     }
 }
 
@@ -104,6 +91,7 @@ pub fn is_telemetry_active() -> bool {
     MAIN_WINDOW_VISIBLE.load(Ordering::Relaxed)
         || ACTIVE_SUBSCRIBERS.load(Ordering::Relaxed) > 0
         || crate::system::watcher_hub::has_active_telemetry_watchers()
+        || !crate::system::config::load_config().use_classic_webview
 }
 
 /// Determine whether NVIDIA dGPU queries (NVAPI) should be executed
@@ -136,7 +124,7 @@ pub fn should_query_gpu() -> bool {
 
 /// Start the background dynamic telemetry heartbeat loop
 pub fn start_telemetry_loop(
-    app: AppHandle,
+    app: Option<AppHandle>,
     ec_bridge: SharedEcBridge,
     gpu_bridge: SharedGpuBridge,
 ) {
@@ -162,8 +150,14 @@ pub fn start_telemetry_loop(
                     let query_gpu = should_query_gpu();
                     let state = collect_hardware_state(&ec_bridge, &gpu_bridge, query_gpu);
                     if !SCREEN_SUSPENDED.load(Ordering::SeqCst) && !REBOOT_FREEZE.load(Ordering::SeqCst) {
-                        let _ = app.emit("hardware-state-updated", &state);
+                        if let Some(ref a) = app {
+                            let _ = a.emit("hardware-state-updated", &state);
+                        }
+                        if let Ok(v) = serde_json::to_value(&state) {
+                            crate::system::native_wry::broadcast_event("hardware-state-updated", &v);
+                        }
                         crate::system::watcher_hub::evaluate_telemetry_watchers(&state);
+                        crate::system::slint_window::sync_slint_telemetry(&state);
                     }
                     std::thread::sleep(Duration::from_millis(1500));
                 } else {
@@ -193,7 +187,6 @@ pub fn get_telemetry_heartbeat_status() -> Result<serde_json::Value, String> {
         "active": active,
         "consumers": consumers,
         "main_visible": main_visible,
-        "main_polling": main_polling_allowed(),
         "screen_suspended": screen_suspended,
         "query_gpu": query_gpu,
     }))
@@ -203,16 +196,75 @@ pub fn get_telemetry_heartbeat_status() -> Result<serde_json::Value, String> {
 mod tests {
     use super::*;
 
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    struct SavedState {
+        sensors: HashMap<String, HashSet<String>>,
+        subscribers: u32,
+        visible: bool,
+        suspended: bool,
+        rebooting: bool,
+    }
+
+    impl SavedState {
+        fn reset() -> Self {
+            Self {
+                sensors: std::mem::take(&mut *get_subscribed_sensors().lock()),
+                subscribers: ACTIVE_SUBSCRIBERS.swap(0, Ordering::SeqCst),
+                visible: MAIN_WINDOW_VISIBLE.swap(true, Ordering::SeqCst),
+                suspended: SCREEN_SUSPENDED.swap(false, Ordering::SeqCst),
+                rebooting: REBOOT_FREEZE.swap(false, Ordering::SeqCst),
+            }
+        }
+    }
+
+    impl Drop for SavedState {
+        fn drop(&mut self) {
+            *get_subscribed_sensors().lock() = std::mem::take(&mut self.sensors);
+            ACTIVE_SUBSCRIBERS.store(self.subscribers, Ordering::SeqCst);
+            MAIN_WINDOW_VISIBLE.store(self.visible, Ordering::SeqCst);
+            SCREEN_SUSPENDED.store(self.suspended, Ordering::SeqCst);
+            REBOOT_FREEZE.store(self.rebooting, Ordering::SeqCst);
+        }
+    }
+
     #[test]
     fn regression_consumer_registration_is_idempotent() {
-        let id = "telemetry-regression";
-        let initial = ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst);
-        register_consumer(id, &["cpu_temp".into()]);
-        register_consumer(id, &["gpu_temp".into()]);
-        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), initial + 1);
-        assert!(get_subscribed_sensors().lock()[id].contains("gpu_temp"));
-        unregister_consumer(id);
-        unregister_consumer(id);
-        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), initial);
+        let _serial = TEST_LOCK.lock();
+        let _saved = SavedState::reset();
+
+        register_consumer("first", &["cpu_temp".into()]);
+        register_consumer("first", &["gpu_temp".into()]);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 1);
+        assert_eq!(get_subscribed_sensors().lock()["first"], HashSet::from(["gpu_temp".into()]));
+
+        register_consumer("second", &[]);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 2);
+        unregister_consumer("unknown");
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 2);
+        unregister_consumer("first");
+        unregister_consumer("first");
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 1);
+        unregister_consumer("second");
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 0);
+        assert!(get_subscribed_sensors().lock().is_empty());
+    }
+
+    #[test]
+    fn regression_gpu_queries_stop_during_suspend_and_reboot() {
+        let _serial = TEST_LOCK.lock();
+        let _saved = SavedState::reset();
+
+        assert!(should_query_gpu());
+        SCREEN_SUSPENDED.store(true, Ordering::SeqCst);
+        assert!(!should_query_gpu());
+        SCREEN_SUSPENDED.store(false, Ordering::SeqCst);
+        REBOOT_FREEZE.store(true, Ordering::SeqCst);
+        assert!(!should_query_gpu());
+        SCREEN_SUSPENDED.store(true, Ordering::SeqCst);
+        assert!(!should_query_gpu());
+        SCREEN_SUSPENDED.store(false, Ordering::SeqCst);
+        REBOOT_FREEZE.store(false, Ordering::SeqCst);
+        assert!(should_query_gpu());
     }
 }

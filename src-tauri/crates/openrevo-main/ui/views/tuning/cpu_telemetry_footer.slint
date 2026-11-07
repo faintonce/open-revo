@@ -1,0 +1,131 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CpuTelemetryFooter inherits Rectangle {
+    in-out property <int> cpu_temp: 67;
+    in-out property <int> cpu_rpm: 3166;
+    in-out property <string> cpu_watts: "19.9 W";
+    in-out property <int> gpu_temp: 54;
+    in-out property <int> gpu_rpm: 2123;
+    in-out property <string> gpu_watts: "20.4 W";
+
+    background: AppTheme.surface_sunken;
+    border-radius: AppTheme.radius_sm;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 8px;
+        spacing: 6px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 4px;
+                Image {
+                    source: @image-url("../../assets/icons/activity.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: #f59e0b;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "实时硬件监测";
+                    font-size: 10.5px;
+                    font-weight: 700;
+                    color: #f59e0b;
+                }
+            }
+            Text {
+                text: "双烤合计: 40 W";
+                font-size: 10px;
+                font-weight: 700;
+                color: AppTheme.text_secondary;
+            }
+        }
+
+        // CPU row
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 6px;
+                Rectangle {
+                    width: 32px;
+                    height: 16px;
+                    border-radius: 2px;
+                    background: #0284c730;
+                    Text {
+                        text: "CPU";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #38bdf8;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: root.cpu_temp + "°C";
+                    font-size: 10.5px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: "Fan " + root.cpu_rpm + " RPM";
+                    font-size: 9.5px;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+            }
+            Text {
+                text: root.cpu_watts;
+                font-size: 11px;
+                font-weight: 700;
+                color: #38bdf8;
+                vertical-alignment: center;
+            }
+        }
+
+        // GPU row
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 6px;
+                Rectangle {
+                    width: 32px;
+                    height: 16px;
+                    border-radius: 2px;
+                    background: #10b98130;
+                    Text {
+                        text: "GPU";
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #10b981;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: root.gpu_temp + "°C";
+                    font-size: 10.5px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: "Fan " + root.gpu_rpm + " RPM";
+                    font-size: 9.5px;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+            }
+            Text {
+                text: root.gpu_watts;
+                font-size: 11px;
+                font-weight: 700;
+                color: #10b981;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+

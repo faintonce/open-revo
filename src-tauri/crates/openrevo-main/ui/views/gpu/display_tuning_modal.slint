@@ -1,0 +1,295 @@
+import { AppTheme } from "../../theme.slint";
+import { DisplayTuningPresetsCard } from "display_tuning_presets_card.slint";
+import { DisplayTuningSlidersCard } from "display_tuning_sliders_card.slint";
+
+export struct ColorPresetItem {
+    id: string,
+    name: string,
+    temp_k: int,
+    saturation: int, // 0 - 200 (%)
+    contrast: int,   // 50 - 150 (%)
+    gamma: int,      // 70 - 130 (0.70 - 1.30)
+    gain_r: int,     // 50 - 150 (%)
+    gain_g: int,     // 50 - 150 (%)
+    gain_b: int,     // 50 - 150 (%)
+}
+
+export component DisplayTuningModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+    in-out property <bool> tuning_enabled: true;
+    in-out property <string> active_preset_id: "preset_vibrant";
+
+    // Sliders state
+    in-out property <int> cur_temp_k: 6500;
+    in-out property <int> cur_saturation: 150;
+    in-out property <int> cur_contrast: 100;
+    in-out property <int> cur_gamma: 100;
+    in-out property <int> cur_gain_r: 100;
+    in-out property <int> cur_gain_g: 100;
+    in-out property <int> cur_gain_b: 100;
+
+    in-out property <bool> is_modified: false;
+    in-out property <bool> show_rgb_channels: false;
+    in-out property <string> toast_message: "";
+
+    callback close();
+    callback select_preset(string);
+    callback change_temp_k(int);
+    callback change_saturation(int);
+    callback change_contrast(int);
+    callback change_gamma(int);
+    callback change_gain_r(int);
+    callback change_gain_g(int);
+    callback change_gain_b(int);
+    callback reset_preset();
+    callback import_json();
+    callback export_json();
+
+    // Backdrop overlay
+    background: #000000bd;
+
+    // Intercept clicks on backdrop to prevent passing through
+    TouchArea { }
+
+    // Modal Card
+    Rectangle {
+        width: Math.min(parent.width - 48px, 860px);
+        height: Math.min(parent.height - 40px, 640px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #0f1522f5;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #ec489945;
+        clip: true;
+
+        VerticalLayout {
+            // Header Bar
+            Rectangle {
+                height: 57px;
+                background: AppTheme.is_light ? #f8fafc : #131b2e;
+
+                HorizontalLayout {
+                    padding-left: 20px;
+                    padding-right: 18px;
+                    alignment: space-between;
+
+                    // Left icon + titles
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 36px;
+                                height: 36px;
+                                border-radius: 8px;
+                                background: #ec489920;
+                                border-width: 1px;
+                                border-color: #ec489960;
+                                Image {
+                                    source: @image-url("../../assets/icons/palette.svg");
+                                    width: 18px;
+                                    height: 18px;
+                                    colorize: #f472b6;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text {
+                                    text: "屏幕色彩增强引擎";
+                                    font-size: 14px;
+                                    font-weight: 800;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+
+                                Rectangle {
+                                    height: 18px;
+                                    border-radius: 4px;
+                                    background: root.tuning_enabled ? #10b98124 : #94a3b820;
+                                    border-width: 1px;
+                                    border-color: root.tuning_enabled ? #10b98160 : #94a3b840;
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: root.tuning_enabled ? "GPU 硬件生效中" : "调色已暂停";
+                                            font-size: 9.5px;
+                                            font-weight: 700;
+                                            color: root.tuning_enabled ? #34d399 : #94a3b8;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: "GPU 硬件级 LUT 查找表与全屏 DWM 渲染管线实时色彩重构";
+                                font-size: 10px;
+                                color: AppTheme.text_muted;
+                            }
+                        }
+                    }
+
+                    // Right Toast & Close Button
+                    HorizontalLayout {
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            if root.toast_message != "": Rectangle {
+                                height: 26px;
+                                border-radius: 6px;
+                                background: #10b98124;
+                                border-width: 1px;
+                                border-color: #10b98160;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    Text {
+                                        text: root.toast_message;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        color: #34d399;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 30px;
+                                height: 30px;
+                                border-radius: 6px;
+                                background: close_touch.has-hover ? AppTheme.surface_pill : transparent;
+                                border-width: 1px;
+                                border-color: close_touch.has-hover ? AppTheme.border_medium : AppTheme.border_subtle;
+
+                                close_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.close(); }
+                                }
+
+                                Image {
+                                    source: @image-url("../../assets/icons/x.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: close_touch.has-hover ? #f43f5e : AppTheme.text_muted;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Divider below header
+            Rectangle {
+                height: 1px;
+                background: AppTheme.border_subtle;
+            }
+
+            // Content Container
+            VerticalLayout {
+                padding: 18px;
+                spacing: 14px;
+
+                // Section 1: Presets
+                DisplayTuningPresetsCard {
+                    active_preset_id: root.active_preset_id;
+                    is_modified: root.is_modified;
+                    import_json => { root.import_json(); }
+                    export_json => { root.export_json(); }
+                    reset_preset => {
+                        if (root.active_preset_id == "preset_vibrant") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 150; root.cur_contrast = 100; root.cur_gamma = 100;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        if (root.active_preset_id == "preset_internet") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 110; root.cur_contrast = 100; root.cur_gamma = 100;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        if (root.active_preset_id == "preset_video") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 130; root.cur_contrast = 115; root.cur_gamma = 95;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        if (root.active_preset_id == "preset_eyecare") {
+                            root.cur_temp_k = 4800; root.cur_saturation = 95; root.cur_contrast = 95; root.cur_gamma = 105;
+                            root.cur_gain_r = 105; root.cur_gain_g = 100; root.cur_gain_b = 80;
+                        }
+                        if (root.active_preset_id == "preset_cinema") {
+                            root.cur_temp_k = 6200; root.cur_saturation = 140; root.cur_contrast = 120; root.cur_gamma = 90;
+                            root.cur_gain_r = 100; root.cur_gain_g = 98; root.cur_gain_b = 102;
+                        }
+                        if (root.active_preset_id == "preset_standard") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 100; root.cur_contrast = 100; root.cur_gamma = 100;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        root.is_modified = false;
+                        root.reset_preset();
+                    }
+                    select_preset(id) => {
+                        root.active_preset_id = id;
+                        if (id == "preset_vibrant") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 150; root.cur_contrast = 100; root.cur_gamma = 100;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        if (id == "preset_internet") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 110; root.cur_contrast = 100; root.cur_gamma = 100;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        if (id == "preset_video") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 130; root.cur_contrast = 115; root.cur_gamma = 95;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        if (id == "preset_eyecare") {
+                            root.cur_temp_k = 4800; root.cur_saturation = 95; root.cur_contrast = 95; root.cur_gamma = 105;
+                            root.cur_gain_r = 105; root.cur_gain_g = 100; root.cur_gain_b = 80;
+                        }
+                        if (id == "preset_cinema") {
+                            root.cur_temp_k = 6200; root.cur_saturation = 140; root.cur_contrast = 120; root.cur_gamma = 90;
+                            root.cur_gain_r = 100; root.cur_gain_g = 98; root.cur_gain_b = 102;
+                        }
+                        if (id == "preset_standard") {
+                            root.cur_temp_k = 6500; root.cur_saturation = 100; root.cur_contrast = 100; root.cur_gamma = 100;
+                            root.cur_gain_r = 100; root.cur_gain_g = 100; root.cur_gain_b = 100;
+                        }
+                        root.is_modified = false;
+                        root.select_preset(id);
+                    }
+                }
+
+                // Section 2: Real-time Hardware Sliders
+                DisplayTuningSlidersCard {
+                    cur_temp_k <=> root.cur_temp_k;
+                    cur_saturation <=> root.cur_saturation;
+                    cur_contrast <=> root.cur_contrast;
+                    cur_gamma <=> root.cur_gamma;
+                    cur_gain_r <=> root.cur_gain_r;
+                    cur_gain_g <=> root.cur_gain_g;
+                    cur_gain_b <=> root.cur_gain_b;
+                    show_rgb_channels <=> root.show_rgb_channels;
+
+                    mark_modified => { root.is_modified = true; }
+                    change_temp_k(v) => { root.change_temp_k(v); }
+                    change_saturation(v) => { root.change_saturation(v); }
+                    change_contrast(v) => { root.change_contrast(v); }
+                    change_gamma(v) => { root.change_gamma(v); }
+                    change_gain_r(v) => { root.change_gain_r(v); }
+                    change_gain_g(v) => { root.change_gain_g(v); }
+                    change_gain_b(v) => { root.change_gain_b(v); }
+                }
+            }
+        }
+    }
+}

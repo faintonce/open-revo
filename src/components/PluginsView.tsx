@@ -39,6 +39,7 @@ export interface CustomPluginItem {
   min_host_version?: string;
   is_compatible?: boolean;
   compatibility_notice?: string;
+  order?: number;
 }
 
 export interface PluginsViewProps {

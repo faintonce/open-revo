@@ -82,6 +82,10 @@ export interface AppConfig {
   gpu_offset_step?: number;
   gpu_core_offset_max?: number;
   gpu_mem_offset_max?: number;
+  gpu_oc_core_mhz?: number;
+  gpu_oc_mem_mhz?: number;
+  balanced_gpu_dynamic_boost?: boolean;
+  turbo_silent?: boolean;
   cpu_temp_target_min?: number;
   cpu_temp_target_max?: number;
   cpu_tjmax?: number;

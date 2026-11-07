@@ -73,10 +73,68 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   });
 
   const [wakeWindowMode, setWakeWindowMode] = useState<'remember' | 'mini' | 'full'>('remember');
+  const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable');
   const [miniAutoHide, setMiniAutoHide] = useState(true);
+  const [useClassicWebview, setUseClassicWebview] = useState(false);
+  const [showRestartHint, setShowRestartHint] = useState(false);
   const [unlockBatteryLimit, setUnlockBatteryLimit] = useState(!!status.unlock_battery_power_limit);
   const [showUnlockBatteryConfirm, setShowUnlockBatteryConfirm] = useState(false);
   const [togglingUnlockBattery, setTogglingUnlockBattery] = useState(false);
+
+  // 平衡模式 Dynamic Boost 开关（默认开，满足 14900HX 等用户平衡模式跑 3A 显卡满血需求）
+  const [balancedDbEnabled, setBalancedDbEnabled] = useState(true);
+
+  // GPU OC 默认值（设置页可改；开启 GPU OC 时生效）
+  const [gpuOcDefaults, setGpuOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
+  const [gpuOcSaveHint, setGpuOcSaveHint] = useState('');
+
+  useEffect(() => {
+    invoke<any>('get_app_config')
+      .then((cfg) => {
+        if (!cfg) return;
+        if (typeof cfg.balanced_gpu_dynamic_boost === 'boolean') {
+          setBalancedDbEnabled(cfg.balanced_gpu_dynamic_boost);
+        }
+        const core = Number(cfg.gpu_oc_core_mhz);
+        const mem = Number(cfg.gpu_oc_mem_mhz);
+        setGpuOcDefaults({
+          core: Number.isFinite(core) && core >= 0 ? core : 105,
+          mem: Number.isFinite(mem) && mem >= 0 ? mem : 500,
+        });
+      })
+      .catch(() => { });
+  }, []);
+
+  const saveGpuOcDefaults = async (core: number, mem: number) => {
+    const safeCore = Math.max(0, Math.min(250, Math.round(core)));
+    const safeMem = Math.max(0, Math.min(1000, Math.round(mem)));
+    setGpuOcDefaults({ core: safeCore, mem: safeMem });
+    try {
+      const cfg: any = await invoke('get_app_config');
+      if (!cfg) return;
+      cfg.gpu_oc_core_mhz = safeCore;
+      cfg.gpu_oc_mem_mhz = safeMem;
+      await invoke('save_app_config', { cfg });
+      setGpuOcSaveHint('已保存');
+      setTimeout(() => setGpuOcSaveHint(''), 2000);
+    } catch (e) {
+      console.warn('[Settings] save gpu oc defaults failed:', e);
+      setGpuOcSaveHint('保存失败');
+      setTimeout(() => setGpuOcSaveHint(''), 3000);
+    }
+  };
+
+  const handleToggleBalancedDb = async (enabled: boolean) => {
+    setBalancedDbEnabled(enabled);
+    try {
+      const cfg: any = await invoke('get_app_config');
+      if (!cfg) return;
+      cfg.balanced_gpu_dynamic_boost = enabled;
+      await invoke('save_app_config', { cfg });
+    } catch (e) {
+      console.warn('[Settings] save balanced_gpu_dynamic_boost failed:', e);
+    }
+  };
 
   useEffect(() => {
     if (typeof status.unlock_battery_power_limit === 'boolean') {
@@ -129,6 +187,22 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         }
       })
       .catch(() => { });
+
+    invoke<boolean>('get_classic_webview')
+      .then((val) => {
+        if (typeof val === 'boolean') {
+          setUseClassicWebview(val);
+        }
+      })
+      .catch(() => { });
+
+    invoke<string>('get_update_channel')
+      .then((ch) => {
+        if (ch === 'beta' || ch === 'stable') {
+          setUpdateChannel(ch);
+        }
+      })
+      .catch(() => { });
   }, []);
 
   const handleUpdateWakeMode = async (mode: 'remember' | 'mini' | 'full') => {
@@ -146,6 +220,24 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       await invoke('set_mini_auto_hide', { enabled });
     } catch (e) {
       console.error('Failed to set mini drawer auto hide:', e);
+    }
+  };
+
+  const handleToggleClassicWebview = async (enabled: boolean) => {
+    setUseClassicWebview(enabled);
+    setShowRestartHint(true);
+    try {
+      await invoke('set_classic_webview', { enabled });
+    } catch (e) {
+      console.error('Failed to set classic webview:', e);
+    }
+  };
+
+  const handleRestartApp = async () => {
+    try {
+      await invoke('restart_app');
+    } catch (e) {
+      console.error('Failed to restart app:', e);
     }
   };
 
@@ -299,10 +391,19 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     };
   }, []);
 
+  const handleUpdateChannel = async (channel: 'stable' | 'beta') => {
+    setUpdateChannel(channel);
+    try {
+      await invoke('set_update_channel', { channel });
+    } catch (e) {
+      console.error('Failed to set update channel:', e);
+    }
+  };
+
   const handleCheckForUpdates = async (silent: boolean = false) => {
     setCheckingUpdate(true);
     try {
-      const res = await invoke<UpdateCheckResult>('check_for_updates_cmd', { preferredSource: null });
+      const res = await invoke<UpdateCheckResult>('check_for_updates_cmd', { channel: updateChannel, preferredSource: null });
       setUpdateResult(res);
       if (res.has_update) {
         setShowUpdateModal(true);
@@ -311,7 +412,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       }
     } catch (err: any) {
       if (!silent) {
-        alert('检查更新失败: ' + err);
+        const errStr = String(err);
+        if (errStr.includes('404') && updateChannel === 'beta') {
+          alert('暂无预览版更新发布 (尚未在 Release 中找到 preview.json)。');
+        } else if (errStr.includes('404')) {
+          alert('未找到版本发布清单文件 (404 Not Found)。');
+        } else {
+          alert('检查更新失败: ' + err);
+        }
       }
     } finally {
       setCheckingUpdate(false);
@@ -577,6 +685,37 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             </div>
           </div>
 
+          {/* 使用经典 WebView2 前端 */}
+          <div className="quick-row" style={{ alignItems: 'center' }}>
+            <div>
+              <div className="sys-row-label">
+                <span>使用经典 WebView2 前端</span>
+                <RevBadge variant={useClassicWebview ? 'accent' : 'info'}>
+                  {useClassicWebview ? 'WebView2 (经典)' : 'Slint 原生 (默认)'}
+                </RevBadge>
+              </div>
+              <div className="sys-row-desc">
+                切换主界面与 OSD 提示的前端渲染引擎。默认采用极低资源开销的 Slint 原生 GUI；开启时恢复使用经典 WebView2 网页渲染前端 (修改后重启生效)
+              </div>
+            </div>
+            <div className="sys-row-controls">
+              {showRestartHint && (
+                <button
+                  type="button"
+                  onClick={handleRestartApp}
+                  className="toggle-btn active-cyan"
+                  title="立即重启 OpenRevo 载入新前端引擎"
+                >
+                  立即重启生效
+                </button>
+              )}
+              <RevSwitch
+                checked={useClassicWebview}
+                onChange={handleToggleClassicWebview}
+              />
+            </div>
+          </div>
+
           {/* 数据管理 */}
           <div className="quick-row">
             <div>
@@ -633,14 +772,46 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div className="sys-row-label">软件版本与分发更新</div>
                 <RevBadge variant="info">
-                  {updateResult?.display_version || 'v0.9.5'}
+                  {updateResult?.display_version || 'v0.9.7'}
                 </RevBadge>
               </div>
               <div className="sys-row-desc">
-                支持 GitHub 官方与国内 Gitee 镜像智能双源竞速拉取；适配安装版与绿色便携版
+                {updateChannel === 'beta'
+                  ? '【预览通道】优先接收实验性新特性与先行体验版本；双源智能竞速'
+                  : '【正式通道】仅接收经过充分测试与验证的稳定版本；双源智能竞速'}
               </div>
             </div>
             <div className="sys-row-controls">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'var(--surface-sunken)',
+                  padding: '2px',
+                  borderRadius: 'var(--radius-md, 6px)',
+                  border: '1px solid var(--border-subtle)',
+                  gap: '2px',
+                }}
+              >
+                <button
+                  type="button"
+                  className={`toggle-btn ${updateChannel === 'stable' ? 'active-indigo' : ''}`}
+                  onClick={() => handleUpdateChannel('stable')}
+                  style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                  title="仅检查正式发布版本 (latest.json)"
+                >
+                  正式版 (Stable)
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-btn ${updateChannel === 'beta' ? 'active-indigo' : ''}`}
+                  onClick={() => handleUpdateChannel('beta')}
+                  style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                  title="优先检查先行体验与预发布版本 (preview.json)"
+                >
+                  预览版 (Beta)
+                </button>
+              </div>
               <button
                 onClick={() => handleCheckForUpdates(false)}
                 disabled={checkingUpdate}
@@ -1088,6 +1259,84 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* 显卡调度与超频偏好 */}
+      <div className="glass-card" style={{ marginTop: '18px' }}>
+        <h3 className="sys-section-title">GPU 调度与超频偏好</h3>
+        <div className="sys-rows">
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">平衡模式启用 GPU 动态功耗提升 (Dynamic Boost)</div>
+              <div className="sys-row-desc">
+                允许独立显卡在平衡模式下跑满出厂满血动态功耗（推荐平衡模式玩 3A 游戏的用户开启）；若关闭则限制为基础 TGP，将整机供电与散热优先让渡给 CPU。
+              </div>
+            </div>
+            <div className="sys-row-controls">
+              <RevSwitch
+                checked={balancedDbEnabled}
+                onChange={handleToggleBalancedDb}
+              />
+            </div>
+          </div>
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">快捷 GPU OC 核心频率默认偏移</div>
+              <div className="sys-row-desc">点击狂暴模式顶栏 GPU OC 开关时注入的核心频率，下次开启生效</div>
+            </div>
+            <div className="sys-row-controls">
+              <input
+                type="number"
+                min={0}
+                max={250}
+                step={5}
+                value={gpuOcDefaults.core}
+                onChange={(e) => setGpuOcDefaults((p) => ({ ...p, core: Number(e.target.value) }))}
+                onBlur={() => saveGpuOcDefaults(gpuOcDefaults.core, gpuOcDefaults.mem)}
+                style={{
+                  width: '96px',
+                  textAlign: 'right',
+                  padding: '4px 8px',
+                  background: 'var(--surface-sunken)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              />
+              <span style={{ marginLeft: '6px', color: 'var(--text-dim)', fontSize: '12px' }}>MHz</span>
+            </div>
+          </div>
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">快捷 GPU OC 显存频率默认偏移</div>
+              <div className="sys-row-desc">点击狂暴模式顶栏 GPU OC 开关时注入的显存频率，下次开启生效</div>
+            </div>
+            <div className="sys-row-controls">
+              <input
+                type="number"
+                min={0}
+                max={1000}
+                step={5}
+                value={gpuOcDefaults.mem}
+                onChange={(e) => setGpuOcDefaults((p) => ({ ...p, mem: Number(e.target.value) }))}
+                onBlur={() => saveGpuOcDefaults(gpuOcDefaults.core, gpuOcDefaults.mem)}
+                style={{
+                  width: '96px',
+                  textAlign: 'right',
+                  padding: '4px 8px',
+                  background: 'var(--surface-sunken)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              />
+              <span style={{ marginLeft: '6px', color: 'var(--text-dim)', fontSize: '12px' }}>MHz</span>
+            </div>
+          </div>
+          {gpuOcSaveHint && (
+            <div className="quick-row" style={{ color: 'var(--status-ok)', fontSize: '12px' }}>{gpuOcSaveHint}</div>
+          )}
+        </div>
+      </div>
 
       {/* 自动更新检测与安装弹窗 */}
       {showUpdateModal && updateResult && (

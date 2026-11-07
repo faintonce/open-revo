@@ -4215,17 +4215,20 @@ dependencies = [
 
 [[package]]
 name = "open-revo"
-version = "0.9.6"
+version = "0.9.7"
 dependencies = [
  "libloading 0.8.9",
  "openrevo-core",
+ "openrevo-main",
  "openrevo-osd",
  "parking_lot",
+ "raw-window-handle",
  "rhai",
  "semver",
  "serde",
  "serde_json",
  "sha2",
+ "tao",
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
@@ -4233,11 +4236,12 @@ dependencies = [
  "tokio",
  "ureq",
  "windows 0.58.0",
+ "wry",
 ]
 
 [[package]]
 name = "openrevo-core"
-version = "0.9.6"
+version = "0.9.7"
 dependencies = [
  "libloading 0.8.9",
  "parking_lot",
@@ -4253,10 +4257,22 @@ dependencies = [
 
 [[package]]
 name = "openrevo-ffi"
-version = "0.9.6"
+version = "0.9.7"
 dependencies = [
  "openrevo-core",
  "serde_json",
+]
+
+[[package]]
+name = "openrevo-main"
+version = "0.9.7"
+dependencies = [
+ "openrevo-core",
+ "serde",
+ "serde_json",
+ "slint",
+ "slint-build",
+ "windows 0.58.0",
 ]
 
 [[package]]

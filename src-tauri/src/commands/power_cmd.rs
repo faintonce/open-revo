@@ -237,8 +237,11 @@ pub fn is_dc_round_plugged_in() -> bool {
     decide_power_online_status(is_thin_and_light, ec_pwr, is_ac)
 }
 
-#[tauri::command]
-pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
+pub fn set_power_mode_internal(
+    mode: u8,
+    app: Option<&AppHandle>,
+    ec_state: &SharedEcBridge,
+) -> Result<(), String> {
     let is_thin_and_light = is_thin_and_light_or_pure_igpu();
     let is_dc = is_dc_round_plugged_in();
     let mut cfg = crate::system::config::load_config();
@@ -303,18 +306,26 @@ pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBrid
     crate::system::config::save_config(&cfg);
     crate::update_tray_power_mode(mode);
     crate::system::osd_window::show_power_mode(mode);
-    crate::system::osd_window::wake_osd_if_enabled(&app);
-    let _ = app.emit("physical-mode-switched", mode);
-    let _ = app.emit_to("main", "physical-mode-switched", mode);
-    let _ = app.emit_to("osd", "physical-mode-switched", mode);
+    if let Some(app) = app {
+        crate::system::osd_window::wake_osd_if_enabled(app);
+        let _ = app.emit("physical-mode-switched", mode);
+        let _ = app.emit_to("main", "physical-mode-switched", mode);
+        let _ = app.emit_to("osd", "physical-mode-switched", mode);
+    }
+    crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
+    crate::system::slint_window::sync::sync_slint_switches_state();
     Ok(())
 }
 
 #[tauri::command]
-pub fn set_fan_boost(
-    app: AppHandle,
+pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
+    set_power_mode_internal(mode, Some(&app), &ec_state)
+}
+
+pub fn set_fan_boost_internal(
     enable: bool,
-    ec_state: State<'_, SharedEcBridge>,
+    app: Option<&AppHandle>,
+    ec_state: &SharedEcBridge,
 ) -> Result<(), String> {
     let support_flags = crate::driver::wmi_ec::get_hardware_support_flags();
     if !support_flags.has_fan_boost {
@@ -328,19 +339,31 @@ pub fn set_fan_boost(
     crate::update_tray_fan_boost(enable);
 
     crate::system::osd_window::show_fan_boost(enable);
-    crate::system::osd_window::wake_osd_if_enabled(&app);
-    let _ = app.emit("fan-boost-changed", enable);
-    let _ = app.emit_to("main", "fan-boost-changed", enable);
-    let _ = app.emit_to("osd", "fan-boost-changed", enable);
-    let _ = app.emit("physical-fan-boost-switched", enable);
-    let _ = app.emit_to("main", "physical-fan-boost-switched", enable);
-    let _ = app.emit_to("osd", "physical-fan-boost-switched", enable);
+    if let Some(app) = app {
+        crate::system::osd_window::wake_osd_if_enabled(app);
+        let _ = app.emit("fan-boost-changed", enable);
+        let _ = app.emit_to("main", "fan-boost-changed", enable);
+        let _ = app.emit_to("osd", "fan-boost-changed", enable);
+        let _ = app.emit("physical-fan-boost-switched", enable);
+        let _ = app.emit_to("main", "physical-fan-boost-switched", enable);
+        let _ = app.emit_to("osd", "physical-fan-boost-switched", enable);
+    }
+    crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(enable));
+    crate::system::slint_window::sync::sync_slint_switches_state();
 
     Ok(())
 }
 
 #[tauri::command]
-pub fn set_battery_limit(limit: u8, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
+pub fn set_fan_boost(
+    app: AppHandle,
+    enable: bool,
+    ec_state: State<'_, SharedEcBridge>,
+) -> Result<(), String> {
+    set_fan_boost_internal(enable, Some(&app), &ec_state)
+}
+
+pub fn set_battery_limit_internal(limit: u8, ec_state: &SharedEcBridge) -> Result<(), String> {
     ec_state.lock().set_battery_limit(limit);
     let mut cfg = crate::system::config::load_config();
     cfg.battery_limit = limit;
@@ -355,12 +378,17 @@ pub fn set_battery_limit(limit: u8, ec_state: State<'_, SharedEcBridge>) -> Resu
     Ok(())
 }
 
+#[tauri::command]
+pub fn set_battery_limit(limit: u8, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
+    set_battery_limit_internal(limit, &ec_state)
+}
+
 #[tauri::command(async)]
 pub fn get_power_settings(ec_state: State<'_, SharedEcBridge>) -> PowerSettingsInfo {
     read_power_settings(ec_state.inner())
 }
 
-fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
+pub fn read_power_settings(ec_state: &SharedEcBridge) -> PowerSettingsInfo {
     let cfg = crate::system::config::load_config();
     let (percent, _, is_charging) = get_live_power_status();
     let is_dc = is_dc_round_plugged_in();
@@ -834,7 +862,7 @@ fn read_ec_power_options(
     (usb, ac)
 }
 
-fn apply_power_option(
+pub fn apply_power_option(
     cfg: &mut crate::system::config::AppConfig,
     option: &str,
     enable: bool,
@@ -1003,4 +1031,26 @@ mod power_option_tests {
             (true, true)
         );
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct TurboSubmodeState {
+    pub supported: bool,
+    pub silent: bool,
+}
+
+#[tauri::command]
+pub fn get_turbo_submode_state() -> TurboSubmodeState {
+    let supported = crate::system::power::turbo_submode::is_supported();
+    let silent = crate::system::power::turbo_submode::current_silent().unwrap_or(false);
+    TurboSubmodeState { supported, silent }
+}
+
+#[tauri::command]
+pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
+    crate::system::power::turbo_submode::apply_silent(silent)?;
+    let mut cfg = crate::system::config::load_config();
+    cfg.turbo_silent = silent;
+    crate::system::config::save_config(&cfg);
+    Ok(get_turbo_submode_state())
 }

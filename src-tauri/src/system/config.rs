@@ -169,6 +169,14 @@ pub struct AppConfig {
     pub gpu_core_offset_max: i32,
     #[serde(default = "default_gpu_mem_offset_max")]
     pub gpu_mem_offset_max: i32,
+    #[serde(default = "default_gpu_oc_core_mhz")]
+    pub gpu_oc_core_mhz: i32,
+    #[serde(default = "default_gpu_oc_mem_mhz")]
+    pub gpu_oc_mem_mhz: i32,
+    #[serde(default = "default_true")]
+    pub balanced_gpu_dynamic_boost: bool,
+    #[serde(default)]
+    pub turbo_silent: bool,
 
     // CPU Custom Tuning Bounds & Margins (Persisted in config.json)
     #[serde(default = "default_cpu_temp_target_min")]
@@ -194,17 +202,33 @@ pub struct AppConfig {
     #[serde(default)]
     pub cpu_tjmax: Option<u8>,
 
-    // Startup Window Visibility (Diagnosability override: CLI --visible or config.json)
+    // Main UI Frontend Launch Selectors (false: Slint Native [default], true: Classic WebView2)
+    #[serde(default)]
+    pub use_classic_webview: bool,
+
+    //Startup Window Visibility (Diagnosability override: CLI --visible or config.json)
     #[serde(default)]
     pub launch_visible: bool,
+
+    // Auto-Update Channel: "stable" (default) | "beta" (preview)
+    #[serde(default = "default_update_channel")]
+    pub update_channel: String,
 
     // Window Presentation Mode on Wake/Restore: "remember" (default) | "mini" | "full"
     #[serde(default = "default_wake_window_mode")]
     pub wake_window_mode: String,
 
+    // Last recorded dashboard mode (true: full panel, false: mini drawer)
+    #[serde(default)]
+    pub last_window_expanded: bool,
+
     // Mini Drawer Auto Hide on Blur (Focus Lost to Desktop or Other App)
     #[serde(default = "default_true")]
     pub mini_auto_hide_on_blur: bool,
+
+    // Theme Mode (0: Dark, 1: Light, 2: Mono)
+    #[serde(default)]
+    pub theme_mode: u8,
 
     // Custom Performance Tuning & Fan Strategy (Decoupled into %APPDATA%\OpenRevo\profiles\*.json)
     #[serde(skip_serializing, default)]
@@ -256,6 +280,8 @@ fn default_active_profile_id() -> String {
 fn default_gpu_offset_step() -> u32 { 5 }
 fn default_gpu_core_offset_max() -> i32 { 250 }
 fn default_gpu_mem_offset_max() -> i32 { 1000 }
+fn default_gpu_oc_core_mhz() -> i32 { 105 }
+fn default_gpu_oc_mem_mhz() -> i32 { 500 }
 
 fn default_cpu_temp_target_min() -> u8 { 85 }
 fn default_cpu_temp_target_max() -> u8 { 95 }
@@ -393,6 +419,13 @@ fn default_refresh_rate() -> u32 { 240 }
 fn default_osd_theme() -> String { "cinema".to_string() }
 fn default_osd_scale() -> String { "100%".to_string() }
 fn default_osd_position() -> String { "top-left".to_string() }
+pub fn default_update_channel() -> String {
+    if env!("CARGO_PKG_VERSION").contains('-') {
+        "beta".to_string()
+    } else {
+        "stable".to_string()
+    }
+}
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -475,14 +508,21 @@ impl Default for AppConfig {
             full_window_x: None,
             full_window_y: None,
             wake_window_mode: default_wake_window_mode(),
+            last_window_expanded: false,
             mini_auto_hide_on_blur: true,
 
             custom_profile: CustomProfileConfig::default(),
             active_profile_id: default_active_profile_id(),
+            use_classic_webview: false,
             launch_visible: false,
+            update_channel: default_update_channel(),
             gpu_offset_step: default_gpu_offset_step(),
             gpu_core_offset_max: default_gpu_core_offset_max(),
             gpu_mem_offset_max: default_gpu_mem_offset_max(),
+            gpu_oc_core_mhz: default_gpu_oc_core_mhz(),
+            gpu_oc_mem_mhz: default_gpu_oc_mem_mhz(),
+            balanced_gpu_dynamic_boost: true,
+            turbo_silent: false,
             cpu_temp_target_min: default_cpu_temp_target_min(),
             cpu_temp_target_max: default_cpu_temp_target_max(),
             cpu_pl4_margin: default_cpu_pl4_margin(),
@@ -499,6 +539,7 @@ impl Default for AppConfig {
             widget_positions: std::collections::HashMap::new(),
             active_skin: None,
             active_background: None,
+            theme_mode: 0,
         }
     }
 }

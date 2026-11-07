@@ -1,0 +1,329 @@
+import { AppTheme } from "../../theme.slint";
+
+export component GpuBoostCard inherits Rectangle {
+    in-out property <bool> balanced_db_enabled: true;
+    in-out property <int> oc_core_mhz: 105;
+    in-out property <int> oc_mem_mhz: 500;
+    in-out property <string> save_hint: "";
+
+    callback toggle_balanced_db(bool);
+    callback change_oc_core(int);
+    callback change_oc_mem(int);
+
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 12px;
+
+        // Card Header
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../assets/icons/zap.svg");
+                    width: 15px;
+                    height: 15px;
+                    colorize: #f59e0b;
+                }
+            }
+            Text {
+                text: "GPU 调度与超频偏好";
+                font-size: 13px;
+                font-weight: 700;
+                color: AppTheme.text_primary;
+                vertical-alignment: center;
+            }
+            if root.save_hint != "": Text {
+                text: root.save_hint;
+                font-size: 11px;
+                font-weight: 600;
+                color: #10b981;
+                vertical-alignment: center;
+            }
+        }
+
+        // Divider
+        Rectangle {
+            height: 1px;
+            background: AppTheme.border_subtle;
+        }
+
+        // Row 1: Balanced Mode Dynamic Boost Toggle
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "平衡模式启用 GPU 动态功耗提升 (Dynamic Boost)";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: root.balanced_db_enabled ? #10b98120 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.balanced_db_enabled ? #10b98160 : AppTheme.border_subtle;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: root.balanced_db_enabled ? "满血释放" : "基础 TGP";
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: root.balanced_db_enabled ? #10b981 : AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "允许独显在平衡模式下跑满出厂满血动态功耗；若关闭则限制为基础 TGP，优先让渡散热给 CPU";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.balanced_db_enabled ? #38bdf8 : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.balanced_db_enabled = !root.balanced_db_enabled;
+                            root.toggle_balanced_db(root.balanced_db_enabled);
+                        }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.balanced_db_enabled ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle {
+            height: 1px;
+            background: AppTheme.border_subtle;
+        }
+
+        // Row 2: Default Core OC Offset
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: "快捷 GPU OC 核心频率默认偏移";
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: "点击狂暴模式顶栏 GPU OC 开关时注入的核心频率，下次开启生效 (0 ~ 250 MHz)";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    // Minus button
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_c_minus.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_c_minus := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.oc_core_mhz = Math.max(0, root.oc_core_mhz - 15);
+                                root.change_oc_core(root.oc_core_mhz);
+                            }
+                        }
+                        Text {
+                            text: "-";
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Value Display
+                    Rectangle {
+                        width: 76px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: AppTheme.surface_sunken;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        Text {
+                            text: "+" + root.oc_core_mhz + " MHz";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #38bdf8;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Plus button
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_c_plus.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_c_plus := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.oc_core_mhz = Math.min(250, root.oc_core_mhz + 15);
+                                root.change_oc_core(root.oc_core_mhz);
+                            }
+                        }
+                        Text {
+                            text: "+";
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle {
+            height: 1px;
+            background: AppTheme.border_subtle;
+        }
+
+        // Row 3: Default Memory OC Offset
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: "快捷 GPU OC 显存频率默认偏移";
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: "点击狂暴模式顶栏 GPU OC 开关时注入的显存频率，下次开启生效 (0 ~ 1000 MHz)";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    // Minus button
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_m_minus.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_m_minus := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.oc_mem_mhz = Math.max(0, root.oc_mem_mhz - 50);
+                                root.change_oc_mem(root.oc_mem_mhz);
+                            }
+                        }
+                        Text {
+                            text: "-";
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Value Display
+                    Rectangle {
+                        width: 76px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: AppTheme.surface_sunken;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        Text {
+                            text: "+" + root.oc_mem_mhz + " MHz";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #38bdf8;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Plus button
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: t_m_plus.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_m_plus := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.oc_mem_mhz = Math.min(1000, root.oc_mem_mhz + 50);
+                                root.change_oc_mem(root.oc_mem_mhz);
+                            }
+                        }
+                        Text {
+                            text: "+";
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

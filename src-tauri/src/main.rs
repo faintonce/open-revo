@@ -6,5 +6,9 @@ fn main() {
         openrevo_osd::run_osd_standalone();
         return;
     }
+    if std::env::args().any(|arg| arg == "--slint-main") {
+        openrevo_main::run_main_standalone();
+        return;
+    }
     open_revo_lib::run();
 }
