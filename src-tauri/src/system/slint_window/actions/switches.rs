@@ -4,7 +4,11 @@ use tauri::Manager;
 pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
         "toggle_fan_boost" => {
-            let bridge = crate::driver::ec_bridge::get_global_ec();
+            let bridge = if let Some(app) = app {
+                app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
+            } else {
+                crate::driver::ec_bridge::get_global_ec()
+            };
             let result = {
                 let ec = bridge.lock();
                 let next = !ec.is_fan_boost();
