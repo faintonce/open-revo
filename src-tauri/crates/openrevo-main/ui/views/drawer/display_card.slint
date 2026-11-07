@@ -1,4 +1,4 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerDisplayCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -9,9 +9,14 @@ export component DrawerDisplayCard inherits Rectangle {
 
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
+    in-out property <string> monitor_name: "京东方";
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
 
     callback switch_hz(int);
     callback toggle_auto_min_hz();
+    callback select_monitor_index(int);
 
     VerticalLayout {
         padding: 7px;
@@ -46,18 +51,20 @@ export component DrawerDisplayCard inherits Rectangle {
                 }
             }
 
-            // Monitor Selector Dropdown
+            // Monitor Selector Dropdown (Aligned with GPU view)
             mon_btn := Rectangle {
                 border-radius: 4px;
-                background: mon_ta.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                background: (root.has_secondary_monitor && mon_ta.has-hover) ? AppTheme.surface_card_hover : AppTheme.surface_pill;
                 border-width: 1px;
                 border-color: AppTheme.border_subtle;
                 height: 22px;
 
                 mon_ta := TouchArea {
-                    mouse-cursor: pointer;
+                    mouse-cursor: root.has_secondary_monitor ? pointer : default;
                     clicked => {
-                        mon_pop.show();
+                        if (root.has_secondary_monitor) {
+                            mon_pop.show();
+                        }
                     }
                 }
 
@@ -66,12 +73,13 @@ export component DrawerDisplayCard inherits Rectangle {
                     padding-right: 7px;
                     spacing: 4px;
                     Text {
-                        text: "京东方 · " + refresh_rate + "Hz";
+                        text: root.monitor_name + " · " + root.refresh_rate + "Hz";
                         font-size: 9.5px;
                         color: AppTheme.text_secondary;
                         vertical-alignment: center;
+                        overflow: elide;
                     }
-                    Image {
+                    if root.has_secondary_monitor: Image {
                         source: @image-url("../../assets/icons/chevron-down.svg");
                         width: 9px;
                         height: 9px;
@@ -95,32 +103,50 @@ export component DrawerDisplayCard inherits Rectangle {
                             padding: 4px;
                             spacing: 2px;
 
+                            // Item 0: 内建主屏
                             Rectangle {
                                 height: 26px;
                                 border-radius: 4px;
-                                background: #38bdf815;
+                                background: t_m0.has-hover ? AppTheme.surface_pill : transparent;
+                                t_m0 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select_monitor_index(0);
+                                    }
+                                }
                                 HorizontalLayout {
                                     padding-left: 8px;
+                                    padding-right: 8px;
                                     Text {
-                                        text: "✓ 内建: 京东方 2.5K 240Hz";
+                                        text: root.primary_monitor_name != "" ? root.primary_monitor_name : "内置主屏";
                                         font-size: 10px;
-                                        color: #38bdf8;
+                                        color: AppTheme.text_primary;
                                         vertical-alignment: center;
+                                        overflow: elide;
                                     }
                                 }
                             }
 
-                            Rectangle {
+                            // Item 1: 外接副屏 (仅在检测到外接副屏时展示)
+                            if root.has_secondary_monitor: Rectangle {
                                 height: 26px;
                                 border-radius: 4px;
-                                background: transparent;
+                                background: t_m1.has-hover ? AppTheme.surface_pill : transparent;
+                                t_m1 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select_monitor_index(1);
+                                    }
+                                }
                                 HorizontalLayout {
                                     padding-left: 8px;
+                                    padding-right: 8px;
                                     Text {
-                                        text: "  外接显示器 (未连接)";
+                                        text: root.secondary_monitor_name != "" ? root.secondary_monitor_name : "外接显示器";
                                         font-size: 10px;
-                                        color: AppTheme.text_muted;
+                                        color: AppTheme.text_secondary;
                                         vertical-alignment: center;
+                                        overflow: elide;
                                     }
                                 }
                             }
