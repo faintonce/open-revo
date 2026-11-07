@@ -6,6 +6,11 @@ use serde_json::Value;
 pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Result<Value, String> {
     crate::log_info!("NATIVE_WRY", "IPC call: plugin='{}', cmd='{}'", plugin_id, cmd);
 
+    let get_app = || {
+        crate::system::webview_orchestrator::WebviewOrchestrator::global().app()
+            .or_else(|| crate::system::slint_window::SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone()))
+    };
+
     match cmd {
         // Plugin storage sandboxed APIs
         "get_plugin_storage" => {
@@ -169,7 +174,7 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
 
         // Hardware Telemetry & System Controls
         "get_hardware_status" => {
-            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+            if let Some(app) = get_app() {
                 use tauri::Manager;
                 let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
                 let gpu_state = app.state::<crate::driver::gpu_bridge::SharedGpuBridge>();
@@ -183,7 +188,7 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             let enable = args.get("enable").and_then(|v| v.as_bool())
                 .or_else(|| args.as_bool())
                 .unwrap_or(false);
-            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+            if let Some(app) = get_app() {
                 use tauri::Manager;
                 let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
                 crate::commands::power_cmd::set_fan_boost(app.clone(), enable, ec_state)?;
@@ -197,7 +202,7 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             let mode = args.get("mode").and_then(|v| v.as_u64())
                 .or_else(|| args.as_u64())
                 .unwrap_or(2) as u8;
-            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+            if let Some(app) = get_app() {
                 use tauri::Manager;
                 let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
                 crate::commands::power_cmd::set_power_mode(mode, app.clone(), ec_state)?;
@@ -209,7 +214,7 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
         }
         "set_battery_limit" => {
             let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(80) as u8;
-            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+            if let Some(app) = get_app() {
                 use tauri::Manager;
                 let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
                 crate::commands::power_cmd::set_battery_limit(limit, ec_state)?;
@@ -219,7 +224,7 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             }
         }
         "get_power_settings" => {
-            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+            if let Some(app) = get_app() {
                 use tauri::Manager;
                 let ec_state = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
                 let res = crate::commands::power_cmd::get_power_settings(ec_state);
@@ -234,7 +239,7 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
                 "cpu_temp".into(), "cpu_fan_rpm".into(), "cpu_power_w".into(),
                 "power_mode".into(), "fan_boost".into(), "battery_level".into(), "is_charging".into()
             ]);
-            if let Some(app) = crate::system::webview_orchestrator::WebviewOrchestrator::global().app() {
+            if let Some(app) = get_app() {
                 let _ = crate::system::widget_manager::widget_ready(app, pid.to_string());
             }
             Ok(Value::Bool(true))

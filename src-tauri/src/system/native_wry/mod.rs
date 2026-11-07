@@ -216,9 +216,6 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
   };
 
   window.__OPENREVO_BRIDGE__ = bridge;
-  if (window.parent) {
-    window.parent.__OPENREVO_BRIDGE__ = bridge;
-  }
   window.__TAURI__ = {
     core: {
       invoke: callRpc
@@ -248,6 +245,17 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
       }
     }
   };
+  window.__TAURI_INTERNALS__ = {
+    invoke: callRpc,
+    plugins: {}
+  };
+  if (window.parent) {
+    try {
+      window.parent.__OPENREVO_BRIDGE__ = bridge;
+      window.parent.__TAURI__ = window.__TAURI__;
+      window.parent.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__;
+    } catch (e) {}
+  }
   window.OpenRevo = bridge;
 
   // Global mouse drag handler for [data-tauri-drag-region]
