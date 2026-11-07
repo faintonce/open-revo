@@ -179,11 +179,15 @@ export component FullDashboard inherits Rectangle {
 
     // Lighting Studio Properties
     in-out property <int> lighting_sub_tab: 0;
-    in-out property <bool> has_lightbar: true;
+    in-out property <bool> has_lightbar: false;
     in-out property <bool> has_hinge: false;
-    in-out property <bool> has_logo: true;
-    in-out property <string> kb_hw_desc: "ITE 8291 原生 RGB 控制器 (21633 固件 1610)";
-    in-out property <string> lb_hw_desc: "ITE Lightbar4 控制器 (048D:7001)";
+    in-out property <bool> has_logo: false;
+    in-out property <string> kb_hardware_type: "PerKeyRgb";
+    in-out property <bool> is_four_zone: false;
+    in-out property <bool> is_single_zone: false;
+    in-out property <bool> is_single_color: false;
+    in-out property <string> kb_hw_desc: "键盘背光控制器";
+    in-out property <string> lb_hw_desc: "海岸灯条控制器";
     in-out property <string> hinge_hw_desc: "转轴氛围流光硬件";
     in-out property <string> logo_hw_desc: "全彩发光徽标控制器";
     in-out property <bool> is_ec_logo: false;
@@ -915,6 +919,10 @@ export component FullDashboard inherits Rectangle {
                 has_lightbar: root.has_lightbar;
                 has_hinge: root.has_hinge;
                 has_logo: root.has_logo;
+                kb_hardware_type: root.kb_hardware_type;
+                is_four_zone: root.is_four_zone;
+                is_single_zone: root.is_single_zone;
+                is_single_color: root.is_single_color;
                 kb_hw_desc: root.kb_hw_desc;
                 lb_hw_desc: root.lb_hw_desc;
                 hinge_hw_desc: root.hinge_hw_desc;

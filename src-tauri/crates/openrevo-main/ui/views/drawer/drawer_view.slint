@@ -23,9 +23,14 @@ export component DrawerView inherits Rectangle {
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
     in-out property <int> brightness: 76;
-    in-out property <string> kbd_effect: "极客波浪";
-    in-out property <string> kbd_color_name: "自定义";
-    in-out property <color> kbd_color_preview: #f43f5e;
+    in-out property <bool> is_single_color: false;
+    in-out property <bool> is_single_zone: false;
+    in-out property <bool> is_four_zone: false;
+    in-out property <bool> kb_enabled: true;
+    in-out property <int> kb_effect: 101;
+    in-out property <int> kb_brightness: 3;
+    in-out property <string> kb_color_hex: "#6366F1";
+    in-out property <color> kb_color: #6366f1;
     in-out property <int> battery_limit: 60;
     in-out property <bool> is_ac_online: true;
 
@@ -42,7 +47,7 @@ export component DrawerView inherits Rectangle {
     in-out property <bool> win_locked: false;
     in-out property <bool> keep_awake: false;
     in-out property <bool> autostart: false;
-    in-out property <string> custom_status_text: "🍉 吃瓜群众 🍉 已就位 👀";
+    in-out property <string> custom_status_text: "MECHREVO Gaming Laptop";
 
     // --- Callbacks ---
     callback power_mode_clicked(int);
@@ -50,9 +55,10 @@ export component DrawerView inherits Rectangle {
     callback refresh_rate_switched(int);
     callback auto_min_hz_toggled();
     callback brightness_changed(int);
-    callback kbd_effect_cycled();
-    callback kbd_color_cycled();
-    callback kbd_more_clicked();
+    callback select_drawer_kbd_effect(int, bool);
+    callback select_drawer_kbd_color(string, color);
+    callback select_drawer_kbd_brightness(int);
+    callback open_lighting_studio();
     callback battery_limit_clicked(int);
     callback fan_boost_toggled();
     callback camera_toggled();
@@ -117,12 +123,18 @@ export component DrawerView inherits Rectangle {
 
         // 6. Keyboard Lighting Card
         DrawerLightingCard {
-            effect_name: root.kbd_effect;
-            color_name: root.kbd_color_name;
-            color_preview: root.kbd_color_preview;
-            cycle_effect => { root.kbd_effect_cycled(); }
-            cycle_color => { root.kbd_color_cycled(); }
-            open_more => { root.kbd_more_clicked(); }
+            is_single_color: root.is_single_color;
+            is_single_zone: root.is_single_zone;
+            is_four_zone: root.is_four_zone;
+            kb_enabled: root.kb_enabled;
+            kb_effect: root.kb_effect;
+            kb_brightness: root.kb_brightness;
+            kb_color_hex: root.kb_color_hex;
+            kb_color: root.kb_color;
+            select_effect(effect, enabled) => { root.select_drawer_kbd_effect(effect, enabled); }
+            select_color(hex, clr) => { root.select_drawer_kbd_color(hex, clr); }
+            select_brightness(b) => { root.select_drawer_kbd_brightness(b); }
+            open_more => { root.open_lighting_studio(); }
         }
 
         // 7. Battery Card

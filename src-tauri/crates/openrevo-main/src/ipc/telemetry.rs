@@ -90,6 +90,11 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     if let Some(s) = val.get("secondary_monitor_name").and_then(|v| v.as_str()) {
         ui.set_secondary_monitor_name(s.into());
     }
+    if let Some(text) = val.get("custom_status_text").or_else(|| val.get("model_name")).and_then(|v| v.as_str()) {
+        if !text.is_empty() {
+            ui.set_custom_status_text(text.into());
+        }
+    }
 
     true
 }

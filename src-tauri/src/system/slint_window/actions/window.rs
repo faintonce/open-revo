@@ -3,7 +3,7 @@ use super::super::dialog::RECORDED_SLINT_HWND;
 use super::super::send_slint_ipc_message;
 use super::super::sync::{
     sync_slint_display_state, sync_slint_lighting_state, sync_slint_plugins_state,
-    sync_slint_power_state, sync_slint_tuning_state, sync_slint_water_state,
+    sync_slint_power_state, sync_slint_switches_state, sync_slint_tuning_state, sync_slint_water_state,
 };
 
 pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -> bool {
@@ -38,6 +38,7 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             sync_slint_tuning_state();
             sync_slint_display_state();
             sync_slint_power_state();
+            sync_slint_switches_state();
             sync_slint_lighting_state();
             sync_slint_water_state(None, None);
             sync_slint_plugins_state();
@@ -53,6 +54,14 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
         }
         "expand_dashboard" => {
             crate::log_info!("SLINT_MAIN", "Dashboard expanded to full native view");
+            let mut cfg = crate::system::config::load_config();
+            cfg.last_window_expanded = true;
+            let _ = crate::system::config::save_config(&cfg);
+            crate::system::tray::update_tray_window_mode(true);
+            true
+        }
+        "open_lighting_studio" => {
+            crate::log_info!("SLINT_MAIN", "Opening lighting studio directly");
             let mut cfg = crate::system::config::load_config();
             cfg.last_window_expanded = true;
             let _ = crate::system::config::save_config(&cfg);

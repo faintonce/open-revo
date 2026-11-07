@@ -1,4 +1,4 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerLightingCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -7,12 +7,66 @@ export component DrawerLightingCard inherits Rectangle {
     border-color: AppTheme.border_subtle;
     height: 68px;
 
-    in-out property <string> effect_name: "极客波浪";
-    in-out property <string> color_name: "自定义";
-    in-out property <color> color_preview: #f43f5e;
+    in property <bool> is_single_color: false;
+    in property <bool> is_single_zone: false;
+    in property <bool> is_four_zone: false;
+    in-out property <bool> kb_enabled: true;
+    in-out property <int> kb_effect: 101;
+    in-out property <int> kb_brightness: 3;
+    in-out property <string> kb_color_hex: "#6366F1";
+    in-out property <color> kb_color: #6366f1;
 
-    callback cycle_effect();
-    callback cycle_color();
+    property <string> current_effect_name: (!root.kb_enabled || root.kb_brightness == 0) ? "关闭背光" : (
+        root.is_single_color ? "开启照明" : (
+            root.is_single_zone ? (root.kb_effect == 2 ? "彩虹循环" : "单色常亮") : (
+                root.is_four_zone ? (
+                    root.kb_effect == 1 ? "单色常亮" : (
+                        root.kb_effect == 2 ? "单色呼吸" : (
+                            root.kb_effect == 3 ? "全彩波浪" : (
+                                root.kb_effect == 5 ? "彩虹循环" : (
+                                    root.kb_effect == 12 ? "闪烁跳变" : "全彩波浪"
+                                )
+                            )
+                        )
+                    )
+                ) : (
+                    root.kb_effect == 100 ? "正弦呼吸" : (
+                        root.kb_effect == 101 ? "极客波浪" : (
+                            root.kb_effect == 102 ? "同心涟漪" : (
+                                root.kb_effect == 106 ? "全彩彩虹" : (
+                                    root.kb_effect == 1 ? "静态恒亮" : (
+                                        root.kb_effect == 2 ? "单色呼吸" : (
+                                            root.kb_effect == 3 ? "波浪流光" : "极客波浪"
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    );
+
+    property <string> current_color_name: (root.kb_color_hex == "#00ffff" || root.kb_color_hex == "#00FFFF") ? "机械青" : (
+        (root.kb_color_hex == "#10b981" || root.kb_color_hex == "#10B981") ? "翡翠绿" : (
+            (root.kb_color_hex == "#c084fc" || root.kb_color_hex == "#C084FC" || root.kb_color_hex == "#6366f1" || root.kb_color_hex == "#6366F1") ? "电竞紫" : (
+                (root.kb_color_hex == "#f43f5e" || root.kb_color_hex == "#F43F5E") ? "热血红" : (
+                    (root.kb_color_hex == "#38bdf8" || root.kb_color_hex == "#38BDF8") ? "天空蓝" : (
+                        (root.kb_color_hex == "#fbbf24" || root.kb_color_hex == "#FBBF24") ? "暖阳金" : (
+                            (root.kb_color_hex == "#ec4899" || root.kb_color_hex == "#EC4899") ? "幻影粉" : (
+                                (root.kb_color_hex == "#ffffff" || root.kb_color_hex == "#FFFFFF") ? "纯净白" : "自定义"
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    );
+
+    callback select_effect(int, bool);
+    callback select_color(string, color);
+    callback select_brightness(int);
     callback open_more();
 
     VerticalLayout {
@@ -29,7 +83,7 @@ export component DrawerLightingCard inherits Rectangle {
                     source: @image-url("../../assets/icons/keyboard.svg");
                     width: 13px;
                     height: 13px;
-                    colorize: #c084fc;
+                    colorize: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #10b981 : (root.is_four_zone ? #06b6d4 : #c084fc));
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
@@ -43,30 +97,30 @@ export component DrawerLightingCard inherits Rectangle {
 
             Rectangle {
                 border-radius: 3px;
-                background: #c084fc30;
+                background: root.is_single_color ? #94a3b825 : (root.is_single_zone ? #10b98125 : (root.is_four_zone ? #06b6d425 : #c084fc25));
                 border-width: 1px;
-                border-color: #c084fc80;
+                border-color: root.is_single_color ? #94a3b860 : (root.is_single_zone ? #10b98160 : (root.is_four_zone ? #06b6d460 : #c084fc60));
                 height: 18px;
                 HorizontalLayout {
                     padding-left: 6px;
                     padding-right: 6px;
                     Text {
-                        text: "全彩RGB";
+                        text: root.is_single_color ? "单色白光" : (root.is_single_zone ? "单区RGB" : (root.is_four_zone ? "4区RGB" : "全彩RGB"));
                         font-size: 9px;
                         font-weight: 700;
-                        color: #c084fc;
+                        color: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #10b981 : (root.is_four_zone ? #06b6d4 : #c084fc));
                         vertical-alignment: center;
                     }
                 }
             }
         }
 
-        // Row 2: Effect Dropdown | Color Dropdown | More (Balanced proportions)
+        // Row 2: Effect Dropdown | Color/Brightness Dropdown | More (Balanced proportions)
         HorizontalLayout {
             spacing: 6px;
             height: 28px;
 
-            // Effect Selector (with PopupWindow)
+            // 1. Effect Selector (with PopupWindow)
             eff_btn := Rectangle {
                 horizontal-stretch: 4;
                 border-radius: 5px;
@@ -86,7 +140,7 @@ export component DrawerLightingCard inherits Rectangle {
                     padding-right: 8px;
                     alignment: space-between;
                     Text {
-                        text: effect_name;
+                        text: root.current_effect_name;
                         font-size: 10.5px;
                         color: AppTheme.text_primary;
                         vertical-alignment: center;
@@ -115,56 +169,169 @@ export component DrawerLightingCard inherits Rectangle {
                             padding: 4px;
                             spacing: 2px;
 
-                            Rectangle {
+                            // Option: Single Color
+                            if root.is_single_color : Rectangle {
                                 height: 26px;
                                 border-radius: 4px;
-                                background: t_e1.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_e1 := TouchArea {
+                                background: t_sc1.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_sc1 := TouchArea {
                                     mouse-cursor: pointer;
-                                    clicked => { effect_name = "极客波浪"; cycle_effect(); }
+                                    clicked => { root.select_effect(1, true); }
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "极客波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "开启照明"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
-                            Rectangle {
+
+                            // Options: Single Zone (翼龙15)
+                            if root.is_single_zone : Rectangle {
                                 height: 26px;
                                 border-radius: 4px;
-                                background: t_e2.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_e2 := TouchArea {
+                                background: t_sz1.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_sz1 := TouchArea {
                                     mouse-cursor: pointer;
-                                    clicked => { effect_name = "彩虹幻彩"; cycle_effect(); }
+                                    clicked => { root.select_effect(1, true); }
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "彩虹幻彩"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "单色常亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
-                            Rectangle {
+                            if root.is_single_zone : Rectangle {
                                 height: 26px;
                                 border-radius: 4px;
-                                background: t_e3.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_e3 := TouchArea {
+                                background: t_sz2.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_sz2 := TouchArea {
                                     mouse-cursor: pointer;
-                                    clicked => { effect_name = "单色呼吸"; cycle_effect(); }
+                                    clicked => { root.select_effect(2, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "彩虹循环"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+
+                            // Options: Four Zone
+                            if root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_fz1.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_fz1 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(3, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "全彩波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_fz2.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_fz2 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(2, true); }
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
                                     Text { text: "单色呼吸"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
-                            Rectangle {
+                            if root.is_four_zone : Rectangle {
                                 height: 26px;
                                 border-radius: 4px;
-                                background: t_e4.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_e4 := TouchArea {
+                                background: t_fz3.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_fz3 := TouchArea {
                                     mouse-cursor: pointer;
-                                    clicked => { effect_name = "单色常亮"; cycle_effect(); }
+                                    clicked => { root.select_effect(1, true); }
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
                                     Text { text: "单色常亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_fz4.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_fz4 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(5, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "彩虹循环"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+
+                            // Options: PerKey (ITE 8291)
+                            if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_pk1.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_pk1 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(101, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "极客波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_pk2.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_pk2 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(100, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "正弦呼吸"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_pk3.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_pk3 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(106, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "全彩彩虹"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_pk4.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_pk4 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(1, true); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "静态恒亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+
+                            // Common Option: Turn Off
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_off.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_off := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_effect(0, false); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "关闭背光"; font-size: 9.5px; color: #f43f5e; vertical-alignment: center; }
                                 }
                             }
                         }
@@ -172,7 +339,7 @@ export component DrawerLightingCard inherits Rectangle {
                 }
             }
 
-            // Color Selector (with PopupWindow)
+            // 2. Color Selector (RGB) or Brightness Selector (SingleColor)
             col_btn := Rectangle {
                 horizontal-stretch: 4;
                 border-radius: 5px;
@@ -196,15 +363,21 @@ export component DrawerLightingCard inherits Rectangle {
                         spacing: 5px;
                         VerticalLayout {
                             alignment: center;
-                            Rectangle {
+                            if !root.is_single_color : Rectangle {
                                 width: 9px;
                                 height: 9px;
                                 border-radius: 4.5px;
-                                background: color_preview;
+                                background: root.kb_color;
+                            }
+                            if root.is_single_color : Image {
+                                source: @image-url("../../assets/icons/sun.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: #f59e0b;
                             }
                         }
                         Text {
-                            text: color_name;
+                            text: root.is_single_color ? ((!root.kb_enabled || root.kb_brightness == 0) ? "已灭灯" : (root.kb_brightness == 1 ? "50% 柔和" : "100% 满亮")) : root.current_color_name;
                             font-size: 10.5px;
                             color: AppTheme.text_primary;
                             vertical-alignment: center;
@@ -235,64 +408,134 @@ export component DrawerLightingCard inherits Rectangle {
                             padding: 4px;
                             spacing: 2px;
 
-                            Rectangle {
+                            // If Single Color: Brightness Levels
+                            if root.is_single_color : Rectangle {
                                 height: 26px;
+                                border-radius: 4px;
+                                background: t_b2.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_b2 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_brightness(2); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "100% 满亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if root.is_single_color : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_b1.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_b1 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_brightness(1); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "50% 柔和"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if root.is_single_color : Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_b0.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_b0 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.select_brightness(0); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    Text { text: "关闭背光"; font-size: 9.5px; color: #f43f5e; vertical-alignment: center; }
+                                }
+                            }
+
+                            // If RGB: 8 Preset Colors
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
                                 border-radius: 4px;
                                 background: t_c1.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_c1 := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { color_preview = #f43f5e; color_name = "热血红"; cycle_color(); }
-                                }
+                                t_c1 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#00FFFF", #00ffff); } }
                                 HorizontalLayout {
-                                    padding-left: 6px;
-                                    spacing: 5px;
-                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #f43f5e; y: (parent.height - self.height) / 2; }
-                                    Text { text: "热血红"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    padding-left: 6px; spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #00ffff; y: (parent.height - self.height) / 2; }
+                                    Text { text: "机械青"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
-                            Rectangle {
-                                height: 26px;
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
                                 border-radius: 4px;
                                 background: t_c2.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_c2 := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { color_preview = #38bdf8; color_name = "天空蓝"; cycle_color(); }
-                                }
+                                t_c2 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#10B981", #10b981); } }
                                 HorizontalLayout {
-                                    padding-left: 6px;
-                                    spacing: 5px;
-                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #38bdf8; y: (parent.height - self.height) / 2; }
-                                    Text { text: "天空蓝"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
-                                }
-                            }
-                            Rectangle {
-                                height: 26px;
-                                border-radius: 4px;
-                                background: t_c3.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_c3 := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { color_preview = #10b981; color_name = "翡翠绿"; cycle_color(); }
-                                }
-                                HorizontalLayout {
-                                    padding-left: 6px;
-                                    spacing: 5px;
+                                    padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #10b981; y: (parent.height - self.height) / 2; }
                                     Text { text: "翡翠绿"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
-                            Rectangle {
-                                height: 26px;
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
+                                border-radius: 4px;
+                                background: t_c3.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c3 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#C084FC", #c084fc); } }
+                                HorizontalLayout {
+                                    padding-left: 6px; spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #c084fc; y: (parent.height - self.height) / 2; }
+                                    Text { text: "电竞紫"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
                                 border-radius: 4px;
                                 background: t_c4.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_c4 := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { color_preview = #c084fc; color_name = "极客紫"; cycle_color(); }
-                                }
+                                t_c4 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#F43F5E", #f43f5e); } }
                                 HorizontalLayout {
-                                    padding-left: 6px;
-                                    spacing: 5px;
-                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #c084fc; y: (parent.height - self.height) / 2; }
-                                    Text { text: "极客紫"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    padding-left: 6px; spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #f43f5e; y: (parent.height - self.height) / 2; }
+                                    Text { text: "热血红"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
+                                border-radius: 4px;
+                                background: t_c5.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c5 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#38BDF8", #38bdf8); } }
+                                HorizontalLayout {
+                                    padding-left: 6px; spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #38bdf8; y: (parent.height - self.height) / 2; }
+                                    Text { text: "天空蓝"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
+                                border-radius: 4px;
+                                background: t_c6.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c6 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#FBBF24", #fbbf24); } }
+                                HorizontalLayout {
+                                    padding-left: 6px; spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #fbbf24; y: (parent.height - self.height) / 2; }
+                                    Text { text: "暖阳金"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
+                                border-radius: 4px;
+                                background: t_c7.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c7 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#EC4899", #ec4899); } }
+                                HorizontalLayout {
+                                    padding-left: 6px; spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #ec4899; y: (parent.height - self.height) / 2; }
+                                    Text { text: "幻影粉"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                }
+                            }
+                            if !root.is_single_color : Rectangle {
+                                height: 24px;
+                                border-radius: 4px;
+                                background: t_c8.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_c8 := TouchArea { mouse-cursor: pointer; clicked => { root.select_color("#FFFFFF", #ffffff); } }
+                                HorizontalLayout {
+                                    padding-left: 6px; spacing: 5px;
+                                    Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #ffffff; y: (parent.height - self.height) / 2; }
+                                    Text { text: "纯净白"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                         }
@@ -300,7 +543,7 @@ export component DrawerLightingCard inherits Rectangle {
                 }
             }
 
-            // More / Settings (Fixed 72px width, never gets squished)
+            // 3. More / Settings -> Open Full Lighting Studio
             Rectangle {
                 width: 72px;
                 border-radius: 5px;
@@ -310,7 +553,7 @@ export component DrawerLightingCard inherits Rectangle {
 
                 t_m := TouchArea {
                     mouse-cursor: pointer;
-                    clicked => { open_more(); }
+                    clicked => { root.open_more(); }
                 }
 
                 HorizontalLayout {

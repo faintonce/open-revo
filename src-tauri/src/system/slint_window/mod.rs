@@ -136,6 +136,8 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                 sync_slint_tuning_state();
                 sync_slint_display_state();
                 sync_slint_power_state();
+                sync_slint_switches_state();
+                sync_slint_lighting_state();
                 sync_slint_water_state(None, None);
                 sync_slint_power_schemes(None);
                 sync_slint_plugins_state();

@@ -1,4 +1,4 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerSwitchesCard inherits VerticalLayout {
     spacing: 6px;
@@ -8,7 +8,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
     in-out property <bool> mic_enabled: true;
     in-out property <bool> win_locked: false;
     in-out property <bool> keep_awake: false;
-    in-out property <string> custom_status_text: "🍉 吃瓜群众 🍉 已就位 👀";
+    in-out property <string> custom_status_text: "MECHREVO Gaming Laptop";
 
     callback toggle_fan_boost();
     callback toggle_camera();
@@ -239,8 +239,8 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                 alignment: center;
                 Image {
                     source: @image-url("../../assets/icons/monitor.svg");
-                    width: 11px;
-                    height: 11px;
+                    width: 12px;
+                    height: 12px;
                     colorize: AppTheme.text_muted;
                 }
             }
@@ -248,8 +248,10 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                 text: custom_status_text;
                 font-family: "Segoe UI Emoji, Microsoft YaHei, sans-serif";
                 font-size: 10px;
-                color: AppTheme.text_muted;
+                font-weight: 600;
+                color: #cbd5e1;
                 vertical-alignment: center;
+                overflow: elide;
             }
         }
 

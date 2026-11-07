@@ -61,6 +61,8 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "secondary_monitor_name": secondary_monitor_name,
         "power_mode": state.power_mode,
         "fan_boost": state.fan_boost,
+        "model_name": &state.model_name,
+        "custom_status_text": &state.model_name,
     }));
 
     sync_slint_water_state(Some(state.cpu_temp as i32), Some(state.gpu_temp as i32));
@@ -255,6 +257,7 @@ pub fn sync_slint_power_state() {
 pub fn sync_slint_switches_state() {
     let switches = crate::system::device_switches::get_switches_state();
     let cfg = crate::system::config::load_config();
+    let model_alias = crate::system::model_engine::get_active_alias();
     send_slint_ipc_message(serde_json::json!({
         "action": "sync_state",
         "camera_enabled": switches.camera,
@@ -269,52 +272,58 @@ pub fn sync_slint_switches_state() {
         "bt_enabled": switches.bluetooth,
         "fan_boost": cfg.fan_boost,
         "power_mode": cfg.power_mode,
+        "model_name": &model_alias,
+        "custom_status_text": &model_alias,
     }));
 }
 
 pub fn sync_slint_lighting_state() {
-    let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
-    if let Some(app) = app_opt {
-        let lm: tauri::State<crate::driver::ite_lighting::SharedIteLightingManager> = app.state();
-        let st = crate::commands::lighting_cmd::get_lighting_status(lm.clone());
-        send_slint_ipc_message(serde_json::json!({
-            "action": "sync_lighting_state",
-            "sleep_minutes": st.sleep_minutes,
-            "ceremony_enabled": st.ceremony_enabled,
-            "kb_enabled": st.kb_enabled,
-            "kb_effect": if st.kb_engine == "streamer" { st.streamer_effect } else { st.kb_effect },
-            "kb_brightness": st.kb_brightness,
-            "kb_speed": st.kb_speed,
-            "kb_direction": st.kb_direction,
-            "kb_color": st.kb_color,
-            "kb_engine": st.kb_engine,
-            "kb_fps": st.kb_fps,
-            "lb_enabled": st.lb_enabled,
-            "lb_effect": st.lb_effect,
-            "lb_brightness": st.lb_brightness,
-            "lb_speed": st.lb_speed,
-            "lb_color": st.lb_color,
-            "hinge_enabled": st.hinge_enabled,
-            "hinge_effect": st.hinge_effect,
-            "hinge_brightness": st.hinge_brightness,
-            "hinge_speed": st.hinge_speed,
-            "hinge_color": st.hinge_color,
-            "logo_enabled": st.logo_enabled,
-            "logo_effect": st.logo_effect,
-            "logo_brightness": st.logo_brightness,
-            "logo_color": st.logo_color,
-        }));
+    let lm = crate::driver::ite_lighting::get_global_lighting();
+    let st = lm.state.lock().clone();
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_lighting_state",
+        "sleep_minutes": st.sleep_minutes,
+        "ceremony_enabled": st.ceremony_enabled,
+        "kb_enabled": st.kb_enabled,
+        "kb_effect": if st.kb_engine == "streamer" { st.streamer_effect } else { st.kb_effect },
+        "kb_brightness": st.kb_brightness,
+        "kb_speed": st.kb_speed,
+        "kb_direction": st.kb_direction,
+        "kb_color": st.kb_color,
+        "kb_engine": st.kb_engine,
+        "kb_fps": st.kb_fps,
+        "lb_enabled": st.lb_enabled,
+        "lb_effect": st.lb_effect,
+        "lb_brightness": st.lb_brightness,
+        "lb_speed": st.lb_speed,
+        "lb_color": st.lb_color,
+        "hinge_enabled": st.hinge_enabled,
+        "hinge_effect": st.hinge_effect,
+        "hinge_brightness": st.hinge_brightness,
+        "hinge_speed": st.hinge_speed,
+        "hinge_color": st.hinge_color,
+        "logo_enabled": st.logo_enabled,
+        "logo_effect": st.logo_effect,
+        "logo_brightness": st.logo_brightness,
+        "logo_color": st.logo_color,
+    }));
 
-        let hw = crate::commands::lighting_cmd::get_keyboard_hardware_info(lm);
-        send_slint_ipc_message(serde_json::json!({
-            "action": "sync_lighting_hardware_info",
-            "has_front_lightbar": hw.has_front_lightbar || hw.has_ite7001,
-            "has_hinge": hw.has_hinge,
-            "has_logo": hw.has_logo,
-            "is_ec_logo": hw.is_ec_logo,
-            "description": hw.description,
-        }));
-    }
+    let hw = crate::commands::lighting_cmd::get_keyboard_hardware_info_internal(&lm);
+    let is_four_zone = hw.is_four_zone || hw.hardware_type == "FourZoneRgb";
+    let is_single_zone = hw.hardware_type == "SingleZoneRgb";
+    let is_single_color = hw.hardware_type == "SingleColor";
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_lighting_hardware_info",
+        "has_front_lightbar": hw.has_front_lightbar || hw.has_ite7001,
+        "has_hinge": hw.has_hinge,
+        "has_logo": hw.has_logo,
+        "is_ec_logo": hw.is_ec_logo,
+        "description": hw.description,
+        "hardware_type": hw.hardware_type,
+        "is_four_zone": is_four_zone,
+        "is_single_zone": is_single_zone,
+        "is_single_color": is_single_color,
+    }));
 }
 
 pub fn sync_slint_water_state(opt_cpu: Option<i32>, opt_gpu: Option<i32>) {

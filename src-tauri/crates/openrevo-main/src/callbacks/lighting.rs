@@ -13,6 +13,84 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     });
 
     let ui_cb = ui_weak.clone();
+    window.on_set_drawer_kbd_effect(move |effect, enabled| {
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_kb_effect(effect);
+            ui.set_kb_enabled(enabled);
+            let mut brightness = ui.get_kb_brightness();
+            if enabled && brightness == 0 {
+                brightness = if ui.get_is_single_color() { 2 } else { 3 };
+                ui.set_kb_brightness(brightness);
+            }
+            let is_hw = ui.get_is_single_color() || ui.get_is_single_zone() || ui.get_is_four_zone();
+            let engine = if is_hw {
+                "hardware".to_string()
+            } else if ui.get_kb_engine() == 0 {
+                "hardware".to_string()
+            } else {
+                "streamer".to_string()
+            };
+            ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
+                "enabled": enabled,
+                "effect": effect,
+                "brightness": brightness,
+                "color": ui.get_kb_color_hex().as_str(),
+                "engine": engine
+            }));
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_set_drawer_kbd_color(move |hex, _clr| {
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_kb_color_hex(hex.clone());
+            ui.set_kb_color(_clr);
+            let is_hw = ui.get_is_single_color() || ui.get_is_single_zone() || ui.get_is_four_zone();
+            let engine = if is_hw {
+                "hardware".to_string()
+            } else if ui.get_kb_engine() == 0 {
+                "hardware".to_string()
+            } else {
+                "streamer".to_string()
+            };
+            let mut brightness = ui.get_kb_brightness();
+            if !ui.get_kb_enabled() || brightness == 0 {
+                ui.set_kb_enabled(true);
+                brightness = if ui.get_is_single_color() { 2 } else { 3 };
+                ui.set_kb_brightness(brightness);
+            }
+            ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
+                "enabled": ui.get_kb_enabled(),
+                "color": hex.as_str(),
+                "brightness": brightness,
+                "engine": engine
+            }));
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_set_drawer_kbd_brightness(move |b| {
+        if let Some(ui) = ui_cb.upgrade() {
+            let enabled = b > 0;
+            ui.set_kb_brightness(b);
+            ui.set_kb_enabled(enabled);
+            let is_hw = ui.get_is_single_color() || ui.get_is_single_zone() || ui.get_is_four_zone();
+            let engine = if is_hw {
+                "hardware".to_string()
+            } else if ui.get_kb_engine() == 0 {
+                "hardware".to_string()
+            } else {
+                "streamer".to_string()
+            };
+            ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
+                "enabled": enabled,
+                "brightness": b,
+                "engine": engine
+            }));
+        }
+    });
+
+    let ui_cb = ui_weak.clone();
     window.on_set_lighting_sleep_timer(move |mins| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_sleep_minutes(mins);
@@ -55,13 +133,19 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         if let Some(ui) = ui_cb.upgrade() {
             let next = !ui.get_kb_enabled();
             ui.set_kb_enabled(next);
+            let mut target_brightness = ui.get_kb_brightness();
+            if next && target_brightness == 0 {
+                target_brightness = if ui.get_is_single_color() { 2 } else { 3 };
+                ui.set_kb_brightness(target_brightness);
+            }
+            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": next,
-                "engine": if ui.get_kb_engine() == 1 { "streamer" } else { "hardware" },
+                "engine": if is_streamer { "streamer" } else { "hardware" },
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
-                "brightness": ui.get_kb_brightness(),
+                "brightness": target_brightness,
                 "speed": ui.get_kb_speed(),
                 "color": ui.get_kb_color_hex().as_str(),
             }));
@@ -72,9 +156,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_engine(move |eng| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_engine(eng);
+            let is_streamer = eng == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if eng == 1 { "streamer" } else { "hardware" },
+                "engine": if is_streamer { "streamer" } else { "hardware" },
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
@@ -97,9 +182,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_effect(move |eff| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_effect(eff);
+            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if ui.get_kb_engine() == 1 { "streamer" } else { "hardware" },
+                "engine": if is_streamer { "streamer" } else { "hardware" },
                 "fps": ui.get_kb_fps(),
                 "effect": eff,
                 "direction": ui.get_kb_direction(),
@@ -114,9 +200,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_direction(move |dir| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_direction(dir);
+            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if ui.get_kb_engine() == 1 { "streamer" } else { "hardware" },
+                "engine": if is_streamer { "streamer" } else { "hardware" },
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": dir,
@@ -131,9 +218,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_brightness(move |b| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_brightness(b);
+            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if ui.get_kb_engine() == 1 { "streamer" } else { "hardware" },
+                "engine": if is_streamer { "streamer" } else { "hardware" },
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
@@ -148,9 +236,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_speed(move |s| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_speed(s);
+            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if ui.get_kb_engine() == 1 { "streamer" } else { "hardware" },
+                "engine": if is_streamer { "streamer" } else { "hardware" },
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
@@ -165,9 +254,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_color(move |hex, _c| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_color_hex(hex.clone());
+            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if ui.get_kb_engine() == 1 { "streamer" } else { "hardware" },
+                "engine": if is_streamer { "streamer" } else { "hardware" },
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),

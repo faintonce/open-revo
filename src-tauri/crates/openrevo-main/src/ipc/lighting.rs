@@ -122,6 +122,18 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(desc) = val.get("description").and_then(|v| v.as_str()) {
                 ui.set_kb_hw_desc(desc.into());
             }
+            if let Some(ht) = val.get("hardware_type").and_then(|v| v.as_str()) {
+                ui.set_kb_hardware_type(ht.into());
+            }
+            if let Some(fz) = val.get("is_four_zone").and_then(|v| v.as_bool()) {
+                ui.set_is_four_zone(fz);
+            }
+            if let Some(sz) = val.get("is_single_zone").and_then(|v| v.as_bool()) {
+                ui.set_is_single_zone(sz);
+            }
+            if let Some(sc) = val.get("is_single_color").and_then(|v| v.as_bool()) {
+                ui.set_is_single_color(sc);
+            }
             true
         }
         _ => false,
