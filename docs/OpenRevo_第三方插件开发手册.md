@@ -12,8 +12,9 @@
 3. [核心安全军规与沙盒边界 (Rule 4 硬件防火墙)](#3-核心安全军规与沙盒边界-rule-4-硬件防火墙)
 4. [插件清单权威规范 (Plugin Manifest Reference)](#4-插件清单权威规范-plugin-manifest-reference)
 5. [硬件 IPC 控制能力军火库速查 (Capabilities Cheat Sheet)](#5-硬件-ipc-控制能力军火库速查-capabilities-cheat-sheet)
-6. [自适应遥测与动态心跳总线 (Telemetry Bus)](#6-自适应遥测与动态心跳总线-telemetry-bus)
-7. [经典实战用例集 (从桌面桌宠到自动化看门狗)](#7-经典实战用例集-从桌面桌宠到无头脚本)
+6. [自适应遥测与动态心跳总线 (Telemetry Bus & Consumer Lifecycle)](#6-自适应遥测与动态心跳总线-telemetry-bus--consumer-lifecycle)
+7. [全域双向广播通信与跨插件事件总线 (Universal Broadcast Bus)](#7-全域双向广播通信与跨插件事件总线-universal-broadcast-bus)
+8. [经典实战用例集 (从桌面桌宠到自动化看门狗)](#8-经典实战用例集-从桌面桌宠到自动化看门狗)
    - [用例 1: 50 行代码开发一个桌面异形机甲桌宠 (Widget)](#用例-1-50-行代码开发一个桌面异形机甲桌宠-widget)
    - [用例 2: 桌面“一键强冷”大开关挂件 (Widget)](#用例-2-桌面一键强冷大开关挂件-widget)
    - [用例 3: 纯文本脚本自定义开机仪式灯效 (Headless Service - 零 Webview)](#用例-3-纯文本脚本自定义开机仪式灯效-headless-service---零-webview)
@@ -26,8 +27,8 @@
    - [用例 10: 原生体验第三方插件市场开发对接范式 (Plugin Market Integration)](#用例-10-原生体验第三方插件市场开发对接范式-plugin-market-integration---以-plugin-market-为例)
    - [用例 11: 声明式零代码全局快捷键与按键宏映射插件 (Universal Shortcut Bus)](#用例-11-声明式零代码全局快捷键与按键宏映射插件-universal-shortcut-bus)
    - [用例 12: 声明式自动化监听与规则看门狗 (Universal Watcher & Trigger Hub)](#用例-12-声明式自动化监听与规则看门狗-universal-watcher--trigger-hub)
-8. [UI 设计语言与 Design Tokens 复用指南](#8-ui-设计语言与-design-tokens-复用指南)
-9. [调试与安全模式排错 (Safe Mode 二分法)](#9-调试与安全模式排错-safe-mode-二分法)
+9. [UI 设计语言与 Design Tokens 复用指南](#9-ui-设计语言与-design-tokens-复用指南)
+10. [调试与安全模式排错 (Safe Mode 二分法)](#10-调试与安全模式排错-safe-mode-二分法)
 
 ---
 
@@ -156,11 +157,11 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 | `image` / `wallpaper` | `string` | 可选 | `background` | **【零代码壁纸】**直接指定图片路径（如 `"bg.png"`），无需编写一行 CSS，宿主自动合成全套适配样式 |
 | `entry` | `string` | 可选 | `widget`/`tab`/`service` | 入口相对路径，如 `index.html` 或 `welcome.rhai` |
 | `window` | `object` | 可选 | `widget`/`tab`/`skin`/`shell` | 视窗高级几何与外廓属性（详见下方 `window` 子对象详解） |
-| `telemetry` | `object` | 可选 | 全类型 | 声明硬件遥测需求（见下文防独显唤醒机制） |
+| `telemetry` | `object` | 可选 | 全类型 | **【声明式遥测需求】**声明硬件遥测传感器需求（详见下方 `telemetry` 子对象与第 6 节按需订阅机制） |
 | `permissions` | `string[]`| 可选 | 全类型 | 声明所需权限（未声明将被安全网关拦截） |
 | `watchers` / `rules` | `object[]` | 可选 | 全类型 | **【声明式自动化规则总线】**无需 Webview 视窗，宿主内核统一调度温度联动、游戏切模与硬件保护规则 |
 | `shortcuts` | `object[]` | 可选 | 全类型 | **【声明式全局快捷键总线】**Ring3 穿透级热键绑定，自动联动机甲 OSD 弹窗与动作流 |
-| `service` | `object` | 可选 | `tab`/`widget`/`slot` | **【声明式伴随提权服务 / Sidecar】**声明插件依赖的后端本地原生进程服务（见下方 `service` 子对象详解） |
+| `service` | `object` | 可选 | `tab`/`widget`/`slot` | **【声明式伴随提权服务 / Sidecar】**声明插件依赖的后端本地原生进程服务（见下方 `service` 子对象详解，Slint/Tauri 全运行时统一支持） |
 
 #### `window` 视窗子对象详细配置表 (全场景悬浮与专业大窗口)
 | 子属性 | 类型 | 默认值 | 适用场景与说明 |
@@ -173,9 +174,38 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 | `always_on_top` | `boolean` | `true` | 是否保持在其他软件窗口上方置顶（大型复杂工具通常设为 `false`） |
 | `skip_taskbar` | `boolean` | `true` | 是否在 Windows 系统任务栏跳过显示（设为 `false` 可在任务栏显示独立图标，支持 `Alt+Tab` 秒切） |
 
+#### `telemetry` 硬件遥测按需声明子对象 (On-Demand Telemetry Contract)
+
+> ⚠️ **核心铁律**：OpenRevo 遥测引擎采用**按需消费者生命周期驱动机制（Consumer-Driven Lifecycle）**。宿主不会在无需求时盲目高频轮询底层硬件。**插件若需要接收硬件遥测数据流，必须在 `manifest.json` 中显式声明 `telemetry`**！宿主将在插件视窗激活时自动注册 Consumer，离开或关闭时自动退订，彻底防止独显异常唤醒与电池空耗。
+
+```json
+"telemetry": {
+  "enabled": true,
+  "desiredIntervalMs": 1500,
+  "sensors": [
+    "cpu_temp",
+    "cpu_fan_rpm",
+    "cpu_power_w",
+    "power_mode",
+    "fan_boost",
+    "battery_level",
+    "is_charging",
+    "is_ac_online"
+  ]
+}
+```
+
+| 子属性 | 类型 | 默认值 | 说明与防呆规范 |
+| :--- | :--- | :--- | :--- |
+| `enabled` | `boolean` | `true` | 是否启用硬件遥测订阅。设为 `false` 时完全不产生硬件采样心跳 |
+| `desiredIntervalMs` | `number` | `1500` | 期望的刷新采样间隔（毫秒）。宿主取所有活跃消费者的最小公约数进行动态调度 |
+| `sensors` | `string[]` | 全部基础字段 | **【按需字段清单】**声明插件所需的数据字段。**若不需要 GPU 状态，严禁声明 `gpu_*` 字段**，确保 NVIDIA 独立显卡安详保持 D3Cold 零功耗深睡 |
+
 #### `service` 伴随提权服务子对象详细配置表 (Sidecar / Companion Service)
 
-针对需要借助原生可执行程序（如 Go、Rust、Python、Node.js 编译的 `.exe` 或 EC/驱动桥接代理）的硬件级扩展插件（如 `ec-config`、`sdt-pbo`），OpenRevo 提供了内置的**伴随服务监督器（Companion Service Supervisor）**。
+针对需要借助原生可执行程序（如 Go、Rust、Python、Node.js 编译的 `.exe` 或 EC/驱动桥接代理）的硬件级扩展插件（如 `ec-config`、`cpu-guardian`、`mro-hud`），OpenRevo 提供了微内核级内置的**伴随服务监督器（Companion Service Supervisor）**。
+
+> 🌟 **双运行时全量打通**：无论是传统的 **Tauri 前端**，还是超轻量的 **Slint 原生端 (Native Wry)**，伴随服务均由 Rust 微内核底座统一切入管理。插件无论在主窗口内嵌运行，还是弹出为独立视窗，均享有完全一致的自动拉起、端口探活与生命周期回收保障！
 
 开发者**严禁让用户手动双击 `.bat` 启动黑框脚本**，只需在 `manifest.json` 中声明 `service`，宿主即会自动接管提权静默拉起、端口探活、顶栏胶囊状态展示与退出清理：
 
@@ -199,9 +229,12 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 | `port` | `number` | 可选 | 服务监听的本机回环 TCP 端口（如 `18945`），宿主后台自动发起 TCP 连接探活 |
 | `health_url` | `string` | 可选 | 专用 HTTP 探活 URL（如 `"http://127.0.0.1:18945/health"`），支持自定义就绪检测 |
 | `elevated` | `boolean` | `true` | 是否以管理员提权模式运行。由于 OpenRevo 本身具备管理员权限，拉起子进程自动继承最高权限且默认采用 `CREATE_NO_WINDOW (0x08000000)` 静默无黑框运行 |
-| `auto_start` | `boolean` | `false` | 打开插件界面时是否自动静默拉起伴随服务（建议设为 `false`，由用户点击或前端按需拉起） |
+| `auto_start` | `boolean` | `false` | 打开插件界面时是否自动静默拉起伴随服务（若设为 `true`，用户点击插件 Tab 或宿主启动恢复启用插件时会自动拉起） |
 | `auto_stop` | `boolean` | `true` | 宿主退出或关闭插件选项卡时，是否自动级联终止该服务进程，彻底防止残留孤儿进程 |
 | `description` | `string` | 可选 | 服务的简短中文/英文描述，在顶栏服务状态面板悬停时展示 |
+
+> 💡 **宿主启动自愈保障 (`bootstrap_enabled_plugins`)**：
+> 针对常驻型工具或后台代理（如 `auto_start: true`），OpenRevo 在微内核启动阶段会自动扫描已启用的插件，直接在后台静默就绪伴随服务、快捷键与看门狗，无需用户每次手动打开界面触发。
 
 > 💡 **Tab 插件一键弹出独立视窗 (Detachable Pop-out Tab)**：
 > 无论插件被定义为 `widget` 还是 `tab`，宿主均在主界面选项卡右上角原生提供**【独立视窗运行】**按钮。用户既能在控制中心中内嵌使用，也能随时一键弹出为独立多屏调优窗口，零代码改动即可双模共存！
@@ -476,40 +509,163 @@ type ShortcutAction =
 * **`invoke('trigger_watcher_manual', { id: string }) -> boolean`**：手动模拟触发；
 * **沙盒桥调用**：在微插槽或 Tab 中直接通过 `window.__OPENREVO_BRIDGE__.registerWatcher(...)` 注册，视窗卸载时自动级联清理。
 
+### 15. 遥测消费动态注册与全域广播 IPC (Telemetry Consumer & Global Broadcast)
+为了支持前端动态根据视图展开收起、弹窗或挂件启停，精准按需调节遥测采样与全域广播：
+* **`invoke('register_telemetry_consumer', { consumerId: string, sensors: string[], desiredIntervalMs?: number }) -> boolean`**：
+  为当前插件、视窗或功能动态注册遥测消费者，声明所需传感器并指定期望的心跳频率。
+* **`invoke('unregister_telemetry_consumer', { consumerId: string }) -> boolean`**：
+  注销指定消费者。若全系统活跃消费者计数归零，遥测引擎自动休眠降频。
+* **`invoke('emit_plugin_broadcast', { event: string, payload: any }) -> boolean`**：
+  **【全域双向广播发射塔】**：向整个微内核、所有前端视窗（包括 Tauri Webview、Slint 原生界面与沙盒 Native Wry）广播跨插件或宿主事件。
+
 ---
 
-
-## 6. 自适应遥测与动态心跳总线 (Telemetry Bus)
+## 6. 自适应遥测与动态心跳总线 (Telemetry Bus & Consumer Lifecycle)
 
 ### 1. 核心铁律：防独显唤醒 (Zero dGPU Wake-lock)
 双显卡笔记本在轻度办公时，NVIDIA 独立显卡处于 **D3Cold 极深零功耗休眠 (0W)**。
 * **严禁无脑索取 GPU 字段**：若挂件仅需要 CPU 结温和风扇转速，`manifest.json` 中**坚决不要声明 `gpu_*` 字段**！
 * **内核保障**：若所有运行中的插件均未订阅 GPU，微内核**绝不调用 NVAPI**，让独显继续保持零功耗停机。
 
-### 2. 纯陪伴小人 / 语音助手的“零功耗深睡模式”
-纯陪伴小人或 AI 语音助手不需要任何传感器，只需在 `manifest.json` 中声明：
-```json
-"telemetry": {
-  "enabled": false
+### 2. 按需消费生命周期驱动 (Consumer-Driven Lifecycle)
+OpenRevo 坚决摒弃“宿主无论何时都以最高频疯狂轮询”的设计。微内核内建了**动态消费者记账系统**：
+* **宿主全自动托管**：
+  * 当用户点击进入插件 Tab、打开桌面悬浮挂件 (Widget) 或弹出独立视窗时，宿主自动读取 `manifest.telemetry` 并向内核注册消费者 (`register_telemetry_consumer`)；
+  * 当用户切走该 Tab、最小化到托盘或关闭挂件窗口时，宿主自动注销消费者 (`unregister_telemetry_consumer`)；
+* **零消费自动停跳休眠**：
+  * 当全系统活跃的遥测消费者数量归零时（例如主界面最小化至托盘且无任何桌面挂件），遥测工作线程自动暂停休眠，CPU 维持极深 C-State，彻底避免电池暗耗！
+
+### 3. 硬件遥测强类型实体字典 (`HardwareState`)
+当消费者注册就绪后，宿主以自适应周期向公频广播 `hardware-state-updated` 事件，载荷对象包含以下完整硬件字段：
+
+```typescript
+interface HardwareState {
+  // --- CPU 核心参数 ---
+  cpu_temp: number | null;         // CPU 结温 (℃)
+  cpu_fan_rpm: number | null;      // CPU 风扇当前转速 (RPM)
+  cpu_power_w: number | null;      // CPU 封装实时功耗 (W)
+  cpu_freq_mhz: number | null;     // CPU 主频 (MHz)
+  cpu_usage_pct: number | null;    // CPU 综合使用率 (0 ~ 100%)
+
+  // --- 独立显卡参数 (仅当有插件声明 gpu_* 时采样) ---
+  gpu_temp: number | null;         // GPU 核心温度 (℃)
+  gpu_fan_rpm: number | null;      // GPU 风扇当前转速 (RPM)
+  gpu_power_w: number | null;      // GPU 实时功耗 (W)
+  gpu_freq_mhz: number | null;     // GPU 核心频率 (MHz)
+  gpu_usage_pct: number | null;    // GPU 综合利用率 (0 ~ 100%)
+  gpu_vram_used_mb: number | null; // 显存已分配容量 (MB)
+  gpu_vram_total_mb: number | null;// 显存总物理容量 (MB)
+
+  // --- 电池与供电状态 (全新加入) ---
+  battery_level: number | null;    // 当前电池电量百分比 (0 ~ 100)
+  is_charging: boolean | null;     // 是否正在充电 (true: 充入电量中; false: 未充电或已断充)
+  is_ac_online: boolean | null;    // 外部电源适配器是否物理连接在线
+
+  // --- 系统当前状态 ---
+  power_mode: number;              // 1-办公, 2-均衡, 3-狂暴, 4-自定义
+  fan_boost: boolean;              // 一键强冷是否处于暴走激活态
 }
 ```
-内核看到此标记，即使挂着 5 个小人，**硬件遥测线程依然安详深睡，硬件零负担，CPU 维持极深 C-State**。
 
-### 3. 前端消费数据总线流
-在任何 Webview 挂件中，监听全局公频广播：
+### 4. 前端监听与消费范式
+
+在 Webview、沙盒 iframe 或独立挂件中，推荐使用事件总线监听：
 ```javascript
 import { listen } from '@tauri-apps/api/event';
 
-// 监听每 1.5s 广播的硬件状态流
 const unlisten = await listen('hardware-state-updated', (event) => {
   const data = event.payload; // HardwareState 强类型对象
-  console.log(`CPU温度: ${data.cpu_temp}℃, 风扇转速: ${data.cpu_fan_rpm}RPM`);
+  console.log(`电池电量: ${data.battery_level}%, 外部供电: ${data.is_ac_online}, CPU: ${data.cpu_temp}℃`);
 });
 ```
 
 ---
 
-## 7. 经典实战用例集 (从桌面桌宠到无头脚本)
+## 7. 全域双向广播通信与跨插件事件总线 (Universal Broadcast Bus)
+
+为消除旧版中“Tauri 界面与 Slint 原生界面事件割裂”、“主窗口无法与弹窗/iframe 双向对等广播”的痛点，OpenRevo 建立了**全域双向广播总线（Universal Broadcast Bus）**：
+
+```
+                    ┌──────────────────────────┐
+                    │  Rust Microkernel Bus    │
+                    │  (system/broadcast.rs)   │
+                    └────────────┬─────────────┘
+                                 │
+         ┌───────────────────────┼────────────────────────┐
+         ▼                       ▼                        ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│  Tauri Webviews  │    │  Slint Native    │    │  Sandbox Iframes │
+│  & Popout Tabs   │    │  (Native Wry)    │    │  & Sidecars      │
+│  (app.emit)      │    │  (postMessage)   │    │  (Event Bridge)  │
+└──────────────────┘    └──────────────────┘    └──────────────────┘
+```
+
+### 1. 发射广播（Broadcast Emitter）
+
+无论当前插件运行在何种宿主外壳中，均可向全域发射自定义事件：
+
+* **方式 A：使用 Tauri 标准 `@tauri-apps/api/event`**：
+  ```javascript
+  import { emit } from '@tauri-apps/api/event';
+  // 广播自定义业务事件
+  await emit('my-plugin:state-changed', { status: 'running', count: 42 });
+  ```
+* **方式 B：调用宿主 IPC 发射塔**：
+  ```javascript
+  import { invoke } from '@tauri-apps/api/core';
+  await invoke('emit_plugin_broadcast', {
+    event: 'my-plugin:state-changed',
+    payload: { status: 'running', count: 42 }
+  });
+  ```
+* **方式 C：在 Slint Native Wry 或沙盒 iframe 中使用 `postMessage` / `__NATIVE_WRY_EMIT__`**：
+  ```javascript
+  // 方式 C-1: 宿主自动注入的 Native Wry 发射接口
+  if (window.__NATIVE_WRY_EMIT__) {
+    window.__NATIVE_WRY_EMIT__('my-plugin:state-changed', { status: 'running' });
+  }
+  // 方式 C-2: 标准跨文档消息
+  window.parent.postMessage({
+    action: 'EMIT',
+    event: 'my-plugin:state-changed',
+    payload: { status: 'running' }
+  }, '*');
+  ```
+
+### 2. 接收广播（Broadcast Listener）
+
+宿主保证所有发送到广播总线的事件，都会自动解构并投递到各前端环境：
+
+* **方式 A：Tauri 模块监听**：
+  ```javascript
+  import { listen } from '@tauri-apps/api/event';
+  const unlisten = await listen('my-plugin:state-changed', (event) => {
+    console.log('收到总线广播:', event.payload);
+  });
+  ```
+* **方式 B：DOM 原生 CustomEvent 监听**（Native Wry 自动桥接）：
+  ```javascript
+  window.addEventListener('my-plugin:state-changed', (event) => {
+    console.log('收到 CustomEvent 广播:', event.detail);
+  });
+  ```
+* **方式 C：标准 `window.message` 监听**（同时兼容 `OPENREVO_EVENT` 封包与直接事件）：
+  ```javascript
+  window.addEventListener('message', (event) => {
+    // 兼容格式 1: 直接匹配事件名称
+    if (event.data?.type === 'my-plugin:state-changed') {
+      console.log('收到直投广播:', event.data.payload);
+    }
+    // 兼容格式 2: OPENREVO_EVENT 封包
+    if (event.data?.type === 'OPENREVO_EVENT' && event.data.event === 'my-plugin:state-changed') {
+      console.log('收到封包广播:', event.data.payload);
+    }
+  });
+  ```
+
+---
+
+## 8. 经典实战用例集 (从桌面桌宠到无头脚本)
 
 ### 用例 1: 50 行代码开发一个桌面异形机甲桌宠 (Widget)
 
@@ -1432,7 +1588,7 @@ await invoke('unregister_custom_shortcut', { id: 'user_boss_key' });
 
 ---
 
-## 8. UI 设计语言与 Design Tokens 复用指南
+## 9. UI 设计语言与 Design Tokens 复用指南
 
 为了保证在所有原生主题（默认赛博、极简黑白工业风 `mono`）以及第三方插件中质感完全统一，**严禁在样式中硬编码十六进制颜色数值**，必须复用 `src/index.css` 官方 Design System Tokens：
 
@@ -1458,9 +1614,31 @@ await invoke('unregister_custom_shortcut', { id: 'user_boss_key' });
 | **`--radius-lg`** | `12px` | 大功能卡片、对话框外框圆角 |
 | **`--transition-fast`** | `150ms cubic-bezier(0.4, 0, 0.2, 1)` | 按钮悬停、开关微动效过渡 |
 
+### 原生表单与暗黑视窗避坑守则 (WebView2 Dark Mode Gotchas)
+
+1. **原生 `<select>` 下拉菜单白底白字灾难防范**：
+   在 Windows Edge WebView2 下，若页面为暗黑深色，原生 `<select>` 点击展开的弹出式下拉项默认会继承系统的浅色控件样式，导致在白底背景上渲染白色文字彻底不可见！
+   **核心规范**：所有插件的前端样式中，必须显式声明 `color-scheme: dark;` 并为 `option` 指定深色背景：
+   ```css
+   select {
+     color-scheme: dark;
+     background-color: var(--surface-overlay, #0f172a);
+     color: var(--text-primary, #f8fafc);
+   }
+   select option {
+     background-color: #0b0f17;
+     color: #f8fafc;
+   }
+   ```
+
+2. **折叠高级选项与响应式视窗排版**：
+   - 避免在容器上设置死高度（如 `height: 500px`）导致展开折叠面板或日志控制台时内容突出窗口边界截断；
+   - 推荐使用 `display: flex; flex-direction: column; min-height: 0;` 配合 `overflow-y: auto;` 自适应视口尺寸；
+   - 提示组件（如 `.toast`）默认应当设置隐藏态（`opacity: 0; visibility: hidden; pointer-events: none;`），严禁未触发时突兀裸露在窗口底部。
+
 ---
 
-## 9. 调试与安全模式排错 (Safe Mode 二分法)
+## 10. 调试与安全模式排错 (Safe Mode 二分法)
 
 开发插件时，难免遇到死循环或语法错误。OpenRevo 建立了**实机 5 秒二分法排错机制**：
 
