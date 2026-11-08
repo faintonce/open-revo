@@ -389,6 +389,63 @@ Usage:
 
         private static readonly string[] SERVICE_NAMES = new[] { "XTU3SERVICE", "XTUService" };
 
+        private static bool IsXtuInstalledOnSystem()
+        {
+            try
+            {
+                // 1. Check services in registry (Readable without administrator privileges)
+                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\XTU3SERVICE"))
+                {
+                    if (k != null) return true;
+                }
+                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\XTUService"))
+                {
+                    if (k != null) return true;
+                }
+                // 2. Check XTU software registration
+                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Intel\Intel(R) Extreme Tuning Utility"))
+                {
+                    if (k != null) return true;
+                }
+                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Intel\Intel(R) Extreme Tuning Utility"))
+                {
+                    if (k != null) return true;
+                }
+                // 3. Check installation directory and binaries
+                string progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                if (Directory.Exists(Path.Combine(progFiles, "Intel", "Intel(R) Extreme Tuning Utility")))
+                {
+                    return true;
+                }
+                string progFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+                if (!string.IsNullOrEmpty(progFilesX86) && Directory.Exists(Path.Combine(progFilesX86, "Intel", "Intel(R) Extreme Tuning Utility")))
+                {
+                    return true;
+                }
+                if (File.Exists(@"C:\Windows\SysWOW64\XtuService.exe") || File.Exists(@"C:\Windows\System32\XtuService.exe"))
+                {
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool IsXtuProcessRunning()
+        {
+            try
+            {
+                var procs = System.Diagnostics.Process.GetProcessesByName("XtuService");
+                if (procs != null && procs.Length > 0)
+                {
+                    foreach (var p in procs) { try { p.Dispose(); } catch { } }
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
         private static string GetActiveServiceName()
         {
             foreach (var name in SERVICE_NAMES)
@@ -414,6 +471,18 @@ Usage:
                 }
                 catch { }
             }
+            try
+            {
+                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\XTU3SERVICE"))
+                {
+                    if (k != null) return "XTU3SERVICE";
+                }
+                using (var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\XTUService"))
+                {
+                    if (k != null) return "XTUService";
+                }
+            }
+            catch { }
             return "XTU3SERVICE";
         }
 
@@ -421,8 +490,11 @@ Usage:
         {
             var result = new Dictionary<string, object>();
             
-            string svcStatus = "NotInstalled";
+            bool isInstalled = IsXtuInstalledOnSystem();
+            bool isProcessRunning = IsXtuProcessRunning();
+            string svcStatus = isInstalled ? (isProcessRunning ? "Running" : "Stopped") : "NotInstalled";
             string activeSvc = GetActiveServiceName();
+
             foreach (var sname in SERVICE_NAMES)
             {
                 try
@@ -435,16 +507,23 @@ Usage:
                             activeSvc = sname;
                             break;
                         }
-                        else if (svcStatus == "NotInstalled")
+                        else
                         {
                             svcStatus = sc.Status.ToString();
                         }
                     }
                 }
-                catch { }
+                catch
+                {
+                    // Access denied or lack of permissions on SCM, retain heuristic detection
+                    if (isProcessRunning)
+                    {
+                        svcStatus = "Running";
+                        activeSvc = sname;
+                        break;
+                    }
+                }
             }
-            result["service_status"] = svcStatus;
-            result["active_service_name"] = activeSvc;
 
             ITuningLibrary tuning = TuningLibrary.Instance;
             bool initOk = false;
@@ -458,6 +537,9 @@ Usage:
             }
             catch (Exception ex)
             {
+                result["service_status"] = svcStatus;
+                result["active_service_name"] = activeSvc;
+                result["is_installed"] = isInstalled;
                 result["success"] = false;
                 result["connected"] = false;
                 result["error"] = "Failed to connect to XTU service: " + ex.Message;
@@ -465,6 +547,15 @@ Usage:
                 return result;
             }
 
+            // If TuningLibrary has successfully connected via IPC, the service MUST be running
+            if (initOk)
+            {
+                svcStatus = "Running";
+            }
+
+            result["service_status"] = svcStatus;
+            result["active_service_name"] = activeSvc;
+            result["is_installed"] = isInstalled;
             result["connected"] = initOk;
             if (!initOk)
             {

@@ -1,9 +1,9 @@
 {
   "id": "battery-hardware-limit",
   "name": "电池充电上限守护者",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "author": "OpenRevo Official & Community",
-  "description": "官方演示插件：基于微内核硬件网关的多协议底层限充调控中心，支持同方脉冲存储法与宝龙达双阈值协议，自由设定 1~100% 充电阈值，全参数支持机型与目标双轨沙盒持久化。",
+  "description": "官方演示插件：基于微内核硬件网关的多协议底层限充调控中心，支持同方门控持续钉住法(Pin & Keep-Alive)与传统脉冲存储法，自适应0x04/0x05硬件门控探测，自由设定 1~100% 充电阈值。",
   "type": "tab",
   "min_host_version": "0.9.4",
   "window": {
@@ -15,10 +15,20 @@
     "always_on_top": false
   },
   "config": {
-    "default_strategy": "tongfang_pulse",
+    "default_mode": "pin",
     "strategies": {
+      "tongfang_pin": {
+        "name": "同方门控持续保持法 (Pin & Keep-Alive，现代机型推荐)",
+        "protocol": "TongfangDirectEc",
+        "limit_reg": 1977,
+        "gate_reg": 1987,
+        "probe_order": [4, 5],
+        "keepalive_interval_ms": 4000,
+        "status_reg": 1858,
+        "status_bit": 2
+      },
       "tongfang_pulse": {
-        "name": "同方系脉冲触发存储法 (耀世/无界/蛟龙/旷世)",
+        "name": "同方系脉冲触发存储法 (老款固件 NVRAM 兼容)",
         "protocol": "TongfangDirectEc",
         "limit_reg": 1977,
         "gate_reg": 1987,

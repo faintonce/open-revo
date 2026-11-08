@@ -34,9 +34,18 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                                 if enabled {
                                     crate::log_info!("PLUGINS", "Toggled widget '{}' ON -> opening desktop widget", id);
                                     crate::system::native_wry::open_popout(id);
+                                    if let Some(svc) = manifest.service {
+                                        if svc.auto_start {
+                                            let target_id = id.to_string();
+                                            std::thread::spawn(move || {
+                                                let _ = crate::system::plugin_service::start_service(&target_id);
+                                            });
+                                        }
+                                    }
                                 } else {
                                     crate::log_info!("PLUGINS", "Toggled widget '{}' OFF -> closing desktop widget", id);
                                     crate::system::native_wry::close_popout(id);
+                                    let _ = crate::system::plugin_service::stop_service(id);
                                 }
                             }
                         }
@@ -96,6 +105,22 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                             pid,
                             (target_x, target_y, target_w, target_h),
                         );
+
+                        // Auto-start companion service if declared and configured with auto_start
+                        let p_dir = crate::commands::system_cmd::find_plugin_dir(pid);
+                        let m_path = p_dir.join("manifest.json");
+                        if let Ok(content) = std::fs::read_to_string(&m_path) {
+                            if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                                if let Some(svc) = manifest.service {
+                                    if svc.auto_start {
+                                        let target_pid = pid.to_string();
+                                        std::thread::spawn(move || {
+                                            let _ = crate::system::plugin_service::start_service(&target_pid);
+                                        });
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         crate::log_warn!("PLUGINS", "Cannot dock plugin '{}': Slint HWND is 0", pid);
                         super::super::send_slint_ipc_message(serde_json::json!({
@@ -112,6 +137,21 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
                 crate::log_info!("PLUGINS", "Opening native Wry popout window for plugin: '{}'", pid);
                 crate::system::native_wry::open_popout(pid);
+
+                let p_dir = crate::commands::system_cmd::find_plugin_dir(pid);
+                let m_path = p_dir.join("manifest.json");
+                if let Ok(content) = std::fs::read_to_string(&m_path) {
+                    if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                        if let Some(svc) = manifest.service {
+                            if svc.auto_start {
+                                let target_pid = pid.to_string();
+                                std::thread::spawn(move || {
+                                    let _ = crate::system::plugin_service::start_service(&target_pid);
+                                });
+                            }
+                        }
+                    }
+                }
             }
             true
         }

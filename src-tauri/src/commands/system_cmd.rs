@@ -1680,6 +1680,77 @@ pub fn get_model_capabilities() -> serde_json::Value {
     })
 }
 
+/// Automatically loads shortcuts, watchers, and auto-starts services for all enabled and compatible plugins on host startup
+pub fn bootstrap_enabled_plugins() {
+    let cfg = crate::system::config::load_config();
+    let plugins_dir = crate::system::config::get_config_dir().join("plugins");
+    if !plugins_dir.exists() {
+        return;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let dir_name = entry.file_name().to_string_lossy().to_string();
+                let manifest_path = path.join("manifest.json");
+                if manifest_path.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                        if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
+                            let id = manifest.id.unwrap_or_else(|| dir_name.clone());
+                            let enabled = cfg
+                                .custom_plugin_toggles
+                                .get(&id)
+                                .or_else(|| cfg.custom_plugin_toggles.get(&dir_name))
+                                .copied()
+                                .unwrap_or(true);
+                            let (is_compatible, _) = check_version_compatibility(manifest.min_host_version.as_deref());
+                            if enabled && is_compatible {
+                                crate::log_info!("PLUGIN", "Bootstrapping enabled plugin '{}'", id);
+                                if let Some(ref scs) = manifest.shortcuts {
+                                    crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
+                                }
+                                if let Some(ref wts) = manifest.watchers {
+                                    crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
+                                }
+                                if let Some(ref srv) = manifest.service {
+                                    if srv.auto_start {
+                                        crate::log_info!("PLUGIN", "Auto-starting companion service for '{}'", id);
+                                        let _ = crate::system::plugin_service::start_service(&id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn register_telemetry_consumer(consumer_id: String, sensors: Option<Vec<String>>) -> Result<(), String> {
+    let sensor_list = sensors.unwrap_or_else(|| vec![
+        "cpu_temp".into(), "gpu_temp".into(), "cpu_power".into(), "gpu_power".into(), "fps".into()
+    ]);
+    crate::system::telemetry::register_consumer(&consumer_id, &sensor_list);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn unregister_telemetry_consumer(consumer_id: String) -> Result<(), String> {
+    crate::system::telemetry::unregister_consumer(&consumer_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn emit_plugin_broadcast(app: tauri::AppHandle, event: String, payload: serde_json::Value) -> Result<(), String> {
+    use tauri::Emitter;
+    let _ = app.emit(&event, payload.clone());
+    crate::system::native_wry::broadcast_event(&event, &payload);
+    Ok(())
+}
+
 
 
 

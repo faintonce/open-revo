@@ -21,6 +21,11 @@ export interface PluginServiceConfig {
   health_url?: string;
 }
 
+export interface PluginTelemetryConfig {
+  enabled?: boolean;
+  sensors?: string[];
+}
+
 export interface CustomPluginItem {
   id: string;
   name: string;
@@ -30,6 +35,8 @@ export interface CustomPluginItem {
   plugin_type: string;
   enabled: boolean;
   dir_name: string;
+  window?: any;
+  telemetry?: PluginTelemetryConfig;
   target_slot?: string;
   slot_height?: string;
   service?: PluginServiceConfig;

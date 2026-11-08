@@ -947,6 +947,10 @@
     if (btnGuideRefresh) {
       btnGuideRefresh.onclick = () => {
         showToast('正在重新探测系统 XTU 底层驱动状态...', 'ok');
+        probeRetryCount = 0;
+        try {
+          window.parent.postMessage({ action: 'START_PLUGIN_SERVICE' }, '*');
+        } catch (_) { }
         refreshStatus();
       };
     }
@@ -1111,6 +1115,35 @@
 
       const data = await apiCall('probe');
 
+      // 1. 如果无法连接到伴生服务 (HTTP 端口未就绪)
+      if (data.success === false && data.error) {
+        if (probeRetryCount < 8) {
+          probeRetryCount++;
+          serviceBadge.textContent = `守护桥接连接中 (${probeRetryCount}/8)...`;
+          serviceBadge.className = 'badge-chip warn';
+          try {
+            window.parent.postMessage({ action: 'START_PLUGIN_SERVICE' }, '*');
+          } catch (_) { }
+          setTimeout(refreshStatus, 800);
+          return;
+        }
+
+        // 重试多次仍未连上伴生服务
+        serviceBadge.textContent = '伴生服务未启动';
+        serviceBadge.className = 'badge-chip warn';
+        serviceBanner.style.display = 'flex';
+        xtuGuideCard.style.display = 'none';
+        tuningContainer.style.display = 'block';
+        tuningContainer.style.opacity = '0.35';
+        tuningContainer.style.pointerEvents = 'none';
+
+        bannerServiceTitle.textContent = '守护伴生桥接服务尚未就绪';
+        bannerServiceDesc.textContent = 'OpenRevo 后台伴生服务 (revo-xtu-bridge) 未能连接。请点击右侧按钮重新拉起。';
+        btnSmartService.textContent = '▶️ 启动伴生服务';
+        return;
+      }
+
+      // 2. 伴生服务已连接，但 XTU 硬件未就绪
       if (!data.connected) {
         currentServiceStatus = data.service_status || 'NotInstalled';
         uvpBanner.style.display = 'none';
@@ -1139,12 +1172,25 @@
           bannerServiceTitle.textContent = 'XTU 驱动服务已在后台运行 (XTU3SERVICE)';
           bannerServiceDesc.textContent = '底层驱动已就绪，伴生桥接正在建立 WCF 命名管道连接...';
           btnSmartService.textContent = '🔄 刷新重试管道';
-          if (probeRetryCount < 6) {
+          if (probeRetryCount < 8) {
             probeRetryCount++;
             setTimeout(refreshStatus, 1000);
           }
+        } else if (data.is_installed) {
+          // 系统已安装 XTU (注册表/目录已确认)，但服务未运行
+          serviceBadge.textContent = 'XTU 底座待启动';
+          serviceBadge.className = 'badge-chip warn';
+          serviceBanner.style.display = 'flex';
+          xtuGuideCard.style.display = 'none';
+          tuningContainer.style.display = 'block';
+          tuningContainer.style.opacity = '0.35';
+          tuningContainer.style.pointerEvents = 'none';
+
+          bannerServiceTitle.textContent = '检测到系统已安装 XTU 底座，但驱动服务未启动';
+          bannerServiceDesc.textContent = '点击右侧按钮启动 XTU3SERVICE 驱动守护服务即可立即调谐。';
+          btnSmartService.textContent = '▶️ 启动 XTU 服务';
         } else {
-          // XTU is Not Installed: Show clean official setup guide and block operations
+          // 确认未安装 XTU 7.x: 展示官方安装引导
           serviceBadge.textContent = '未安装 XTU 7.x 底座';
           serviceBadge.className = 'badge-chip error';
           serviceBanner.style.display = 'none';
@@ -1154,7 +1200,7 @@
         return;
       }
 
-      // Connected!
+      // 3. 硬件引擎完全就绪 Connected!
       probeRetryCount = 0;
       currentServiceStatus = 'Running';
       serviceBadge.textContent = '硬件引擎就绪 (7.14)';
@@ -1163,6 +1209,7 @@
       xtuGuideCard.style.display = 'none';
       tuningContainer.style.display = 'block';
       tuningContainer.style.opacity = '1';
+      tuningContainer.style.pointerEvents = 'auto';
       tuningContainer.style.pointerEvents = 'auto';
 
       // UVP check
@@ -1217,6 +1264,10 @@
     btnSmartService.onclick = async () => {
       btnSmartService.disabled = true;
       btnSmartService.textContent = '正在启动...';
+
+      try {
+        window.parent.postMessage({ action: 'START_PLUGIN_SERVICE' }, '*');
+      } catch (_) { }
 
       let res;
       if (currentServiceStatus === 'Stopped') {

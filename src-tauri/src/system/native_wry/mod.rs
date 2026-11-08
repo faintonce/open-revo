@@ -153,9 +153,17 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
     for (const cb of cbs) {
       try { cb({ event: event, payload: payload }); } catch (e) { console.error(e); }
     }
-    if (event === "hardware-state-updated") {
+    window.dispatchEvent(new CustomEvent("openrevo-" + event, { detail: payload }));
+    if (event === "hardware-state-updated" || event === "openrevo-telemetry-update") {
       window.dispatchEvent(new CustomEvent("openrevo-telemetry", { detail: payload }));
+      try {
+        window.postMessage({ type: "OPENREVO_TELEMETRY", payload: payload }, "*");
+      } catch (_) {}
     }
+    try {
+      window.postMessage({ type: "OPENREVO_EVENT", event: event, payload: payload }, "*");
+      window.postMessage({ type: event, payload: payload }, "*");
+    } catch (_) {}
   };
 
   let lastDragTime = 0;
@@ -311,8 +319,8 @@ fn handle_custom_protocol(
         None => (clean_path.as_str(), "index.html"),
     };
 
-    let plugins_dir = crate::system::config::get_config_dir().join("plugins");
-    let target_file = plugins_dir.join(plugin_id).join(subpath);
+    let target_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
+    let target_file = target_dir.join(subpath);
 
     if !target_file.exists() {
         crate::log_warn!("NATIVE_WRY", "Custom protocol 404 for plugin '{}': {:?}", plugin_id, target_file);
@@ -607,7 +615,9 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     }
 
                     // Drop previous embedded webview if switching plugins
-                    embedded = None;
+                    if let Some((prev_pid, _, _)) = embedded.take() {
+                        crate::system::telemetry::unregister_consumer(&prev_pid);
+                    }
                     *ACTIVE_EMBEDDED_PLUGIN.write() = None;
 
                     match spawn_embedded_child(&proxy, parent_hwnd, &plugin_id, rect, &mut web_context) {
@@ -651,6 +661,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                 NativeWryMessage::HideEmbedded => {
                     *ACTIVE_EMBEDDED_PLUGIN.write() = None;
                     if let Some((pid, view, parent_hwnd)) = embedded.take() {
+                        crate::system::telemetry::unregister_consumer(&pid);
                         crate::log_info!("NATIVE_WRY", "Dropping embedded child webview for '{}'", pid);
                         drop(view);
 
@@ -705,7 +716,7 @@ fn spawn_popout_window(
     plugin_id: &str,
     web_context: &mut WebContext,
 ) -> Result<(Window, WebView), String> {
-    let p_dir = crate::system::config::get_config_dir().join("plugins").join(plugin_id);
+    let p_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
     let index_path = p_dir.join("index.html");
     if !index_path.exists() {
         return Err(format!("Plugin index.html not found: {:?}", index_path));
@@ -721,12 +732,14 @@ fn spawn_popout_window(
     let mut always_on_top = false;
     let mut skip_taskbar = false;
     let mut is_widget = false;
+    let mut telemetry_config: Option<crate::commands::system_cmd::PluginTelemetryConfig> = None;
 
     if manifest_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&manifest_path) {
             if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
                 let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
                 is_widget = p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin");
+                telemetry_config = manifest.telemetry;
 
                 if let Some(ref name) = manifest.name {
                     title = format!("OpenRevo - {}", name);
@@ -811,11 +824,25 @@ fn spawn_popout_window(
     window.set_visible(true);
     if !is_widget {
         window.set_focus();
+    }
+
+    let default_sensors = vec![
+        "cpu_temp".into(), "gpu_temp".into(), "cpu_power".into(), "gpu_power".into(),
+        "cpu_fan_rpm".into(), "gpu_fan_rpm".into(), "fps".into(), "frametime_ms".into(),
+        "power_mode".into(), "fan_boost".into(), "battery_level".into(), "is_charging".into()
+    ];
+    let should_register_telemetry = if let Some(ref tel) = telemetry_config {
+        tel.enabled
     } else {
-        crate::system::telemetry::register_consumer(plugin_id, &[
-            "cpu_temp".into(), "cpu_fan_rpm".into(), "cpu_power_w".into(),
-            "power_mode".into(), "fan_boost".into(), "battery_level".into(), "is_charging".into()
-        ]);
+        is_widget
+    };
+
+    if should_register_telemetry {
+        let sensors = telemetry_config
+            .map(|t| t.sensors)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(default_sensors);
+        crate::system::telemetry::register_consumer(plugin_id, &sensors);
     }
 
     #[cfg(target_os = "windows")]
@@ -862,7 +889,7 @@ fn spawn_embedded_child(
         }
     }
 
-    let p_dir = crate::system::config::get_config_dir().join("plugins").join(plugin_id);
+    let p_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
     let index_path = p_dir.join("index.html");
     if !index_path.exists() {
         return Err(format!("Plugin index.html not found: {:?}", index_path));
@@ -897,6 +924,27 @@ fn spawn_embedded_child(
         })
         .build_as_child(&parent_wrapper)
         .map_err(|e| format!("Failed to build child wry WebView: {:?}", e))?;
+
+    let manifest_path = p_dir.join("manifest.json");
+    if manifest_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+            if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                if let Some(ref tel) = manifest.telemetry {
+                    if tel.enabled {
+                        let default_sensors = vec![
+                            "cpu_temp".into(), "gpu_temp".into(), "cpu_power".into(), "gpu_power".into(), "fps".into()
+                        ];
+                        let sensors = if tel.sensors.is_empty() {
+                            default_sensors
+                        } else {
+                            tel.sensors.clone()
+                        };
+                        crate::system::telemetry::register_consumer(plugin_id, &sensors);
+                    }
+                }
+            }
+        }
+    }
 
     Ok(webview)
 }

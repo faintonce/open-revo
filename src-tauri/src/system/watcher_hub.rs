@@ -531,23 +531,25 @@ pub fn dispatch_watcher_trigger(def: WatcherDefinition, condition_type: &'static
 
     let app = get_app_handle();
 
-    // 1. Emit universal event to Tauri bus
+    // 1. Emit universal event to Tauri bus & Native Wry
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let payload = serde_json::json!({
+        "watcher_id": def.id,
+        "watcher_name": def.name,
+        "plugin_id": def.plugin_id,
+        "condition_type": condition_type,
+        "timestamp_ms": ts,
+        "details": details
+    });
     if let Some(ref handle) = app {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64;
-        let payload = serde_json::json!({
-            "watcher_id": def.id,
-            "watcher_name": def.name,
-            "plugin_id": def.plugin_id,
-            "condition_type": condition_type,
-            "timestamp_ms": ts,
-            "details": details
-        });
         let _ = handle.emit("openrevo-watcher-triggered", &payload);
         let _ = handle.emit(&format!("watcher-event:{}", def.id), &payload);
     }
+    crate::system::native_wry::broadcast_event("openrevo-watcher-triggered", &payload);
+    crate::system::native_wry::broadcast_event(&format!("watcher-event:{}", def.id), &payload);
 
     // 2. Dispatch sequence of declared actions in separate thread
     if !def.actions.is_empty() {
@@ -616,6 +618,7 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
             if let Some(handle) = get_app_handle() {
                 let _ = handle.emit(event_name, payload);
             }
+            crate::system::native_wry::broadcast_event(event_name, payload);
         }
         WatcherAction::NotifyOsd { title, message } => {
             if let Some(handle) = get_app_handle() {
