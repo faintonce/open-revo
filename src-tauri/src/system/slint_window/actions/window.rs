@@ -110,6 +110,9 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
                 let mut cfg = crate::system::config::load_config();
                 cfg.use_classic_webview = en;
                 crate::system::config::save_config(&cfg);
+                if en {
+                    crate::system::osd_window::shutdown_osd_process();
+                }
                 crate::log_info!("SLINT_MAIN", "use_classic_webview updated to: {}", en);
             }
             true

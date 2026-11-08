@@ -8,6 +8,10 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
     in-out property <int> pl4_max: 275;
 
     in-out property <bool> bios_oc_enabled: true;
+    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
+    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <int> bios_oc_status: 0; // 0: 关闭, 1: 已开启, 2: 部分开启, 3: 不支持
+    in-out property <bool> bios_oc_disabled: false;
 
     callback change_pl4(int);
     callback adjust_pl4_max(int);
@@ -203,33 +207,34 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "同步解锁 CPU 与内存超频菜单 (CPU: 已开, 内存: 已开)";
+                    text: root.bios_oc_desc;
                     font-size: 9px;
                     color: AppTheme.text_muted;
                 }
             }
 
             Rectangle {
-                width: 44px;
+                width: 48px;
                 height: 22px;
                 border-radius: 4px;
-                background: root.bios_oc_enabled ? #0284c730 : AppTheme.surface_card;
+                background: root.bios_oc_status == 1 ? #0284c730 : (root.bios_oc_status == 2 ? #f59e0b25 : AppTheme.surface_card);
                 border-width: 1px;
-                border-color: root.bios_oc_enabled ? #38bdf8 : AppTheme.border_medium;
+                border-color: root.bios_oc_status == 1 ? #38bdf8 : (root.bios_oc_status == 2 ? #f59e0b : AppTheme.border_medium);
+                opacity: root.bios_oc_disabled ? 0.5 : 1.0;
 
                 TouchArea {
-                    mouse-cursor: pointer;
+                    mouse-cursor: root.bios_oc_disabled ? not-allowed : pointer;
+                    enabled: !root.bios_oc_disabled;
                     clicked => {
-                        root.bios_oc_enabled = !root.bios_oc_enabled;
                         root.toggle_bios_oc();
                     }
                 }
 
                 Text {
-                    text: root.bios_oc_enabled ? "已开启" : "关闭";
+                    text: root.bios_oc_btn_text;
                     font-size: 10px;
                     font-weight: 700;
-                    color: root.bios_oc_enabled ? #38bdf8 : AppTheme.text_muted;
+                    color: root.bios_oc_status == 1 ? #38bdf8 : (root.bios_oc_status == 2 ? #f59e0b : AppTheme.text_muted);
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }

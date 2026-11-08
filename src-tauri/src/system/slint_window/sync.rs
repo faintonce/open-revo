@@ -105,6 +105,29 @@ pub fn sync_slint_tuning_state() {
     let preset_ids: Vec<String> = presets.iter().map(|p| p.id.clone()).collect();
     let preset_names: Vec<String> = presets.iter().map(|p| p.name.clone()).collect();
 
+    let bios_status = crate::driver::uefi_nvram::read_bios_advanced_menu_status();
+    let is_partial = (bios_status.cpu_oc_enabled || bios_status.mem_oc_enabled) && !bios_status.enabled;
+    let is_unsupported = bios_status.hardware_read && !bios_status.supported;
+    let bios_oc_disabled = is_amd || is_unsupported;
+
+    let bios_oc_desc = if is_amd {
+        "AMD 平台采用 SMU 动态功耗架构，无 Intel 格式 BIOS 超频菜单".to_string()
+    } else if is_unsupported {
+        "当前机型主板或移动标压CPU未开放BIOS超频菜单".to_string()
+    } else {
+        "同步解锁 CPU 与内存超频菜单".to_string()
+    };
+
+    let (bios_oc_btn_text, bios_oc_status) = if is_amd || is_unsupported {
+        ("不支持".to_string(), 3)
+    } else if bios_status.enabled {
+        ("已开启".to_string(), 1)
+    } else if is_partial {
+        ("部分开启".to_string(), 2)
+    } else {
+        ("关闭".to_string(), 0)
+    };
+
     let payload = serde_json::json!({
         "action": "sync_tuning_state",
         "cpu_vendor": cpu_vendor,
@@ -123,7 +146,11 @@ pub fn sync_slint_tuning_state() {
         "pl2_max": 230,
         "pl4": profile.cpu_pl4_watts,
         "pl4_max": 275,
-        "bios_oc_enabled": profile.bios_oc_enabled,
+        "bios_oc_enabled": bios_status.enabled,
+        "bios_oc_desc": bios_oc_desc,
+        "bios_oc_btn_text": bios_oc_btn_text,
+        "bios_oc_status": bios_oc_status,
+        "bios_oc_disabled": bios_oc_disabled,
         "super_perf": profile.gpu_super_perf,
         "core_offset": profile.gpu_core_offset_mhz,
         "mem_offset": profile.gpu_mem_offset_mhz,

@@ -107,7 +107,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_toggle_bios_oc(move || {
         ipc::send_action_to_host("tuning_toggle_bios_oc", serde_json::json!({}));
         if let Some(ui) = ui_oc.upgrade() {
-            ui.set_bios_oc_enabled(!ui.get_bios_oc_enabled());
+            ui.set_bios_oc_btn_text("写入中...".into());
         }
     });
 
@@ -165,7 +165,26 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_toggle_link(move || {
         ipc::send_action_to_host("tuning_toggle_link", serde_json::json!({}));
         if let Some(ui) = ui_lnk.upgrade() {
-            ui.set_fan_linked(!ui.get_fan_linked());
+            let next_linked = !ui.get_fan_linked();
+            ui.set_fan_linked(next_linked);
+            if next_linked {
+                let tab = ui.get_active_fan_tab();
+                if tab == 0 {
+                    let c: Vec<i32> = ui.get_cpu_curve().iter().collect();
+                    ui.set_gpu_curve(slint::ModelRc::new(slint::VecModel::from(c.clone())));
+                    ipc::send_action_to_host("tuning_set_fan_curve", serde_json::json!({
+                        "cpu_curve": c.clone(),
+                        "gpu_curve": c,
+                    }));
+                } else {
+                    let g: Vec<i32> = ui.get_gpu_curve().iter().collect();
+                    ui.set_cpu_curve(slint::ModelRc::new(slint::VecModel::from(g.clone())));
+                    ipc::send_action_to_host("tuning_set_fan_curve", serde_json::json!({
+                        "cpu_curve": g.clone(),
+                        "gpu_curve": g,
+                    }));
+                }
+            }
         }
     });
     let ui_tab = ui_weak.clone();

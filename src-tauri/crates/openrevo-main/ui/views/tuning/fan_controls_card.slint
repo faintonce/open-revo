@@ -64,7 +64,6 @@ export component FanControlsCard inherits VerticalLayout {
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
-                            root.smooth_transition = !root.smooth_transition;
                             root.toggle_smooth();
                         }
                     }
@@ -114,7 +113,6 @@ export component FanControlsCard inherits VerticalLayout {
                 TouchArea {
                     mouse-cursor: pointer;
                     clicked => {
-                        root.fan_isolated_output = !root.fan_isolated_output;
                         root.toggle_isolated();
                     }
                 }

@@ -217,6 +217,9 @@ pub fn set_classic_webview(enabled: bool) -> Result<(), String> {
     let mut cfg = crate::system::config::load_config();
     cfg.use_classic_webview = enabled;
     crate::system::config::save_config(&cfg);
+    if enabled {
+        crate::system::osd_window::shutdown_osd_process();
+    }
     crate::log_info!("CONFIG", "use_classic_webview set to: {}", enabled);
     Ok(())
 }

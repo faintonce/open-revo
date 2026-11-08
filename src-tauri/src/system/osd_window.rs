@@ -8,7 +8,10 @@ static OSD_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
 /// Ensure the native companion OSD process is spawned and acquire direct stdin handle
 pub fn ensure_companion_process() {
     let cfg = crate::system::config::load_config();
-    if !cfg.osd_enabled {
+    if !cfg.osd_enabled || cfg.use_classic_webview {
+        if cfg.use_classic_webview {
+            shutdown_osd_process();
+        }
         return;
     }
 
@@ -72,7 +75,7 @@ static LAST_MESSAGE: Mutex<Option<(String, std::time::Instant)>> = Mutex::new(No
 /// Send a JSON instruction directly to the companion child process via anonymous stdin pipe
 pub fn send_osd_ipc_message(payload: serde_json::Value) {
     let cfg = crate::system::config::load_config();
-    if !cfg.osd_enabled {
+    if !cfg.osd_enabled || cfg.use_classic_webview {
         return;
     }
 

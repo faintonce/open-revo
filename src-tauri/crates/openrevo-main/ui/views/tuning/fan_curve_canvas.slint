@@ -56,7 +56,6 @@ export component FanCurveCanvas inherits VerticalLayout {
                 TouchArea {
                     mouse-cursor: pointer;
                     clicked => {
-                        root.fan_linked = !root.fan_linked;
                         root.toggle_link();
                     }
                 }

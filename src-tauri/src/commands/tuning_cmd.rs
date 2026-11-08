@@ -522,6 +522,7 @@ pub fn set_active_profile_id(
     } else {
         cfg.power_mode_battery = 4;
     }
+    crate::system::config::save_config(&cfg);
     if is_dc || cfg.unlock_battery_power_limit {
         cfg.power_mode = 4;
         let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
@@ -533,8 +534,8 @@ pub fn set_active_profile_id(
         } else {
             ec_state.lock().set_power_mode(4);
         }
+        let _ = crate::system::config::save_config(&cfg);
     }
-    crate::system::config::save_config(&cfg);
     Ok(target)
 }
 

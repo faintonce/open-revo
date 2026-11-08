@@ -23,6 +23,10 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <int> pl4: 126;
     in-out property <int> pl4_max: 275;
     in-out property <bool> bios_oc_enabled: true;
+    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
+    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <int> bios_oc_status: 0;
+    in-out property <bool> bios_oc_disabled: false;
 
     // GPU values
     in-out property <string> gpu_name: "NVIDIA GeForce RTX 4090 Laptop GPU";
@@ -366,6 +370,10 @@ export component DashboardCustomTuningView inherits Rectangle {
                 pl4 <=> root.pl4;
                 pl4_max <=> root.pl4_max;
                 bios_oc_enabled <=> root.bios_oc_enabled;
+                bios_oc_desc <=> root.bios_oc_desc;
+                bios_oc_btn_text <=> root.bios_oc_btn_text;
+                bios_oc_status <=> root.bios_oc_status;
+                bios_oc_disabled <=> root.bios_oc_disabled;
                 cpu_temp <=> root.cpu_temp;
                 cpu_rpm <=> root.cpu_rpm;
                 cpu_watts <=> root.cpu_watts;
