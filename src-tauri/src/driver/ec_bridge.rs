@@ -260,15 +260,37 @@ impl EcBridge {
 
     pub fn set_power_mode(&self, ui_mode: u8) {
         crate::log_info!("EC_BRIDGE", "User triggered set_power_mode: {}", ui_mode);
-        {
-            let mut c = self.cache.lock();
-            c.power_mode = ui_mode;
-            c.power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
-        }
+        self.mark_power_mode(ui_mode);
 
         thread::spawn(move || {
             crate::system::power_mode::apply_full_power_mode(ui_mode);
+            // Physical Q-key / tray / watcher entry points do not pass through
+            // the turbo command, so report the applied sub-mode once here.
+            // A failed read must not be broadcast as `silent=false`: the
+            // `physical-mode-switched` event already tells UI to re-query.
+            if ui_mode == 3 && crate::system::power::turbo_submode::is_supported() {
+                match crate::system::power::turbo_submode::current_silent() {
+                    Some(silent) => {
+                        crate::system::turbo_events::publish_turbo_submode_changed(true, silent)
+                    }
+                    None => crate::log_warn!(
+                        "EC_BRIDGE",
+                        "turbo-submode-changed skipped: sub-mode register read failed"
+                    ),
+                }
+            }
         });
+    }
+
+    /// Update the cached mode and its poller cooldown without touching hardware.
+    ///
+    /// The lock is released before returning, so callers that need a synchronous
+    /// hardware apply can call `apply_full_power_mode` afterwards without
+    /// holding the EC bridge lock.
+    pub fn mark_power_mode(&self, ui_mode: u8) {
+        let mut c = self.cache.lock();
+        c.power_mode = ui_mode;
+        c.power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
     }
 
     pub fn set_power_mode_from_hardware(&self, detected_mode: u8) {

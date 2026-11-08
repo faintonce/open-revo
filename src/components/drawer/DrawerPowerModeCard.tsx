@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { HardwareState, PowerMode } from '../../types/hardware';
 import { ModelCapabilities } from '../../plugins/plugin_manifest';
+import { useTurboSubmode } from '../../hooks/useTurboSubmode';
 import { Zap, Shield, Flame, Sliders, Snowflake } from 'lucide-react';
 
 interface DrawerPowerModeCardProps {
@@ -39,7 +40,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
       .catch(() => { });
   }, []);
   // 狂暴子模式（静音/高能）：只有能力位满足的机型才显示入口
-  const [turboSub, setTurboSub] = useState<{ supported: boolean; silent: boolean }>({ supported: false, silent: false });
+  const turboSub = useTurboSubmode();
 
   // OC 状态：初始查一次 + 跟随 gpu-clock-offsets-changed（大窗口/宿主复位时同步）
   useEffect(() => {
@@ -64,52 +65,9 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    const apply = (v: any) => {
-      if (!alive || !v) return;
-      if (typeof v.supported === 'boolean') {
-        setTurboSub({ supported: v.supported, silent: !!v.silent });
-      } else if (typeof v.silent === 'boolean') {
-        setTurboSub((s) => ({ ...s, silent: v.silent }));
-      }
-    };
-    invoke<any>('get_turbo_submode_state').then(apply).catch(() => { });
-    let unlisten: any = null;
-    let unlistenMode: any = null;
-    listen('turbo-submode-changed', (e: any) => apply(e.payload))
-      .then((f) => { unlisten = f; })
-      .catch(() => { });
-    listen('physical-mode-switched', (e: any) => {
-      if (Number(e?.payload) !== 3) return;
-      setTimeout(() => {
-        if (!alive) return;
-        invoke<any>('get_turbo_submode_state').then(apply).catch(() => { });
-      }, 1000);
-    })
-      .then((f) => { unlistenMode = f; })
-      .catch(() => { });
-    return () => {
-      alive = false;
-      try { if (unlisten) unlisten(); } catch { /* ignore */ }
-      try { if (unlistenMode) unlistenMode(); } catch { /* ignore */ }
-    };
-  }, []);
-
-  // 静音/高能 分段按钮：先确保进入狂暴档，再切换子模式
-  const applyTurboSeg = async (silent: boolean) => {
-    try {
-      if (status.power_mode !== 3) {
-        checkOemGuard(() => onSetPowerMode(3));
-        await new Promise((r) => setTimeout(r, 900));
-      }
-      const st: any = await invoke('set_turbo_submode', { silent });
-      if (st && typeof st.supported === 'boolean') {
-        setTurboSub({ supported: st.supported, silent: !!st.silent });
-      }
-    } catch (err) {
-      console.warn('[DrawerPowerModeCard] turbo submode switch failed:', err);
-    }
+  // 静音/高能 分段按钮：单次 IPC 由后端确保进入狂暴档并应用子模式
+  const applyTurboSeg = (silent: boolean) => {
+    checkOemGuard(() => { void turboSub.apply(silent); });
   };
 
   // OC 开关：文字固定 OC，开=高亮，关=普通；只跟随当前激活的狂暴子模式按钮显示
@@ -220,7 +178,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
                 <div className="turbo-seg">
                   <button
                     className={`m-btn-action turbo-seg-item${status.power_mode === 3 && turboSub.silent ? ' active' : ''}`}
-                    disabled={isRestricted}
+                    disabled={isRestricted || turboSub.busy}
                     title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : '静音狂暴：狂暴档内的安静子模式'}
                     onClick={() => { if (!isRestricted) applyTurboSeg(true); }}
                   >
@@ -232,7 +190,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
                   </button>
                   <button
                     className={`m-btn-action turbo-seg-item${status.power_mode === 3 && !turboSub.silent ? ' active' : ''}`}
-                    disabled={isRestricted}
+                    disabled={isRestricted || turboSub.busy}
                     title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : '高能狂暴：狂暴档内的高能/极限子模式'}
                     onClick={() => { if (!isRestricted) applyTurboSeg(false); }}
                   >
@@ -242,6 +200,9 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
                       {isRestricted ? '高能' : '高能狂暴'}
                     </span>
                   </button>
+                  {turboSub.error && (
+                    <div role="alert" style={{ fontSize: '10px', color: 'var(--theme-pwr)' }}>{turboSub.error}</div>
+                  )}
                 </div>
               ) : (
                 <button

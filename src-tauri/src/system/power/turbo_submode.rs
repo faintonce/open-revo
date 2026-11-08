@@ -26,6 +26,25 @@ const NEGATIVE_TTL: Duration = Duration::from_secs(5);
 
 static SUPPORT_CACHE: Mutex<Option<(bool, Instant)>> = Mutex::new(None);
 
+/// Serializes the full read-modify-write sequence on the sub-mode register.
+///
+/// Every writer (UI command, mode-3 replay, physical Q-key replay) reaches the
+/// register through `apply_silent`, so one process-wide guard is enough to keep
+/// concurrent applies ordered and stop a failure rollback from restoring a value
+/// that a later apply already replaced.
+///
+/// Lock order: this guard is always the innermost hardware lock (`POWER_MODE_LOCK`
+/// -> `APPLY_LOCK`); `current_silent` only touches the short-lived support cache
+/// mutex, so taking it after this guard cannot deadlock.
+static APPLY_LOCK: Mutex<()> = Mutex::new(());
+
+fn lock_apply() -> std::sync::MutexGuard<'static, ()> {
+    match APPLY_LOCK.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
 fn probe_once() -> (bool, String) {
     let wmi_available = crate::driver::wmi_mulong::probe_mulong_available();
     let raw = crate::driver::wmi_mulong::mulong_query_raw(CMD_SUBMODE_SUPPORT);
@@ -79,6 +98,11 @@ pub fn apply_silent(silent: bool) -> Result<(), String> {
 
     let addr = crate::hal::vault::ec::ADDR_TURBO_SUBMODE;
     let mask = MASK_TURBO_SUBMODE_BIT;
+
+    // Hold the process-wide guard for the whole read -> write -> WMI -> readback
+    // -> rollback sequence. A rollback must never write back a `prev` that
+    // another apply already superseded.
+    let _apply = lock_apply();
 
     let prev = crate::driver::wmi_ec::wmi_read_ec(addr)
         .ok_or_else(|| "读取子模式寄存器失败".to_string())?;
