@@ -173,7 +173,7 @@ pub struct AppConfig {
     pub gpu_oc_core_mhz: i32,
     #[serde(default = "default_gpu_oc_mem_mhz")]
     pub gpu_oc_mem_mhz: i32,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub balanced_gpu_dynamic_boost: bool,
     #[serde(default)]
     pub turbo_silent: bool,
@@ -521,7 +521,8 @@ impl Default for AppConfig {
             gpu_mem_offset_max: default_gpu_mem_offset_max(),
             gpu_oc_core_mhz: default_gpu_oc_core_mhz(),
             gpu_oc_mem_mhz: default_gpu_oc_mem_mhz(),
-            balanced_gpu_dynamic_boost: true,
+            // 平衡档默认关闭 Dynamic Boost：平衡档风扇转速较低，保留 DB 会让显卡高温、影响寿命（需要时可在设置里开启）
+            balanced_gpu_dynamic_boost: false,
             turbo_silent: false,
             cpu_temp_target_min: default_cpu_temp_target_min(),
             cpu_temp_target_max: default_cpu_temp_target_max(),

@@ -64,6 +64,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
   const currentModeInfo = POWER_MODES.find((m) => m.id === status.power_mode) || POWER_MODES[1];
 
+  // 平衡模式 DB 开关（决定「原厂目标 TGP」显示是否含 DB 额度）
+  const [balancedDbEnabled, setBalancedDbEnabled] = useState(false);
+
+  useEffect(() => {
+    let disposed = false;
+    const load = async () => {
+      try {
+        const cfg: any = await invoke('get_app_config');
+        if (!disposed && cfg) setBalancedDbEnabled(cfg.balanced_gpu_dynamic_boost !== false);
+      } catch { /* ignore */ }
+    };
+    load();
+    const timer = setInterval(load, 10000);
+    return () => { disposed = true; clearInterval(timer); };
+  }, []);
+
   const getDisplayPowerTarget = () => {
     const presets = status.power_presets;
     const isCustom = status.power_mode === 4;
@@ -123,7 +139,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           break;
         case 2: // Balance
           pl1 = presets.balance_pl1 > 0 ? presets.balance_pl1 : currentModeInfo.pl1;
-          tgp = presets.base_tgp > 0 ? presets.base_tgp + (presets.max_db || 0) : currentModeInfo.tgp;
+          tgp = presets.base_tgp > 0
+            ? presets.base_tgp + (balancedDbEnabled ? (presets.max_db || 0) : 0)
+            : currentModeInfo.tgp;
           break;
         case 3: // Beast
           pl1 = presets.turbo_pl1 > 0 ? presets.turbo_pl1 : currentModeInfo.pl1;
