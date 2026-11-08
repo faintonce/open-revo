@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { POWER_MODES, PowerMode } from '../types/hardware';
 import { ModelCapabilities } from '../plugins/plugin_manifest';
+import { useTurboSubmode } from '../hooks/useTurboSubmode';
 import { Shield, Zap, Flame, Snowflake, Sliders, Settings2 } from 'lucide-react';
 
 interface ModeSelectorProps {
@@ -14,9 +15,8 @@ interface ModeSelectorProps {
   onOpenCustomTuning?: () => void;
   capabilities?: ModelCapabilities;
   isThinLight?: boolean;
+  checkOemGuard?: (action: () => void) => void;
 }
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const ModeSelector: React.FC<ModeSelectorProps> = ({
   currentMode,
@@ -27,6 +27,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   onOpenCustomTuning,
   capabilities,
   isThinLight = false,
+  checkOemGuard,
 }) => {
   const isLight = isThinLight || capabilities?.form_factor === 'thin_light';
   const isUnadapted = capabilities?.is_adapted === false;
@@ -34,7 +35,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   const availableModes = POWER_MODES.filter((m) => hasCustomMode || m.id !== 4);
 
   // 狂暴子模式（静音/高能）：只有能力位满足的机型才拆成两段
-  const [turboSub, setTurboSub] = useState<{ supported: boolean; silent: boolean }>({ supported: false, silent: false });
+  const turboSub = useTurboSubmode();
   const [gcuOc, setGcuOc] = useState<{ on: boolean; busy: boolean; error: boolean }>({ on: false, busy: false, error: false });
   const [ocDefaults, setOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
 
@@ -78,53 +79,11 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    const apply = (v: any) => {
-      if (!alive || !v) return;
-      if (typeof v.supported === 'boolean') {
-        setTurboSub({ supported: v.supported, silent: !!v.silent });
-      } else if (typeof v.silent === 'boolean') {
-        setTurboSub((s) => ({ ...s, silent: v.silent }));
-      }
-    };
-    invoke<any>('get_turbo_submode_state').then(apply).catch(() => { });
-    let unlisten: any = null;
-    let unlistenMode: any = null;
-    listen('turbo-submode-changed', (e: any) => apply(e.payload))
-      .then((f) => { unlisten = f; })
-      .catch(() => { });
-    // 物理按键切档后，宿主会按记忆重新下发子模式；稍后刷新一次状态
-    listen('physical-mode-switched', (e: any) => {
-      if (Number(e?.payload) !== 3) return;
-      setTimeout(() => {
-        if (!alive) return;
-        invoke<any>('get_turbo_submode_state').then(apply).catch(() => { });
-      }, 1000);
-    })
-      .then((f) => { unlistenMode = f; })
-      .catch(() => { });
-    return () => {
-      alive = false;
-      try { if (unlisten) unlisten(); } catch { /* ignore */ }
-      try { if (unlistenMode) unlistenMode(); } catch { /* ignore */ }
-    };
-  }, []);
-
-  const applyTurboSeg = async (silent: boolean, isRestricted: boolean) => {
+  const applyTurboSeg = (silent: boolean, isRestricted: boolean) => {
     if (isRestricted) return;
-    try {
-      if (currentMode !== 3) {
-        onSelectMode(3);
-        await sleep(900);
-      }
-      const st: any = await invoke('set_turbo_submode', { silent });
-      if (st && typeof st.supported === 'boolean') {
-        setTurboSub({ supported: st.supported, silent: !!st.silent });
-      }
-    } catch (err) {
-      console.warn('[ModeSelector] turbo submode switch failed:', err);
-    }
+    const apply = () => { void turboSub.apply(silent); };
+    if (checkOemGuard) checkOemGuard(apply);
+    else apply();
   };
 
   const toggleGcuOc = async (e: React.MouseEvent) => {
@@ -204,7 +163,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
             <div key={mode.id} className="mode-seg-wrap">
               <div className="mode-seg">
                 <button
-                  disabled={disabled || isRestricted}
+                  disabled={disabled || isRestricted || turboSub.busy}
                   onClick={() => applyTurboSeg(true, isRestricted)}
                   className={`mode-btn mode-seg-btn mode-beast ${silentActive ? 'active-beast' : ''}`}
                   title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : '静音狂暴：狂暴档内的安静子模式'}
@@ -216,7 +175,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
                   <div className="mode-sub">{isRestricted ? '需圆口DC' : silentActive ? '● 当前' : '静音'}</div>
                 </button>
                 <button
-                  disabled={disabled || isRestricted}
+                  disabled={disabled || isRestricted || turboSub.busy}
                   onClick={() => applyTurboSeg(false, isRestricted)}
                   className={`mode-btn mode-seg-btn mode-beast ${extremeActive ? 'active-beast' : ''}`}
                   title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : '高能狂暴：狂暴档内的高能/极限子模式'}
@@ -228,6 +187,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
                   <div className="mode-sub">{isRestricted ? '需圆口DC' : extremeActive ? '● 当前' : '高能'}</div>
                 </button>
               </div>
+              {turboSub.error && <div role="alert" className="mode-sub">{turboSub.error}</div>}
             </div>
           );
         }

@@ -34,5 +34,6 @@ pub mod watcher_hub;
 pub mod plugin_storage;
 pub mod cloud_icc;
 pub mod native_wry;
+pub mod turbo_events;
 
 pub use openrevo_core::system::config_io;

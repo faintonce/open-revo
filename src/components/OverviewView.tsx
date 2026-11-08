@@ -182,6 +182,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           unlockBatteryLimit={status.unlock_battery_power_limit}
           onSelectMode={(mode) => checkOemGuard(() => onSetPowerMode(mode))}
           onOpenCustomTuning={() => checkOemGuard(onOpenCustomTuning)}
+          checkOemGuard={checkOemGuard}
         />
       </div>
 
