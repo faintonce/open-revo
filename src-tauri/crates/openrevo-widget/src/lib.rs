@@ -1,5 +1,7 @@
 pub use slint_interpreter;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use slint::ComponentHandle;
 use slint_interpreter::Compiler;
 
@@ -205,51 +207,73 @@ pub fn run_widget_embedded(plugin_id: &str, parent_hwnd_raw: isize, rect: (i32, 
         return;
     };
 
+    // Show instance first to trigger Winit window creation
     let _ = instance.show();
 
-    #[cfg(target_os = "windows")]
-    unsafe {
-        if let Some(child_hwnd) = find_thread_hwnd() {
-            let parent_hwnd = HWND(parent_hwnd_raw as *mut _);
+    // Setup repeated timer to reliably capture child HWND and apply Win32 parent attachment
+    let timer = slint::Timer::default();
+    let applied = Arc::new(Mutex::new(false));
+    let applied_clone = applied.clone();
+    let parent_raw = parent_hwnd_raw;
 
-            // 1. Strip top-level chrome styles and convert to child window
-            let style = GetWindowLongW(child_hwnd, GWL_STYLE) as u32;
-            let remove_mask = WS_POPUP.0 | WS_CAPTION.0 | WS_THICKFRAME.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0;
-            let new_style = ((style & !remove_mask) | WS_CHILD.0 | WS_VISIBLE.0 | WS_CLIPSIBLINGS.0 | WS_CLIPCHILDREN.0) as i32;
-            let _ = SetWindowLongW(child_hwnd, GWL_STYLE, new_style);
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(10),
+        move || {
+            let mut done = applied_clone.lock().unwrap();
+            if !*done {
+                #[cfg(target_os = "windows")]
+                if let Some(child_hwnd) = find_thread_hwnd() {
+                    unsafe {
+                        let parent_hwnd = HWND(parent_raw as *mut _);
+                        if parent_raw != 0 && IsWindow(parent_hwnd).as_bool() {
+                            // 1. Strip top-level chrome styles and convert to child window
+                            let style = GetWindowLongW(child_hwnd, GWL_STYLE) as u32;
+                            let remove_mask = WS_POPUP.0 | WS_CAPTION.0 | WS_THICKFRAME.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0;
+                            let new_style = ((style & !remove_mask) | WS_CHILD.0 | WS_VISIBLE.0 | WS_CLIPSIBLINGS.0 | WS_CLIPCHILDREN.0) as i32;
+                            let _ = SetWindowLongW(child_hwnd, GWL_STYLE, new_style);
 
-            let ex_style = GetWindowLongW(child_hwnd, GWL_EXSTYLE) as u32;
-            let remove_ex = WS_EX_APPWINDOW.0 | WS_EX_TOOLWINDOW.0;
-            let new_ex_style = ((ex_style & !remove_ex) | WS_EX_CONTROLPARENT.0) as i32;
-            let _ = SetWindowLongW(child_hwnd, GWL_EXSTYLE, new_ex_style);
+                            let ex_style = GetWindowLongW(child_hwnd, GWL_EXSTYLE) as u32;
+                            let remove_ex = WS_EX_APPWINDOW.0 | WS_EX_TOOLWINDOW.0;
+                            let new_ex_style = ((ex_style & !remove_ex) | WS_EX_CONTROLPARENT.0) as i32;
+                            let _ = SetWindowLongW(child_hwnd, GWL_EXSTYLE, new_ex_style);
 
-            // 2. Attach into host parent window
-            let _ = SetParent(child_hwnd, parent_hwnd);
+                            // 2. Attach into host parent window
+                            let _ = SetParent(child_hwnd, parent_hwnd);
 
-            // 3. Position and size to fit the container space
-            let _ = SetWindowPos(
-                child_hwnd,
-                None,
-                rect.0,
-                rect.1,
-                rect.2,
-                rect.3,
-                SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW,
-            );
-            let _ = ShowWindow(child_hwnd, SW_SHOW);
+                            // 3. Position and size to fit the container space
+                            let _ = SetWindowPos(
+                                child_hwnd,
+                                None,
+                                rect.0,
+                                rect.1,
+                                rect.2,
+                                rect.3,
+                                SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW,
+                            );
+                            let _ = ShowWindow(child_hwnd, SW_SHOW);
 
-            // 4. Background watcher thread to listen for parent window close
-            let parent_raw = parent_hwnd_raw;
-            std::thread::spawn(move || {
-                loop {
-                    std::thread::sleep(std::time::Duration::from_millis(500));
-                    if !IsWindow(HWND(parent_raw as *mut _)).as_bool() {
-                        std::process::exit(0);
+                            println!("[Slint Embedded] Child HWND 0x{:X} successfully docked into parent 0x{:X}", child_hwnd.0 as usize, parent_raw);
+                            *done = true;
+                        }
                     }
                 }
-            });
+            }
+        },
+    );
+
+    // Background watcher thread to listen for parent window close
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(Duration::from_millis(500));
+            #[cfg(target_os = "windows")]
+            unsafe {
+                if parent_raw != 0 && !IsWindow(HWND(parent_raw as *mut _)).as_bool() {
+                    std::process::exit(0);
+                }
+            }
         }
-    }
+    });
 
     println!("[Slint Embedded] Running embedded instance for '{}'", plugin_id);
     let _ = instance.run();
