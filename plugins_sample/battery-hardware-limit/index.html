@@ -537,30 +537,54 @@
       color: var(--text-primary);
     }
 
+    .lab-accordion {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      overflow: hidden;
+    }
+
     .lab-body {
-      padding: 16px 18px;
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       border-top: 1px solid var(--border-subtle);
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }
 
     .lab-form-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px 12px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .lab-field {
       display: flex;
       flex-direction: column;
       gap: 5px;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .lab-label {
       font-size: 10.5px;
       color: var(--text-dim);
       font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .lab-input,
@@ -573,11 +597,28 @@
       color: var(--text-primary);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       outline: none;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
     }
 
     .lab-input:focus,
     .lab-select:focus {
       border-color: var(--border-accent);
+    }
+
+    .lab-footer-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .console-box {
@@ -588,6 +629,16 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 11px;
       color: #38bdf8;
+      max-height: 160px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.45;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
       max-height: 160px;
       overflow-y: auto;
       white-space: pre-wrap;
@@ -809,40 +860,40 @@
       <div id="labBody" class="lab-body" style="display: none;">
         <div class="lab-form-grid">
           <div class="lab-field">
-            <label class="lab-label">限充生效工作模式 (Mode)</label>
+            <label class="lab-label" title="限充生效工作模式">生效工作模式 (Mode)</label>
             <select id="paramMode" class="lab-select" onchange="updateLabConfig()">
-              <option value="pin" selected>持续锁定守护 (Pin & Keep-Alive，现代机型有效)</option>
-              <option value="pulse">传统脉冲触发法 (Pulse Trigger，老款固件 NVRAM 备用)</option>
+              <option value="pin" selected>持续锁定守护 (Pin & Keep-Alive)</option>
+              <option value="pulse">脉冲存储法 (Pulse NVRAM 兼容)</option>
             </select>
           </div>
           <div class="lab-field">
-            <label class="lab-label">通信总线协议 (Protocol)</label>
+            <label class="lab-label" title="通信总线协议">总线协议 (Protocol)</label>
             <select id="paramProtocol" class="lab-select" onchange="updateLabConfig()">
-              <option value="TongfangDirectEc">TongfangDirectEc (Uniwill / uwacpidriver 原厂直连)</option>
-              <option value="GenericAcpiWmi">GenericAcpiWmi (ACPI MULONG 邮箱)</option>
-              <option value="BldWmiMailbox">BldWmiMailbox (宝龙达双阈值帧)</option>
+              <option value="TongfangDirectEc">TongfangDirectEc (原厂直连)</option>
+              <option value="GenericAcpiWmi">GenericAcpiWmi (ACPI 邮箱)</option>
+              <option value="BldWmiMailbox">BldWmiMailbox (宝龙达双阈值)</option>
             </select>
           </div>
           <div class="lab-field">
-            <label class="lab-label">门控开门策略 (Gate Strategy)</label>
-            <div style="display: flex; gap: 6px;">
-              <select id="paramGateStrategy" class="lab-select" style="flex: 1;" onchange="onGateSelectChange()">
-                <option value="auto" selected>智能自适应 (0x04 优先，失败自动试 0x05)</option>
-                <option value="4">强制 0x04 (雷神 RS / 无界 / 轻薄本)</option>
-                <option value="5">强制 0x05 (部分老款游戏本)</option>
+            <label class="lab-label" title="门控开门策略">开门策略 (Gate Strategy)</label>
+            <div style="display: flex; gap: 6px; min-width: 0;">
+              <select id="paramGateStrategy" class="lab-select" style="flex: 1; min-width: 0;" onchange="onGateSelectChange()">
+                <option value="auto" selected>智能自适应 (0x04 / 0x05)</option>
+                <option value="4">强制 0x04 (轻薄/现代机型)</option>
+                <option value="5">强制 0x05 (游戏本/老款)</option>
                 <option value="custom">自定义数值...</option>
               </select>
               <input id="paramGateCustomInput" class="lab-input" type="text" placeholder="0x04"
-                style="width: 65px; display: none;" onchange="updateLabConfig()" />
+                style="width: 55px; flex-shrink: 0; display: none;" onchange="updateLabConfig()" />
             </div>
           </div>
           <div class="lab-field">
-            <label class="lab-label">心跳守护间隔 (Keep-Alive Interval Ms)</label>
+            <label class="lab-label">守护间隔 (Keep-Alive Ms)</label>
             <input id="paramKeepaliveInterval" class="lab-input" type="number" value="4000" step="500" min="1000" max="15000"
               onchange="updateLabConfig()" />
           </div>
           <div class="lab-field">
-            <label class="lab-label">脉冲保持时间 (Pulse Hold Ms，仅脉冲模式生效)</label>
+            <label class="lab-label">脉冲保持 (Pulse Hold Ms)</label>
             <input id="paramPulseHold" class="lab-input" type="number" value="2500" step="100" min="1000" max="8000"
               onchange="updateLabConfig()" />
           </div>
@@ -861,12 +912,12 @@
               onchange="updateLabConfig()" />
           </div>
           <div class="lab-field">
-            <label class="lab-label">备份原厂平台码 (Factory Backup)</label>
+            <label class="lab-label">原厂平台码 (Factory Backup)</label>
             <input id="paramOrigPlat" class="lab-input" type="text" value="0x07" readonly style="opacity: 0.75;" />
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div class="lab-footer-bar">
           <span style="font-size: 11px; color: var(--text-dim);">底层执行控制台输出与通讯帧诊断：</span>
           <button class="btn btn-sm" onclick="exportManifestConfig()">
             📋 导出当前机型配置为 manifest.json 片段
@@ -1553,10 +1604,11 @@
 
     function updateTelemetry(data) {
       if (!data) return;
-      if (typeof data.battery_percent === 'number') {
-        document.getElementById('statBatteryPct').textContent = data.battery_percent;
+      const pct = data.battery_level ?? data.battery_percent ?? data.batteryLevel;
+      if (typeof pct === 'number' && !isNaN(pct) && pct >= 0 && pct <= 100) {
+        document.getElementById('statBatteryPct').textContent = pct;
       }
-      const isAc = data.is_ac_online ?? true;
+      const isAc = data.is_ac_online ?? (data.is_dc_online !== false);
       document.getElementById('statAcPill').textContent = isAc ? '🔌 外部适配器已连接' : '🔋 电池供电中';
 
       const isCharging = data.is_charging ?? false;
@@ -1572,6 +1624,37 @@
       } else {
         chargeDot.className = 'indicator-dot warn';
         chargeText.textContent = '未充电 (已达上限或满电)';
+      }
+    }
+
+    function initBatteryProbe() {
+      // 1. 标准 Web Battery API (Chromium / WebView2 毫秒级原生支持)
+      if (typeof navigator.getBattery === 'function') {
+        navigator.getBattery().then(function (battery) {
+          applyBatteryNav(battery);
+          battery.addEventListener('levelchange', function () { applyBatteryNav(battery); });
+          battery.addEventListener('chargingchange', function () { applyBatteryNav(battery); });
+        }).catch(function () {});
+      }
+
+      // 2. 主动拉取宿主硬件状态
+      callRpc('get_hardware_status').then(function (res) {
+        if (res) updateTelemetry(res);
+      }).catch(function () {});
+    }
+
+    function applyBatteryNav(battery) {
+      if (!battery) return;
+      const pct = Math.round((battery.level || 0) * 100);
+      if (pct >= 0 && pct <= 100) {
+        document.getElementById('statBatteryPct').textContent = pct;
+      }
+      const isCharging = battery.charging;
+      const chargeDot = document.getElementById('statChargeDot');
+      const chargeText = document.getElementById('statChargeText');
+      if (isCharging) {
+        chargeDot.className = 'indicator-dot active';
+        chargeText.textContent = '正在充电中...';
       }
     }
 
@@ -1620,6 +1703,7 @@
 
     // --- 初始化监听 ---
     window.addEventListener('DOMContentLoaded', async () => {
+      initBatteryProbe();
       await loadPluginStorage();
       await refreshHardwareState();
 

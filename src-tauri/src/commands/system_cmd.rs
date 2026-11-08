@@ -49,6 +49,12 @@ pub struct HardwareState {
     pub model_name: String,
     pub power_presets: FactoryPowerPresets,
     pub is_dc_online: bool,
+    #[serde(default)]
+    pub battery_level: u8,
+    #[serde(default)]
+    pub is_charging: bool,
+    #[serde(default)]
+    pub is_ac_online: bool,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
     #[serde(default)]
@@ -145,6 +151,7 @@ pub fn collect_hardware_state(
     let oem_installed = process::is_oem_installed();
     let is_intel_13_14_gen = cpu.is_intel_13_14_gen();
     let autostart_enabled = autostart::is_autostart_enabled_cached();
+    let (battery_level, is_ac_online, is_charging) = crate::commands::power_cmd::get_live_power_status();
 
     let cfg = crate::system::config::load_config();
 
@@ -185,6 +192,9 @@ pub fn collect_hardware_state(
         model_name: get_machine_model(),
         power_presets: get_factory_power_presets(has_gpu),
         is_dc_online: is_dc_round_plugged_in(),
+        battery_level,
+        is_charging,
+        is_ac_online,
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
         balanced_gpu_dynamic_boost: cfg.balanced_gpu_dynamic_boost,
