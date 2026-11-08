@@ -8,6 +8,8 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
     match action {
         "open_custom_tuning" => {
             crate::log_info!("SLINT_MAIN", "User requested custom tuning sub-panel");
+            sync_slint_tuning_state();
+            sync_slint_display_state();
             true
         }
         "tuning_back_to_overview" => {
@@ -59,9 +61,23 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             true
         }
         "tuning_toggle_bios_oc" => {
-            mutate_active_preset_profile(|p| p.bios_oc_enabled = !p.bios_oc_enabled);
-            let cfg = crate::system::config::load_config();
-            let _ = crate::driver::uefi_nvram::write_bios_advanced_menu_status(cfg.custom_profile.bios_oc_enabled);
+            let bios_status = crate::driver::uefi_nvram::read_bios_advanced_menu_status();
+            if bios_status.hardware_read && !bios_status.supported {
+                crate::log_warn!("BIOS_OC", "Hardware does not support BIOS OC menu, blocked");
+            } else {
+                let next_val = !bios_status.enabled;
+                crate::log_info!("BIOS_OC", "User toggling BIOS advanced menu to {}", next_val);
+                match crate::driver::uefi_nvram::write_bios_advanced_menu_status(next_val) {
+                    Ok(new_status) => {
+                        crate::log_info!("BIOS_OC", "Successfully wrote BIOS advanced menu to {}, readback enabled={}", next_val, new_status.enabled);
+                        mutate_active_preset_profile(|p| p.bios_oc_enabled = new_status.enabled);
+                    }
+                    Err(e) => {
+                        crate::log_error!("BIOS_OC", "Failed to write BIOS advanced menu: {}", e);
+                    }
+                }
+            }
+            sync_slint_tuning_state();
             true
         }
         "tuning_toggle_super_perf" => {
@@ -191,14 +207,33 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "tuning_select_preset" => {
             if let Some(id) = val.get("id").and_then(|v| v.as_str()) {
-                if let Some(app) = app {
-                    let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
-                    let _ = crate::commands::tuning_cmd::set_active_profile_id(id.to_string(), ec_state);
+                let ec = if let Some(app) = app {
+                    app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
                 } else {
-                    let mut cfg = crate::system::config::load_config();
-                    cfg.active_profile_id = id.to_string();
-                    let _ = crate::system::config::save_config(&cfg);
+                    crate::driver::ec_bridge::get_global_ec()
+                };
+                match crate::commands::tuning_cmd::set_active_profile_id_internal(id.to_string(), &ec) {
+                    Ok(preset) => {
+                        if ec.lock().get_power_mode() == 4
+                            && (preset.profile.fan_isolated_output || preset.profile.fan_curve_enabled)
+                        {
+                            let app_clone = app.cloned();
+                            let c_clone = preset.profile.cpu_fan_curve.clone();
+                            let g_clone = preset.profile.gpu_fan_curve.clone();
+                            std::thread::spawn(move || {
+                                let _ = crate::commands::tuning_cmd::apply_fan_curve_live_internal(
+                                    app_clone.as_ref(),
+                                    c_clone,
+                                    g_clone,
+                                );
+                            });
+                        }
+                    }
+                    Err(error) => {
+                        crate::log_warn!("TUNING", "Preset selection failed for {}: {}", id, error);
+                    }
                 }
+
                 sync_slint_tuning_state();
                 sync_slint_display_state();
             }
@@ -236,6 +271,29 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                         if let Err(error) = crate::commands::tuning_cmd::sync_custom_profile_to_declarative_hardware(&target.profile) {
                             crate::log_warn!("TUNING_RESET", "Custom profile synchronization failed: {}", error);
                         }
+                    }
+                    let ec = if let Some(app) = app {
+                        app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
+                    } else {
+                        crate::driver::ec_bridge::get_global_ec()
+                    };
+                    if let Err(error) = crate::commands::power_cmd::set_power_mode_internal(4, app, &ec) {
+                        crate::log_warn!("TUNING_RESET", "Custom mode apply after reset failed: {}", error);
+                    }
+
+                    if ec.lock().get_power_mode() == 4
+                        && (target_profile.fan_isolated_output || target_profile.fan_curve_enabled)
+                    {
+                        let app_clone = app.cloned();
+                        let c_clone = target_profile.cpu_fan_curve.clone();
+                        let g_clone = target_profile.gpu_fan_curve.clone();
+                        std::thread::spawn(move || {
+                            let _ = crate::commands::tuning_cmd::apply_fan_curve_live_internal(
+                                app_clone.as_ref(),
+                                c_clone,
+                                g_clone,
+                            );
+                        });
                     }
                 }
                 Err(e) => {

@@ -280,6 +280,7 @@ export component FullDashboard inherits Rectangle {
     in-out property <int> power_mode: 2;
     in-out property <int> pl1_target: 75;
     in-out property <int> tgp_target: 175;
+    in-out property <string> power_target_text: "";
     callback set_power_mode(int);
     callback open_custom_tuning();
 
@@ -387,6 +388,10 @@ export component FullDashboard inherits Rectangle {
     in-out property <int> pl4: 126;
     in-out property <int> pl4_max: 275;
     in-out property <bool> bios_oc_enabled: true;
+    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
+    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <int> bios_oc_status: 0;
+    in-out property <bool> bios_oc_disabled: false;
 
     in-out property <bool> super_perf: true;
     in-out property <int> core_offset: 0;
@@ -595,6 +600,7 @@ export component FullDashboard inherits Rectangle {
                 power_mode: root.power_mode;
                 pl1_target: root.pl1_target;
                 tgp_target: root.tgp_target;
+                power_target_text: root.power_target_text;
                 set_power_mode(mode) => { root.set_power_mode(mode); }
                 open_custom_tuning => {
                     root.is_in_tuning_view = true;
@@ -667,6 +673,10 @@ export component FullDashboard inherits Rectangle {
                 pl4 <=> root.pl4;
                 pl4_max <=> root.pl4_max;
                 bios_oc_enabled <=> root.bios_oc_enabled;
+                bios_oc_desc <=> root.bios_oc_desc;
+                bios_oc_btn_text <=> root.bios_oc_btn_text;
+                bios_oc_status <=> root.bios_oc_status;
+                bios_oc_disabled <=> root.bios_oc_disabled;
 
                 // GPU
                 super_perf <=> root.super_perf;

@@ -47,6 +47,7 @@ export interface HardwareState {
   cpu_power_w?: number;      // CPU package real-time power (W)
   gpu_power_w?: number;      // GPU real-time power draw (W)
   gpu_tuning_caps?: GpuTuningCapabilities; // Multi-generation GPU tuning & DB/cTGP capabilities
+  balanced_gpu_dynamic_boost?: boolean; // Whether Dynamic Boost is enabled in balanced mode
 }
 
 export interface GpuTuningCapabilities {

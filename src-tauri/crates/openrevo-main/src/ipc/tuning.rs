@@ -64,6 +64,18 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(boc) = val.get("bios_oc_enabled").and_then(|v| v.as_bool()) {
                 ui.set_bios_oc_enabled(boc);
             }
+            if let Some(desc) = val.get("bios_oc_desc").and_then(|v| v.as_str()) {
+                ui.set_bios_oc_desc(desc.into());
+            }
+            if let Some(btn) = val.get("bios_oc_btn_text").and_then(|v| v.as_str()) {
+                ui.set_bios_oc_btn_text(btn.into());
+            }
+            if let Some(st) = val.get("bios_oc_status").and_then(|v| v.as_i64()) {
+                ui.set_bios_oc_status(st as i32);
+            }
+            if let Some(dis) = val.get("bios_oc_disabled").and_then(|v| v.as_bool()) {
+                ui.set_bios_oc_disabled(dis);
+            }
 
             if let Some(sp) = val.get("super_perf").and_then(|v| v.as_bool()) {
                 ui.set_super_perf(sp);

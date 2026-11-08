@@ -90,14 +90,19 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             } else {
                 crate::driver::ec_bridge::get_global_ec()
             };
-                if let Err(error) = crate::commands::power_cmd::set_power_mode_internal(mode, app, &ec) {
-                    crate::log_warn!("SLINT", "Performance mode change failed: {}", error);
-                    let current = ec.lock().get_power_mode();
-                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
-                        "action": "sync_state", "power_mode": current
-                    }));
-                }
+                let confirmed_mode = match crate::commands::power_cmd::set_power_mode_internal(mode, app, &ec) {
+                    Ok(()) => mode,
+                    Err(error) => {
+                        crate::log_warn!("SLINT", "Performance mode change failed: {}", error);
+                        let current = ec.lock().get_power_mode();
+                        crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                            "action": "sync_state", "power_mode": current
+                        }));
+                        current
+                    }
+                };
                 sync_slint_power_state();
+                super::super::sync::sync_slint_power_targets(confirmed_mode);
             }
             true
         }

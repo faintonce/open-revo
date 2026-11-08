@@ -69,10 +69,14 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "mini" => false,
                         _ => cfg.last_window_expanded,
                     };
+                    let (init_pl1, init_tgp, init_power_text) = sync::get_current_power_targets(cfg.power_mode);
                     let line = format!("{}\n", serde_json::json!({
                         "action": "sync_state",
                         "app_version": format!("v{}", env!("CARGO_PKG_VERSION")),
                         "power_mode": cfg.power_mode,
+                        "pl1_target": init_pl1,
+                        "tgp_target": init_tgp,
+                        "power_target_text": init_power_text,
                         "gpu_mode": cfg.gpu_mode,
                         "refresh_rate": cfg.refresh_rate,
                         "auto_min_hz": cfg.auto_min_refresh_on_battery,

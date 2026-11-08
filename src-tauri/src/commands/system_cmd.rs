@@ -52,6 +52,8 @@ pub struct HardwareState {
     pub high_power_modes_available: bool,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
+    #[serde(default)]
+    pub balanced_gpu_dynamic_boost: bool,
 }
 
 pub fn get_machine_model() -> String {
@@ -191,6 +193,7 @@ pub fn collect_hardware_state(
         ).is_ok(),
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
+        balanced_gpu_dynamic_boost: cfg.balanced_gpu_dynamic_boost,
     }
 }
 
@@ -223,6 +226,9 @@ pub fn set_classic_webview(enabled: bool) -> Result<(), String> {
     let mut cfg = crate::system::config::load_config();
     cfg.use_classic_webview = enabled;
     crate::system::config::save_config(&cfg);
+    if enabled {
+        crate::system::osd_window::shutdown_osd_process();
+    }
     crate::log_info!("CONFIG", "use_classic_webview set to: {}", enabled);
     Ok(())
 }

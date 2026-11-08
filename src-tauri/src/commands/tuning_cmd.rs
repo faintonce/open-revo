@@ -505,10 +505,9 @@ pub fn get_active_profile_id() -> Result<String, String> {
     Ok(crate::system::config::load_config().active_profile_id)
 }
 
-#[tauri::command(async)]
-pub fn set_active_profile_id(
+pub fn set_active_profile_id_internal(
     id: String,
-    ec_state: State<'_, SharedEcBridge>,
+    ec_state: &SharedEcBridge,
 ) -> Result<crate::system::config::CustomProfilePreset, String> {
     let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     let profiles = crate::system::config::list_profiles();
@@ -533,6 +532,14 @@ pub fn set_active_profile_id(
         crate::system::config::try_save_config(&cfg)?;
     }
     Ok(target)
+}
+
+#[tauri::command(async)]
+pub fn set_active_profile_id(
+    id: String,
+    ec_state: State<'_, SharedEcBridge>,
+) -> Result<crate::system::config::CustomProfilePreset, String> {
+    set_active_profile_id_internal(id, &ec_state)
 }
 
 #[tauri::command]

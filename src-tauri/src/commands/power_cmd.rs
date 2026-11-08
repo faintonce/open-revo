@@ -242,6 +242,17 @@ pub fn set_power_mode_internal(
     app: Option<&AppHandle>,
     ec_state: &SharedEcBridge,
 ) -> Result<(), String> {
+    set_power_mode_internal_with(mode, app, ec_state, |_| {})
+}
+
+/// Shared mode entry point. `prepare` adjusts the pending settings before the
+/// hardware apply; none of them is saved unless the hardware confirms the mode.
+fn set_power_mode_internal_with(
+    mode: u8,
+    app: Option<&AppHandle>,
+    ec_state: &SharedEcBridge,
+    prepare: impl FnOnce(&mut crate::system::config::AppConfig),
+) -> Result<(), String> {
     let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     let mut cfg = crate::system::config::load_config();
     crate::system::config::ensure_config_writable()?;
@@ -251,6 +262,7 @@ pub fn set_power_mode_internal(
     } else {
         cfg.power_mode_battery = mode;
     }
+    prepare(&mut cfg);
     ec_state.lock().set_power_mode_with_config(&cfg)?;
     publish_power_mode(app, mode);
     Ok(())
@@ -985,13 +997,83 @@ pub fn get_turbo_submode_state() -> TurboSubmodeState {
     TurboSubmodeState { supported, silent }
 }
 
+/// Apply the requested sub-mode, emit the confirmed state, and persist it only
+/// after the hardware confirms.
+fn apply_turbo_submode_and_persist(silent: bool) -> Result<TurboSubmodeState, String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+    crate::system::power::turbo_submode::apply_silent(silent)?;
+    // `apply_silent` already verified the EC readback against `silent`, so the
+    // confirmed state is known here; broadcast it before attempting config I/O
+    // so surfaces stay truthful to hardware even if saving settings fails.
+    let state = TurboSubmodeState {
+        // `apply_silent` only returns Ok when `is_supported()` was true.
+        supported: true,
+        silent,
+    };
+    emit_confirmed_turbo_submode(&state);
+    let mut cfg = crate::system::config::load_config();
+    if cfg.turbo_silent != silent {
+        cfg.turbo_silent = silent;
+        crate::system::config::try_save_config(&cfg).map_err(|error| {
+            format!(
+                "Turbo sub-mode control was acknowledged, but saving settings failed: {error}"
+            )
+        })?;
+    }
+    Ok(state)
+}
+
+/// Publish a state the EC already confirmed via `apply_silent`'s readback.
+///
+/// No extra hardware read and no `silent=false` fallback: the caller only
+/// reaches this point after `apply_silent` matched the register readback, so a
+/// read failure has already turned into an `Err` and never lights up 高能狂暴.
+fn emit_confirmed_turbo_submode(state: &TurboSubmodeState) {
+    crate::system::turbo_events::publish_turbo_submode_changed(state.supported, state.silent);
+}
+
 #[tauri::command]
 pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
-    crate::system::power::turbo_submode::apply_silent(silent)?;
-    let mut cfg = crate::system::config::load_config();
-    cfg.turbo_silent = silent;
-    crate::system::config::save_config(&cfg);
-    Ok(get_turbo_submode_state())
+    apply_turbo_submode_and_persist(silent)
+}
+
+/// Single UI intent for 狂暴 mode: ensure mode 3, then apply the sub-mode.
+///
+/// Entering mode 3 applies `turbo_silent` inside the same confirmed hardware
+/// sequence (`ec_mode` replays it after the fan table), so the target is handed
+/// to that sequence and saved together with the mode only after the hardware
+/// acknowledges it. A rejected or failed switch leaves the stored preference
+/// untouched. The event is emitted only after the hardware apply/readback
+/// succeeded.
+#[tauri::command(async)]
+pub fn apply_turbo_profile(
+    silent: bool,
+    app: AppHandle,
+    ec_state: State<'_, SharedEcBridge>,
+) -> Result<TurboSubmodeState, String> {
+    if !crate::system::power::turbo_submode::is_supported() {
+        return Err("当前硬件平台不支持狂暴子模式".to_string());
+    }
+
+    // Keep the mode check and the sub-mode write in one mode decision so a
+    // concurrent mode change cannot slip in between them.
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+    let current_mode = ec_state.lock().get_power_mode();
+
+    if current_mode != 3 {
+        // The bridge publishes the confirmed sub-mode for every mode-3 entry,
+        // so no second event is sent here.
+        set_power_mode_internal_with(3, Some(&app), &ec_state, |cfg| {
+            cfg.turbo_silent = silent;
+        })?;
+        return Ok(TurboSubmodeState {
+            supported: true,
+            silent,
+        });
+    }
+
+    // A failure before hardware confirmation emits nothing and keeps the previous preference.
+    apply_turbo_submode_and_persist(silent)
 }
 
 

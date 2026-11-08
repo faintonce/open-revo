@@ -308,6 +308,22 @@ impl EcBridge {
         }
         if confirmed {
             crate::update_tray_power_mode(mode);
+            // Physical Q-key / tray / watcher / UI mode changes all reach the
+            // hardware through `apply_power_mode`, so report the applied
+            // sub-mode once per confirmed mode-3 entry. A failed read must not
+            // be broadcast as `silent=false`: the `physical-mode-switched`
+            // event already tells UI to re-query.
+            if mode == 3 && crate::system::power::turbo_submode::is_supported() {
+                match crate::system::power::turbo_submode::current_silent() {
+                    Some(silent) => {
+                        crate::system::turbo_events::publish_turbo_submode_changed(true, silent)
+                    }
+                    None => crate::log_warn!(
+                        "EC_BRIDGE",
+                        "turbo-submode-changed skipped: sub-mode register read failed"
+                    ),
+                }
+            }
         }
         if !confirmed {
             return result.map_err(|error| error.message);

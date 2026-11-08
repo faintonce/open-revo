@@ -71,6 +71,9 @@ pub(super) fn apply_ec_hardware_mode_with_config(
                 crate::driver::bld_driver_mgr::restore_bld_fan_auto();
             }
         }
+        if ui_mode == 3 && crate::system::power::turbo_submode::is_supported() {
+            crate::system::power::turbo_submode::apply_silent(config.turbo_silent)?;
+        }
         return Ok(());
     }
 

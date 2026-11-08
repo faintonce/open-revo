@@ -1,7 +1,7 @@
 use crate::MainWindow;
 
 pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
-    if action != "telemetry" {
+    if action != "telemetry" && action != "power_targets" {
         return false;
     }
 
@@ -55,6 +55,15 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     }
     if let Some(pm) = val.get("power_mode").and_then(|v| v.as_i64()) {
         ui.set_power_mode(pm as i32);
+    }
+    if let Some(pl1) = val.get("pl1_target").and_then(|v| v.as_i64()) {
+        ui.set_pl1_target(pl1 as i32);
+    }
+    if let Some(tgp) = val.get("tgp_target").and_then(|v| v.as_i64()) {
+        ui.set_tgp_target(tgp as i32);
+    }
+    if let Some(txt) = val.get("power_target_text").and_then(|v| v.as_str()) {
+        ui.set_power_target_text(txt.into());
     }
     if let Some(fb) = val.get("fan_boost").and_then(|v| v.as_bool()) {
         ui.set_fan_boost(fb);

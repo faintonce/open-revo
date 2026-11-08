@@ -133,6 +133,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 let mut cfg = crate::system::config::load_config();
                 cfg.balanced_gpu_dynamic_boost = en;
                 let _ = crate::system::config::save_config(&cfg);
+                super::super::sync::sync_slint_power_targets(cfg.power_mode);
             }
             true
         }

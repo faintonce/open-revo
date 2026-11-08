@@ -98,6 +98,10 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                         );
                     } else {
                         crate::log_warn!("PLUGINS", "Cannot dock plugin '{}': Slint HWND is 0", pid);
+                        super::super::send_slint_ipc_message(serde_json::json!({
+                            "action": "set_active_plugin_id",
+                            "plugin_id": ""
+                        }));
                     }
                 }
             }
