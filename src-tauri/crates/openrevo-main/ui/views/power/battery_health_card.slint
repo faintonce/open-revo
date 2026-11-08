@@ -40,7 +40,7 @@ export component BatteryHealthCard inherits Rectangle {
                 horizontal-stretch: 13;
                 spacing: 6px;
 
-                // Mode 1: 长效模式 (100%)
+                // Mode 1: 长效模式
                 Rectangle {
                     height: 44px;
                     border-radius: 6px;
@@ -83,7 +83,7 @@ export component BatteryHealthCard inherits Rectangle {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: "长效模式 (100% 满充)";
+                                text: "长效模式";
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: (root.battery_mode == "long_life" || root.battery_limit == 100) ? #10b981 : AppTheme.text_primary;
@@ -97,7 +97,7 @@ export component BatteryHealthCard inherits Rectangle {
                     }
                 }
 
-                // Mode 2: 平衡模式 (80%)
+                // Mode 2: 平衡模式
                 Rectangle {
                     height: 44px;
                     border-radius: 6px;
@@ -140,7 +140,7 @@ export component BatteryHealthCard inherits Rectangle {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: "平衡模式 (80% 养护)";
+                                text: "平衡模式";
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: (root.battery_mode == "balance" || root.battery_limit == 80) ? #3b82f6 : AppTheme.text_primary;
@@ -154,7 +154,7 @@ export component BatteryHealthCard inherits Rectangle {
                     }
                 }
 
-                // Mode 3: 工作站模式 (60%)
+                // Mode 3: 工作站模式
                 Rectangle {
                     height: 44px;
                     border-radius: 6px;
@@ -197,7 +197,7 @@ export component BatteryHealthCard inherits Rectangle {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: "工作站模式 (60% 养护)";
+                                text: "工作站模式";
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: (root.battery_mode == "station" || root.battery_limit == 60) ? #06b6d4 : AppTheme.text_primary;
