@@ -2206,7 +2206,7 @@ dependencies = [
  "log",
  "presser",
  "thiserror 2.0.20",
- "windows 0.61.3",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -2481,6 +2481,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "i-slint-backend-qt"
+version = "1.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a32cd6edc5422d1525fbe4ed29635b642fdbb26ae7036abc20eee063faa45d4a"
+dependencies = [
+ "const-field-offset",
+ "i-slint-common",
+ "i-slint-core",
+ "i-slint-core-macros",
+ "vtable",
+]
+
+[[package]]
 name = "i-slint-backend-selector"
 version = "1.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2489,6 +2502,7 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "i-slint-backend-linuxkms",
+ "i-slint-backend-qt",
  "i-slint-backend-testing",
  "i-slint-backend-winit",
  "i-slint-common",
@@ -4221,6 +4235,7 @@ dependencies = [
  "openrevo-core",
  "openrevo-main",
  "openrevo-osd",
+ "openrevo-widget",
  "parking_lot",
  "raw-window-handle",
  "rhai",
@@ -4283,6 +4298,19 @@ dependencies = [
  "serde_json",
  "slint",
  "slint-build",
+ "windows 0.58.0",
+]
+
+[[package]]
+name = "openrevo-widget"
+version = "0.1.0"
+dependencies = [
+ "openrevo-core",
+ "serde",
+ "serde_json",
+ "slint",
+ "slint-interpreter",
+ "spin_on",
  "windows 0.58.0",
 ]
 
@@ -5641,6 +5669,29 @@ dependencies = [
  "i-slint-compiler",
  "spin_on",
  "toml_edit 0.25.13+spec-1.1.0",
+]
+
+[[package]]
+name = "slint-interpreter"
+version = "1.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "645cf39fcf871b5b49f7319973e8dee7af03ee51c5a2c8e1e7466d72acc8b217"
+dependencies = [
+ "derive_more",
+ "i-slint-backend-linuxkms",
+ "i-slint-backend-selector",
+ "i-slint-backend-winit",
+ "i-slint-common",
+ "i-slint-compiler",
+ "i-slint-core",
+ "i-slint-core-macros",
+ "itertools 0.15.0",
+ "lyon_path",
+ "smol_str 0.3.7",
+ "typed-index-collections",
+ "unicode-segmentation",
+ "vtable",
+ "web-sys",
 ]
 
 [[package]]

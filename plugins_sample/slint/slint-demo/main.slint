@@ -1,0 +1,303 @@
+export component SlintPluginDemo inherits Window {
+    title: "Slint 原生渲染演示插件";
+    min-width: 640px;
+    min-height: 480px;
+    background: #0b0e14;
+    default-font-family: "Segoe UI, Microsoft YaHei, sans-serif";
+
+    in-out property <int> counter: 0;
+    in-out property <bool> turbo_mode: true;
+    in-out property <string> plugin_status: "JIT Compiled & Running";
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 20px;
+        alignment: start;
+
+        // 1. Header Banner
+        Rectangle {
+            height: 96px;
+            border-radius: 10px;
+            background: #10141d;
+            border-width: 1px;
+            border-color: #1f2736;
+
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                alignment: space-between;
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 6px;
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+
+                        Text {
+                            text: "SLINT 原生动态渲染引擎";
+                            font-size: 16px;
+                            font-weight: 700;
+                            color: #f8fafc;
+                            vertical-alignment: center;
+                        }
+
+                        // JIT Badge
+                        Rectangle {
+                            height: 22px;
+                            border-radius: 4px;
+                            background: root.turbo_mode ? #38bdf81a : #10b9811a;
+                            border-width: 1px;
+                            border-color: root.turbo_mode ? #38bdf860 : #10b98160;
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 6px;
+
+                                Rectangle {
+                                    width: 6px;
+                                    height: 6px;
+                                    border-radius: 3px;
+                                    background: root.turbo_mode ? #38bdf8 : #10b981;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                Text {
+                                    text: root.turbo_mode ? "极速光栅化 (FemtoVG/Skia)" : "节能就绪";
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: root.turbo_mode ? #38bdf8 : #10b981;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "本界面完全由 slint-interpreter 动态加载并实时渲染，0MB Chromium 运行时占用。";
+                        font-size: 12px;
+                        color: #94a3b8;
+                    }
+                }
+            }
+        }
+
+        // 2. Interactive Counter & Control Card
+        Rectangle {
+            height: 180px;
+            border-radius: 10px;
+            background: #161b24;
+            border-width: 1px;
+            border-color: #2e384d;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 16px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "声明式状态双向响应验证";
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #cbd5e1;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "状态: " + root.plugin_status;
+                        font-size: 11px;
+                        color: #64748b;
+                        vertical-alignment: center;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 24px;
+                    alignment: start;
+
+                    // Counter Display Box
+                    Rectangle {
+                        width: 160px;
+                        height: 72px;
+                        border-radius: 8px;
+                        background: #080a0f;
+                        border-width: 1px;
+                        border-color: #1f2736;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+
+                            Text {
+                                text: "实时计数";
+                                font-size: 10px;
+                                color: #64748b;
+                                horizontal-alignment: center;
+                            }
+
+                            Text {
+                                text: root.counter;
+                                font-size: 28px;
+                                font-weight: 800;
+                                color: root.counter > 0 ? #38bdf8 : (root.counter < 0 ? #f43f5e : #f8fafc);
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Button Action Group
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: center;
+
+                        // Minus Button
+                        Rectangle {
+                            width: 80px;
+                            height: 38px;
+                            border-radius: 6px;
+                            background: t_sub.has-hover ? #2e384d : #1f2736;
+                            border-width: 1px;
+                            border-color: #475569;
+                            animate background { duration: 120ms; }
+
+                            t_sub := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.counter -= 1;
+                                    root.plugin_status = "触发数值递减";
+                                }
+                            }
+
+                            Text {
+                                text: "- 1";
+                                font-size: 13px;
+                                font-weight: 700;
+                                color: #f8fafc;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Add Button
+                        Rectangle {
+                            width: 80px;
+                            height: 38px;
+                            border-radius: 6px;
+                            background: t_add.has-hover ? #0284c7 : #0369a1;
+                            border-width: 1px;
+                            border-color: #38bdf8;
+                            animate background { duration: 120ms; }
+
+                            t_add := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.counter += 1;
+                                    root.plugin_status = "触发数值递增";
+                                }
+                            }
+
+                            Text {
+                                text: "+ 1";
+                                font-size: 13px;
+                                font-weight: 700;
+                                color: #ffffff;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Reset Button
+                        Rectangle {
+                            width: 80px;
+                            height: 38px;
+                            border-radius: 6px;
+                            background: t_rst.has-hover ? #262626 : #161616;
+                            border-width: 1px;
+                            border-color: #3d3d3d;
+                            animate background { duration: 120ms; }
+
+                            t_rst := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.counter = 0;
+                                    root.plugin_status = "计数器已重置";
+                                }
+                            }
+
+                            Text {
+                                text: "重置";
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: #94a3b8;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Turbo Mode Toggle
+                        Rectangle {
+                            width: 130px;
+                            height: 38px;
+                            border-radius: 6px;
+                            background: root.turbo_mode ? #10b98125 : #33415525;
+                            border-width: 1px;
+                            border-color: root.turbo_mode ? #10b981 : #475569;
+                            animate background { duration: 150ms; }
+
+                            t_tog := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.turbo_mode = !root.turbo_mode;
+                                    root.plugin_status = root.turbo_mode ? "切换为极速模式" : "切换为静音模式";
+                                }
+                            }
+
+                            Text {
+                                text: root.turbo_mode ? "模式: 极速 (ON)" : "模式: 节能 (OFF)";
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: root.turbo_mode ? #10b981 : #94a3b8;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Information Footer Card
+        Rectangle {
+            height: 60px;
+            border-radius: 8px;
+            background: #10141d;
+            border-width: 1px;
+            border-color: #1f2736;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                alignment: space-between;
+
+                Text {
+                    text: "✓ Slint 解释器测试就绪 (slint-interpreter)";
+                    font-size: 11.5px;
+                    color: #10b981;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: "OpenRevo Plugin SDK • Slint Specification v1.0";
+                    font-size: 11px;
+                    color: #475569;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+

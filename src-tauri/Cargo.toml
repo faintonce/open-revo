@@ -17,6 +17,7 @@ members = [
     "crates/openrevo-osd",
     "crates/openrevo-ffi",
     "crates/openrevo-main",
+    "crates/openrevo-widget",
 ]
 
 [build-dependencies]
@@ -28,6 +29,7 @@ serde_json = "1.0"
 openrevo-core = { path = "crates/openrevo-core" }
 openrevo-osd = { path = "crates/openrevo-osd" }
 openrevo-main = { path = "crates/openrevo-main" }
+openrevo-widget = { path = "crates/openrevo-widget" }
 tauri = { version = "2.0.0", features = ["tray-icon"] }
 tao = "0.35"
 wry = "0.55"
