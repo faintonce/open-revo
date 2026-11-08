@@ -117,9 +117,9 @@ export component DashboardPluginWorkspace inherits Rectangle {
                     Rectangle {
                         height: 26px;
                         border-radius: 6px;
-                        background: t_launch.has-hover ? AppTheme.accent_active.darker(10%) : AppTheme.accent_active;
+                        background: t_launch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
                         border-width: 1px;
-                        border-color: AppTheme.accent_active_border;
+                        border-color: t_launch.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
                         y: (parent.height - self.height) / 2;
 
                         animate background { duration: 100ms; }
@@ -140,15 +140,15 @@ export component DashboardPluginWorkspace inherits Rectangle {
                                 source: @image-url("../assets/icons/maximize2.svg");
                                 width: 12px;
                                 height: 12px;
-                                colorize: #ffffff;
+                                colorize: t_launch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
                                 y: (parent.height - self.height) / 2;
                             }
 
                             Text {
                                 text: "独立视窗";
                                 font-size: 11px;
-                                font-weight: 600;
-                                color: #ffffff;
+                                font-weight: 500;
+                                color: t_launch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
                                 vertical-alignment: center;
                             }
                         }

@@ -604,6 +604,12 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       overflow: hidden;
+      color-scheme: dark;
+    }
+
+    .lab-select option {
+      background-color: #0b0f17;
+      color: #f8fafc;
     }
 
     .lab-input:focus,
@@ -639,12 +645,6 @@
       max-width: 100%;
       box-sizing: border-box;
     }
-      max-height: 160px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      line-height: 1.45;
-    }
 
     /* Toast Notification */
     .toast {
@@ -662,6 +662,7 @@
       backdrop-filter: blur(8px);
       transform: translateY(60px);
       opacity: 0;
+      visibility: hidden;
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       pointer-events: none;
       z-index: 1000;
@@ -670,6 +671,7 @@
     .toast.show {
       transform: translateY(0);
       opacity: 1;
+      visibility: visible;
     }
   </style>
 </head>
@@ -713,7 +715,7 @@
       <div class="stat-card">
         <div class="stat-label">
           <span>当前电池电量</span>
-          <span id="statAcPill" style="font-size: 10px; color: var(--text-dim);">检测中...</span>
+          <span id="statAcPill" style="font-size: 10px; color: var(--text-dim);">🔌 外部适配器已连接</span>
         </div>
         <div class="stat-val">
           <span id="statBatteryPct">--</span>
@@ -1608,10 +1610,13 @@
       if (typeof pct === 'number' && !isNaN(pct) && pct >= 0 && pct <= 100) {
         document.getElementById('statBatteryPct').textContent = pct;
       }
-      const isAc = data.is_ac_online ?? (data.is_dc_online !== false);
+      const isCharging = Boolean(data.is_charging);
+      const isAc = (data.is_ac_online !== undefined) 
+        ? Boolean(data.is_ac_online)
+        : (isCharging || (data.is_dc_online !== false));
+
       document.getElementById('statAcPill').textContent = isAc ? '🔌 外部适配器已连接' : '🔋 电池供电中';
 
-      const isCharging = data.is_charging ?? false;
       const chargeDot = document.getElementById('statChargeDot');
       const chargeText = document.getElementById('statChargeText');
 
@@ -1649,12 +1654,23 @@
       if (pct >= 0 && pct <= 100) {
         document.getElementById('statBatteryPct').textContent = pct;
       }
-      const isCharging = battery.charging;
+      const isCharging = Boolean(battery.charging);
+      const isDischarging = (battery.dischargingTime < Infinity) && !isCharging;
+      const isAc = isCharging || !isDischarging;
+
+      document.getElementById('statAcPill').textContent = isAc ? '🔌 外部适配器已连接' : '🔋 电池供电中';
+
       const chargeDot = document.getElementById('statChargeDot');
       const chargeText = document.getElementById('statChargeText');
-      if (isCharging) {
+      if (!isAc) {
+        chargeDot.className = 'indicator-dot';
+        chargeText.textContent = '放电中 (使用电池)';
+      } else if (isCharging) {
         chargeDot.className = 'indicator-dot active';
         chargeText.textContent = '正在充电中...';
+      } else {
+        chargeDot.className = 'indicator-dot warn';
+        chargeText.textContent = '未充电 (已达上限或满电)';
       }
     }
 
