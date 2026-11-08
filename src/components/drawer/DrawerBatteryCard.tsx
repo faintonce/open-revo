@@ -30,8 +30,22 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
           </span>
         </div>
         <div className="m-header-right" style={{ color: 'var(--theme-bat)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: status.is_dc_online ? '#34d399' : '#fbbf24' }} />
-          {status.is_dc_online ? 'AC 已连接' : '电池供电'}
+          <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: (status.is_ac_online ?? status.is_dc_online) ? '#34d399' : '#fbbf24' }} />
+          {(() => {
+            const acOnline = status.is_ac_online ?? status.is_dc_online;
+            if (!acOnline) return '电池供电';
+            const type = status.adapter_type || '';
+            const isTypeC = type.includes('Type-C');
+            const isBarrel = type === '圆口';
+            const watts = status.adapter_watts;
+            const rated = watts
+              ? (isBarrel && watts === 230 ? ' 230/240W' : ` ${watts}W`)
+              : '';
+            const label = isTypeC ? `Type-C适配器${rated}` : `适配器${rated}`;
+            const rate = status.battery_rate_watts ?? 0;
+            if (rate > 0) return `${label} · 充电 ${rate}W`;
+            return label;
+          })()}
         </div>
       </div>
 
@@ -93,6 +107,12 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
           长效
         </button>
       </div>
+
+      {status.battery_cycle_count != null && status.battery_cycle_count > 0 && (
+        <div style={{ marginTop: '4px', fontSize: '10.5px', color: 'var(--text-dim)', textAlign: 'right' }}>
+          循环 {status.battery_cycle_count} 次
+        </div>
+      )}
     </div>
   );
 };

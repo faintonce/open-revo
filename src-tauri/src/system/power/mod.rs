@@ -1,4 +1,5 @@
 pub mod arbiter;
+pub mod battery_input;
 pub mod ec_mode;
 pub mod fan_table;
 pub mod oem_sync;
