@@ -146,7 +146,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
     setLoading(true);
     setError(null);
     try {
-      const html = await invoke<string>('load_plugin_html', { pluginId: plugin.id });
+      const html = await invoke<string>('load_plugin_html', { pluginId: plugin.id, surface: 'tab' });
       setHtmlContent(html);
     } catch (err: any) {
       console.error('Failed to load plugin html:', err);

@@ -813,6 +813,19 @@ fn default_widget_height() -> f64 { 320.0 }
 fn default_true() -> bool { true }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PluginTabConfig {
+    pub entry: Option<String>,
+    pub title: Option<String>,
+    pub icon: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PluginWidgetConfig {
+    pub entry: Option<String>,
+    pub window: Option<PluginWindowConfig>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CustomPluginItem {
     pub id: String,
     pub name: String,
@@ -836,6 +849,23 @@ pub struct CustomPluginItem {
     pub order: Option<f64>,
     pub is_compatible: bool,
     pub compatibility_notice: Option<String>,
+    // --- Unified Capability Declarations ---
+    #[serde(default)]
+    pub has_tab: bool,
+    #[serde(default)]
+    pub has_widget: bool,
+    #[serde(default)]
+    pub has_slot: bool,
+    #[serde(default)]
+    pub has_service: bool,
+    #[serde(default)]
+    pub has_skin: bool,
+    #[serde(default)]
+    pub has_background: bool,
+    #[serde(default)]
+    pub is_headless: bool,
+    pub tab: Option<PluginTabConfig>,
+    pub widget: Option<PluginWidgetConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -870,6 +900,10 @@ pub struct RawPluginManifest {
     pub min_host_version: Option<String>,
     #[serde(default)]
     pub order: Option<f64>,
+    #[serde(default)]
+    pub tab: Option<PluginTabConfig>,
+    #[serde(default)]
+    pub widget: Option<PluginWidgetConfig>,
 }
 
 pub fn check_version_compatibility(min_host_version: Option<&str>) -> (bool, Option<String>) {
@@ -1232,7 +1266,59 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                         if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
                             let id = manifest.id.unwrap_or_else(|| dir_name.clone());
-                            let plugin_type = manifest.plugin_type.unwrap_or_else(|| "extension".into());
+                            let raw_p_type = manifest.plugin_type.as_deref().unwrap_or("extension");
+
+                            let has_explicit_tab = manifest.tab.is_some();
+                            let has_explicit_widget = manifest.widget.is_some();
+
+                            let has_skin = raw_p_type.eq_ignore_ascii_case("skin") || manifest.theme_css.is_some();
+                            let has_background = raw_p_type.eq_ignore_ascii_case("background") || manifest.background_css.is_some() || manifest.image.is_some();
+                            let has_slot = raw_p_type.eq_ignore_ascii_case("slot") || manifest.target_slot.is_some();
+                            let has_service = manifest.service.is_some();
+
+                            let has_widget = has_explicit_widget || (raw_p_type.eq_ignore_ascii_case("widget") && !has_explicit_tab);
+                            let has_tab = has_explicit_tab || raw_p_type.eq_ignore_ascii_case("tab") || (manifest.entry.is_some() && !has_widget && !has_slot && !has_skin && !has_background);
+                            let is_headless = !has_tab && !has_widget && !has_slot && !has_skin && !has_background;
+
+                            let plugin_type = if has_skin {
+                                "skin".to_string()
+                            } else if has_background {
+                                "background".to_string()
+                            } else if has_tab && has_widget {
+                                "app".to_string()
+                            } else if has_widget {
+                                "widget".to_string()
+                            } else if has_tab {
+                                "tab".to_string()
+                            } else if has_slot {
+                                "slot".to_string()
+                            } else {
+                                "service".to_string()
+                            };
+
+                            let tab_cfg = manifest.tab.clone().or_else(|| {
+                                if has_tab {
+                                    Some(PluginTabConfig {
+                                        entry: manifest.entry.clone(),
+                                        title: manifest.name.clone(),
+                                        icon: None,
+                                    })
+                                } else {
+                                    None
+                                }
+                            });
+
+                            let widget_cfg = manifest.widget.clone().or_else(|| {
+                                if has_widget {
+                                    Some(PluginWidgetConfig {
+                                        entry: manifest.entry.clone(),
+                                        window: manifest.window.clone(),
+                                    })
+                                } else {
+                                    None
+                                }
+                            });
+
                             let (is_compatible, compatibility_notice) = check_version_compatibility(manifest.min_host_version.as_deref());
                             let enabled = if !is_compatible {
                                 false
@@ -1243,6 +1329,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                             } else {
                                 cfg.custom_plugin_toggles.get(&id).copied().unwrap_or(true)
                             };
+
                             list.push(CustomPluginItem {
                                 id: id.clone(),
                                 name: manifest.name.unwrap_or_else(|| dir_name.clone()),
@@ -1265,6 +1352,15 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 order: manifest.order,
                                 is_compatible,
                                 compatibility_notice,
+                                has_tab,
+                                has_widget,
+                                has_slot,
+                                has_service,
+                                has_skin,
+                                has_background,
+                                is_headless,
+                                tab: tab_cfg,
+                                widget: widget_cfg,
                             });
                             if enabled && is_compatible {
                                 if let Some(ref scs) = manifest.shortcuts {
@@ -1303,6 +1399,15 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                     order: None,
                     is_compatible: true,
                     compatibility_notice: None,
+                    has_tab: false,
+                    has_widget: false,
+                    has_slot: false,
+                    has_service: false,
+                    has_skin: false,
+                    has_background: false,
+                    is_headless: true,
+                    tab: None,
+                    widget: None,
                 });
             }
         }
@@ -1510,14 +1615,24 @@ pub fn get_active_background() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-pub fn load_plugin_html(plugin_id: String) -> Result<String, String> {
+pub fn load_plugin_html(plugin_id: String, surface: Option<String>) -> Result<String, String> {
     let plugins_dir = find_plugin_dir(&plugin_id);
     let manifest_path = plugins_dir.join("manifest.json");
 
     let entry_file = if manifest_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&manifest_path) {
             if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
-                manifest.entry.unwrap_or_else(|| "index.html".into())
+                let s = surface.as_deref().unwrap_or_default();
+                if s.eq_ignore_ascii_case("widget") {
+                    manifest.widget.and_then(|w| w.entry).or(manifest.entry).unwrap_or_else(|| "index.html".into())
+                } else if s.eq_ignore_ascii_case("tab") {
+                    manifest.tab.and_then(|t| t.entry).or(manifest.entry).unwrap_or_else(|| "index.html".into())
+                } else {
+                    manifest.entry
+                        .or_else(|| manifest.tab.and_then(|t| t.entry))
+                        .or_else(|| manifest.widget.and_then(|w| w.entry))
+                        .unwrap_or_else(|| "index.html".into())
+                }
             } else {
                 "index.html".into()
             }

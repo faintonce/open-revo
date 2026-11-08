@@ -1,6 +1,6 @@
 # OpenRevo 开发者圣经：全场景插件与扩展开发手册 (Plugin Developer Bible)
 
-> **版本**：`v1.0 Official Specification`  
+> **版本**：`v1.1 Official Specification`  
 > **面向对象**：OpenRevo 社区极客、二次元/机甲皮肤设计师、独立客户端重构者、AI Agent 开发者、硬件自动化极客  
 > **设计哲学**：基于微内核与能力网关，实现“按需分配运行时（Runtime on Demand）、物理沙盒隔离、可逆副作用、零污染与即插即用”。
 
@@ -66,20 +66,21 @@
 
 ---
 
-## 2. 7 种插件形态全景对照表 (一切皆插件生态矩阵)
+## 2. 插件形态与能力声明大一统矩阵 (Capability-Driven Architecture)
 
-OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运行时原则**与**“一切皆插件”大一统哲学**：无论桌面悬浮挂件、主控制台皮肤、功能插槽页、独立背景壁纸还是无头服务，统一作为插件收拢在 `%APPDATA%\OpenRevo\plugins\<plugin_id>\` 下管理！
+OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运行时原则**与**“一切皆插件”能力驱动哲学**：
+> 💡 **架构大一统升级**：从 v0.9.7 起，插件彻底摆脱了排他式的单一类型限制！插件是一个功能实体，而 **`tab`（控制台视窗）与 `widget`（桌面独立视窗）只是该插件可自由选配的界面出口（Surfaces）**。
+> 一个插件可以既有桌面悬浮条，又自带控制台设置面板；若未声明任何视窗，则自动作为 **0 GUI / 0 MB 纯无头服务（Headless Service）** 在后台静默调度。
 
-| 插件形态 (`plugin_type` / `type`) | 典型应用场景 | 运行时载体 | 增量内存开销 | 视窗特性 |
+| 能力通道与形态 | 声明方式 | 运行时载体 | 增量内存开销 | 视窗与交互特性 |
 | :--- | :--- | :--- | :--- | :--- |
-| **`skin` (主窗口皮肤外观)** | 机甲二次元主题换肤、模块插槽网格重排、自定义窗口尺寸与全局色系 | **宿主主窗口 Webview**<br>(动态注入 `<style id="openrevo-theme-skin">` + 全局 `data-skin`) | **0 MB**<br>(纯样式与布局重排，毫秒级热装卸) | 自动平滑重置主窗口几何尺寸 (`manifest.window`)，自适应锁定或自由拉伸 |
-| **`background` (独立背景壁纸)** | 窗口背景图片更换、透明度/磨砂遮罩微调、二次元同人壁纸 | **宿主主窗口 Webview**<br>(动态注入 `<style id="openrevo-custom-background">` + 全局 `data-background`) | **0 MB**<br>(与 `skin` 双通道正交并存，互不冲突) | 覆盖主窗体 (`.openrevo-shell`) 与迷你面板 (`.mini-drawer-root`)，支持相对路径与零代码放图 |
-| **`slot` (微插槽组件插件)** | 小众机型硬件开关、锁定充电上限、实验功能解耦、特定模具卡片 | **宿主界面预留插槽**<br>(`<ExtensionSlot name="..." />` 安全沙盒) | **< 1 MB**<br>(极低开销微型 iframe) | 精准接管宿主预留位（如 `power.hardware_limit`），严丝合缝无缝继承 Design Tokens |
-| **`tab` (主界面插槽选项卡)** | 显卡高级调试页、风扇实验室、社区扩展页面 | **宿主主窗口沙盒 iframe**<br>(安全隔离 + 跨域推流) | **< 5 MB**<br>(复用 Chromium 进程上下文) | 嵌入在官方主控制台顶栏 Sub-Nav 胶囊栏与内容视口中 |
-| **`widget` (桌面悬浮挂件)** | 机甲能量核心桌宠、HUD 状态条、桌面看板娘、大开关 | **独立 Edge WebView2**<br>(物理沙盒隔离) | **15MB ~ 25MB**<br>(共享 Chromium 渲染段) | 全透明、无边框、置顶、跳过任务栏、可拖拽 |
-| **`service` (无头后台服务)** | 开机欢迎灯效覆盖、自动温控曲线、按电量切模式、**纯声明式看门狗与自动化规则总线** | **Rust 内置微任务 / Watcher Hub / Rhai** | **0 ~ 100 KB**<br>(极致轻量) | **完全无界面 (Zero GUI / 0 MB)**，坚决不弹窗 |
-| **`shell` (替代型客户端)** | 用户嫌官方界面不好看，自建全新极简/赛博控制台 | **独立全尺寸 Webview** | ~35MB | 拥有主控权，可彻底取代官方 `main` 界面 |
-| **`driver` (模具驱动适配)** | 适配宝龙达新机型、机械革命未来新架构 | **原生 Rust 动态库 (.dll)** | 0 运行时开销 | 直接与 ACPI/WMI 驱动对接 |
+| **`tab` (控制台专属页签)** | `"tab": { "entry": "...", "title": "..." }` 或根 `entry` | **宿主主窗口沙盒 iframe**<br>(安全隔离 + 跨域推流) | **< 5 MB**<br>(复用主窗渲染段) | 嵌入在官方主控制台顶栏 Sub-Nav 胶囊栏与内容视口中，适合参数配置与深度调校面板 |
+| **`widget` (桌面悬浮挂件)** | `"widget": { "entry": "...", "window": { ... } }` | **独立 Edge WebView2**<br>(物理沙盒隔离) | **15MB ~ 25MB**<br>(共享 Chromium 段) | 全透明、无边框、置顶、跳过任务栏、可拖拽，随插件开启自动拉起 |
+| **`app` (复合全功能插件)** | 同时声明 `tab` 与 `widget`（如 `mro-hud`） | **双出口并存调度** | 按需组合 | 既在桌面上常驻悬浮条，又在主控制台顶栏提供完整设置页，**单包全生命周期闭环** |
+| **`skin` (主窗口皮肤外观)** | `"theme_css": "theme.css"` | **宿主主窗口 Webview** | **0 MB**<br>(纯样式热装卸) | 动态注入 `<style id="openrevo-theme-skin">` + 全局 `data-skin`，可平滑重置窗口几何尺寸 |
+| **`background` (独立背景壁纸)** | `"image": "bg.png"` 或 `"background_css": "..."` | **宿主主窗口 Webview** | **0 MB**<br>(正交独立通道) | 覆盖主窗体 (`.openrevo-shell`) 与抽屉 (`.mini-drawer-root`)，与 `skin` 自由组合并存 |
+| **`slot` (微插槽组件插件)** | `"slot": "power.hardware_limit"`, `"entry": "..."` | **宿主界面预留插槽** | **< 1 MB** (微型 iframe) | 精准接管宿主预留位（如电池卡片内部），严丝合缝无缝继承 Design Tokens |
+| **`service` / `headless` (无头后台服务)** | 仅声明 `watchers` / `shortcuts` / `service` | **Rust 内置微任务 / Watcher Hub** | **0 ~ 100 KB** (极致轻量) | **完全无界面 (Zero GUI / 0 MB)**，坚决不弹窗，由内核心跳与底层键盘钩子接管 |
 
 > 💡 **双通道样式解耦优势**：
 > `skin`（主题骨架）与 `background`（背景壁纸）拥有完全独立的样式通道与持久化配置键（`active_skin` 与 `active_background`）。用户可以选一套沉稳的极简工业风主题，同时配上一张自己心仪的动漫背景，两类插件可以同时启用、自由搭配！
@@ -155,7 +156,9 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 | `theme_css` | `string` | `skin`可选 | `skin` | 皮肤样式表入口相对路径（默认 `"theme.css"`） |
 | `background_css` | `string` | `background`可选 | `background` | 背景样式表入口相对路径（默认 `"background.css"`，回退 `"theme.css"`） |
 | `image` / `wallpaper` | `string` | 可选 | `background` | **【零代码壁纸】**直接指定图片路径（如 `"bg.png"`），无需编写一行 CSS，宿主自动合成全套适配样式 |
-| `entry` | `string` | 可选 | `widget`/`tab`/`service` | 入口相对路径，如 `index.html` 或 `welcome.rhai` |
+| `entry` | `string` | 可选 | `widget`/`tab`/`service` | 默认入口相对路径，如 `index.html` 或 `welcome.rhai` |
+| `tab` | `object` | 可选 | 全类型 | **【控制台专属页签出口】**声明插件在控制台顶栏的专属 Tab 入口（含 `entry`、`title`、`icon`） |
+| `widget` | `object` | 可选 | 全类型 | **【桌面独立悬浮视窗出口】**声明插件在桌面的独立透明/置顶挂件（含 `entry`、`window`） |
 | `window` | `object` | 可选 | `widget`/`tab`/`skin`/`shell` | 视窗高级几何与外廓属性（详见下方 `window` 子对象详解） |
 | `telemetry` | `object` | 可选 | 全类型 | **【声明式遥测需求】**声明硬件遥测传感器需求（详见下方 `telemetry` 子对象与第 6 节按需订阅机制） |
 | `permissions` | `string[]`| 可选 | 全类型 | 声明所需权限（未声明将被安全网关拦截） |

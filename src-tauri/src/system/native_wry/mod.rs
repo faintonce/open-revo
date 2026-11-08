@@ -717,9 +717,23 @@ fn spawn_popout_window(
     web_context: &mut WebContext,
 ) -> Result<(Window, WebView), String> {
     let p_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
-    let index_path = p_dir.join("index.html");
-    if !index_path.exists() {
-        return Err(format!("Plugin index.html not found: {:?}", index_path));
+    let manifest_path = p_dir.join("manifest.json");
+    let entry_file = if manifest_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+            if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                manifest.tab.and_then(|t| t.entry).or(manifest.entry).unwrap_or_else(|| "index.html".into())
+            } else {
+                "index.html".into()
+            }
+        } else {
+            "index.html".into()
+        }
+    } else {
+        "index.html".into()
+    };
+    let target_file = p_dir.join(&entry_file);
+    if !target_file.exists() {
+        return Err(format!("Plugin entry file not found: {:?}", target_file));
     }
 
     let manifest_path = p_dir.join("manifest.json");
@@ -733,13 +747,21 @@ fn spawn_popout_window(
     let mut skip_taskbar = false;
     let mut is_widget = false;
     let mut telemetry_config: Option<crate::commands::system_cmd::PluginTelemetryConfig> = None;
+    let mut entry_file = "index.html".to_string();
 
     if manifest_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&manifest_path) {
             if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                let has_explicit_widget = manifest.widget.is_some();
                 let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
-                is_widget = p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin");
+                is_widget = has_explicit_widget || p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin");
                 telemetry_config = manifest.telemetry;
+
+                entry_file = if is_widget {
+                    manifest.widget.as_ref().and_then(|w| w.entry.clone()).or(manifest.entry.clone()).unwrap_or_else(|| "index.html".into())
+                } else {
+                    manifest.tab.as_ref().and_then(|t| t.entry.clone()).or(manifest.entry.clone()).unwrap_or_else(|| "index.html".into())
+                };
 
                 if let Some(ref name) = manifest.name {
                     title = format!("OpenRevo - {}", name);
@@ -753,7 +775,8 @@ fn spawn_popout_window(
                     always_on_top = true;
                     skip_taskbar = true;
                 }
-                if let Some(win_cfg) = manifest.window {
+                let win_cfg_opt = manifest.widget.as_ref().and_then(|w| w.window.clone()).or(manifest.window);
+                if let Some(win_cfg) = win_cfg_opt {
                     width = win_cfg.width;
                     height = win_cfg.height;
                     resizable = win_cfg.resizable;
@@ -809,7 +832,7 @@ fn spawn_popout_window(
         .with_custom_protocol("revo".into(), move |_id, request| {
             handle_custom_protocol(request)
         })
-        .with_url(&format!("revo://localhost/{}/index.html", plugin_id))
+        .with_url(&format!("revo://localhost/{}/{}", plugin_id, entry_file))
         .with_initialization_script(&get_bridge_script(plugin_id))
         .with_ipc_handler(move |req: wry::http::Request<String>| {
             let body = req.body().clone();
@@ -890,9 +913,23 @@ fn spawn_embedded_child(
     }
 
     let p_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
-    let index_path = p_dir.join("index.html");
-    if !index_path.exists() {
-        return Err(format!("Plugin index.html not found: {:?}", index_path));
+    let manifest_path = p_dir.join("manifest.json");
+    let entry_file = if manifest_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+            if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                manifest.tab.and_then(|t| t.entry).or(manifest.entry).unwrap_or_else(|| "index.html".into())
+            } else {
+                "index.html".into()
+            }
+        } else {
+            "index.html".into()
+        }
+    } else {
+        "index.html".into()
+    };
+    let target_file = p_dir.join(&entry_file);
+    if !target_file.exists() {
+        return Err(format!("Plugin entry file not found: {:?}", target_file));
     }
 
     let proxy_for_ipc = proxy.clone();
@@ -913,7 +950,7 @@ fn spawn_embedded_child(
         .with_custom_protocol("revo".into(), move |_id, request| {
             handle_custom_protocol(request)
         })
-        .with_url(&format!("revo://localhost/{}/index.html", plugin_id))
+        .with_url(&format!("revo://localhost/{}/{}", plugin_id, entry_file))
         .with_initialization_script(&get_bridge_script(plugin_id))
         .with_ipc_handler(move |req: wry::http::Request<String>| {
             let body = req.body().clone();

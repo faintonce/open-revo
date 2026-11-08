@@ -476,6 +476,7 @@ pub fn sync_slint_plugins_state() {
         let list: Vec<serde_json::Value> = plugins.into_iter().map(|p| {
             let tag = match p.plugin_type.as_str() {
                 "service" => "后台守护".to_string(),
+                "app" => "面板/挂件".to_string(),
                 "tab" => "独立面板".to_string(),
                 "widget" => "桌面组件".to_string(),
                 "skin" => "主题皮肤".to_string(),

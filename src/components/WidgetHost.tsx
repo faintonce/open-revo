@@ -72,7 +72,7 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
   // 2. Load custom plugin HTML
   const fetchCustomHtml = async () => {
     try {
-      const html = await invoke<string>('load_plugin_html', { pluginId });
+      const html = await invoke<string>('load_plugin_html', { pluginId, surface: 'widget' });
       if (html && html.trim().length > 0) {
         setCustomHtml(html);
         setHasCustomPlugin(true);

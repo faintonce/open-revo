@@ -55,19 +55,22 @@ description: Official OpenRevo expert agent skill for developing third-party plu
 
 ---
 
-## 2. 7 种插件形态全景对照表
+## 2. 插件能力声明大一统矩阵 (Capability-Driven Architecture)
 
-所有插件均存放在 `%APPDATA%\OpenRevo\plugins\<plugin_id>\`：
+从 v0.9.7 起，插件彻底告别排他式的单一类型限制，拥抱**能力声明积木模型**：
+- **`tab`** 与 **`widget`** 是同一个插件的可选界面出口（Surfaces）。复合插件（如 `mro-hud`）可同时拥有桌面悬浮条与控制台设置页；
+- 未声明任何界面的插件自动作为 **0 GUI / 0 MB 纯无头服务（Headless Service）** 在后台静默运行；
+- 老插件格式 100% 自动无感归一化向下兼容。
 
-| 插件类型 (`plugin_type` / `type`) | 典型场景 | 运行时载体 | 视窗与样式特征 |
+| 能力通道与形态 | 声明方式 | 运行时载体 | 视窗与样式特征 |
 | :--- | :--- | :--- | :--- |
-| **`skin`** | 主窗口主题换肤、网格插槽重排、全局色系重塑 | 宿主主窗口 Webview | 注入 `<style id="openrevo-theme-skin">`，挂载全局 `data-skin`，可平滑重设窗口宽高 |
-| **`background`** | 独立壁纸贴图、半透明磨砂遮罩微调 | 宿主主窗口 Webview | 注入 `<style id="openrevo-custom-background">`，挂载全局 `data-background`，双通道正交 |
-| **`widget`** | 桌面异形桌宠、机甲能量核心、HUD 悬浮条 | 独立 Edge WebView2 | 全透明、无边框、置顶、跳过任务栏、支持边缘吸附折叠 |
-| **`tab`** | 社区扩展模块、显卡实验室、高级调试页 | 宿主沙盒 iframe | 嵌入在官方主控制台顶栏 Sub-Nav 胶囊栏与视口中 |
-| **`service`** | 开机欢迎灯效、无头温控脚本、离电自动降频、**纯声明式硬件自动化规则** | Rust 内置微任务 / Watcher Hub | **完全无界面 (Zero GUI / 0 MB)**，坚决不弹窗 |
-| **`shell`** | 彻底替代官方界面，自建全新极客控制台 | 独立全尺寸 Webview | 拥有主控权，可彻底取代官方 `main` 界面 |
-| **`driver`** | 新模具硬件驱动适配 | 原生 Rust 动态库 (.dll) | 直接与底层 ACPI/WMI 驱动通信 |
+| **`tab`** | `"tab": { "entry": "...", "title": "..." }` 或根 `entry` | 宿主沙盒 iframe | 嵌入在官方主控制台顶栏 Sub-Nav 胶囊栏与视口中 |
+| **`widget`** | `"widget": { "entry": "...", "window": { ... } }` | 独立 Edge WebView2 | 全透明、无边框、置顶、跳过任务栏、支持边缘吸附折叠 |
+| **`app` (复合体)** | 同时声明 `tab` 与 `widget` (如 `mro-hud`) | 双出口协同运行 | 既有桌面 HUD 悬浮条，又有控制台设置面板，单包闭环 |
+| **`skin`** | `"theme_css": "theme.css"` | 宿主主窗口 Webview | 注入 `<style id="openrevo-theme-skin">`，挂载全局 `data-skin`，可平滑重设窗口宽高 |
+| **`background`** | `"image": "bg.png"` 或 `"background_css": "..."` | 宿主主窗口 Webview | 注入 `<style id="openrevo-custom-background">`，挂载全局 `data-background`，双通道正交 |
+| **`slot`** | `"slot": "power.hardware_limit"`, `"entry": "..."` | 宿主预留微插槽 | 嵌入官方界面对应卡片微区域，严丝合缝继承主题 Tokens |
+| **`service` / `headless`** | 仅声明 `service` / `watchers` / `shortcuts` | Rust 内置微任务 / Watcher Hub | **完全无界面 (Zero GUI / 0 MB)**，坚决不弹窗，静默极低功耗调度 |
 
 ---
 

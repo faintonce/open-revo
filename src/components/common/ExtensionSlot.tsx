@@ -28,11 +28,11 @@ export const ExtensionSlot: React.FC<ExtensionSlotProps> = ({
     try {
       const plugins = await invoke<CustomPluginItem[]>('get_custom_plugins');
       const match = plugins.find(
-        (p) => p.plugin_type === 'slot' && p.target_slot === name && p.enabled && p.is_compatible !== false
+        (p) => (p.has_slot || p.plugin_type === 'slot') && p.target_slot === name && p.enabled && p.is_compatible !== false
       );
       if (match) {
         setMatchingPlugin(match);
-        const html = await invoke<string>('load_plugin_html', { pluginId: match.id });
+        const html = await invoke<string>('load_plugin_html', { pluginId: match.id, surface: 'slot' });
         if (html && html.trim().length > 0) {
           setPluginHtml(html);
         } else {

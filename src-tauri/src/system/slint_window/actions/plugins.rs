@@ -24,27 +24,30 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
                     let _ = crate::commands::system_cmd::set_custom_plugin_enabled(id.to_string(), enabled);
 
-                    // If this plugin is a desktop widget or skin, open or close the floating widget window
+                    // If this plugin has a desktop widget or companion service, toggle them dynamically
                     let p_dir = crate::commands::system_cmd::find_plugin_dir(id);
                     let manifest_path = p_dir.join("manifest.json");
                     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                         if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
                             let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
-                            if p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin") {
+                            let has_widget = manifest.widget.is_some() || p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin");
+                            if has_widget {
                                 if enabled {
                                     crate::log_info!("PLUGINS", "Toggled widget '{}' ON -> opening desktop widget", id);
                                     crate::system::native_wry::open_popout(id);
-                                    if let Some(svc) = manifest.service {
-                                        if svc.auto_start {
-                                            let target_id = id.to_string();
-                                            std::thread::spawn(move || {
-                                                let _ = crate::system::plugin_service::start_service(&target_id);
-                                            });
-                                        }
-                                    }
                                 } else {
                                     crate::log_info!("PLUGINS", "Toggled widget '{}' OFF -> closing desktop widget", id);
                                     crate::system::native_wry::close_popout(id);
+                                }
+                            }
+
+                            if let Some(svc) = manifest.service {
+                                if enabled && svc.auto_start {
+                                    let target_id = id.to_string();
+                                    std::thread::spawn(move || {
+                                        let _ = crate::system::plugin_service::start_service(&target_id);
+                                    });
+                                } else if !enabled && svc.auto_stop {
                                     let _ = crate::system::plugin_service::stop_service(id);
                                 }
                             }
