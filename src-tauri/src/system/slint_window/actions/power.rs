@@ -142,6 +142,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                     }
                 }
                 sync_slint_power_state();
+                super::super::sync::sync_slint_power_targets(mode_u8);
             }
             true
         }

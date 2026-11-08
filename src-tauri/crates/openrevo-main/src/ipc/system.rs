@@ -6,6 +6,15 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(mode) = val.get("power_mode").and_then(|v| v.as_i64()) {
                 ui.set_power_mode(mode as i32);
             }
+            if let Some(pl1) = val.get("pl1_target").and_then(|v| v.as_i64()) {
+                ui.set_pl1_target(pl1 as i32);
+            }
+            if let Some(tgp) = val.get("tgp_target").and_then(|v| v.as_i64()) {
+                ui.set_tgp_target(tgp as i32);
+            }
+            if let Some(txt) = val.get("power_target_text").and_then(|v| v.as_str()) {
+                ui.set_power_target_text(txt.into());
+            }
             if let Some(gm) = val.get("gpu_mode").and_then(|v| v.as_str()) {
                 ui.set_gpu_mode(gm.into());
             }
@@ -425,6 +434,14 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 d.progress_total_mb = tot.into();
             }
             ui.set_update_data(d);
+            true
+        }
+        "set_active_plugin_id" => {
+            let pid = val.get("plugin_id").and_then(|v| v.as_str()).unwrap_or("");
+            ui.set_active_plugin_id(pid.into());
+            if pid.is_empty() {
+                ui.set_active_tab(5);
+            }
             true
         }
         _ => false,

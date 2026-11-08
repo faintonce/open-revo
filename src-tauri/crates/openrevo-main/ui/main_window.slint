@@ -79,6 +79,7 @@ export component MainWindow inherits Window {
     // Power Targets
     in-out property <int> pl1_target: 75;
     in-out property <int> tgp_target: 175;
+    in-out property <string> power_target_text: "";
 
     // Hardware Switches
     in-out property <bool> fan_boost: false;
@@ -709,6 +710,7 @@ export component MainWindow inherits Window {
         power_mode: root.power_mode;
         pl1_target: root.pl1_target;
         tgp_target: root.tgp_target;
+        power_target_text: root.power_target_text;
         set_power_mode(m) => { root.power_mode_clicked(m); }
         open_custom_tuning => { root.open_custom_tuning(); }
 

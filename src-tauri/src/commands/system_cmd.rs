@@ -51,6 +51,8 @@ pub struct HardwareState {
     pub is_dc_online: bool,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
+    #[serde(default)]
+    pub balanced_gpu_dynamic_boost: bool,
 }
 
 pub fn get_machine_model() -> String {
@@ -185,6 +187,7 @@ pub fn collect_hardware_state(
         is_dc_online: is_dc_round_plugged_in(),
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
+        balanced_gpu_dynamic_boost: cfg.balanced_gpu_dynamic_boost,
     }
 }
 

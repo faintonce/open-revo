@@ -10,6 +10,7 @@ export component DashboardPowerProfiles inherits Rectangle {
     in-out property <int> power_mode: 2; // 1: Office, 2: Balance, 3: Beast, 4: Custom
     in-out property <int> pl1_target: 75;
     in-out property <int> tgp_target: 175;
+    in-out property <string> power_target_text: "";
 
     callback set_power_mode(int);
     callback open_custom_tuning();
@@ -44,18 +45,24 @@ export component DashboardPowerProfiles inherits Rectangle {
             // Power Targets Badge
             Rectangle {
                 border-radius: 6px;
-                background: #0284c718;
+                background: power_mode == 1 ? #10b98118 :
+                            (power_mode == 2 ? #0284c718 :
+                            (power_mode == 3 ? #f43f5e18 : #a855f718));
                 border-width: 1px;
-                border-color: #0284c750;
+                border-color: power_mode == 1 ? #10b98150 :
+                              (power_mode == 2 ? #0284c750 :
+                              (power_mode == 3 ? #f43f5e50 : #a855f750));
                 height: 26px;
                 HorizontalLayout {
                     padding-left: 10px;
                     padding-right: 10px;
                     Text {
-                        text: "原厂目标 PL1: " + pl1_target + "W | TGP: " + tgp_target + "W";
+                        text: power_target_text != "" ? power_target_text : ("原厂目标 PL1: " + pl1_target + "W | TGP: " + tgp_target + "W");
                         font-size: 10.5px;
                         font-weight: 700;
-                        color: #38bdf8;
+                        color: power_mode == 1 ? #10b981 :
+                               (power_mode == 2 ? #38bdf8 :
+                               (power_mode == 3 ? #f43f5e : #c084fc));
                         vertical-alignment: center;
                     }
                 }

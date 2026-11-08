@@ -12,7 +12,7 @@ use std::sync::{Once, OnceLock};
 use parking_lot::{Mutex, RwLock};
 use tao::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget};
 use tao::window::{Window, WindowBuilder};
-use wry::{Rect, WebView, WebViewBuilder};
+use wry::{Rect, WebContext, WebView, WebViewBuilder};
 
 #[derive(Debug, Clone)]
 pub enum ViewTarget {
@@ -432,6 +432,12 @@ fn handle_ipc_payload(
 }
 
 fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWryMessage>>) {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::System::Ole::OleInitialize;
+        let _ = OleInitialize(None);
+    }
+
     let mut builder = EventLoopBuilder::<NativeWryMessage>::with_user_event();
     #[cfg(target_os = "windows")]
     {
@@ -442,6 +448,10 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
     let event_loop = builder.build();
     let proxy = event_loop.create_proxy();
     let _ = tx.send(proxy.clone());
+
+    let data_dir = crate::system::config::get_config_dir().join("webview2_runtime");
+    let _ = std::fs::create_dir_all(&data_dir);
+    let mut web_context = WebContext::new(Some(data_dir));
 
     let mut popouts: HashMap<String, (Window, WebView)> = HashMap::new();
     let mut embedded: Option<(String, WebView, isize)> = None;
@@ -558,7 +568,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                         return;
                     }
 
-                    match spawn_popout_window(target, &proxy, &plugin_id) {
+                    match spawn_popout_window(target, &proxy, &plugin_id, &mut web_context) {
                         Ok((win, view)) => {
                             get_running_popouts_set().write().insert(plugin_id.clone());
                             popouts.insert(plugin_id.clone(), (win, view));
@@ -600,7 +610,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     embedded = None;
                     *ACTIVE_EMBEDDED_PLUGIN.write() = None;
 
-                    match spawn_embedded_child(&proxy, parent_hwnd, &plugin_id, rect) {
+                    match spawn_embedded_child(&proxy, parent_hwnd, &plugin_id, rect, &mut web_context) {
                         Ok(view) => {
                             *ACTIVE_EMBEDDED_PLUGIN.write() = Some(plugin_id.clone());
                             embedded = Some((plugin_id.clone(), view, parent_hwnd));
@@ -608,6 +618,23 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                         }
                         Err(e) => {
                             crate::log_error!("NATIVE_WRY", "Failed to attach embedded child webview for '{}': {:?}", plugin_id, e);
+                            // 1. Reset Slint UI state immediately so interface doesn't hang/freeze on blank container
+                            crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                                "action": "set_active_plugin_id",
+                                "plugin_id": ""
+                            }));
+                            // 2. Automatically fallback to independent popout window so the plugin can still run
+                            crate::log_info!("NATIVE_WRY", "Falling back to standalone popout window for '{}'...", plugin_id);
+                            match spawn_popout_window(target, &proxy, &plugin_id, &mut web_context) {
+                                Ok((win, view)) => {
+                                    get_running_popouts_set().write().insert(plugin_id.clone());
+                                    popouts.insert(plugin_id.clone(), (win, view));
+                                    crate::log_info!("NATIVE_WRY", "Fallback popout window opened successfully for '{}'", plugin_id);
+                                }
+                                Err(pop_err) => {
+                                    crate::log_error!("NATIVE_WRY", "Fallback popout window also failed for '{}': {:?}", plugin_id, pop_err);
+                                }
+                            }
                         }
                     }
                 }
@@ -676,6 +703,7 @@ fn spawn_popout_window(
     target: &EventLoopWindowTarget<NativeWryMessage>,
     proxy: &EventLoopProxy<NativeWryMessage>,
     plugin_id: &str,
+    web_context: &mut WebContext,
 ) -> Result<(Window, WebView), String> {
     let p_dir = crate::system::config::get_config_dir().join("plugins").join(plugin_id);
     let index_path = p_dir.join("index.html");
@@ -763,7 +791,7 @@ fn spawn_popout_window(
     let plugin_id_for_ipc = plugin_id.to_string();
     let target_for_ipc = ViewTarget::Popout(plugin_id.to_string());
 
-    let webview = WebViewBuilder::new()
+    let webview = WebViewBuilder::new_with_web_context(web_context)
         .with_transparent(transparent)
         .with_custom_protocol("revo".into(), move |_id, request| {
             handle_custom_protocol(request)
@@ -823,7 +851,17 @@ fn spawn_embedded_child(
     parent_hwnd: isize,
     plugin_id: &str,
     rect: (i32, i32, i32, i32),
+    web_context: &mut WebContext,
 ) -> Result<WebView, String> {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::IsWindow;
+        if !IsWindow(HWND(parent_hwnd as *mut _)).as_bool() {
+            return Err(format!("Parent HWND 0x{:X} is not a valid Win32 window", parent_hwnd));
+        }
+    }
+
     let p_dir = crate::system::config::get_config_dir().join("plugins").join(plugin_id);
     let index_path = p_dir.join("index.html");
     if !index_path.exists() {
@@ -834,14 +872,16 @@ fn spawn_embedded_child(
     let plugin_id_for_ipc = plugin_id.to_string();
     let target_for_ipc = ViewTarget::Embedded;
 
+    let safe_w = rect.2.max(100) as u32;
+    let safe_h = rect.3.max(100) as u32;
     let wry_rect = Rect {
-        position: wry::dpi::Position::Physical(tao::dpi::PhysicalPosition::new(rect.0, rect.1)),
-        size: wry::dpi::Size::Physical(tao::dpi::PhysicalSize::new(rect.2 as u32, rect.3 as u32)),
+        position: wry::dpi::Position::Physical(tao::dpi::PhysicalPosition::new(rect.0.max(0), rect.1.max(0))),
+        size: wry::dpi::Size::Physical(tao::dpi::PhysicalSize::new(safe_w, safe_h)),
     };
 
     let parent_wrapper = HwndWrapper(parent_hwnd);
 
-    let webview = WebViewBuilder::new()
+    let webview = WebViewBuilder::new_with_web_context(web_context)
         .with_bounds(wry_rect)
         .with_custom_protocol("revo".into(), move |_id, request| {
             handle_custom_protocol(request)

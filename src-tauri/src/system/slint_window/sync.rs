@@ -33,6 +33,8 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
     let primary_monitor_name = if !state.monitors.is_empty() { state.monitors[0].friendly_name.clone() } else { "内置主屏".to_string() };
     let secondary_monitor_name = if state.monitors.len() > 1 { state.monitors[1].friendly_name.clone() } else { "".to_string() };
 
+    let (pl1_target, tgp_target, power_target_text) = get_current_power_targets(state.power_mode);
+
     send_slint_ipc_message(serde_json::json!({
         "action": "telemetry",
         "battery_percent": live_battery,
@@ -60,6 +62,9 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "primary_monitor_name": primary_monitor_name,
         "secondary_monitor_name": secondary_monitor_name,
         "power_mode": state.power_mode,
+        "pl1_target": pl1_target,
+        "tgp_target": tgp_target,
+        "power_target_text": power_target_text,
         "fan_boost": state.fan_boost,
         "model_name": &state.model_name,
         "custom_status_text": &state.model_name,
@@ -168,6 +173,7 @@ pub fn sync_slint_tuning_state() {
     });
 
     send_slint_ipc_message(payload);
+    sync_slint_power_targets(cfg.power_mode);
 }
 
 pub fn sync_slint_display_state() {
@@ -228,6 +234,9 @@ pub fn sync_slint_display_state() {
 }
 
 pub fn sync_slint_power_state() {
+    let cfg = crate::system::config::load_config();
+    sync_slint_power_targets(cfg.power_mode);
+
     let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
     if let Some(app) = app_opt {
         let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
@@ -510,4 +519,130 @@ pub fn sync_slint_power_schemes(restore_msg: Option<&str>) {
             "restore_plan_msg": restore_msg.unwrap_or(""),
         }));
     }
+}
+
+pub fn compute_power_targets(
+    power_mode: u8,
+    presets: &crate::system::power_mode::FactoryPowerPresets,
+    balanced_gpu_dynamic_boost: bool,
+    custom_profile: Option<&crate::system::config::CustomProfileConfig>,
+    is_pure_igpu: bool,
+) -> (i32, i32, String) {
+    let is_custom = power_mode == 4;
+
+    if is_custom {
+        let pl1 = custom_profile
+            .map(|p| p.cpu_pl1_watts as i32)
+            .filter(|&v| v > 0)
+            .unwrap_or_else(|| if presets.balance_pl1 > 0 { presets.balance_pl1 as i32 } else { 75 });
+
+        let tgp = if is_pure_igpu {
+            0
+        } else if let Some(cp) = custom_profile {
+            if cp.gpu_ctgp_enabled && cp.gpu_ctgp_watts > 0 {
+                cp.gpu_ctgp_watts as i32
+            } else {
+                let base = if presets.base_tgp > 0 { presets.base_tgp as i32 } else { 150 };
+                let db = if cp.gpu_db_enabled { cp.gpu_db_watts as i32 } else { 0 };
+                base + db
+            }
+        } else if presets.base_tgp > 0 {
+            presets.base_tgp as i32 + presets.max_db as i32
+        } else {
+            175
+        };
+
+        let label = "当前设定";
+        let text = if tgp > 0 {
+            format!("{} PL1: {}W | TGP: {}W", label, pl1, tgp)
+        } else if !is_pure_igpu {
+            format!("{} PL1: {}W | TGP: --", label, pl1)
+        } else {
+            format!("{} PL1: {}W", label, pl1)
+        };
+
+        return (pl1, tgp, text);
+    }
+
+    let is_hw = presets.hardware_read;
+    let label = if is_hw { "原厂目标" } else { "参考值" };
+
+    let (pl1, tgp) = match power_mode {
+        1 => {
+            let p1 = if presets.office_pl1 > 0 { presets.office_pl1 as i32 } else if is_pure_igpu { 35 } else { 45 };
+            let tg = if is_pure_igpu { 0 } else if presets.base_tgp > 0 { presets.base_tgp as i32 } else { 150 };
+            (p1, tg)
+        }
+        2 => {
+            let p1 = if presets.balance_pl1 > 0 { presets.balance_pl1 as i32 } else if is_pure_igpu { 45 } else { 75 };
+            let tg = if is_pure_igpu {
+                0
+            } else {
+                let base = if presets.base_tgp > 0 { presets.base_tgp as i32 } else { 150 };
+                let db = if balanced_gpu_dynamic_boost {
+                    if presets.max_db > 0 { presets.max_db as i32 } else { 25 }
+                } else {
+                    0
+                };
+                base + db
+            };
+            (p1, tg)
+        }
+        3 => {
+            let p1 = if presets.turbo_pl1 > 0 { presets.turbo_pl1 as i32 } else if is_pure_igpu { 54 } else { 205 };
+            let tg = if is_pure_igpu {
+                0
+            } else {
+                let base = if presets.base_tgp > 0 { presets.base_tgp as i32 } else { 150 };
+                let db = if presets.max_db > 0 { presets.max_db as i32 } else { 25 };
+                base + db
+            };
+            (p1, tg)
+        }
+        _ => (75, 175),
+    };
+
+    let text = if tgp > 0 {
+        format!("{} PL1: {}W | TGP: {}W", label, pl1, tgp)
+    } else if !is_pure_igpu {
+        format!("{} PL1: {}W | TGP: --", label, pl1)
+    } else {
+        format!("{} PL1: {}W", label, pl1)
+    };
+
+    (pl1, tgp, text)
+}
+
+pub fn get_current_power_targets(power_mode: u8) -> (i32, i32, String) {
+    let cfg = crate::system::config::load_config();
+    let is_pure_igpu = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu()
+        || !crate::driver::gpu_bridge::is_nvidia_dgpu_available();
+    let presets = crate::system::power_mode::get_factory_power_presets(!is_pure_igpu);
+    let active_id = if !cfg.active_profile_id.is_empty() {
+        cfg.active_profile_id.clone()
+    } else {
+        "preset_balance".to_string()
+    };
+    let profiles = crate::commands::tuning_cmd::get_profiles_list().unwrap_or_default();
+    let matched = profiles.iter().find(|p| p.id == active_id).or_else(|| profiles.first());
+    let custom_profile = matched.map(|p| &p.profile).unwrap_or(&cfg.custom_profile);
+
+    compute_power_targets(
+        power_mode,
+        &presets,
+        cfg.balanced_gpu_dynamic_boost,
+        Some(custom_profile),
+        is_pure_igpu,
+    )
+}
+
+pub fn sync_slint_power_targets(power_mode: u8) {
+    let (pl1, tgp, text) = get_current_power_targets(power_mode);
+    send_slint_ipc_message(serde_json::json!({
+        "action": "power_targets",
+        "power_mode": power_mode,
+        "pl1_target": pl1,
+        "tgp_target": tgp,
+        "power_target_text": text,
+    }));
 }
