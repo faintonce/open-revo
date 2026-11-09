@@ -4,8 +4,12 @@ use crate::MainWindow;
 pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     let ui_cb = ui_weak.clone();
     window.on_power_mode_clicked(move |mode| {
-        ipc::send_action_to_host("set_power_mode", serde_json::json!({ "mode": mode }));
         if let Some(ui) = ui_cb.upgrade() {
+            if (mode == 3 || mode == 4) && ui.get_is_power_mode_restricted() {
+                // Restricted on battery/Type-C without unlocking: prevent action and preserve current mode
+                return;
+            }
+            ipc::send_action_to_host("set_power_mode", serde_json::json!({ "mode": mode }));
             ui.set_power_mode(mode);
         }
     });

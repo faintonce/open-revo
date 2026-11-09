@@ -37,6 +37,7 @@ export component DrawerView inherits Rectangle {
     in-out property <color> kb_color: #6366f1;
     in-out property <int> battery_limit: 60;
     in-out property <bool> is_ac_online: true;
+    in-out property <bool> is_power_mode_restricted: false;
 
     // Telemetry
     in-out property <int> cpu_temp: 62;
@@ -101,6 +102,7 @@ export component DrawerView inherits Rectangle {
             power_mode: root.power_mode;
             cpu_temp: root.cpu_temp;
             cpu_rpm: root.cpu_rpm;
+            is_restricted: root.is_power_mode_restricted;
             set_mode(mode) => { root.power_mode_clicked(mode); }
         }
 

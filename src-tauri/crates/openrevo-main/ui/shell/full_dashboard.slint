@@ -281,6 +281,7 @@ export component FullDashboard inherits Rectangle {
     in-out property <int> pl1_target: 75;
     in-out property <int> tgp_target: 175;
     in-out property <string> power_target_text: "";
+    in-out property <bool> is_power_mode_restricted: false;
     callback set_power_mode(int);
     callback open_custom_tuning();
 
@@ -601,6 +602,7 @@ export component FullDashboard inherits Rectangle {
                 pl1_target: root.pl1_target;
                 tgp_target: root.tgp_target;
                 power_target_text: root.power_target_text;
+                is_power_mode_restricted: root.is_power_mode_restricted;
                 set_power_mode(mode) => { root.set_power_mode(mode); }
                 open_custom_tuning => {
                     root.is_in_tuning_view = true;

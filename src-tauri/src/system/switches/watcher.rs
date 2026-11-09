@@ -346,8 +346,10 @@ pub fn start_hardware_state_watcher(
                             crate::update_tray_power_mode(target_mode);
                             crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
                                 "action": "sync_state",
-                                "power_mode": target_mode
+                                "power_mode": target_mode,
+                                "is_dc_online": false
                             }));
+                            crate::system::slint_window::sync_slint_power_targets(target_mode);
                             if let Some(ref a) = app {
                                 use tauri::Emitter;
                                 crate::system::osd_window::wake_osd_if_enabled(a);
@@ -363,6 +365,10 @@ pub fn start_hardware_state_watcher(
                             use tauri::Emitter;
                             let _ = a.emit("dc-status-changed", false);
                         }
+                        crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                            "action": "sync_state",
+                            "is_dc_online": false
+                        }));
                         crate::system::watcher_hub::notify_power_event("ac_disconnected");
                     } else if !last_dc && is_dc {
                         // DC round adapter plugged back in (Transition: On Battery/Type-C -> DC Online)
@@ -391,8 +397,10 @@ pub fn start_hardware_state_watcher(
                         crate::update_tray_power_mode(target_mode);
                         crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
                             "action": "sync_state",
-                            "power_mode": target_mode
+                            "power_mode": target_mode,
+                            "is_dc_online": true
                         }));
+                        crate::system::slint_window::sync_slint_power_targets(target_mode);
                         if let Some(ref a) = app {
                             use tauri::Emitter;
                             crate::system::osd_window::wake_osd_if_enabled(a);
@@ -418,8 +426,10 @@ pub fn start_hardware_state_watcher(
                         crate::update_tray_power_mode(target_mode);
                         crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
                             "action": "sync_state",
-                            "power_mode": target_mode
+                            "power_mode": target_mode,
+                            "is_dc_online": true
                         }));
+                        crate::system::slint_window::sync_slint_power_targets(target_mode);
                         if let Some(ref a) = app {
                             use tauri::Emitter;
                             let _ = a.emit("physical-mode-switched", target_mode);
@@ -439,8 +449,10 @@ pub fn start_hardware_state_watcher(
                         crate::update_tray_power_mode(target_mode);
                         crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
                             "action": "sync_state",
-                            "power_mode": target_mode
+                            "power_mode": target_mode,
+                            "is_dc_online": false
                         }));
+                        crate::system::slint_window::sync_slint_power_targets(target_mode);
                         if let Some(ref a) = app {
                             use tauri::Emitter;
                             let _ = a.emit("physical-mode-switched", target_mode);

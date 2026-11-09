@@ -239,6 +239,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                         crate::system::osd_window::show_power_mode(2);
                     }
                 }
+                super::super::sync::sync_slint_switches_state();
+                let fresh_cfg = crate::system::config::load_config();
+                super::super::sync::sync_slint_power_targets(fresh_cfg.power_mode);
             }
             true
         }
