@@ -35,6 +35,9 @@ async function mainWindow(t, deferConfig = false) {
     document: { documentElement: { setAttribute() {}, removeAttribute() {} } },
     setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {},
     alert: (message) => alerts.push(message),
+  }, {
+    // Load the real boot-authority helpers instead of stubbing them.
+    loadRelative: ['./lib/powerModeAuthority'],
   });
   const { default: App } = load('../App.tsx');
   await act(async () => { tree = create(React.createElement(App)); });

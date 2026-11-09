@@ -286,6 +286,19 @@ impl EcBridge {
         )
     }
 
+    /// Applies `cfg` and persists it, committing the cached mode only once the EC confirmed it.
+    ///
+    /// # Locking
+    ///
+    /// Two locks are involved and only one order is safe:
+    /// - [`crate::hal::power_control::MODE_OPERATION`] serializes mode switches and is taken first.
+    /// - the `SharedEcBridge` mutex (`Arc<Mutex<EcBridge>>`) guards this struct and is normally
+    ///   taken *inside* the mode lock, so the sequence is `MODE_OPERATION -> EC -> config I/O`
+    ///   (`persist` writes the config while the caller still holds the bridge mutex).
+    ///
+    /// Taking the bridge mutex before the mode lock deadlocks against
+    /// `power_cmd::set_power_mode_internal`. The EC driver's `ACPI_MUTEX` is a non-reentrant
+    /// `std::sync::Mutex` and must never be held while entering the mode pipeline.
     pub fn set_power_mode_with_config(
         &self,
         cfg: &crate::system::config::AppConfig,
@@ -320,15 +333,14 @@ impl EcBridge {
         if !confirmed {
             return result.map_err(|error| error.message);
         }
-        let saved = persist().map_err(|error| {
-            format!(
-                "Performance mode control was acknowledged, but saving settings failed: {error}"
-            )
-        });
+        // Keep exactly one "already switched" claim per message: callers render these strings
+        // verbatim, so a second copy reads as a contradiction.
+        let saved = persist().map_err(|error| format!("保存设置失败：{error}"));
         match (result, saved) {
-            (Err(sync), Err(save)) => Err(format!("{}; {}", sync.message, save)),
+            (Err(sync), Err(save)) => Err(format!("{}（{}）", sync.message, save)),
             (Err(sync), Ok(())) => Err(sync.message),
-            (Ok(()), saved) => saved,
+            (Ok(()), Err(save)) => Err(format!("性能模式已切换，但{save}")),
+            (Ok(()), Ok(())) => Ok(()),
         }
     }
 

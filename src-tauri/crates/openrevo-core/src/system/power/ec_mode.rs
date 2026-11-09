@@ -5,12 +5,43 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) -> Result<(), String> {
     let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     crate::system::power::ensure_power_mode_allowed(ui_mode)?;
     let cfg = crate::system::config::load_config();
-    apply_ec_hardware_mode_with_config(ui_mode, &cfg)
+    apply_ec_hardware_mode_with_config(ui_mode, &cfg).map_err(|error| error.message)
 }
 
+/// Applies the mode and reports whether the EC itself already accepted it.
+///
+/// `committed` flips once every write that decides the mode was acknowledged: `ADDR_MODE_INDEX`,
+/// `ADDR_TRIGGER_BYTE` and, for Custom, `ADDR_CUSTOM_MODE` — all of them land before the latch.
+/// From that point the machine is in the new mode, so a later failure (silent-status flag, power
+/// limits, fan table, OEM follow-up, self-healing) is reported as "switched, but …" rather than
+/// "the switch failed": that is what made the UI show the previous mode while the hardware had
+/// already switched. `ADDR_TURBO_TRIGGER` stays after the commit point on purpose — it is a
+/// status flag the EC uses for its silent power/fan policy, it does not select the mode, and
+/// moving it before the latch would turn a status-write failure into a mode rollback.
 pub(super) fn apply_ec_hardware_mode_with_config(
     ui_mode: u8,
     config: &crate::system::config::AppConfig,
+) -> Result<(), crate::hal::power_control::ModeApplyError> {
+    let committed = std::cell::Cell::new(false);
+    apply_ec_hardware_mode_inner(ui_mode, config, &committed).map_err(|message| {
+        let confirmed = committed.get();
+        crate::hal::power_control::ModeApplyError {
+            // Post-commit failures keep the context that the mode is already in effect, so
+            // callers never surface them as "the switch failed".
+            message: if confirmed {
+                format!("性能模式已切换，但后续步骤失败：{message}")
+            } else {
+                message
+            },
+            hardware_confirmed: confirmed,
+        }
+    })
+}
+
+fn apply_ec_hardware_mode_inner(
+    ui_mode: u8,
+    config: &crate::system::config::AppConfig,
+    committed: &std::cell::Cell<bool>,
 ) -> Result<(), String> {
     use crate::hal::power_control::acknowledged;
     use crate::hal::vault::{fan, power};
@@ -52,6 +83,8 @@ pub(super) fn apply_ec_hardware_mode_with_config(
         }
         hal.set_performance_mode(hw_mode)
             .map_err(|error| error.to_string())?;
+        // The HAL accepted the mode: fan curve / sub-mode follow-ups below are best effort.
+        committed.set(true);
         if crate::hal::declarative::load_matched_manifest()
             .is_some_and(|manifest| manifest.id.contains("bld"))
         {
@@ -120,13 +153,14 @@ pub(super) fn apply_ec_hardware_mode_with_config(
     match ui_mode {
         1 => {
             // --- Office / Silent Mode (Green LED) ---
-            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
-            modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera).
+            // Q-Key LED cosmetics must never abort a mode switch.
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
                 current & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
-            })?;
-            modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
                 current & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
-            })?;
+            });
 
             // Physical Mode & Chassis Q-Key LED: Green (0xA0 on 40/50-series, 0x10/0x50 on legacy)
             if wmi_ec::is_legacy_dual_mode_ec() {
@@ -150,10 +184,16 @@ pub(super) fn apply_ec_hardware_mode_with_config(
 
             // 1. EC Mode Index: 0x00 (Office Mode, preserves Logo brightness & support bit 0)
             set_ec_mode_index(power::MODE_BALANCED)?;
-            // 2. Trigger Silent Mode via ADDR_TRIGGER_BYTE (preserve Bit 4 USB Charging)
-            modify_ec(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+            // Leave Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (64) is the only write
+            // that distinguishes Turbo from Custom, so it has to land before the commit point.
+            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
+            // 2. Trigger Silent Mode via ADDR_TRIGGER_BYTE (preserve Bit 4 USB Charging).
+            // The trigger byte is a latch: it is written even when the value is unchanged,
+            // otherwise the EC never re-applies the limits of a repeated switch.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
                 crate::hal::power_control::trigger(current, true)
             })?;
+            committed.set(true);
             // 3. Mark silent mode status
             write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 1)?;
 
@@ -206,7 +246,6 @@ pub(super) fn apply_ec_hardware_mode_with_config(
             }
 
             // 6. Fan Transition Speed (0x83 = enable smoothing filter at 300ms/0.5%)
-            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
             write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, power::STANDARD_FAN_RAMP)?;
             acknowledged(
                 wmi_ec::set_fan_isolated_output(false),
@@ -217,13 +256,14 @@ pub(super) fn apply_ec_hardware_mode_with_config(
         }
         2 => {
             // --- Balance / Gaming Mode (Blue LED) ---
-            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
-            modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera).
+            // Q-Key LED cosmetics must never abort a mode switch.
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
                 current & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
-            })?;
-            modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
                 current & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
-            })?;
+            });
 
             // Physical Mode & Chassis Q-Key LED: Blue (0x00 on 40/50-series, 0x10/0x50 on legacy)
             if wmi_ec::is_legacy_dual_mode_ec() {
@@ -247,10 +287,15 @@ pub(super) fn apply_ec_hardware_mode_with_config(
 
             // 1. EC Mode Index: 0x00 (Balance Mode, preserves Logo brightness & support bit 0)
             set_ec_mode_index(power::MODE_BALANCED)?;
-            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging)
-            modify_ec(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+            // Leave Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (64) is the only write
+            // that distinguishes Turbo from Custom, so it has to land before the commit point.
+            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
+            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging).
+            // Latch semantics: written even when unchanged so a repeated switch re-applies.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
                 crate::hal::power_control::trigger(current, false)
             })?;
+            committed.set(true);
             // 3. Clear silent mode status
             write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0)?;
 
@@ -305,7 +350,6 @@ pub(super) fn apply_ec_hardware_mode_with_config(
             }
 
             // 6. Fan Transition Speed (0x83 = enable smoothing filter at 300ms/0.5%)
-            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
             write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, power::STANDARD_FAN_RAMP)?;
             acknowledged(
                 wmi_ec::set_fan_isolated_output(false),
@@ -316,13 +360,14 @@ pub(super) fn apply_ec_hardware_mode_with_config(
         }
         3 => {
             // --- Beast / Turbo Mode (Red LED) ---
-            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
-            modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera).
+            // Q-Key LED cosmetics must never abort a mode switch.
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
                 current & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
-            })?;
-            modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
                 current & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
-            })?;
+            });
 
             // Physical Mode & Chassis Q-Key LED: Red (0x10 on 40/50-series, 0x10/0x50 on legacy)
             if wmi_ec::is_legacy_dual_mode_ec() {
@@ -345,10 +390,15 @@ pub(super) fn apply_ec_hardware_mode_with_config(
 
             // 1. EC Mode Index: 0x10 (Turbo Mode, preserves Logo brightness & support bit 0)
             set_ec_mode_index(power::MODE_TURBO)?;
-            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging)
-            modify_ec(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+            // Leave Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (64) is the only write
+            // that distinguishes Turbo from Custom, so it has to land before the commit point.
+            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
+            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging).
+            // Latch semantics: written even when unchanged so a repeated switch re-applies.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
                 crate::hal::power_control::trigger(current, false)
             })?;
+            committed.set(true);
             // 3. Clear silent mode status
             write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0)?;
 
@@ -409,7 +459,6 @@ pub(super) fn apply_ec_hardware_mode_with_config(
             }
 
             // 6. Fan Transition Speed: 0x00 (Zero latency instantaneous turbo fan response)
-            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
             write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x00)?;
             acknowledged(
                 wmi_ec::set_fan_isolated_output(false),
@@ -470,12 +519,12 @@ pub(super) fn apply_ec_hardware_mode_with_config(
 
             // Physical Q-Key LED: Custom Mode (preserve Bit 3 AC Recovery) - Gaming laptops only
             if !crate::hal::platform_probe::is_ultrabook() {
-                modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+                best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
                     current | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
-                })?;
-                modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+                });
+                best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
                     current | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
-                })?;
+                });
             }
 
             // Read saved user custom profile
@@ -603,14 +652,20 @@ pub(super) fn apply_ec_hardware_mode_with_config(
                 )?;
             }
 
+            // Enter Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (65) is part of the mode
+            // identity, so it has to land before the commit point — and a failed write here
+            // must leave the reported mode untouched (the EC is still Turbo at that point).
+            acknowledged(wmi_ec::set_custom_mode_ec(true), "set_custom_mode_ec")?;
+
             // 3. Hardware Trigger Latch: Assert Trigger Byte (preserve Bit 4 USB Charging)
-            // Latch all CPU & GPU power/thermal configurations into EC/SMM state machine
-            modify_ec(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+            // Latch all CPU & GPU power/thermal configurations into EC/SMM state machine.
+            // Written unconditionally: this register latches on the write itself.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
                 crate::hal::power_control::trigger(current, false)
             })?;
+            committed.set(true);
 
-            // 4. Custom Mode Hardware Switch & Fan strategies / Sensitivity
-            acknowledged(wmi_ec::set_custom_mode_ec(true), "set_custom_mode_ec")?;
+            // 4. Custom Mode fan strategies / sensitivity
             acknowledged(
                 wmi_ec::set_fan_ramp_rate(profile.fan_ramp_rate, profile.fan_ramp_speed_ms),
                 "set_fan_ramp_rate",
@@ -651,28 +706,32 @@ pub(super) fn apply_ec_hardware_mode_with_config(
                 crate::log_info!("POWER_MODE", "Custom Mode: Fan Boost is active, skipping fan curve latch to preserve full fan boost speed");
             }
 
-            modify_ec(wmi_ec::ADDR_BACKLIGHT_WHITE, |current| {
+            best_effort_modify_ec(wmi_ec::ADDR_BACKLIGHT_WHITE, |current| {
                 current & !power::CUSTOM_BACKLIGHT_CLEAR_BIT
-            })?;
+            });
 
             // Re-confirm White Q-Key LED post-latch to guarantee hardware latch permanence
-            modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
                 current | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
-            })?;
-            modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
                 current | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
-            })?;
+            });
 
             crate::log_info!("POWER_MODE", "Custom Mode (Mode 4) successfully asserted with White Q-Key LED, 0x10 Turbo base & Trigger");
         }
         _ => {}
     }
 
-    // Self-healing: if on legacy Pascal/Turing machine, verify and restore fan table
-    acknowledged(
-        wmi_ec::heal_legacy_fan_table_if_needed(),
-        "Legacy fan table recovery",
-    )?;
+    // Self-healing: if on legacy Pascal/Turing machine, verify and restore fan table.
+    // This runs after the mode is committed and is best effort: a failed recovery must not
+    // turn an already applied mode into a reported failure.
+    if !wmi_ec::heal_legacy_fan_table_if_needed() {
+        crate::log_warn!(
+            "POWER_MODE",
+            "Legacy fan table recovery was not acknowledged; the mode itself is applied"
+        );
+    }
 
     // Hardware readback verification & Deep Telemetry
     let raw_mode_index = wmi_ec::wmi_read_ec(wmi_ec::ADDR_MODE_INDEX).unwrap_or(0);
@@ -761,4 +820,28 @@ fn modify_ec(address: u16, update: impl FnOnce(u8) -> u8) -> Result<(), String> 
     crate::driver::wmi_ec::wmi_modify_ec(address, update)
         .map(|_| ())
         .ok_or_else(|| format!("EC update {address:#X} was not acknowledged"))
+}
+
+/// Writes a latch register unconditionally.
+///
+/// `modify_ec` skips the write when the computed byte equals the current one, which is
+/// wrong for registers whose *write* is the event: `ADDR_TRIGGER_BYTE` re-latches PL/TGP
+/// and fan settings into the EC/SMM state machine, so a repeated switch with an unchanged
+/// byte would silently keep the previous limits.
+fn write_trigger(address: u16, update: impl FnOnce(u8) -> u8) -> Result<(), String> {
+    crate::driver::wmi_ec::wmi_modify_ec_always(address, update)
+        .map(|_| ())
+        .ok_or_else(|| format!("EC trigger update {address:#X} was not acknowledged"))
+}
+
+/// Cosmetic EC updates (Q-Key LED, backlight) that must never abort a mode switch.
+fn best_effort_modify_ec(address: u16, update: impl FnOnce(u8) -> u8) {
+    if let Err(error) = modify_ec(address, update) {
+        crate::log_warn!(
+            "POWER_MODE",
+            "Best-effort EC update {:#X} failed: {}",
+            address,
+            error
+        );
+    }
 }

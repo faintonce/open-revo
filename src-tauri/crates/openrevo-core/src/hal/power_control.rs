@@ -41,31 +41,51 @@ pub fn acknowledged(success: bool, operation: &str) -> Result<(), String> {
 #[derive(Debug)]
 pub struct ModeApplyError {
     pub message: String,
+    /// The EC accepted the new mode; later steps may still have failed.
     pub hardware_confirmed: bool,
+}
+
+impl ModeApplyError {
+    /// The switch never reached the EC, so the previous mode is still in effect.
+    pub fn pending(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            hardware_confirmed: false,
+        }
+    }
+
+    /// The EC is already in the new mode and only follow-up work failed.
+    pub fn confirmed(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            hardware_confirmed: true,
+        }
+    }
 }
 
 pub fn apply_mode_steps(
     validate: impl FnOnce() -> Result<(), String>,
     overlay: impl FnOnce() -> Result<(), String>,
-    hardware: impl FnOnce() -> Result<(), String>,
+    hardware: impl FnOnce() -> Result<(), ModeApplyError>,
     synchronize: impl FnOnce() -> Result<(), String>,
 ) -> Result<(), ModeApplyError> {
     let _transition = MODE_OPERATION.lock();
-    validate().map_err(|message| ModeApplyError {
-        message,
-        hardware_confirmed: false,
+    validate().map_err(ModeApplyError::pending)?;
+    overlay().map_err(|error| {
+        ModeApplyError::pending(format!("性能模式切换未完成，部分设置可能已经生效：{error}"))
     })?;
-    (|| {
-        overlay()?;
-        hardware()
-    })()
-    .map_err(|error| ModeApplyError {
-        message: format!("性能模式切换未完成，部分设置可能已经生效：{error}"),
-        hardware_confirmed: false,
+    hardware().map_err(|error| {
+        if error.hardware_confirmed {
+            error
+        } else {
+            ModeApplyError::pending(format!(
+                "性能模式切换未完成，部分设置可能已经生效：{}",
+                error.message
+            ))
+        }
     })?;
-    synchronize().map_err(|error| ModeApplyError {
-        message: format!("性能模式已切换，但 OEM 配置同步失败：{error}"),
-        hardware_confirmed: true,
+    synchronize().map_err(|error| {
+        ModeApplyError::confirmed(format!("性能模式已切换，但 OEM 配置同步失败：{error}"))
     })
 }
 
@@ -110,7 +130,8 @@ mod tests {
                     Ok(())
                 }
             };
-            let error = apply_mode_steps(next, next, next, next).unwrap_err();
+            let error = apply_mode_steps(next, next, || next().map_err(ModeApplyError::pending), next)
+                .unwrap_err();
             assert!(error.message.contains("rejected"));
             assert_eq!(error.hardware_confirmed, failed == 3);
             assert_eq!(calls.get(), failed + 1);
@@ -129,6 +150,20 @@ mod tests {
             .unwrap();
         }
         assert_eq!(calls.get(), 2);
+    }
+
+    #[test]
+    fn regression_post_commit_failure_keeps_the_confirmed_flag() {
+        let error = apply_mode_steps(
+            || Ok(()),
+            || Ok(()),
+            || Err(ModeApplyError::confirmed("fan table failed after commit")),
+            || Ok(()),
+        )
+        .unwrap_err();
+        assert!(error.hardware_confirmed);
+        assert!(error.message.contains("fan table failed"));
+        assert!(!error.message.contains("部分设置可能已经生效"));
     }
 
     #[test]

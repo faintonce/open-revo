@@ -131,11 +131,38 @@ pub fn get_cpu_frequency_info() -> Option<(u32, u32, u32)> {
 }
 
 
-/// Apply full-stack performance release mode across Windows Power Overlay, Power Plan, and Motherboard EC
+/// Apply full-stack performance release mode across Windows Power Overlay, Power Plan, and Motherboard EC.
+///
+/// Entry points that do not go through `EcBridge` (AI tools, watcher automations) must leave the
+/// same observable state as a UI switch: the AC/battery preference and the persisted
+/// `power_mode`. Both are committed here, and only once the EC acknowledged the switch; a mode
+/// the hardware rejected is never stored. The app crate additionally commits the bridge cache,
+/// tray radio and UI events in its own copy of this function, because only that crate owns them.
 pub fn apply_full_power_mode(ui_mode: u8) -> Result<(), String> {
     let _operation = crate::hal::power_control::MODE_OPERATION.lock();
-    let cfg = crate::system::config::load_config();
-    apply_full_power_mode_with_config(ui_mode, &cfg).map_err(|error| error.message)
+    let mut cfg = crate::system::config::load_config();
+    cfg.power_mode = ui_mode;
+    if crate::system::power::status::is_dc_round_plugged_in() {
+        cfg.power_mode_ac = ui_mode;
+    } else {
+        cfg.power_mode_battery = ui_mode;
+    }
+    let result = apply_full_power_mode_with_config(ui_mode, &cfg);
+    let confirmed = result.is_ok()
+        || result
+            .as_ref()
+            .err()
+            .is_some_and(|error| error.hardware_confirmed);
+    if confirmed {
+        if let Err(error) = crate::system::config::try_save_config(&cfg) {
+            let save = format!("保存设置失败：{error}");
+            return Err(match &result {
+                Ok(()) => format!("性能模式已切换，但{save}"),
+                Err(apply) => format!("{}（{}）", apply.message, save),
+            });
+        }
+    }
+    result.map_err(|error| error.message)
 }
 
 /// Set Windows Power Overlay Scheme slider (Best Efficiency / Balanced / Best Performance)

@@ -126,7 +126,10 @@ impl PowerArbiter {
             cfg.unlock_battery_power_limit,
             is_dc,
         );
-        super::apply_full_power_mode(target_mode)?;
+        // The preference is user intent: record it even when the hardware apply fails below.
+        // `power_mode` itself is written by `apply_full_power_mode` only after the EC
+        // acknowledged the switch, so a rejected or half-applied switch cannot make the
+        // stored mode (and therefore the UI) claim something the hardware never did.
         let mut updated_cfg = cfg.clone();
         match intent {
             PowerIntentSource::UserExplicitUi(_) | PowerIntentSource::HardwarePhysicalQKey(_) => {
@@ -141,8 +144,8 @@ impl PowerArbiter {
             }
             _ => {}
         }
-        updated_cfg.power_mode = target_mode;
         crate::system::config::try_save_config(&updated_cfg)?;
+        super::apply_full_power_mode(target_mode)?;
         // 6. Synchronize power mode status to subscribers
         crate::event::power_mode_changed_global(target_mode);
 

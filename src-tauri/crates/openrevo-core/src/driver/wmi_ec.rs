@@ -366,6 +366,37 @@ pub fn wmi_modify_ec<F: FnOnce(u8) -> u8>(addr: u16, f: F) -> Option<u8> {
     }
 }
 
+/// Like [`wmi_modify_ec`], but always issues the write, even when the computed value is
+/// identical to the current one.
+///
+/// Latch/command registers act on the write itself (e.g. `ADDR_TRIGGER_BYTE` re-arms the
+/// EC/SMM state machine), so skipping an unchanged write would silently keep the previous
+/// limits. The read-compute-write still runs inside one `ACPI_MUTEX` critical section, so a
+/// concurrent bitfield update cannot be lost.
+pub fn wmi_modify_ec_always<F: FnOnce(u8) -> u8>(addr: u16, f: F) -> Option<u8> {
+    let _guard = ACPI_MUTEX.lock();
+    let old_val = raw_driver_read_ec(addr)?;
+    let new_val = f(old_val);
+    if raw_driver_write_ec(addr, new_val) {
+        crate::log_debug!(
+            "EC_DRIVER",
+            "wmi_modify_ec_always({:#X}) 0x{:02X} -> 0x{:02X}",
+            addr,
+            old_val,
+            new_val
+        );
+        Some(new_val)
+    } else {
+        crate::log_error!(
+            "EC_DRIVER",
+            "wmi_modify_ec_always({:#X}) failed to write 0x{:02X}",
+            addr,
+            new_val
+        );
+        None
+    }
+}
+
 /// Helper to atomically set or clear a bitmask on an EC register.
 pub fn wmi_modify_ec_mask(addr: u16, mask: u8, enable: bool) -> Option<u8> {
     wmi_modify_ec(addr, |val| {
@@ -377,8 +408,10 @@ pub fn wmi_modify_ec_mask(addr: u16, mask: u8, enable: bool) -> Option<u8> {
     })
 }
 
+/// Sets `mask` on the trigger byte. Written unconditionally: this register latches on the write
+/// itself, so a repeated trigger with an unchanged byte must still be issued.
 pub fn trigger_ec_action(mask: u8) -> bool {
-    wmi_modify_ec(ADDR_TRIGGER_BYTE, |cur| cur | mask).is_some()
+    wmi_modify_ec_always(ADDR_TRIGGER_BYTE, |cur| cur | mask).is_some()
 }
 
 pub fn is_fan_boost_active() -> bool {

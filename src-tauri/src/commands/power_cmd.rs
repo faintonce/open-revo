@@ -263,9 +263,15 @@ fn set_power_mode_internal_with(
         cfg.power_mode_battery = mode;
     }
     prepare(&mut cfg);
-    ec_state.lock().set_power_mode_with_config(&cfg)?;
-    publish_power_mode(app, mode);
-    Ok(())
+    let previous = ec_state.lock().get_power_mode();
+    let applied = ec_state.lock().set_power_mode_with_config(&cfg);
+    // `apply_power_mode` commits the cached mode only after the EC confirmed it, so a switch that
+    // failed past the commit point still has to reach the tray / OSD / UI even though the caller
+    // gets an error back. A failure that left the cache on the previous mode must not publish.
+    if applied.is_ok() || (previous != mode && ec_state.lock().get_power_mode() == mode) {
+        publish_power_mode(app, mode);
+    }
+    applied
 }
 
 #[tauri::command(async)]
@@ -1032,7 +1038,9 @@ fn emit_confirmed_turbo_submode(state: &TurboSubmodeState) {
     crate::system::turbo_events::publish_turbo_submode_changed(state.supported, state.silent);
 }
 
-#[tauri::command]
+/// Runs off the main thread: it waits for the global mode lock, which an in-flight switch
+/// can hold for the whole EC + OEM-sync sequence.
+#[tauri::command(async)]
 pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
     apply_turbo_submode_and_persist(silent)
 }
