@@ -1,6 +1,23 @@
 use serde_json::Value;
 use std::{fs, path::Path};
 
+/// Aliases emitted into `ec` after the dictionary entries.
+///
+/// The left name must not appear in the dictionary (it would be defined twice) and the
+/// right name must exist there; previously both mistakes only surfaced as an `E0428` /
+/// `E0425` inside the generated file, where the cause is hard to see.
+const EC_ALIASES: [(&str, &str); 9] = [
+    ("ADDR_SUPPORT_BYTE3", "ADDR_SUPPORT_BYTE6"),
+    ("ADDR_DC_ROUND_JACK", "ADDR_POWER_STATUS"),
+    ("ADDR_SUPER_PERFORMANCE", "ADDR_FAN_BOOST_CLAMP"),
+    ("ADDR_GPU_DB_MAX", "ADDR_DB_WATTS1"),
+    ("ADDR_RGB_CONTROL", "ADDR_FAN_ISOLATED"),
+    ("ADDR_MYFAN2_L1_PWM", "ADDR_DB_CTRL1"),
+    ("ADDR_MYFAN2_L2_PWM", "ADDR_TGP_OFFSET"),
+    ("ADDR_MYFAN2_L3_PWM", "ADDR_DB_FLAG1"),
+    ("ADDR_MYFAN2_L4_PWM", "ADDR_DB_WATTS1"),
+];
+
 fn validate_registry(value: &Value) -> Result<(), String> {
     for (section, maximum) in [
         ("ec", u16::MAX as u64),
@@ -23,6 +40,20 @@ fn validate_registry(value: &Value) -> Result<(), String> {
                 return Err(format!("Invalid hardware constant name: {}", name));
             }
             checked(number, maximum).map_err(|e| format!("{}.{}: {}", section, name, e))?;
+        }
+    }
+    let ec = value["ec"]
+        .as_object()
+        .ok_or_else(|| "ec must be an object".to_string())?;
+    for (alias, target) in EC_ALIASES {
+        if ec.contains_key(alias) {
+            return Err(format!(
+                "ec.{} collides with the built-in alias for {}",
+                alias, target
+            ));
+        }
+        if !ec.contains_key(target) {
+            return Err(format!("ec.{} is required by the alias {}", target, alias));
         }
     }
     for (section, names, maximum) in [
@@ -76,6 +107,10 @@ fn checked(value: &Value, maximum: u64) -> Result<(), String> {
 }
 
 pub fn registry_code(content: &str) -> Result<String, String> {
+    // Windows editors happily save the registry with a UTF-8 BOM; serde_json rejects it.
+    let content = content.strip_prefix('\u{feff}').unwrap_or(content);
+    // Note: serde_json keeps the last value of a duplicated key, so duplicates are not rejected
+    // here. The shipped registry has none; detecting them would need a custom visitor.
     let val: Value = serde_json::from_str(content)
         .map_err(|e| format!("Invalid hardware registry JSON: {}", e))?;
     validate_registry(&val)?;
@@ -143,15 +178,12 @@ pub fn registry_code(content: &str) -> Result<String, String> {
         }
     }
     // Aliases
-    code.push_str("    pub const ADDR_SUPPORT_BYTE3: u16 = ADDR_SUPPORT_BYTE6;\n");
-    code.push_str("    pub const ADDR_DC_ROUND_JACK: u16 = ADDR_POWER_STATUS;\n");
-    code.push_str("    pub const ADDR_SUPER_PERFORMANCE: u16 = ADDR_FAN_BOOST_CLAMP;\n");
-    code.push_str("    pub const ADDR_GPU_DB_MAX: u16 = ADDR_DB_WATTS1;\n");
-    code.push_str("    pub const ADDR_RGB_CONTROL: u16 = ADDR_FAN_ISOLATED;\n");
-    code.push_str("    pub const ADDR_MYFAN2_L1_PWM: u16 = ADDR_DB_CTRL1;\n");
-    code.push_str("    pub const ADDR_MYFAN2_L2_PWM: u16 = ADDR_TGP_OFFSET;\n");
-    code.push_str("    pub const ADDR_MYFAN2_L3_PWM: u16 = ADDR_DB_FLAG1;\n");
-    code.push_str("    pub const ADDR_MYFAN2_L4_PWM: u16 = ADDR_DB_WATTS1;\n");
+    for (alias, target) in EC_ALIASES {
+        code.push_str(&format!(
+            "    pub const {}: u16 = {};\n",
+            alias, target
+        ));
+    }
     code.push_str("}\n\n");
 
     // mask module
@@ -552,17 +584,63 @@ pub mod miniled {
     fallback
 }
 
-pub fn generate_hardware_vault(registry: &Path) {
-    println!("cargo:rerun-if-changed={}", registry.display());
-    let code = match fs::read_to_string(registry) {
-        Ok(content) => registry_code(&content)
-            .unwrap_or_else(|error| panic!("Hardware registry rejected: {}", error)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => fallback_code(),
-        Err(error) => panic!(
+/// Emits the vault module for `registry` into `OUT_DIR`.
+///
+/// A missing registry is the documented community-fork case and produces the mock
+/// vault. An existing file that cannot be read, parsed or validated stops the build:
+/// silently falling back to the mock would hide a broken hardware configuration.
+/// Reads the registry, or reports that it is absent.
+///
+/// `Ok(None)` is the documented community-fork case (mock vault). An existing path that cannot
+/// be read is an error: silently falling back to the mock would hide a broken configuration.
+fn vault_source(registry: &Path) -> Result<Option<String>, String> {
+    if registry.is_dir() {
+        return Err(format!(
+            "Hardware registry {} is a directory, expected a JSON file",
+            registry.display()
+        ));
+    }
+    match fs::read_to_string(registry) {
+        Ok(content) => Ok(Some(content)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!(
             "Cannot read hardware registry {}: {}",
             registry.display(),
             error
-        ),
+        )),
+    }
+}
+
+pub fn generate_hardware_vault(registry: &Path) {
+    // Cargo treats a registered path that does not exist as permanently stale (re-running this
+    // script on every build), so the file itself cannot be watched before it appears. Watch its
+    // directory instead; while that directory is missing too (a fork that removed `config/`),
+    // fall back to the nearest existing ancestor, which must exist and therefore does not spin.
+    // The fallback only stays in effect until the real directory is created.
+    let directory = registry
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let watched = if directory.is_dir() {
+        directory
+    } else {
+        directory
+            .ancestors()
+            .find(|ancestor| !ancestor.as_os_str().is_empty() && ancestor.is_dir())
+            .unwrap_or_else(|| Path::new("."))
+    };
+    println!("cargo:rerun-if-changed={}", watched.display());
+
+    let code = match vault_source(registry) {
+        Ok(Some(content)) => registry_code(&content).unwrap_or_else(|error| {
+            panic!(
+                "Hardware registry {} rejected: {}",
+                registry.display(),
+                error
+            )
+        }),
+        Ok(None) => fallback_code(),
+        Err(error) => panic!("{}", error),
     };
     let output = std::env::var("OUT_DIR").expect("OUT_DIR must be set by Cargo");
     fs::write(Path::new(&output).join("generated_vault.rs"), code)
@@ -607,5 +685,77 @@ mod tests {
         assert!(registry_code(&invalid.to_string()).is_err());
         assert!(registry_code("not JSON").is_err());
         assert!(fallback_code().contains("IS_PROPRIETARY_VAULT_LOADED: bool = false"));
+    }
+
+    #[test]
+    fn regression_vault_rejects_alias_collisions_and_missing_alias_targets() {
+        let source = include_str!("../../../../config/ec_registry.json");
+        let valid: Value = serde_json::from_str(source).unwrap();
+
+        // `ec` must not redefine a built-in alias, otherwise the generated module has two
+        // `ADDR_RGB_CONTROL` constants (E0428 in OUT_DIR instead of a clear registry error).
+        for (alias, _) in EC_ALIASES {
+            let mut invalid = valid.clone();
+            invalid["ec"][alias] = serde_json::json!(0x42);
+            let error = registry_code(&invalid.to_string()).unwrap_err();
+            assert!(error.contains(alias), "{}: {}", alias, error);
+        }
+
+        // Every alias target has to exist, otherwise the generated module fails with E0425.
+        for (alias, target) in EC_ALIASES {
+            let mut invalid = valid.clone();
+            invalid["ec"].as_object_mut().unwrap().remove(target);
+            let error = registry_code(&invalid.to_string()).unwrap_err();
+            assert!(error.contains(target), "{}: {}", alias, error);
+        }
+    }
+
+    #[test]
+    fn regression_vault_accepts_a_utf8_bom() {
+        let source = include_str!("../../../../config/ec_registry.json");
+        let with_bom = format!("\u{feff}{}", source);
+        assert_eq!(registry_code(&with_bom).unwrap(), registry_code(source).unwrap());
+    }
+
+    #[test]
+    fn regression_vault_source_distinguishes_missing_broken_and_present() {
+        // Same convention as the OEM-sync tests: a scratch directory under the crate's target
+        // dir, which is always writable during a build.
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target/vault-source-tests")
+            .join(std::process::id().to_string());
+        std::fs::create_dir_all(&root).unwrap();
+
+        // No file at all is the community-fork case: mock vault, not an error.
+        assert!(vault_source(&root.join("missing.json")).unwrap().is_none());
+
+        // A directory is a configuration mistake and must stop the build.
+        let directory = root.join("directory.json");
+        std::fs::create_dir_all(&directory).unwrap();
+        assert!(vault_source(&directory)
+            .unwrap_err()
+            .contains("is a directory"));
+
+        // A UTF-8 BOM has to work end to end (read from disk, then parsed).
+        let bom = root.join("bom.json");
+        std::fs::write(
+            &bom,
+            format!(
+                "\u{feff}{}",
+                include_str!("../../../../config/ec_registry.json")
+            ),
+        )
+        .unwrap();
+        let content = vault_source(&bom).unwrap().unwrap();
+        assert!(registry_code(&content)
+            .unwrap()
+            .contains("IS_PROPRIETARY_VAULT_LOADED: bool = true"));
+
+        // Broken content is reported by the parser instead of degrading to the mock vault.
+        let broken = root.join("broken.json");
+        std::fs::write(&broken, "not JSON").unwrap();
+        assert!(registry_code(&vault_source(&broken).unwrap().unwrap()).is_err());
+
+        std::fs::remove_dir_all(&root).ok();
     }
 }

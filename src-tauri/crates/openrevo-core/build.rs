@@ -1,26 +1,29 @@
 use std::path::{Path, PathBuf};
 
-fn find_ec_registry() -> Option<PathBuf> {
-    let candidate1 = Path::new("config/ec_registry.json");
-    if candidate1.exists() {
-        return Some(candidate1.to_path_buf());
+/// Resolves the registry the app embeds.
+///
+/// `src-tauri/build.rs` always reads `src-tauri/config/ec_registry.json`; here that file is
+/// reached through the `../../config` fallback. A crate-local copy would silently embed a
+/// *different* vault in the same binary, so it is called out as a build warning.
+fn find_ec_registry() -> PathBuf {
+    let local = Path::new("config/ec_registry.json");
+    if local.is_file() {
+        println!(
+            "cargo:warning=openrevo-core is using the crate-local registry {}; src-tauri/build.rs reads src-tauri/config/ec_registry.json, so both copies must stay identical",
+            local.display()
+        );
+        return local.to_path_buf();
     }
-    let candidate2 = Path::new("../../config/ec_registry.json");
-    if candidate2.exists() {
-        return Some(candidate2.to_path_buf());
-    }
-    None
+    PathBuf::from("../../config/ec_registry.json")
 }
 
 #[path = "src/hal/vault_codegen.rs"]
 mod vault_codegen;
 
 fn generate_hardware_vault() {
-    println!("cargo:rerun-if-changed=config/ec_registry.json");
-    println!("cargo:rerun-if-changed=../../config/ec_registry.json");
-    let registry =
-        find_ec_registry().unwrap_or_else(|| PathBuf::from("../../config/ec_registry.json"));
-    vault_codegen::generate_hardware_vault(&registry);
+    // `generate_hardware_vault` decides between "absent" (mock vault) and "present but
+    // broken" (stop the build), and registers the containing directory for rebuilds.
+    vault_codegen::generate_hardware_vault(&find_ec_registry());
 }
 
 fn main() {
