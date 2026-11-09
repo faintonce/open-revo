@@ -815,6 +815,8 @@ fn default_true() -> bool { true }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PluginTabConfig {
     pub entry: Option<String>,
+    #[serde(default, alias = "type", alias = "engine", alias = "plugin_type")]
+    pub plugin_type: Option<String>,
     pub title: Option<String>,
     pub icon: Option<String>,
 }
@@ -822,6 +824,8 @@ pub struct PluginTabConfig {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PluginWidgetConfig {
     pub entry: Option<String>,
+    #[serde(default, alias = "type", alias = "engine", alias = "plugin_type")]
+    pub plugin_type: Option<String>,
     pub window: Option<PluginWindowConfig>,
 }
 
@@ -1300,6 +1304,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 if has_tab {
                                     Some(PluginTabConfig {
                                         entry: manifest.entry.clone(),
+                                        plugin_type: manifest.plugin_type.clone(),
                                         title: manifest.name.clone(),
                                         icon: None,
                                     })
@@ -1312,6 +1317,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 if has_widget {
                                     Some(PluginWidgetConfig {
                                         entry: manifest.entry.clone(),
+                                        plugin_type: manifest.plugin_type.clone(),
                                         window: manifest.window.clone(),
                                     })
                                 } else {
@@ -1491,6 +1497,17 @@ pub fn find_plugin_dir(plugin_id: &str) -> std::path::PathBuf {
             }
         }
     }
+
+    // Fallback: check repository sample directories
+    let sample_slint = std::path::Path::new("plugins_sample").join("slint").join(plugin_id);
+    if sample_slint.exists() {
+        return sample_slint;
+    }
+    let sample_web = std::path::Path::new("plugins_sample").join("webview2").join(plugin_id);
+    if sample_web.exists() {
+        return sample_web;
+    }
+
     direct
 }
 

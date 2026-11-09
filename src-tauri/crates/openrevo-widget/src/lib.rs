@@ -86,6 +86,25 @@ pub fn find_plugin_dir(plugin_id: &str) -> Option<PathBuf> {
     None
 }
 
+/// Resolve an existing Slint entry file path by prioritizing declared entries and checking candidates
+fn resolve_slint_entry(plugin_dir: &Path, candidates: &[Option<String>], fallbacks: &[&str]) -> Option<PathBuf> {
+    for cand in candidates.iter().flatten() {
+        if cand.ends_with(".slint") {
+            let p = plugin_dir.join(cand);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    for fb in fallbacks {
+        let p = plugin_dir.join(fb);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    None
+}
+
 /// Run plugin standalone as a floating widget or popout window
 pub fn run_widget_standalone(plugin_id: &str) {
     println!("[Slint Widget] Launching standalone widget for plugin: '{}'", plugin_id);
@@ -95,24 +114,19 @@ pub fn run_widget_standalone(plugin_id: &str) {
     };
 
     let manifest_path = plugin_dir.join("manifest.json");
-    let mut entry_name = "main.slint".to_string();
+    let mut cand_entries = Vec::new();
     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(e) = val.get("widget").and_then(|w| w.get("entry")).and_then(|s| s.as_str()) {
-                entry_name = e.to_string();
-            } else if let Some(e) = val.get("tab").and_then(|t| t.get("entry")).and_then(|s| s.as_str()) {
-                entry_name = e.to_string();
-            } else if let Some(e) = val.get("entry").and_then(|s| s.as_str()) {
-                entry_name = e.to_string();
-            }
+            cand_entries.push(val.get("widget").and_then(|w| w.get("entry")).and_then(|s| s.as_str()).map(|s| s.to_string()));
+            cand_entries.push(val.get("entry").and_then(|s| s.as_str()).map(|s| s.to_string()));
+            cand_entries.push(val.get("tab").and_then(|t| t.get("entry")).and_then(|s| s.as_str()).map(|s| s.to_string()));
         }
     }
 
-    let entry_file = plugin_dir.join(&entry_name);
-    if !entry_file.exists() {
-        eprintln!("[Slint Widget] Slint entry file '{:?}' not found!", entry_file);
+    let Some(entry_file) = resolve_slint_entry(&plugin_dir, &cand_entries, &["widget.slint", "main.slint", "tab.slint"]) else {
+        eprintln!("[Slint Widget] No valid Slint entry file found for standalone widget in '{:?}'", plugin_dir);
         return;
-    }
+    };
 
     let compiler = Compiler::default();
     let comp_res = spin_on::spin_on(compiler.build_from_path(&entry_file));
@@ -167,24 +181,19 @@ pub fn run_widget_embedded(plugin_id: &str, parent_hwnd_raw: isize, rect: (i32, 
     };
 
     let manifest_path = plugin_dir.join("manifest.json");
-    let mut entry_name = "main.slint".to_string();
+    let mut cand_entries = Vec::new();
     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(e) = val.get("tab").and_then(|t| t.get("entry")).and_then(|s| s.as_str()) {
-                entry_name = e.to_string();
-            } else if let Some(e) = val.get("entry").and_then(|s| s.as_str()) {
-                entry_name = e.to_string();
-            } else if let Some(e) = val.get("widget").and_then(|w| w.get("entry")).and_then(|s| s.as_str()) {
-                entry_name = e.to_string();
-            }
+            cand_entries.push(val.get("tab").and_then(|t| t.get("entry")).and_then(|s| s.as_str()).map(|s| s.to_string()));
+            cand_entries.push(val.get("entry").and_then(|s| s.as_str()).map(|s| s.to_string()));
+            cand_entries.push(val.get("widget").and_then(|w| w.get("entry")).and_then(|s| s.as_str()).map(|s| s.to_string()));
         }
     }
 
-    let entry_file = plugin_dir.join(&entry_name);
-    if !entry_file.exists() {
-        eprintln!("[Slint Embedded] Slint entry file '{:?}' not found!", entry_file);
+    let Some(entry_file) = resolve_slint_entry(&plugin_dir, &cand_entries, &["tab.slint", "main.slint", "widget.slint"]) else {
+        eprintln!("[Slint Embedded] No valid Slint entry file found for embedded tab in '{:?}'", plugin_dir);
         return;
-    }
+    };
 
     let compiler = Compiler::default();
     let comp_res = spin_on::spin_on(compiler.build_from_path(&entry_file));
