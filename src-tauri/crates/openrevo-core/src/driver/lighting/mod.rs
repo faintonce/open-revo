@@ -22,6 +22,69 @@ use crate::driver::wmi_ec::{
     ADDR_TRIGGER_BYTE, ADDR_RGB_CONTROL, ADDR_RGB_RED, ADDR_RGB_GREEN, ADDR_RGB_BLUE,
 };
 
+use std::sync::atomic::Ordering;
+
+/// EC 单区键盘「轮播」软件循环开关（true = 停止）
+static EC_CYCLE_STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// 任意 RGB → EC 单区呼吸的 4 个固定色码（1白 2红 3绿 4蓝；实测只有 4 色）
+fn ec_breath_code(r: u8, g: u8, b: u8) -> u8 {
+    const PALETTE: [(u8, u8, u8, u8); 4] = [
+        (1, 255, 255, 255),
+        (2, 255, 0, 0),
+        (3, 0, 255, 0),
+        (4, 0, 0, 255),
+    ];
+    let mut best_code: u8 = 1;
+    let mut best_dist: u32 = u32::MAX;
+    for &(code, pr, pg, pb) in PALETTE.iter() {
+        let dr = (r as i32) - (pr as i32);
+        let dg = (g as i32) - (pg as i32);
+        let db = (b as i32) - (pb as i32);
+        let dist = (dr * dr + dg * dg + db * db) as u32;
+        if dist < best_dist {
+            best_dist = dist;
+            best_code = code;
+        }
+    }
+    best_code
+}
+
+fn stop_ec_color_cycle() {
+    EC_CYCLE_STOP.store(true, Ordering::SeqCst);
+}
+
+/// EC 单区「轮播」：软件逐帧写 RGB 三通道 + 触发锁存
+fn start_ec_color_cycle(interval_ms: u64) {
+    stop_ec_color_cycle();
+    EC_CYCLE_STOP.store(false, Ordering::SeqCst);
+    std::thread::spawn(move || {
+        const PALETTE: [(u8, u8, u8); 7] = [
+            (255, 0, 0),
+            (255, 140, 0),
+            (255, 230, 0),
+            (0, 220, 80),
+            (0, 200, 255),
+            (40, 90, 255),
+            (170, 60, 255),
+        ];
+        let mut idx = 0usize;
+        while !EC_CYCLE_STOP.load(Ordering::SeqCst) {
+            let (r, g, b) = PALETTE[idx % PALETTE.len()];
+            let scale = |v: u8| -> u8 {
+                if v == 0 { 0 } else { ((v as u32 * 50) / 255).clamp(1, 50) as u8 }
+            };
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_RED, scale(r));
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_GREEN, scale(g));
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_BLUE, scale(b));
+            if let Some(trig) = crate::driver::wmi_ec::wmi_read_ec(ADDR_TRIGGER_BYTE) {
+                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, (trig & !0x80) | 0x20);
+            }
+            idx += 1;
+            std::thread::sleep(Duration::from_millis(interval_ms));
+        }
+    });
+}
 pub type SharedIteLightingManager = Arc<IteLightingManager>;
 
 pub struct IteLightingManager {
@@ -425,7 +488,7 @@ impl IteLightingManager {
         enabled: bool,
         effect: u8,
         brightness_idx: u8,
-        _speed_idx: u8,
+        speed_idx: u8,
         color_hex: &str,
     ) -> bool {
         self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
@@ -488,13 +551,34 @@ impl IteLightingManager {
 
         let cur_trigger_byte = crate::driver::wmi_ec::wmi_read_ec(ADDR_TRIGGER_BYTE).unwrap_or(0);
         if !is_on {
+            stop_ec_color_cycle();
             // 关闭背光：RGB 三通道调光写 0 (灭灯)，写入触发寄存器生效
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_RED, 0);
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_GREEN, 0);
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_BLUE, 0);
             let next_trigger = (cur_trigger_byte & !0x80) | 0x20;
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, next_trigger);
+        } else if effect == 3 {
+            // 单色呼吸（EC 硬件）：RGB_CONTROL 低 3 位 = 固定 7 色码
+            stop_ec_color_cycle();
+            let (r, g, b) = parse_hex_color(color_hex);
+            let code = ec_breath_code(r, g, b);
+            let cur_ctrl = crate::driver::wmi_ec::wmi_read_ec(ADDR_RGB_CONTROL).unwrap_or(0);
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_CONTROL, (cur_ctrl & 0xF8) | code);
+            let next_trigger = (cur_trigger_byte & !0x80) | 0x20;
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, next_trigger);
+            crate::log_info!(
+                "LIGHTING_ARBITER",
+                "EC single-zone breathing: rgb=({},{},{}) -> code={}",
+                r, g, b, code
+            );
+        } else if effect == 4 {
+            // 轮播（软件驱动）：逐帧写 RGB + 触发锁存
+            let interval_ms = 70u64 * SPEED_MAP.get(speed_idx as usize).copied().unwrap_or(5) as u64;
+            start_ec_color_cycle(interval_ms);
+            crate::log_info!("LIGHTING_ARBITER", "EC single-zone cycle started (software): interval={}ms", interval_ms);
         } else if effect == 2 {
+            stop_ec_color_cycle();
             // 彩虹循环模式:
             // 写入基准亮度种子色（官方为 50, 40, 40 或用户选定色彩），避免部分 EC 因 RGB=0 彻底黑灯
             let (r, g, b) = parse_hex_color(color_hex);
@@ -507,6 +591,7 @@ impl IteLightingManager {
             let next_trigger = cur_trigger_byte | 0x80 | 0x20;
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, next_trigger);
         } else {
+            stop_ec_color_cycle();
             // 单色常亮: 清除彩虹标志，写入色彩档位 (0..50 刻度) 并提交锁存
             let (r, g, b) = parse_hex_color(color_hex);
             let (r_val, g_val, b_val) = if r == 255 && g == 255 && b == 255 {

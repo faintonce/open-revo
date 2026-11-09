@@ -30,6 +30,8 @@ export const KeyboardModeGrid: React.FC<KeyboardModeGridProps> = ({
     ? [
         { id: 1, name: '单色常亮', desc: '全键盘同色静态照明' },
         { id: 2, name: '彩虹循环', desc: '全键盘呼吸渐变循环' },
+        { id: 3, name: '单色呼吸', desc: 'EC 硬件呼吸（4 个固定色：白/红/绿/蓝）' },
+        { id: 4, name: '六色轮换', desc: '六色循环轮换（软件驱动）' },
       ]
     : isFourZone
     ? FOURZONE_KEYBOARD_MODES

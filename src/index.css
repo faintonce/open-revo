@@ -2142,6 +2142,10 @@ input[type="range"].rev-range {
 .color-dot {
   width: 20px;
   height: 20px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  align-self: center;
+  vertical-align: middle;
   border-radius: var(--radius-full);
   cursor: pointer;
   border: 2px solid transparent;
