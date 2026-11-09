@@ -232,6 +232,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "reload_plugins" => {
             sync_slint_plugins_state();
+            crate::system::native_wry::reload_active_embedded();
             true
         }
         "collapse_dashboard" => {

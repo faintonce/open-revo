@@ -162,7 +162,6 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
     }
     try {
       window.postMessage({ type: "OPENREVO_EVENT", event: event, payload: payload }, "*");
-      window.postMessage({ type: event, payload: payload }, "*");
     } catch (_) {}
   };
 
@@ -1030,6 +1029,15 @@ pub fn update_embedded_bounds(rect: (i32, i32, i32, i32)) {
 pub fn hide_embedded() {
     if let Some(proxy) = get_active_proxy() {
         let _ = proxy.send_event(NativeWryMessage::HideEmbedded);
+    }
+}
+
+pub fn reload_active_embedded() {
+    if let Some(proxy) = get_active_proxy() {
+        let _ = proxy.send_event(NativeWryMessage::EvalJs {
+            target: ViewTarget::Embedded,
+            script: "window.location.reload();".to_string(),
+        });
     }
 }
 

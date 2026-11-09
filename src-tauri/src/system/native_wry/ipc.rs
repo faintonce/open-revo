@@ -363,6 +363,43 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             }))
         }
 
+        // AI Gateway & Hub APIs (Native Wry / Slint host compatibility)
+        "ai_get_config" => {
+            let cfg = crate::commands::ai_cmd::ai_get_config()?;
+            serde_json::to_value(cfg).map_err(|e| e.to_string())
+        }
+        "ai_save_config" => {
+            let cfg_val = args.get("config").cloned().unwrap_or(args);
+            let cfg = serde_json::from_value(cfg_val).map_err(|e| format!("配置格式错误: {}", e))?;
+            crate::commands::ai_cmd::ai_save_config(cfg)?;
+            Ok(Value::Bool(true))
+        }
+        "ai_fetch_models" => {
+            let base_url = args.get("baseUrl").or_else(|| args.get("base_url")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            let api_key = args.get("apiKey").or_else(|| args.get("api_key")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            let list = crate::commands::ai_cmd::ai_fetch_models(base_url, api_key)?;
+            serde_json::to_value(list).map_err(|e| e.to_string())
+        }
+        "ai_chat_send" => {
+            let prompt = args.get("prompt").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let session_id = args.get("sessionId").or_else(|| args.get("session_id")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            let enable_tools = args.get("enableTools").or_else(|| args.get("enable_tools")).and_then(|v| v.as_bool());
+            let config_override: Option<crate::system::ai_gateway::types::AiGatewayConfig> = args.get("configOverride")
+                .or_else(|| args.get("config_override"))
+                .and_then(|v| serde_json::from_value(v.clone()).ok());
+            let sid = crate::commands::ai_cmd::ai_chat_send(prompt, session_id, enable_tools, config_override)?;
+            Ok(Value::String(sid))
+        }
+        "ai_get_system_skills" => {
+            let skills = crate::commands::ai_cmd::ai_get_system_skills()?;
+            Ok(skills)
+        }
+        "write_clipboard" => {
+            let text = args.get("text").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let res = crate::commands::market_cmd::write_clipboard(text)?;
+            Ok(Value::Bool(res))
+        }
+
         other => {
             crate::log_warn!("NATIVE_WRY", "Unhandled IPC command: '{}'", other);
             Err(format!("Command '{}' not supported in native Wry container", other))
