@@ -64,13 +64,49 @@ description: Official OpenRevo expert agent skill for developing third-party plu
 
 | 能力通道与形态 | 声明方式 | 运行时载体 | 视窗与样式特征 |
 | :--- | :--- | :--- | :--- |
-| **`tab`** | `"tab": { "entry": "...", "title": "..." }` 或根 `entry` | 宿主沙盒 iframe | 嵌入在官方主控制台顶栏 Sub-Nav 胶囊栏与视口中 |
-| **`widget`** | `"widget": { "entry": "...", "window": { ... } }` | 独立 Edge WebView2 | 全透明、无边框、置顶、跳过任务栏、支持边缘吸附折叠 |
+| **`tab`** | `"tab": { "entry": "...", "title": "..." }` 或根 `entry` | 宿主沙盒 / Slint 子窗口 | 嵌入在官方主控制台工作区中，可选 WebView2 或 Slint 原生渲染 |
+| **`widget`** | `"widget": { "entry": "...", "window": { ... } }` | 独立 Edge WebView2 / Slint 原生 | 独立悬浮条、全透明、置顶，可选 WebView2 或 0MB Chromium 原生 Slint |
+| **`hybrid` (正交混搭)** | `tab.type: "webview2"` + `widget.type: "slint"` | 双引擎正交协同 | 大面板采用现代 Web 生态（React/Vue/ECharts），常驻悬浮挂件采用 Slint 极速光栅化 |
 | **`app` (复合体)** | 同时声明 `tab` 与 `widget` (如 `mro-hud`) | 双出口协同运行 | 既有桌面 HUD 悬浮条，又有控制台设置面板，单包闭环 |
 | **`skin`** | `"theme_css": "theme.css"` | 宿主主窗口 Webview | 注入 `<style id="openrevo-theme-skin">`，挂载全局 `data-skin`，可平滑重设窗口宽高 |
 | **`background`** | `"image": "bg.png"` 或 `"background_css": "..."` | 宿主主窗口 Webview | 注入 `<style id="openrevo-custom-background">`，挂载全局 `data-background`，双通道正交 |
 | **`slot`** | `"slot": "power.hardware_limit"`, `"entry": "..."` | 宿主预留微插槽 | 嵌入官方界面对应卡片微区域，严丝合缝继承主题 Tokens |
 | **`service` / `headless`** | 仅声明 `service` / `watchers` / `shortcuts` | Rust 内置微任务 / Watcher Hub | **完全无界面 (Zero GUI / 0 MB)**，坚决不弹窗，静默极低功耗调度 |
+
+---
+
+## 2.1 正交混搭架构规范 (Orthogonal Hybrid Architecture)
+
+OpenRevo 率先实现了 **WebView2 与 Slint 原生渲染引擎的正交混搭与自由组合**：
+- **核心痛点解决**：以往开发者必须在“丰富的 Web 生态大控制台”和“低内存常驻桌面挂件”之间二选一；
+- **正交自由组合**：同一个插件内，`tab`（嵌入主界面面板）与 `widget`（桌面常驻悬浮视窗）彼此独立，各自可选 `"webview2"` 或 `"slint"`：
+  1. **模式 A：`tab (webview2)` + `widget (slint)`（最强黄金组合）**
+     - 控制台主页面采用 Vue/React/HTML 富生态，绘制丰富图表、电池历史曲线与配置树；
+     - 桌面挂件采用 Slint 原生编译动态执行，极速启动、GPU 光栅化、0MB Chromium 内存开销！
+  2. **模式 B：`tab (slint)` + `widget (slint)`**：全原生纯净模式，0 额外 Chromium 依赖。
+  3. **模式 C：`tab (slint)` + `widget (webview2)`**：主面板极速直出，挂件使用现有 Web 样式。
+  4. **模式 D：`tab (webview2)` + `widget (webview2)`**：经典传统 Web 插件。
+
+### 清单声明范例 (`manifest.json`)：
+```json
+{
+  "id": "hybrid-battery",
+  "name": "电池卫士 (混搭示范)",
+  "version": "1.0.0",
+  "tab": {
+    "type": "webview2",
+    "entry": "dist/index.html",
+    "title": "电池管理控制台"
+  },
+  "widget": {
+    "type": "slint",
+    "entry": "widget.slint",
+    "title": "电池常驻挂件",
+    "window": { "width": 260, "height": 80 }
+  }
+}
+```
+> 宿主自动根据声明的 `type`（或入口后缀 `.slint` / `.html`）完成底层 Win32 进程与 Wry 视窗的正交分流调度。
 
 ---
 

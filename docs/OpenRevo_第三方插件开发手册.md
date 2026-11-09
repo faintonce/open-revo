@@ -9,6 +9,7 @@
 ## 目录
 1. [微内核架构宣言：OpenRevo 的本质是什么？](#1-微内核架构宣言openrevo-的本质是什么)
 2. [7 种插件形态全景对照表 (一切皆插件生态矩阵)](#2-7-种插件形态全景对照表-一切皆插件生态矩阵)
+   - [2.1 正交混搭渲染架构 (Orthogonal Hybrid Architecture: WebView2 + Slint)](#21-正交混搭渲染架构-orthogonal-hybrid-architecture-webview2--slint)
 3. [核心安全军规与沙盒边界 (Rule 4 硬件防火墙)](#3-核心安全军规与沙盒边界-rule-4-硬件防火墙)
 4. [插件清单权威规范 (Plugin Manifest Reference)](#4-插件清单权威规范-plugin-manifest-reference)
 5. [硬件 IPC 控制能力军火库速查 (Capabilities Cheat Sheet)](#5-硬件-ipc-控制能力军火库速查-capabilities-cheat-sheet)
@@ -27,6 +28,7 @@
    - [用例 10: 原生体验第三方插件市场开发对接范式 (Plugin Market Integration)](#用例-10-原生体验第三方插件市场开发对接范式-plugin-market-integration---以-plugin-market-为例)
    - [用例 11: 声明式零代码全局快捷键与按键宏映射插件 (Universal Shortcut Bus)](#用例-11-声明式零代码全局快捷键与按键宏映射插件-universal-shortcut-bus)
    - [用例 12: 声明式自动化监听与规则看门狗 (Universal Watcher & Trigger Hub)](#用例-12-声明式自动化监听与规则看门狗-universal-watcher--trigger-hub)
+   - [用例 13: 正交混搭架构实战 —— WebView2 富交互大控制台与 Slint 原生极速常驻桌面挂件 (Hybrid Architecture)](#用例-13-正交混搭架构实战--webview2-富交互大控制台与-slint-原生极速常驻桌面挂件-hybrid-architecture)
 9. [UI 设计语言与 Design Tokens 复用指南](#9-ui-设计语言与-design-tokens-复用指南)
 10. [调试与安全模式排错 (Safe Mode 二分法)](#10-调试与安全模式排错-safe-mode-二分法)
 
@@ -74,9 +76,10 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 
 | 能力通道与形态 | 声明方式 | 运行时载体 | 增量内存开销 | 视窗与交互特性 |
 | :--- | :--- | :--- | :--- | :--- |
-| **`tab` (控制台专属页签)** | `"tab": { "entry": "...", "title": "..." }` 或根 `entry` | **宿主主窗口沙盒 iframe**<br>(安全隔离 + 跨域推流) | **< 5 MB**<br>(复用主窗渲染段) | 嵌入在官方主控制台顶栏 Sub-Nav 胶囊栏与内容视口中，适合参数配置与深度调校面板 |
-| **`widget` (桌面悬浮挂件)** | `"widget": { "entry": "...", "window": { ... } }` | **独立 Edge WebView2**<br>(物理沙盒隔离) | **15MB ~ 25MB**<br>(共享 Chromium 段) | 全透明、无边框、置顶、跳过任务栏、可拖拽，随插件开启自动拉起 |
-| **`app` (复合全功能插件)** | 同时声明 `tab` 与 `widget`（如 `mro-hud`） | **双出口并存调度** | 按需组合 | 既在桌面上常驻悬浮条，又在主控制台顶栏提供完整设置页，**单包全生命周期闭环** |
+| **`tab` (控制台专属页签)** | `"tab": { "entry": "...", "title": "..." }` 或根 `entry` | **宿主工作区 WebView2 或 Slint 原生贴片** | **< 5 MB** (Webview)<br>或 **0 MB Webview** (Slint) | 嵌入在官方主控制台工作区中，可选 WebView2 富生态或 Slint 原生 GPU 动态渲染 |
+| **`widget` (桌面悬浮挂件)** | `"widget": { "entry": "...", "window": { ... } }` | **独立 Edge WebView2 或 Slint 原生视窗** | **15MB ~ 25MB** (Webview)<br>或 **< 8MB** (Slint) | 桌面独立挂件、全透明、置顶，可选 WebView2 或 0MB Chromium 原生 Slint 极速光栅化 |
+| **`hybrid` (正交混搭体系)** | `tab.type: "webview2"` + `widget.type: "slint"` | **双引擎正交分流** | **按需最佳组合** | **大面板走前端 Web 生态 (React/Vue/ECharts)，常驻桌面挂件走 Slint 原生极低内存常驻** |
+| **`app` (复合全功能插件)** | 同时声明 `tab` 与 `widget`（如 `mro-hud`） | **双出口并存调度** | 按需组合 | 既在桌面上常驻悬浮条，又在主控制台提供完整设置页，**单包全生命周期闭环** |
 | **`skin` (主窗口皮肤外观)** | `"theme_css": "theme.css"` | **宿主主窗口 Webview** | **0 MB**<br>(纯样式热装卸) | 动态注入 `<style id="openrevo-theme-skin">` + 全局 `data-skin`，可平滑重置窗口几何尺寸 |
 | **`background` (独立背景壁纸)** | `"image": "bg.png"` 或 `"background_css": "..."` | **宿主主窗口 Webview** | **0 MB**<br>(正交独立通道) | 覆盖主窗体 (`.openrevo-shell`) 与抽屉 (`.mini-drawer-root`)，与 `skin` 自由组合并存 |
 | **`slot` (微插槽组件插件)** | `"slot": "power.hardware_limit"`, `"entry": "..."` | **宿主界面预留插槽** | **< 1 MB** (微型 iframe) | 精准接管宿主预留位（如电池卡片内部），严丝合缝无缝继承 Design Tokens |
@@ -84,6 +87,30 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 
 > 💡 **双通道样式解耦优势**：
 > `skin`（主题骨架）与 `background`（背景壁纸）拥有完全独立的样式通道与持久化配置键（`active_skin` 与 `active_background`）。用户可以选一套沉稳的极简工业风主题，同时配上一张自己心仪的动漫背景，两类插件可以同时启用、自由搭配！
+
+---
+
+### 2.1 正交混搭渲染架构 (Orthogonal Hybrid Architecture: WebView2 + Slint)
+
+随着 OpenRevo 架构演进，微内核率先实现了 **WebView2 (Chromium/Edge) 与 Slint 原生动态编译渲染引擎的正交混搭与自由组合**：
+
+#### 核心痛点解决：生态丰富度与桌面轻量常驻的完美统一
+- **痛点**：传统插件开发中，开发者常常陷入两难——Web 技术（React/Vue/ECharts/Tailwind）开发大面板极为高效、生态极其丰富，但如果将其作为桌面常驻悬浮条，Chromium 即使再优化也需要占用 20MB~30MB 内存并产生额外的渲染开销；而如果全量改用 C++/原生 GUI 开发，又失去了 Web 生态庞大的组件库和敏捷性。
+- **解法**：OpenRevo 提出**正交混搭架构（Orthogonal Hybrid Architecture）**。在同一个插件清单内，**`tab` 与 `widget` 各自独立指定渲染引擎**：
+  - **`tab` 采用 `webview2`**：嵌入宿主工作区的大面板使用富交互 Web 前端开发，尽情享受 ECharts 电池健康历史折线图、复杂表格和炫酷 CSS 动效；
+  - **`widget` 采用 `slint`**：常驻 Windows 桌面的轻量悬浮条使用声明式 `.slint` 编写，由 Rust 内置的 `slint-interpreter` 动态 JIT 编译并以 FemtoVG/Skia GPU 原生光栅化执行，**0MB Chromium 运行时占用、冷启动仅需数十毫秒、内存极低常驻**！
+
+#### 四大组合矩阵：
+1. **模式 A：`tab (webview2)` + `widget (slint)`（推荐黄金搭档）**：兼顾复杂大控制台与极致极速桌面挂件；
+2. **模式 B：`tab (slint)` + `widget (slint)`（全原生模式）**：纯净无 Webview 依赖，全部由 Slint 驱动；
+3. **模式 C：`tab (slint)` + `widget (webview2)`**：主面板极速直出，挂件使用现有 HTML 动画挂件；
+4. **模式 D：`tab (webview2)` + `widget (webview2)`**：经典传统 Web 插件。
+
+#### 引擎分流判定规则：
+宿主微内核在调度 `select_plugin_tab`（进入面板）与 `open_custom_widget` / `toggle_custom_plugin`（拉起挂件）时，按照以下优先级严格分流：
+- **显式声明优先**：`tab.type` / `widget.type`（支持 `"slint"` 与 `"webview2"` / `"web"`，别名 `engine`/`plugin_type`）；
+- **文件后缀推断**：入口文件以 `.slint` 结尾自动路由到 Slint JIT 执行器；以 `.html` / `.htm` 结尾自动路由到 WebView2 视窗；
+- **单体插件回退**：若插件根目录下仅存在 `widget.slint` 或 `tab.slint`，宿主亦能智能探测并正交分流。
 
 ---
 
@@ -157,14 +184,29 @@ OpenRevo 坚决反对“无脑开 Webview”。我们确立了**按需分配运�
 | `background_css` | `string` | `background`可选 | `background` | 背景样式表入口相对路径（默认 `"background.css"`，回退 `"theme.css"`） |
 | `image` / `wallpaper` | `string` | 可选 | `background` | **【零代码壁纸】**直接指定图片路径（如 `"bg.png"`），无需编写一行 CSS，宿主自动合成全套适配样式 |
 | `entry` | `string` | 可选 | `widget`/`tab`/`service` | 默认入口相对路径，如 `index.html` 或 `welcome.rhai` |
-| `tab` | `object` | 可选 | 全类型 | **【控制台专属页签出口】**声明插件在控制台顶栏的专属 Tab 入口（含 `entry`、`title`、`icon`） |
-| `widget` | `object` | 可选 | 全类型 | **【桌面独立悬浮视窗出口】**声明插件在桌面的独立透明/置顶挂件（含 `entry`、`window`） |
+| `tab` | `object` | 可选 | 全类型 | **【控制台专属页签出口】**声明插件在控制台工作区的 Tab 入口（含 `entry`、`type`、`title`、`icon`，支持 WebView2 与 Slint 独立指定） |
+| `widget` | `object` | 可选 | 全类型 | **【桌面独立悬浮视窗出口】**声明插件在桌面的独立挂件（含 `entry`、`type`、`window`，支持 WebView2 与 Slint 独立指定） |
 | `window` | `object` | 可选 | `widget`/`tab`/`skin`/`shell` | 视窗高级几何与外廓属性（详见下方 `window` 子对象详解） |
 | `telemetry` | `object` | 可选 | 全类型 | **【声明式遥测需求】**声明硬件遥测传感器需求（详见下方 `telemetry` 子对象与第 6 节按需订阅机制） |
 | `permissions` | `string[]`| 可选 | 全类型 | 声明所需权限（未声明将被安全网关拦截） |
 | `watchers` / `rules` | `object[]` | 可选 | 全类型 | **【声明式自动化规则总线】**无需 Webview 视窗，宿主内核统一调度温度联动、游戏切模与硬件保护规则 |
 | `shortcuts` | `object[]` | 可选 | 全类型 | **【声明式全局快捷键总线】**Ring3 穿透级热键绑定，自动联动机甲 OSD 弹窗与动作流 |
 | `service` | `object` | 可选 | `tab`/`widget`/`slot` | **【声明式伴随提权服务 / Sidecar】**声明插件依赖的后端本地原生进程服务（见下方 `service` 子对象详解，Slint/Tauri 全运行时统一支持） |
+
+#### `tab` 控制台工作区视窗子对象详细配置表
+| 子属性 | 类型 | 默认值 | 适用场景与说明 |
+| :--- | :--- | :--- | :--- |
+| `entry` | `string` | `"dist/index.html"` 或 `"main.slint"` | 面板入口相对路径（如 `"dist/index.html"` 或 `"tab.slint"`） |
+| `type` / `engine` | `string` | 自动识别 | **【渲染引擎显式指定】**：可选 `"webview2"`（富 Web 生态，默认支持 HTML/React/Vue/JS）或 `"slint"`（声明式原生嵌入）。若未显式指定，根据入口后缀（`.slint` vs `.html`）自动探测 |
+| `title` | `string` | 插件 `name` | 在控制台左侧/顶栏呈现的自定义页签标题 |
+| `icon` | `string` | 可选 | 页签专属图标相对路径或图标名 |
+
+#### `widget` 桌面悬浮视窗子对象详细配置表
+| 子属性 | 类型 | 默认值 | 适用场景与说明 |
+| :--- | :--- | :--- | :--- |
+| `entry` | `string` | `"index.html"` 或 `"widget.slint"` | 挂件入口相对路径（如 `"widget.slint"` 或 `"index.html"`） |
+| `type` / `engine` | `string` | 自动识别 | **【挂件渲染引擎显式指定】**：可选 `"slint"`（推荐：0MB Chromium 开销原生极速桌面条）或 `"webview2"`（传统 HTML 悬浮窗）。若未显式指定，根据入口后缀自动探测 |
+| `window` | `object` | 默认几何属性 | 桌面视窗几何、透明度与置顶层级（详见下方 `window` 子对象） |
 
 #### `window` 视窗子对象详细配置表 (全场景悬浮与专业大窗口)
 | 子属性 | 类型 | 默认值 | 适用场景与说明 |
@@ -1588,6 +1630,181 @@ await invoke('unregister_custom_shortcut', { id: 'user_boss_key' });
 * **地址与掩码语法宽容**：`address` 与 `mask` 既支持字符串十六进制（`"0x0751"`、`"0x10"`），也支持十进制数字（`1873`、`16`）；
 * **宿主生命周期全托管**：在宿主【插件】列表中启用该插件即刻注入微内核总线开始看门狗监控；关闭插件时自动全量卸载，不留任何残留副作用；
 * **版本兼容守护 (`min_host_version`)**：声明 `"min_host_version": "0.9.3"`，若旧版宿主尝试加载，界面将明确亮起警告徽章并安全拦截，引导用户升级。
+
+---
+
+### 用例 13: 正交混搭架构实战 —— WebView2 富交互大控制台与 Slint 原生极速常驻桌面挂件 (Hybrid Architecture)
+
+#### 1. 业务场景与架构优势
+在开发高级电池健康管理插件时，我们面临典型需求：
+1. **控制台大面板**：需要展示复杂的电池循环历史趋势、充放电统计、各电芯压差表格与策略开关，使用前端 HTML/JS/CSS 或 ECharts 生态开发极为高效直观；
+2. **桌面常驻微挂件**：需要随时吸附在 Windows 桌面边缘，实时显示电量百分比、充电状态与一键养护模式开关。若使用常规 Webview 视窗，即使挂起也要常驻数十兆 Chromium 内存；而采用 **Slint 声明式组件**，由内置 `slint-interpreter` 动态编译光栅化，**0MB Chromium 内存、毫秒级即时启闭**！
+
+通过 **正交混搭架构（Orthogonal Hybrid Architecture）**，我们只需一个插件包即可完美兼得两者！
+
+#### 2. 工程目录结构
+```text
+plugins/hybrid-battery/
+├── manifest.json         # 混搭能力声明清单
+├── widget.slint          # 原生 Slint 声明式桌面常驻挂件
+└── dist/
+    └── index.html        # WebView2 驱动的富交互大控制台页面
+```
+
+#### 3. 清单声明 (`manifest.json`)
+```json
+{
+  "id": "hybrid-battery",
+  "name": "电池卫士 (混搭示范)",
+  "version": "1.0.0",
+  "author": "OpenRevo Official",
+  "description": "正交混搭架构示范：WebView2 富生态控制台与 Slint 原生极速常驻桌面挂件完美共存",
+  "type": "app",
+  "tab": {
+    "type": "webview2",
+    "entry": "dist/index.html",
+    "title": "电池管理控制台"
+  },
+  "widget": {
+    "type": "slint",
+    "entry": "widget.slint",
+    "title": "电池常驻挂件",
+    "window": {
+      "width": 260,
+      "height": 80,
+      "resizable": false,
+      "decorations": true,
+      "transparent": false,
+      "always_on_top": true
+    }
+  }
+}
+```
+
+#### 4. 原生挂件代码 (`widget.slint`)
+```slint
+export component MainWindow inherits Window {
+    title: "电池常驻挂件 (Slint 极速光栅化)";
+    width: 260px;
+    height: 80px;
+    background: #0f131a;
+    default-font-size: 12px;
+
+    in-out property <int> battery_percent: 78;
+    in-out property <bool> is_charging: true;
+    in-out property <bool> eco_mode: true;
+
+    Rectangle {
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: #1e293b;
+        background: #0f131a;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 6px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    // Battery outline
+                    Rectangle {
+                        width: 24px;
+                        height: 14px;
+                        border-radius: 3px;
+                        border-width: 1.5px;
+                        border-color: root.battery_percent > 20 ? #10b981 : #ef4444;
+                        y: (parent.height - self.height) / 2;
+
+                        Rectangle {
+                            x: 2px;
+                            y: 2px;
+                            width: (parent.width - 4px) * (root.battery_percent / 100);
+                            height: parent.height - 4px;
+                            border-radius: 1px;
+                            background: root.battery_percent > 20 ? #10b981 : #ef4444;
+                        }
+                    }
+
+                    Text {
+                        text: root.battery_percent + "%";
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #f1f5f9;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.is_charging ? "⚡ 充电中" : "🔋 电池供电";
+                        font-size: 11px;
+                        color: root.is_charging ? #38bdf8 : #94a3b8;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Slint Tag Badge
+                Rectangle {
+                    height: 18px;
+                    border-radius: 4px;
+                    background: #1e293b;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: "Slint 原生";
+                            font-size: 10px;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Bottom Actions / Status
+            HorizontalLayout {
+                alignment: space-between;
+
+                Text {
+                    text: root.eco_mode ? "养护上限: 80% (健康保护)" : "养护上限: 100% (满电模式)";
+                    font-size: 11px;
+                    color: #64748b;
+                    vertical-alignment: center;
+                }
+
+                Rectangle {
+                    width: 72px;
+                    height: 22px;
+                    border-radius: 4px;
+                    background: root.eco_mode ? #0284c7 : #334155;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.eco_mode = !root.eco_mode;
+                        }
+                    }
+
+                    Text {
+                        text: root.eco_mode ? "养护中" : "常规模式";
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+#### 5. 运行与验证效果
+- **主工作区面板**：当用户在 OpenRevo 侧边栏/导航栏点击该插件时，微内核自动将嵌入式 WebView2 视口对齐贴合至主窗口，完整呈现富前端页面；
+- **桌面挂件弹出**：当用户在插件中心开启桌面小组件或点击右上角【独立视窗】时，宿主即刻通过 `--slint-widget hybrid-battery` 拉起独立的轻量级原生窗口，无需启动任何 Chromium 实例！
+- **生命周期互不干扰**：关闭控制台不会影响常驻挂件的运行，开关挂件亦不会影响控制台的配置状态。
 
 ---
 
