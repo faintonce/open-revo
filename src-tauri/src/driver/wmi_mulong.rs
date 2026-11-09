@@ -170,8 +170,12 @@ fn worker_loop(rx: Receiver<MulongTask>) {
 
                         let in_params = in_param_class.SpawnInstance(0).ok()?;
                         let req_data: i64 = ((1i64) << 40) | (addr as i64);
-                        let mut var_data = VARIANT::from(req_data);
-                        in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        // Standard CIM_UINT64 handling in WMI prefers BSTR string representation, with VT_I8 fallback
+                        let mut var_data = VARIANT::from(BSTR::from(format!("{}", req_data)));
+                        if in_params.Put(w!("Data"), 0, &mut var_data, 0).is_err() {
+                            var_data = VARIANT::from(req_data);
+                            in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        }
 
                         let method_name = BSTR::from("GetSetULong");
                         let mut out_params: Option<IWbemClassObject> = None;
@@ -191,7 +195,7 @@ fn worker_loop(rx: Receiver<MulongTask>) {
 
                         let str_val = ret_val.to_string();
                         let raw_u64 = str_val.parse::<u64>().unwrap_or_else(|_| {
-                            if let Some(stripped) = str_val.strip_prefix("0x") {
+                            if let Some(stripped) = str_val.strip_prefix("0x").or_else(|| str_val.strip_prefix("0X")) {
                                 u64::from_str_radix(stripped, 16).unwrap_or(0)
                             } else {
                                 0
@@ -213,8 +217,12 @@ fn worker_loop(rx: Receiver<MulongTask>) {
 
                         let in_params = in_param_class.SpawnInstance(0).ok()?;
                         let req_data: i64 = ((val as i64) << 16) | (addr as i64);
-                        let mut var_data = VARIANT::from(req_data);
-                        in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        // Standard CIM_UINT64 handling in WMI prefers BSTR string representation, with VT_I8 fallback
+                        let mut var_data = VARIANT::from(BSTR::from(format!("{}", req_data)));
+                        if in_params.Put(w!("Data"), 0, &mut var_data, 0).is_err() {
+                            var_data = VARIANT::from(req_data);
+                            in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        }
 
                         let method_name = BSTR::from("GetSetULong");
                         let hr = services.ExecMethod(

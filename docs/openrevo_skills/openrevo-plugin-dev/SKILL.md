@@ -402,6 +402,14 @@ OpenRevo 率先实现了 **WebView2 与 Slint 原生渲染引擎的正交混搭�
   * 请求写：`window.parent.postMessage({ action: 'RAW_EC_WRITE', payload: { protocol, address, value } }, '*')`
   * 请求邮箱：`window.parent.postMessage({ action: 'RAW_MAILBOX_INVOKE', payload: { in_bytes } }, '*')`
   * 监听结果：`window.addEventListener('message', e => { if (e.data?.type === 'OPENREVO_RAW_EC_READ_RESULT') ... })`
+* **Slint 原生挂件直调硬件 Callbacks (脱离 WebView2 / Tauri IPC)**：
+  在 `.slint` 声明式组件中，微内核执行器（`openrevo-widget`）在动态编译实例化时自动注入以下微内核 Callbacks：
+  * `callback raw_ec_read(int) -> int` / `callback raw_ec_read(string, int) -> int`
+  * `callback raw_ec_write(int, int) -> bool` / `callback raw_ec_write(string, int, int) -> bool`
+  * `callback set_fan_boost(bool) -> bool`
+  * `callback set_power_mode(int) -> bool`
+  * `callback set_battery_health(int) -> bool`
+  * `callback get_raw_ec_capabilities() -> string`
 
 ### 6.6 公共监听与自动化规则总线指令 (Universal Watcher & Trigger Hub)
 让插件充分复用宿主原生无锁心跳与 Win32 前台窗口探测，彻底杜绝插件自建 `setInterval`：

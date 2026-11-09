@@ -470,6 +470,17 @@ type ShortcutAction =
 * **`invoke('raw_ec_write', { request: { protocol: string, address: number, value: number } }) -> boolean`**：向指定模具协议的 EC RAM 物理地址写入 1 字节数值。受物理防爆盾严格保护。
 * **`invoke('raw_mailbox_invoke', { request: { in_bytes: number[] } }) -> number[]`**：向宝龙达等邮箱协议模具直接下发原始字节流并返回响应报文。
 
+#### Slint 原生挂件直调硬件 Callbacks (脱离 WebView2 / Tauri IPC)：
+在 `.slint` 声明式组件中，微内核执行器（`openrevo-widget`）在动态编译实例化时会自动注入以下硬件微内核 Callbacks，插件在 Slint 文件中声明同名 callback 即可直调硬件：
+* `callback raw_ec_read(int) -> int`：自动嗅探本机最佳总线协议并读取 EC 寄存器（返回 0~255，失败返回 -1）；
+* `callback raw_ec_read(string, int) -> int`：指定协议（如 `"TongfangDirectEc"`、`"GenericAcpiWmi"`、`"BldWmiMailbox"`）读取；
+* `callback raw_ec_write(int, int) -> bool`：自动嗅探协议写入 EC 单字节；
+* `callback raw_ec_write(string, int, int) -> bool`：指定协议写入 EC 单字节；
+* `callback set_fan_boost(bool) -> bool`：硬件级一键强冷；
+* `callback set_power_mode(int) -> bool`：性能模式切换（1: 办公, 2: 平衡, 3: 狂暴）；
+* `callback set_battery_health(int) -> bool`：电池养护阈值调节（1: 100%, 2: 80%, 3: 60%）；
+* `callback get_raw_ec_capabilities() -> string`：返回可用协议 JSON 数组字符串。
+
 #### 硬件物理防爆盾（Hardware Blast Shield）与安全规范：
 1. **地址边界限制**：物理地址必须严格位于 `0x0000 ~ 0x0FFF` 之间，超出即拒绝执行；
 2. **禁区写入熔断**：内核底层硬编码拦截致命保留引脚（如 `0x0000` 复位极值触发），杜绝主板永久变砖；

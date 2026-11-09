@@ -149,6 +149,9 @@ pub fn run_widget_standalone(plugin_id: &str) {
         return;
     };
 
+    // Bind universal hardware microkernel callbacks (Raw EC, Fan Boost, Power Mode, Battery Health)
+    bind_openrevo_hardware_callbacks(&instance);
+
     let _ = instance.show();
 
     #[cfg(target_os = "windows")]
@@ -215,6 +218,9 @@ pub fn run_widget_embedded(plugin_id: &str, parent_hwnd_raw: isize, rect: (i32, 
         eprintln!("[Slint Embedded] Failed to instantiate component '{}'", comp_name);
         return;
     };
+
+    // Bind universal hardware microkernel callbacks (Raw EC, Fan Boost, Power Mode, Battery Health)
+    bind_openrevo_hardware_callbacks(&instance);
 
     // Show instance first to trigger Winit window creation
     let _ = instance.show();
@@ -286,4 +292,114 @@ pub fn run_widget_embedded(plugin_id: &str, parent_hwnd_raw: isize, rect: (i32, 
 
     println!("[Slint Embedded] Running embedded instance for '{}'", plugin_id);
     let _ = instance.run();
+}
+
+use openrevo_core::system::raw_gateway::{
+    detect_auto_raw_protocol, execute_raw_read, execute_raw_write,
+    get_gateway_capabilities, RawEcProtocol, RawEcReadRequest, RawEcWriteRequest,
+};
+
+/// Binds universal hardware control and raw EC communication callbacks onto a Slint component instance.
+/// This allows declarative `.slint` plugins (both standalone widgets and embedded tabs) to interact
+/// directly with OpenRevo's hardware microkernel without requiring WebView2 or Tauri IPC.
+pub fn bind_openrevo_hardware_callbacks(instance: &slint_interpreter::ComponentInstance) {
+    // 1. raw_ec_read: (addr: int) -> int OR (protocol: string, addr: int) -> int
+    let _ = instance.set_callback("raw_ec_read", move |args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let (protocol, addr) = if args.len() == 1 {
+            let addr = args[0].clone().try_into().unwrap_or(0i32) as u16;
+            (detect_auto_raw_protocol(), addr)
+        } else if args.len() >= 2 {
+            let proto_str = match &args[0] {
+                slint_interpreter::Value::String(s) => s.as_str().to_string(),
+                _ => String::new(),
+            };
+            let addr = args[1].clone().try_into().unwrap_or(0i32) as u16;
+            let proto = serde_json::from_value::<RawEcProtocol>(serde_json::Value::String(proto_str))
+                .unwrap_or_else(|_| detect_auto_raw_protocol());
+            (proto, addr)
+        } else {
+            return slint_interpreter::Value::Number(-1.0);
+        };
+
+        match execute_raw_read(RawEcReadRequest { protocol, address: addr }) {
+            Ok(val) => slint_interpreter::Value::Number(val as f64),
+            Err(e) => {
+                eprintln!("[Slint HW Gateway] raw_ec_read failed: {}", e);
+                slint_interpreter::Value::Number(-1.0)
+            }
+        }
+    });
+
+    // 2. raw_ec_write: (addr: int, val: int) -> bool OR (protocol: string, addr: int, val: int) -> bool
+    let _ = instance.set_callback("raw_ec_write", move |args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let (protocol, addr, val) = if args.len() == 2 {
+            let addr = args[0].clone().try_into().unwrap_or(0i32) as u16;
+            let val = args[1].clone().try_into().unwrap_or(0i32) as u8;
+            (detect_auto_raw_protocol(), addr, val)
+        } else if args.len() >= 3 {
+            let proto_str = match &args[0] {
+                slint_interpreter::Value::String(s) => s.as_str().to_string(),
+                _ => String::new(),
+            };
+            let addr = args[1].clone().try_into().unwrap_or(0i32) as u16;
+            let val = args[2].clone().try_into().unwrap_or(0i32) as u8;
+            let proto = serde_json::from_value::<RawEcProtocol>(serde_json::Value::String(proto_str))
+                .unwrap_or_else(|_| detect_auto_raw_protocol());
+            (proto, addr, val)
+        } else {
+            return slint_interpreter::Value::Bool(false);
+        };
+
+        match execute_raw_write(RawEcWriteRequest { protocol, address: addr, value: val }) {
+            Ok(success) => slint_interpreter::Value::Bool(success),
+            Err(e) => {
+                eprintln!("[Slint HW Gateway] raw_ec_write failed: {}", e);
+                slint_interpreter::Value::Bool(false)
+            }
+        }
+    });
+
+    // 3. set_fan_boost: (enable: bool) -> bool
+    let _ = instance.set_callback("set_fan_boost", move |args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let enable = args.get(0).and_then(|v| v.clone().try_into().ok()).unwrap_or(false);
+        let hal = openrevo_core::hal::get_hardware_driver();
+        let ok = hal.set_fan_boost(enable).is_ok();
+        slint_interpreter::Value::Bool(ok)
+    });
+
+    // 4. set_power_mode: (mode: int) -> bool (1: Office, 2: Balance, 3: Turbo, 4: Custom)
+    let _ = instance.set_callback("set_power_mode", move |args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let raw_mode = args.get(0).and_then(|v| v.clone().try_into().ok()).unwrap_or(2i32);
+        let hal_mode = match raw_mode {
+            1 => openrevo_core::hal::HardwarePowerMode::Office,
+            2 => openrevo_core::hal::HardwarePowerMode::Balance,
+            3 => openrevo_core::hal::HardwarePowerMode::Turbo,
+            4 => openrevo_core::hal::HardwarePowerMode::Custom,
+            _ => openrevo_core::hal::HardwarePowerMode::Balance,
+        };
+        let hal = openrevo_core::hal::get_hardware_driver();
+        let ok = hal.set_performance_mode(hal_mode).is_ok();
+        slint_interpreter::Value::Bool(ok)
+    });
+
+    // 5. set_battery_health: (mode: int) -> bool (1: 100%, 2: 80%, 3: 60%)
+    let _ = instance.set_callback("set_battery_health", move |args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let raw_mode = args.get(0).and_then(|v| v.clone().try_into().ok()).unwrap_or(2i32);
+        let health_mode = match raw_mode {
+            1 => openrevo_core::hal::BatteryHealthMode::LongLife,
+            2 => openrevo_core::hal::BatteryHealthMode::Balance,
+            3 => openrevo_core::hal::BatteryHealthMode::Station,
+            _ => openrevo_core::hal::BatteryHealthMode::Balance,
+        };
+        let hal = openrevo_core::hal::get_hardware_driver();
+        let ok = hal.set_battery_health(health_mode).is_ok();
+        slint_interpreter::Value::Bool(ok)
+    });
+
+    // 6. get_raw_ec_capabilities: () -> string (JSON array of available protocols)
+    let _ = instance.set_callback("get_raw_ec_capabilities", move |_args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let caps = get_gateway_capabilities();
+        let json_str = serde_json::to_string(&caps.available_protocols).unwrap_or_else(|_| "[]".to_string());
+        slint_interpreter::Value::String(json_str.into())
+    });
 }

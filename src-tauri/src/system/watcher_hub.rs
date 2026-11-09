@@ -566,6 +566,10 @@ pub fn dispatch_watcher_trigger(def: WatcherDefinition, condition_type: &'static
     }
 }
 
+fn detect_active_raw_protocol() -> crate::system::raw_gateway::RawEcProtocol {
+    crate::system::raw_gateway::detect_auto_raw_protocol()
+}
+
 fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
     match act {
         WatcherAction::SetPowerMode { mode } => {
@@ -593,7 +597,7 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
         WatcherAction::RawEcWrite { address, value } => {
             crate::log_info!("WATCHER_ACT", "[{}] Raw EC Write 0x{:04X} = 0x{:02X}", watcher_name, address, value);
             let req = crate::system::raw_gateway::RawEcWriteRequest {
-                protocol: crate::system::raw_gateway::RawEcProtocol::TongfangDirectEc,
+                protocol: detect_active_raw_protocol(),
                 address: *address,
                 value: *value,
             };
@@ -606,10 +610,20 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
                 crate::log_warn!("WATCHER_ACT", "[{}] Blast shield blocked EC modify on 0x{:04X}: {}", watcher_name, address, e);
                 return;
             }
-            if let Some(cur) = crate::driver::wmi_ec::wmi_read_ec(*address) {
+            let proto = detect_active_raw_protocol();
+            let read_req = crate::system::raw_gateway::RawEcReadRequest {
+                protocol: proto,
+                address: *address,
+            };
+            if let Ok(cur) = crate::system::raw_gateway::execute_raw_read(read_req) {
                 let next = if *value { cur | mask } else { cur & !mask };
-                crate::log_info!("WATCHER_ACT", "[{}] Modifying EC 0x{:04X} mask 0x{:02X} (val: {}): 0x{:02X} -> 0x{:02X}", watcher_name, address, mask, value, cur, next);
-                let _ = crate::driver::wmi_ec::wmi_write_ec(*address, next);
+                crate::log_info!("WATCHER_ACT", "[{}] Modifying EC 0x{:04X} mask 0x{:02X} (val: {}): 0x{:02X} -> 0x{:02X} via {:?}", watcher_name, address, mask, value, cur, next, proto);
+                let write_req = crate::system::raw_gateway::RawEcWriteRequest {
+                    protocol: proto,
+                    address: *address,
+                    value: next,
+                };
+                let _ = crate::system::raw_gateway::execute_raw_write(write_req);
             } else {
                 crate::log_warn!("WATCHER_ACT", "[{}] Failed to read EC 0x{:04X} for bitmask modification", watcher_name, address);
             }
@@ -741,7 +755,12 @@ fn evaluate_raw_ec_diffs() {
                 continue;
             }
             if let WatcherCondition::RawEcDiff { address, mask } = &record.definition.condition {
-                if let Some(mut val) = crate::driver::wmi_ec::wmi_read_ec(*address) {
+                let proto = detect_active_raw_protocol();
+                let read_req = crate::system::raw_gateway::RawEcReadRequest {
+                    protocol: proto,
+                    address: *address,
+                };
+                if let Ok(mut val) = crate::system::raw_gateway::execute_raw_read(read_req) {
                     if let Some(m) = mask {
                         val &= m;
                     }
