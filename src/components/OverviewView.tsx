@@ -123,7 +123,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           break;
         case 2: // Balance
           pl1 = presets.balance_pl1 > 0 ? presets.balance_pl1 : currentModeInfo.pl1;
-          tgp = presets.base_tgp > 0 ? presets.base_tgp + (presets.max_db || 0) : currentModeInfo.tgp;
+          const balanceDbEnabled = status.balanced_gpu_dynamic_boost !== false;
+          const dbWatts = balanceDbEnabled ? (presets.max_db || 0) : 0;
+          tgp = presets.base_tgp > 0 ? presets.base_tgp + dbWatts : currentModeInfo.tgp;
           break;
         case 3: // Beast
           pl1 = presets.turbo_pl1 > 0 ? presets.turbo_pl1 : currentModeInfo.pl1;
@@ -131,6 +133,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           break;
         default:
           break;
+      }
+    } else if (status.power_mode === 2) {
+      const balanceDbEnabled = status.balanced_gpu_dynamic_boost !== false;
+      if (!balanceDbEnabled) {
+        tgp = presets?.base_tgp && presets.base_tgp > 0 ? presets.base_tgp : currentModeInfo.tgp;
+      } else if (presets?.base_tgp && presets.base_tgp > 0) {
+        tgp = presets.base_tgp + (presets.max_db || 0);
       }
     }
 
@@ -182,6 +191,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           unlockBatteryLimit={status.unlock_battery_power_limit}
           onSelectMode={(mode) => checkOemGuard(() => onSetPowerMode(mode))}
           onOpenCustomTuning={() => checkOemGuard(onOpenCustomTuning)}
+          checkOemGuard={checkOemGuard}
         />
       </div>
 

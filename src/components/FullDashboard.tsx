@@ -254,7 +254,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
     try {
       const plugins = await invoke<CustomPluginItem[]>('get_custom_plugins');
       if (plugins) {
-        setTabPlugins(plugins.filter((p) => p.plugin_type === 'tab' && p.enabled && p.is_compatible !== false));
+        setTabPlugins(plugins.filter((p) => (p.has_tab || p.plugin_type === 'tab') && p.enabled && p.is_compatible !== false));
       }
       const toggles = await invoke<Record<string, boolean>>('get_module_toggles');
       if (toggles) {
@@ -634,7 +634,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
                 title={plugin.description}
               >
                 <Layers size={14} className="w-3.5 h-3.5" />
-                <span>{plugin.name}</span>
+                <span>{plugin.tab?.title || plugin.name}</span>
               </button>
             );
           })}
@@ -723,6 +723,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
               activeBackground={activeBackground}
               onApplyBackground={onApplyBackground}
               onCustomPluginsUpdated={loadTabPlugins}
+              onSelectPluginTab={(id) => setActiveTab(id)}
             />
           </ModuleErrorBoundary>
         )}

@@ -1,0 +1,131 @@
+import { AppTheme } from "../../theme.slint";
+
+export component FanControlsCard inherits VerticalLayout {
+    in-out property <bool> smooth_transition: true;
+    in-out property <string> smooth_time: "300ms";
+    in-out property <bool> fan_isolated_output: true;
+
+    callback toggle_smooth();
+    callback toggle_isolated();
+
+    spacing: 7px;
+
+    // 1. Row 1: Smooth Transition Sub-card (平滑过渡独立卡片)
+    Rectangle {
+        background: AppTheme.surface_pill;
+        border-radius: AppTheme.radius_sm;
+        border-width: 1px;
+        border-color: AppTheme.border_subtle;
+
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 7px;
+            padding-bottom: 7px;
+            alignment: space-between;
+
+            Text {
+                text: "平滑过渡";
+                font-size: 11px;
+                font-weight: 600;
+                color: AppTheme.text_primary;
+                vertical-alignment: center;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                Rectangle {
+                    width: 68px;
+                    height: 20px;
+                    border-radius: 3px;
+                    background: AppTheme.surface_card;
+                    border-width: 1px;
+                    border-color: AppTheme.border_medium;
+
+                    Text {
+                        text: root.smooth_time + " ∨";
+                        font-size: 9.5px;
+                        font-weight: 600;
+                        color: root.smooth_transition ? #818cf8 : AppTheme.text_muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Switch
+                Rectangle {
+                    width: 34px;
+                    height: 18px;
+                    border-radius: 9px;
+                    background: root.smooth_transition ? #6366f1 : AppTheme.surface_card;
+                    border-width: 1px;
+                    border-color: root.smooth_transition ? #6366f1 : AppTheme.border_medium;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.toggle_smooth();
+                        }
+                    }
+                    Rectangle {
+                        x: root.smooth_transition ? 18px : 2px;
+                        y: 2px;
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 6px;
+                        background: #ffffff;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Row 2: Fan Isolated Output Sub-card (风扇独立输出独立卡片)
+    Rectangle {
+        background: AppTheme.surface_pill;
+        border-radius: AppTheme.radius_sm;
+        border-width: 1px;
+        border-color: AppTheme.border_subtle;
+
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 7px;
+            padding-bottom: 7px;
+            alignment: space-between;
+
+            Text {
+                text: "风扇独立输出";
+                font-size: 11px;
+                font-weight: 600;
+                color: AppTheme.text_primary;
+                vertical-alignment: center;
+            }
+
+            // Switch
+            Rectangle {
+                width: 34px;
+                height: 18px;
+                border-radius: 9px;
+                background: root.fan_isolated_output ? #6366f1 : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.fan_isolated_output ? #6366f1 : AppTheme.border_medium;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.toggle_isolated();
+                    }
+                }
+                Rectangle {
+                    x: root.fan_isolated_output ? 18px : 2px;
+                    y: 2px;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: #ffffff;
+                }
+            }
+        }
+    }
+}
+

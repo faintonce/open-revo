@@ -1,0 +1,11 @@
+{
+  "id": "theme-cyber-mecha",
+  "name": "Cyber Mecha 经典机甲霓虹",
+  "version": "1.0.0",
+  "author": "OpenRevo Official",
+  "description": "经典官方机甲赛博朋克风皮肤，具备天蓝、翠绿、玫瑰红、高能金等多色硬件业务指示与霓虹微光轮廓。",
+  "plugin_type": "skin",
+  "theme_css": "theme.css",
+  "min_host_version": "0.9.3"
+}
+

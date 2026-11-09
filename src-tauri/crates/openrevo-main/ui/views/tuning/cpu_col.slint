@@ -1,0 +1,155 @@
+import { AppTheme } from "../../theme.slint";
+import { CpuTempWallCard } from "cpu_temp_wall_card.slint";
+import { CpuPowerLimitsCard } from "cpu_power_limits_card.slint";
+import { CpuExtraLimitsCard } from "cpu_extra_limits_card.slint";
+import { CpuTelemetryFooter } from "cpu_telemetry_footer.slint";
+
+export component CpuTuningCol inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: AppTheme.radius_md;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    // Platform capabilities
+    in-out property <string> cpu_vendor: "intel";      // "intel" | "amd"
+    in-out property <string> cpu_tuning_type: "intel_pl"; // "intel_pl" | "amd_smu" | "none"
+    in-out property <bool> cpu_supports_fppt: true;
+
+    // Tuning values
+    in-out property <int> temp_wall: 95;
+    in-out property <bool> temp_wall_enabled: true;
+    in-out property <int> temp_wall_max: 95;
+
+    in-out property <int> pl1: 75;
+    in-out property <int> pl1_max: 230;
+
+    in-out property <int> pl2: 75;
+    in-out property <int> pl2_max: 230;
+
+    in-out property <int> pl4: 126;
+    in-out property <int> pl4_max: 275;
+
+    in-out property <bool> bios_oc_enabled: true;
+    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
+    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <int> bios_oc_status: 0;
+    in-out property <bool> bios_oc_disabled: false;
+
+    // Live Telemetry
+    in-out property <int> cpu_temp: 67;
+    in-out property <int> cpu_rpm: 3166;
+    in-out property <string> cpu_watts: "19.9 W";
+    in-out property <int> gpu_temp: 54;
+    in-out property <int> gpu_rpm: 2123;
+    in-out property <string> gpu_watts: "20.4 W";
+
+    // Callbacks
+    callback toggle_temp_wall();
+    callback change_temp_wall(int);
+    callback adjust_temp_wall_max(int);
+    callback change_pl1(int);
+    callback adjust_pl1_max(int);
+    callback change_pl2(int);
+    callback adjust_pl2_max(int);
+    callback change_pl4(int);
+    callback adjust_pl4_max(int);
+    callback toggle_bios_oc();
+
+    property <bool> is_amd: cpu_vendor == "amd" || cpu_tuning_type == "amd_smu";
+    property <bool> is_disabled: cpu_tuning_type == "none";
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+
+        // 1. Header
+        HorizontalLayout {
+            alignment: space-between;
+            HorizontalLayout {
+                spacing: 6px;
+                Image {
+                    source: @image-url("../../assets/icons/cpu.svg");
+                    width: 15px;
+                    height: 15px;
+                    colorize: #38bdf8;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: root.is_amd ? "AMD CPU 功耗与温控" : "CPU 功耗与温控";
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #38bdf8;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // 2. Thin Laptop Banner
+        if root.is_disabled: Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_xs;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 8px;
+                Text {
+                    text: "当前机型为轻薄本架构，不支持自定义 CPU 功耗限制与温度墙调节。功耗由预设模式自动调度。";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        // 3. Temperature Wall Card
+        CpuTempWallCard {
+            is_amd: root.is_amd;
+            temp_wall <=> root.temp_wall;
+            temp_wall_enabled <=> root.temp_wall_enabled;
+            temp_wall_max <=> root.temp_wall_max;
+            toggle_temp_wall => { root.toggle_temp_wall(); }
+            change_temp_wall(w) => { root.change_temp_wall(w); }
+            adjust_temp_wall_max(d) => { root.adjust_temp_wall_max(d); }
+        }
+
+        // 4. PL1 & PL2 Power Limits Card
+        CpuPowerLimitsCard {
+            is_amd: root.is_amd;
+            pl1 <=> root.pl1;
+            pl1_max <=> root.pl1_max;
+            pl2 <=> root.pl2;
+            pl2_max <=> root.pl2_max;
+            change_pl1(w) => { root.change_pl1(w); }
+            adjust_pl1_max(d) => { root.adjust_pl1_max(d); }
+            change_pl2(w) => { root.change_pl2(w); }
+            adjust_pl2_max(d) => { root.adjust_pl2_max(d); }
+        }
+
+        // 5. PL4 (Peak / fPPT) & BIOS OC Card
+        CpuExtraLimitsCard {
+            is_amd: root.is_amd;
+            cpu_supports_fppt: root.cpu_supports_fppt;
+            pl4 <=> root.pl4;
+            pl4_max <=> root.pl4_max;
+            bios_oc_enabled <=> root.bios_oc_enabled;
+            bios_oc_desc <=> root.bios_oc_desc;
+            bios_oc_btn_text <=> root.bios_oc_btn_text;
+            bios_oc_status <=> root.bios_oc_status;
+            bios_oc_disabled <=> root.bios_oc_disabled;
+            change_pl4(w) => { root.change_pl4(w); }
+            adjust_pl4_max(d) => { root.adjust_pl4_max(d); }
+            toggle_bios_oc => { root.toggle_bios_oc(); }
+        }
+
+        // 6. Real-Time Hardware Telemetry Monitor (底部实时硬件监测)
+        CpuTelemetryFooter {
+            cpu_temp: root.cpu_temp;
+            cpu_rpm: root.cpu_rpm;
+            cpu_watts: root.cpu_watts;
+            gpu_temp: root.gpu_temp;
+            gpu_rpm: root.gpu_rpm;
+            gpu_watts: root.gpu_watts;
+        }
+    }
+}

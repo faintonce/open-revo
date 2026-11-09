@@ -6,6 +6,7 @@ import {
   RotateCcw,
   Boxes,
   Layers,
+  ExternalLink,
 } from 'lucide-react';
 import { HardwareState } from '../types/hardware';
 import { RevBadge, RevSwitch } from './ui';
@@ -21,6 +22,11 @@ export interface PluginServiceConfig {
   health_url?: string;
 }
 
+export interface PluginTelemetryConfig {
+  enabled?: boolean;
+  sensors?: string[];
+}
+
 export interface CustomPluginItem {
   id: string;
   name: string;
@@ -30,6 +36,8 @@ export interface CustomPluginItem {
   plugin_type: string;
   enabled: boolean;
   dir_name: string;
+  window?: any;
+  telemetry?: PluginTelemetryConfig;
   target_slot?: string;
   slot_height?: string;
   service?: PluginServiceConfig;
@@ -40,6 +48,15 @@ export interface CustomPluginItem {
   is_compatible?: boolean;
   compatibility_notice?: string;
   order?: number;
+  has_tab?: boolean;
+  has_widget?: boolean;
+  has_slot?: boolean;
+  has_service?: boolean;
+  has_skin?: boolean;
+  has_background?: boolean;
+  is_headless?: boolean;
+  tab?: { entry?: string; title?: string; icon?: string };
+  widget?: { entry?: string; window?: any };
 }
 
 export interface PluginsViewProps {
@@ -53,6 +70,7 @@ export interface PluginsViewProps {
   activeBackground?: string | null;
   onApplyBackground?: (backgroundId: string | null) => void;
   onCustomPluginsUpdated?: () => void;
+  onSelectPluginTab?: (pluginId: string) => void;
 }
 
 export const PluginsView: React.FC<PluginsViewProps> = ({
@@ -66,6 +84,7 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
   activeBackground,
   onApplyBackground,
   onCustomPluginsUpdated,
+  onSelectPluginTab,
 }) => {
   // Water cooler special toggle handling
   const [waterCoolerEnabled, setWaterCoolerEnabled] = useState<boolean>(() => {
@@ -399,17 +418,15 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
                         <span className="plugin-item-name">{plugin.name}</span>
                         <span className="plugin-item-id">[{plugin.id}]</span>
                         <RevBadge variant="default">v{plugin.version}</RevBadge>
-                        {plugin.plugin_type === 'skin' ? (
-                          <RevBadge variant="accent">主窗皮肤</RevBadge>
-                        ) : plugin.plugin_type === 'background' ? (
-                          <RevBadge variant="warning">背景壁纸</RevBadge>
-                        ) : plugin.plugin_type === 'tab' ? (
-                          <RevBadge variant="info">面板插槽</RevBadge>
-                        ) : plugin.plugin_type === 'widget' ? (
-                          <RevBadge variant="success">桌面挂件</RevBadge>
-                        ) : plugin.plugin_type === 'slot' ? (
-                          <RevBadge variant="accent">微插槽 {plugin.target_slot ? `[${plugin.target_slot}]` : ''}</RevBadge>
-                        ) : (
+                        {/* 多维度能力标签组合 */}
+                        {plugin.has_skin && <RevBadge variant="accent">主窗皮肤</RevBadge>}
+                        {plugin.has_background && <RevBadge variant="warning">背景壁纸</RevBadge>}
+                        {plugin.has_widget && <RevBadge variant="success">桌面挂件</RevBadge>}
+                        {plugin.has_tab && <RevBadge variant="info">选项卡</RevBadge>}
+                        {plugin.has_slot && <RevBadge variant="accent">微插槽 {plugin.target_slot ? `[${plugin.target_slot}]` : ''}</RevBadge>}
+                        {plugin.has_service && <RevBadge variant="default">伴生服务</RevBadge>}
+                        {plugin.is_headless && <RevBadge variant="default">后台看门狗</RevBadge>}
+                        {!plugin.has_skin && !plugin.has_background && !plugin.has_widget && !plugin.has_tab && !plugin.has_slot && !plugin.has_service && !plugin.is_headless && (
                           <RevBadge variant="default">{plugin.plugin_type}</RevBadge>
                         )}
                         {plugin.is_compatible === false ? (
@@ -430,7 +447,18 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="plugin-item-controls">
+                  <div className="plugin-item-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {plugin.has_tab && isPluginActive && onSelectPluginTab && (
+                      <button
+                        className="toggle-btn"
+                        style={{ height: '26px', padding: '0 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        onClick={() => onSelectPluginTab(plugin.id)}
+                        title="打开该插件在控制台的页面/设置"
+                      >
+                        <ExternalLink size={12} />
+                        <span>打开面板</span>
+                      </button>
+                    )}
                     <RevSwitch
                       checked={isPluginActive}
                       onChange={() => handleToggleCustomPlugin(plugin)}

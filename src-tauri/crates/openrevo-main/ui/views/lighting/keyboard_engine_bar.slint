@@ -1,0 +1,211 @@
+import { AppTheme } from "../../theme.slint";
+
+export component KeyboardEngineBar inherits Rectangle {
+    in-out property <int> kb_engine: 1; // 0: hardware, 1: streamer, 2: custom
+    in-out property <int> kb_fps: 30; // 15, 30, 45, 60
+
+    callback select_engine(int);
+    callback select_fps(int);
+
+    height: 40px;
+    background: AppTheme.surface_sunken;
+    border-radius: AppTheme.radius_md;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: space-between;
+
+        // Left: Engines (Vertically Centered)
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                Text {
+                    text: "驱动引擎:";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+
+                // Hardware Engine
+                Rectangle {
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.kb_engine == 0 ? #10b98125 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.kb_engine == 0 ? #10b981 : AppTheme.border_subtle;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_engine(0); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/shield.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: root.kb_engine == 0 ? #10b981 : AppTheme.text_muted;
+                            }
+                        }
+                        Text {
+                            text: "原厂固件 (0% CPU)";
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.kb_engine == 0 ? #10b981 : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Streamer Engine (BetterRGB)
+                Rectangle {
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.kb_engine == 1 ? #6366f125 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.kb_engine == 1 ? #6366f1 : AppTheme.border_subtle;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_engine(1); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/zap.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: root.kb_engine == 1 ? #818cf8 : AppTheme.text_muted;
+                            }
+                        }
+                        Text {
+                            text: "独家算法 (BetterRGB)";
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.kb_engine == 1 ? #818cf8 : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Custom Script Engine
+                Rectangle {
+                    height: 26px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.kb_engine == 2 ? #f43f5e25 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.kb_engine == 2 ? #f43f5e : AppTheme.border_subtle;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_engine(2); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/sparkles.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: root.kb_engine == 2 ? #f43f5e : AppTheme.text_muted;
+                            }
+                        }
+                        Text {
+                            text: "定制脚本 (BetterRGB)";
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.kb_engine == 2 ? #f43f5e : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right: FPS Selector (Visible when not hardware, Vertically Centered)
+        if root.kb_engine != 0 : VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: end;
+
+                Text {
+                    text: "独立刷新率:";
+                    font-size: 11px;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+
+                // 15 FPS
+                Rectangle {
+                    width: 28px;
+                    height: 22px;
+                    border-radius: 4px;
+                    background: root.kb_fps == 15 ? #6366f1 : AppTheme.surface_pill;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(15); } }
+                    Text { text: "15"; font-size: 10px; font-weight: 600; color: root.kb_fps == 15 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                // 30 FPS (Recommended)
+                Rectangle {
+                    width: 40px;
+                    height: 22px;
+                    border-radius: 4px;
+                    background: root.kb_fps == 30 ? #6366f1 : AppTheme.surface_pill;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(30); } }
+                    Text { text: "30 ☆"; font-size: 10px; font-weight: 700; color: root.kb_fps == 30 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                // 45 FPS
+                Rectangle {
+                    width: 28px;
+                    height: 22px;
+                    border-radius: 4px;
+                    background: root.kb_fps == 45 ? #6366f1 : AppTheme.surface_pill;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(45); } }
+                    Text { text: "45"; font-size: 10px; font-weight: 600; color: root.kb_fps == 45 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                }
+
+                // 60+ FPS
+                Rectangle {
+                    width: 34px;
+                    height: 22px;
+                    border-radius: 4px;
+                    background: root.kb_fps == 60 ? #6366f1 : AppTheme.surface_pill;
+                    TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(60); } }
+                    Text { text: "60+"; font-size: 10px; font-weight: 600; color: root.kb_fps == 60 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+        }
+    }
+}
+

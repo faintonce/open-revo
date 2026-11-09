@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>LLM 脑神经网关中枢</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --surface-base: #0b0f17;
+      --surface-card: rgba(255, 255, 255, 0.035);
+      --surface-overlay: rgba(255, 255, 255, 0.06);
+      --surface-hover: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-accent: rgba(99, 102, 241, 0.4);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-dim: #94a3b8;
+      --status-ok: #10b981;
+      --status-ok-dim: rgba(16, 185, 129, 0.15);
+      --status-warn: #f59e0b;
+      --status-warn-dim: rgba(245, 158, 11, 0.15);
+      --status-error: #ef4444;
+      --status-error-dim: rgba(239, 68, 68, 0.15);
+      --accent-cyan: #06b6d4;
+      --accent-indigo: #6366f1;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      color-scheme: dark;
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 20px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--surface-overlay);
+      border-radius: var(--radius-sm);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-medium);
+    }
+
+    .hub-container {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header */
+    .header-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(12px);
+    }
+
+    .header-title-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-icon {
+      font-size: 26px;
+      background: rgba(99, 102, 241, 0.15);
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-accent);
+    }
+
+    .header-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .header-text p {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .header-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-warn);
+      box-shadow: 0 0 8px var(--status-warn);
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.online {
+      background: var(--status-ok);
+      box-shadow: 0 0 8px var(--status-ok);
+    }
+
+    .status-dot.testing {
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+
+    .msg-model-tag {
+      font-size: 10px;
+      color: var(--accent-indigo);
+      opacity: 0.85;
+      margin-bottom: 4px;
+      user-select: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(99, 102, 241, 0.12);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
+    /* Grid Layout */
+    .hub-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 840px) {
+      .hub-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Card Panels */
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 10px;
+    }
+
+    /* Form Rows */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"], input[type="password"], textarea, select {
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      padding: 9px 12px;
+      font-size: 13px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s ease;
+      font-family: inherit;
+    }
+
+    select {
+      color-scheme: dark;
+    }
+
+    select option {
+      background-color: #0b0f17;
+      color: #f8fafc;
+      padding: 8px 12px;
+    }
+
+    select option:checked {
+      background-color: #6366f1;
+      color: #ffffff;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent-indigo);
+    }
+
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip-btn {
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+      border-color: var(--border-medium);
+    }
+
+    /* Action Buttons */
+    .btn {
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--text-dim);
+    }
+
+    .btn-primary {
+      background: var(--accent-indigo);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-accent {
+      background: var(--accent-cyan);
+      border-color: transparent;
+      color: #0b0f17;
+      font-weight: 700;
+    }
+
+    .btn-accent:hover {
+      opacity: 0.9;
+    }
+
+    /* Chat Interactive Sandbox */
+    .chat-box {
+      display: flex;
+      flex-direction: column;
+      height: 380px;
+      background: var(--surface-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .msg {
+      max-width: 90%;
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .msg-user {
+      align-self: flex-end;
+      background: var(--accent-indigo);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg-assistant {
+      align-self: flex-start;
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      border-bottom-left-radius: 2px;
+    }
+
+    .msg-tool-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      background: var(--status-ok-dim);
+      border: 1px solid var(--status-ok);
+      color: var(--status-ok);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      font-family: monospace;
+    }
+
+    .chat-input-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: var(--surface-card);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    /* Skills Card */
+    .skills-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .skill-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--surface-overlay);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+    }
+
+    .skill-name {
+      font-family: monospace;
+      color: var(--accent-cyan);
+    }
+
+    .toast-tip {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+
+    .toast-tip.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hub-container">
+    <!-- Header -->
+    <div class="header-panel">
+      <div class="header-title-box">
+        <div class="header-icon">🧠</div>
+        <div class="header-text">
+          <h1>OpenRevo LLM 脑神经中枢</h1>
+          <p>微内核 OpenAI 兼容总线网关，为桌面灵动智宠及系统自动化提供硬件调控能力</p>
+        </div>
+      </div>
+      <div class="header-badge">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="statusText">未连接</span>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="hub-grid">
+      <!-- Left Column: Config Panel -->
+      <div class="card">
+        <div class="card-title">
+          <span>⚙️ API 接口与模型配置</span>
+          <div class="preset-chips">
+            <span class="chip-btn" onclick="applyPreset('deepseek')">DeepSeek</span>
+            <span class="chip-btn" onclick="applyPreset('openai')">OpenAI</span>
+            <span class="chip-btn" onclick="applyPreset('ollama')">本地 Ollama</span>
+            <span class="chip-btn" onclick="applyPreset('siliconflow')">硅基流动</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Base URL (API 端点)</label>
+          <input type="text" id="baseUrl" placeholder="https://api.deepseek.com/v1" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>API Key</span>
+            <span style="cursor: pointer;" onclick="toggleKeyVisibility()">👁️ 切换可见性</span>
+          </label>
+          <div class="input-row">
+            <input type="password" id="apiKey" placeholder="sk-..." />
+            <button class="btn btn-accent" id="btnDetect" onclick="detectModels()">
+              🔍 探测可用模型
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">默认模型 (Model Name)</label>
+          <div class="input-row">
+            <select id="modelSelect" onchange="syncModelInput(this.value)">
+              <option value="deepseek-chat">deepseek-chat</option>
+            </select>
+            <input type="text" id="modelCustom" placeholder="手动输入模型名" style="max-width: 150px;" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>创造性温度 (Temperature)</span>
+            <span id="tempVal">0.7</span>
+          </label>
+          <input type="range" id="tempRange" min="0" max="1.5" step="0.1" value="0.7" oninput="document.getElementById('tempVal').innerText = Number(this.value).toFixed(1)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>桌宠人设与 System Prompt</span>
+            <div class="preset-chips">
+              <span class="chip-btn" onclick="applyPromptPreset('companion')">机甲灵动桌宠</span>
+              <span class="chip-btn" onclick="applyPromptPreset('engineer')">冷静硬件顾问</span>
+            </div>
+          </label>
+          <textarea id="systemPrompt" rows="3"></textarea>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 4px;">
+          <button class="btn btn-primary" style="flex: 1;" onclick="saveConfig()">
+            💾 保存配置并广播生效
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column: Interactive Chat & Skills -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Chat Interactive Sandbox -->
+        <div class="card">
+          <div class="card-title">
+            <span>💬 神经指令实时调试</span>
+            <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="clearChat()">清空记录</button>
+          </div>
+
+          <div class="preset-chips">
+            <span class="chip-btn" onclick="fillPrompt('电脑有点热，帮我吹大点风')">🔥 开启强冷</span>
+            <span class="chip-btn" onclick="fillPrompt('我要开黑打游戏了，把性能拉满')">🎮 游戏狂暴</span>
+            <span class="chip-btn" onclick="fillPrompt('在图书馆开会，安静省电一点')">🤫 图书馆模式</span>
+            <span class="chip-btn" onclick="fillPrompt('当前笔记本硬件状态怎么样？')">🩺 硬件自检</span>
+          </div>
+
+          <div class="chat-box">
+            <div class="chat-messages" id="chatMsgs">
+              <div class="msg msg-assistant">
+                已就绪。你可以直接输入自然语言指令（例如“开下强冷”或“我要玩黑神话”），我将通过微内核 Function Calling 执行具体硬件动作。
+              </div>
+            </div>
+            <div class="chat-input-bar">
+              <input type="text" id="chatInput" placeholder="输入控制指令或与桌宠对话..." onkeydown="if(event.key==='Enter') sendChat()" />
+              <button class="btn btn-primary" id="btnSend" onclick="sendChat()">发送</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware Skills Panel -->
+        <div class="card">
+          <div class="card-title">
+            <span>🛠️ 已注册硬件 Tools 军火库</span>
+            <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="copySkills()">📋 复制 SKILL.md</button>
+          </div>
+          <div class="skills-list" id="skillsList">
+            <div class="skill-item">
+              <span class="skill-name">set_fan_boost</span>
+              <span>全速强冷暴走调控</span>
+            </div>
+            <div class="skill-item">
+              <span class="skill-name">set_power_mode</span>
+              <span>办公/均衡/狂暴模式瞬切</span>
+            </div>
+            <div class="skill-item">
+              <span class="skill-name">switch_refresh_rate</span>
+              <span>屏幕刷新率 (60/165/240Hz)</span>
+            </div>
+            <div class="skill-item">
+              <span class="skill-name">set_battery_limit</span>
+              <span>电池健康养护充电上限</span>
+            </div>
+            <div class="skill-item">
+              <span class="skill-name">set_device_switch</span>
+              <span>摄像头/麦克风/触控板/Win锁</span>
+            </div>
+            <div class="skill-item">
+              <span class="skill-name">get_system_telemetry</span>
+              <span>实时温度/功耗状态快照</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast-tip"></div>
+
+  <script>
+    // Universal RPC Bridge
+    async function rpc(command, args = {}) {
+      if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.invoke === 'function') {
+        return await window.parent.__OPENREVO_BRIDGE__.invoke(command, args);
+      }
+      if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+        return await window.__TAURI__.core.invoke(command, args);
+      }
+      return new Promise((resolve, reject) => {
+        const reqId = 'req_' + Math.random().toString(36).substring(2, 9);
+        const timer = setTimeout(() => {
+          window.removeEventListener('message', onMsg);
+          reject(new Error('RPC 调用超时: ' + command));
+        }, 12000);
+        function onMsg(e) {
+          if (e.data && e.data.reqId === reqId) {
+            clearTimeout(timer);
+            window.removeEventListener('message', onMsg);
+            if (e.data.error) reject(new Error(e.data.error));
+            else resolve(e.data.result);
+          }
+        }
+        window.addEventListener('message', onMsg);
+        window.parent.postMessage({ action: 'INVOKE_COMMAND', command, args, reqId }, '*');
+      });
+    }
+
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      toast.innerText = text;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    // Presets
+    const PRESETS = {
+      deepseek: {
+        url: 'https://api.deepseek.com/v1',
+        model: 'deepseek-chat'
+      },
+      openai: {
+        url: 'https://api.openai.com/v1',
+        model: 'gpt-4o-mini'
+      },
+      ollama: {
+        url: 'http://localhost:11434/v1',
+        model: 'qwen2.5:7b'
+      },
+      siliconflow: {
+        url: 'https://api.siliconflow.cn/v1',
+        model: 'deepseek-ai/DeepSeek-V3'
+      }
+    };
+
+    function applyPreset(name) {
+      const p = PRESETS[name];
+      if (!p) return;
+      document.getElementById('baseUrl').value = p.url;
+      syncModelInput(p.model);
+      updateLiveStatus();
+      showToast(`已应用 ${name} 端点预设`);
+    }
+
+    function applyPromptPreset(name) {
+      if (name === 'companion') {
+        document.getElementById('systemPrompt').value = "你是运行在 OpenRevo 笔记本控制中心的机甲灵动桌宠。你可以理解主人意图，并直接调用硬件能力控制电脑的强冷、性能模式、屏幕刷新率和电池养护。如果执行了动作，请用活泼、温暖、带有赛博小人特色的语气向主人汇报！";
+      } else {
+        document.getElementById('systemPrompt').value = "你是 OpenRevo 笔记本微内核高级硬件顾问。请严谨、简练地执行用户的系统配置需求，在调用完硬件工具后给出精准的参数变化说明。";
+      }
+      updateLiveStatus();
+      showToast("已更新人设模板");
+    }
+
+    function syncModelInput(modelName) {
+      document.getElementById('modelCustom').value = modelName;
+      const select = document.getElementById('modelSelect');
+      let found = false;
+      for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === modelName) {
+          select.selectedIndex = i;
+          found = true;
+          break;
+        }
+      }
+      if (!found && modelName) {
+        const opt = document.createElement('option');
+        opt.value = modelName;
+        opt.innerText = modelName;
+        opt.style.backgroundColor = '#0b0f17';
+        opt.style.color = '#f8fafc';
+        select.appendChild(opt);
+        select.value = modelName;
+      }
+      updateLiveStatus();
+    }
+
+    function toggleKeyVisibility() {
+      const input = document.getElementById('apiKey');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    // Config & Live Status Management
+    let savedConfig = null;
+
+    function getCurrentFormConfig() {
+      const model = (document.getElementById('modelCustom').value || document.getElementById('modelSelect').value || '').trim();
+      return {
+        base_url: document.getElementById('baseUrl').value.trim(),
+        api_key: document.getElementById('apiKey').value.trim(),
+        model: model,
+        temperature: parseFloat(Number(document.getElementById('tempRange').value).toFixed(1)) || 0.7,
+        system_prompt: document.getElementById('systemPrompt').value.trim()
+      };
+    }
+
+    function updateLiveStatus() {
+      const cur = getCurrentFormConfig();
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+
+      const hasKey = cur.api_key.length > 0;
+      const isLocal = cur.base_url.includes('localhost') || cur.base_url.includes('127.0.0.1') || cur.base_url.includes('11434');
+      const isReady = (hasKey || isLocal) && cur.model.length > 0;
+
+      dot.className = 'status-dot';
+      if (!isReady) {
+        text.innerText = '未连接 (需配置端点与模型)';
+        return;
+      }
+
+      const isSaved = savedConfig &&
+        savedConfig.base_url === cur.base_url &&
+        savedConfig.api_key === cur.api_key &&
+        savedConfig.model === cur.model &&
+        Math.abs((savedConfig.temperature ?? 0.7) - cur.temperature) < 0.05 &&
+        (savedConfig.system_prompt || '') === cur.system_prompt;
+
+      if (isSaved) {
+        dot.classList.add('online');
+        text.innerText = `就绪 (${cur.model})`;
+      } else {
+        dot.classList.add('testing');
+        text.innerText = `调试中 (${cur.model}) [即时生效，未保存]`;
+      }
+    }
+
+    // Init & Load
+    async function loadConfig() {
+      try {
+        const cfg = await rpc('ai_get_config');
+        if (cfg) {
+          savedConfig = { ...cfg };
+          document.getElementById('baseUrl').value = cfg.base_url || 'https://api.deepseek.com/v1';
+          document.getElementById('apiKey').value = cfg.api_key || '';
+          syncModelInput(cfg.model || 'deepseek-chat');
+          if (cfg.temperature !== undefined) {
+            const formattedTemp = Number(cfg.temperature).toFixed(1);
+            document.getElementById('tempRange').value = formattedTemp;
+            document.getElementById('tempVal').innerText = formattedTemp;
+          }
+          if (cfg.system_prompt) {
+            document.getElementById('systemPrompt').value = cfg.system_prompt;
+          }
+          updateLiveStatus();
+        }
+      } catch (e) {
+        console.warn('加载 AI 网关配置失败:', e);
+      }
+    }
+
+    async function saveConfig() {
+      const cfg = getCurrentFormConfig();
+      try {
+        await rpc('ai_save_config', { config: cfg });
+        savedConfig = { ...cfg };
+        updateLiveStatus();
+        showToast('✅ 配置已持久化保存并广播至全域！');
+      } catch (e) {
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    async function detectModels() {
+      const baseUrl = document.getElementById('baseUrl').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const btn = document.getElementById('btnDetect');
+      btn.innerText = '⏳ 探测中...';
+      btn.disabled = true;
+
+      try {
+        const list = await rpc('ai_fetch_models', { baseUrl, apiKey });
+        const select = document.getElementById('modelSelect');
+        select.innerHTML = '';
+        list.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.innerText = m;
+          opt.style.backgroundColor = '#0b0f17';
+          opt.style.color = '#f8fafc';
+          select.appendChild(opt);
+        });
+        if (list.length > 0) {
+          const currentVal = document.getElementById('modelCustom').value.trim();
+          let preferred = list.find(m => m === currentVal)
+            || list.find(m => m.toLowerCase().includes('deepseek-v3') || m.toLowerCase().includes('deepseek-chat'))
+            || list.find(m => m.toLowerCase().includes('qwen2.5-7b') || m.toLowerCase().includes('qwen'))
+            || list.find(m => m.toLowerCase().includes('chat') || m.toLowerCase().includes('instruct'))
+            || list[0];
+          syncModelInput(preferred);
+          updateLiveStatus();
+          showToast(`成功探测到 ${list.length} 个可用模型，已即时切换为: ${preferred}`);
+        } else {
+          showToast('端点已连通，但模型列表为空 (若为 Ollama 请先拉取模型)');
+        }
+      } catch (e) {
+        alert('探测失败: ' + e.message);
+      } finally {
+        btn.innerText = '🔍 探测可用模型';
+        btn.disabled = false;
+      }
+    }
+
+    // Chat Sandbox & Real-time Live Testing
+    let currentAssistantMsgEl = null;
+    let currentAssistantTextEl = null;
+    let executedActionsInRound = new Set();
+
+    function fillPrompt(text) {
+      document.getElementById('chatInput').value = text;
+      sendChat();
+    }
+
+    function clearChat() {
+      document.getElementById('chatMsgs').innerHTML = '';
+    }
+
+    async function sendChat() {
+      const input = document.getElementById('chatInput');
+      const prompt = input.value.trim();
+      if (!prompt) return;
+
+      const configOverride = getCurrentFormConfig();
+      if (!configOverride.model) {
+        showToast('⚠️ 请先选择或输入模型名称！');
+        return;
+      }
+
+      input.value = '';
+      appendMsg('user', prompt);
+
+      // Create assistant container with model stamp
+      currentAssistantMsgEl = appendMsg('assistant', '');
+      const tag = document.createElement('div');
+      tag.className = 'msg-model-tag';
+      tag.innerText = `🤖 调试模型: ${configOverride.model}`;
+      currentAssistantMsgEl.appendChild(tag);
+
+      currentAssistantTextEl = document.createElement('div');
+      currentAssistantMsgEl.appendChild(currentAssistantTextEl);
+
+      executedActionsInRound = new Set();
+
+      try {
+        await rpc('ai_chat_send', { prompt, enableTools: true, configOverride });
+      } catch (e) {
+        if (currentAssistantTextEl) {
+          currentAssistantTextEl.innerHTML += `<div style="color: var(--status-error); margin-top: 6px;">❌ ${e.message}</div>`;
+        }
+      }
+    }
+
+    function appendMsg(role, text) {
+      const msgs = document.getElementById('chatMsgs');
+      const div = document.createElement('div');
+      div.className = `msg msg-${role}`;
+      div.innerText = text;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+      return div;
+    }
+
+    // Listen to Universal Broadcast Events (Strict Single-channel Handling)
+    window.addEventListener('message', (e) => {
+      const data = e.data;
+      if (!data || data.type !== 'OPENREVO_EVENT') return;
+
+      const eventType = data.event;
+      const payload = data.payload || {};
+
+      if (eventType === 'llm:stream:chunk') {
+        if (currentAssistantTextEl && payload.delta) {
+          currentAssistantTextEl.innerText += payload.delta;
+          const msgs = document.getElementById('chatMsgs');
+          msgs.scrollTop = msgs.scrollHeight;
+        }
+      } else if (eventType === 'llm:action:executing') {
+        if (currentAssistantMsgEl) {
+          const actionKey = `${payload.tool}_${payload.result ? payload.result.message : ''}`;
+          if (executedActionsInRound.has(actionKey)) return;
+          executedActionsInRound.add(actionKey);
+
+          const badge = document.createElement('div');
+          badge.className = 'msg-tool-badge';
+          badge.innerHTML = `⚡ 正在执行硬件指令: <b>${payload.tool}</b> (${payload.result ? payload.result.message || 'OK' : 'OK'})`;
+          currentAssistantMsgEl.parentNode.insertBefore(badge, currentAssistantMsgEl);
+        }
+      } else if (eventType === 'llm:chat:error') {
+        if (currentAssistantTextEl) {
+          const errDiv = document.createElement('div');
+          errDiv.style.color = 'var(--status-error)';
+          errDiv.style.marginTop = '6px';
+          errDiv.innerText = `⚠️ 异常: ${payload.error}`;
+          currentAssistantTextEl.appendChild(errDiv);
+        }
+      }
+    });
+
+    async function copySkills() {
+      try {
+        const res = await rpc('ai_get_system_skills');
+        const text = JSON.stringify(res, null, 2);
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          await rpc('write_clipboard', { text });
+        }
+        showToast('已复制硬件技能 Schema 到剪贴板！');
+      } catch (e) {
+        alert('复制失败: ' + e.message);
+      }
+    }
+
+    // Bind Live Listeners
+    document.getElementById('baseUrl').addEventListener('input', updateLiveStatus);
+    document.getElementById('apiKey').addEventListener('input', updateLiveStatus);
+    document.getElementById('modelSelect').addEventListener('change', (e) => syncModelInput(e.target.value));
+    document.getElementById('modelCustom').addEventListener('input', updateLiveStatus);
+    document.getElementById('tempRange').addEventListener('input', (e) => {
+      document.getElementById('tempVal').innerText = Number(e.target.value).toFixed(1);
+      updateLiveStatus();
+    });
+    document.getElementById('systemPrompt').addEventListener('input', updateLiveStatus);
+
+    // Startup
+    loadConfig();
+  </script>
+</body>
+
+</html>
+

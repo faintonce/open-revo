@@ -1,0 +1,290 @@
+import { AppTheme } from "../theme.slint";
+
+export component DashboardPluginWorkspace inherits Rectangle {
+    in-out property <string> active_plugin_id: "";
+
+    callback launch_plugin_window(string);
+    callback open_plugin_dir(string);
+    callback reload_plugins();
+    callback back_to_plugins_tab();
+
+    vertical-stretch: 1;
+    background: #0c1017;
+
+    VerticalLayout {
+        spacing: 0px;
+        padding: 0px;
+
+        // Top Action Strip for Active Embedded Plugin
+        Rectangle {
+            height: 38px;
+            background: AppTheme.surface_card;
+
+            // Bottom border line
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: AppTheme.border_subtle;
+            }
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                alignment: space-between;
+
+                // Left: Plugin Info Pill
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 8px;
+
+                    Image {
+                        source: @image-url("../assets/icons/layers.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: AppTheme.accent_active;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    Text {
+                        text: "扩展视窗";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+
+                    // Plugin ID Pill
+                    Rectangle {
+                        height: 20px;
+                        border-radius: 4px;
+                        background: AppTheme.accent_active.with-alpha(0.12);
+                        border-width: 1px;
+                        border-color: AppTheme.accent_active.with-alpha(0.25);
+                        y: (parent.height - self.height) / 2;
+
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: root.active_plugin_id;
+                                font-size: 11px;
+                                font-weight: 600;
+                                color: AppTheme.accent_active;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Sandboxed / Running Badge
+                    Rectangle {
+                        height: 20px;
+                        border-radius: 4px;
+                        background: AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        y: (parent.height - self.height) / 2;
+
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            spacing: 4px;
+
+                            Rectangle {
+                                width: 6px;
+                                height: 6px;
+                                border-radius: 3px;
+                                background: #10b981;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: "沙箱运行中";
+                                font-size: 10.5px;
+                                font-weight: 500;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Right: Compact Action Buttons
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+
+                    // Launch Popout Window
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 6px;
+                        background: t_launch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: t_launch.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+                        y: (parent.height - self.height) / 2;
+
+                        animate background { duration: 100ms; }
+
+                        t_launch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.launch_plugin_window(root.active_plugin_id);
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 5px;
+
+                            Image {
+                                source: @image-url("../assets/icons/maximize2.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: t_launch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: "独立视窗";
+                                font-size: 11px;
+                                font-weight: 500;
+                                color: t_launch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Open Plugin Dir
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 6px;
+                        background: t_dir.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: t_dir.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+                        y: (parent.height - self.height) / 2;
+
+                        animate background { duration: 100ms; }
+
+                        t_dir := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.open_plugin_dir(root.active_plugin_id);
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 5px;
+
+                            Image {
+                                source: @image-url("../assets/icons/folder.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: AppTheme.text_secondary;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: "插件目录";
+                                font-size: 11px;
+                                font-weight: 500;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Reload Plugin
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 6px;
+                        background: t_reload.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: t_reload.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+                        y: (parent.height - self.height) / 2;
+
+                        animate background { duration: 100ms; }
+
+                        t_reload := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.reload_plugins();
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 5px;
+
+                            Image {
+                                source: @image-url("../assets/icons/refresh-cw.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: AppTheme.text_secondary;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: "重新加载";
+                                font-size: 11px;
+                                font-weight: 500;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Return to Plugins Tab
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 6px;
+                        background: t_back.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: t_back.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
+                        y: (parent.height - self.height) / 2;
+
+                        animate background { duration: 100ms; }
+
+                        t_back := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.back_to_plugins_tab();
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 5px;
+
+                            Image {
+                                source: @image-url("../assets/icons/arrow-left.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: AppTheme.text_muted;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: "返回列表";
+                                font-size: 11px;
+                                font-weight: 500;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Embedded Area Host (Clean dark backdrop for WebView2 child)
+        Rectangle {
+            vertical-stretch: 1;
+            background: #0c1017;
+        }
+    }
+}
+

@@ -1,0 +1,173 @@
+import { AppTheme } from "../theme.slint";
+
+export component DashboardHeader inherits Rectangle {
+    height: 40px;
+    background: transparent;
+
+    in-out property <string> title: "状态总览";
+    in-out property <string> subtitle: "核心硬件实时遥测与性能调控中枢";
+
+    callback toggle_theme();
+    callback collapse_to_mini();
+    callback toggle_fullscreen();
+    callback minimize_clicked();
+    callback close_clicked();
+
+    // 1. Full-size background drag region (enables dragging across the entire header bar)
+    WindowMoveArea {
+        width: 100%;
+        height: 100%;
+    }
+
+    // 2. Foreground content: Title (transparent to drag) + Control Buttons (catch mouse clicks)
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 14px;
+        alignment: space-between;
+
+        // Left: Page Title & Subtitle (Mouse down falls through to WindowMoveArea for dragging)
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+
+                Text {
+                    text: root.title;
+                    font-size: 13.5px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.subtitle;
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Center space: passes through to background WindowMoveArea
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        // Right: Window Control Actions (Vertically Centered, TouchAreas capture clicks without drag conflicts)
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: end;
+
+                // Palette Theme Toggle (28x28 Icon Button)
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: t_pal.has-hover ? AppTheme.surface_card_hover : transparent;
+                    t_pal := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_theme(); }
+                    }
+                    Image {
+                        source: @image-url("../assets/icons/palette.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: t_pal.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                // Mini Mode Toggle (28x28 Icon Button, Pure Icon Matching Theme Button)
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: t_mini.has-hover ? AppTheme.surface_card_hover : transparent;
+                    t_mini := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.collapse_to_mini(); }
+                    }
+                    Image {
+                        source: @image-url("../assets/icons/maximize2.svg");
+                        width: 13px;
+                        height: 13px;
+                        colorize: t_mini.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                // Vertical Divider between Tools and Window Control Buttons
+                Rectangle {
+                    width: 1px;
+                    height: 14px;
+                    background: AppTheme.border_subtle;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                // 1) Minimize Button: - (28x28)
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: t_min.has-hover ? AppTheme.surface_card_hover : transparent;
+                    t_min := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.minimize_clicked(); }
+                    }
+                    Rectangle {
+                        width: 11px;
+                        height: 1.5px;
+                        background: t_min.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                // 2) Maximize / Fullscreen Button: 口 (28x28, Placed between - and x) - Temporarily hidden per user request
+                if false: Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: t_fs.has-hover ? AppTheme.surface_card_hover : transparent;
+                    t_fs := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_fullscreen(); }
+                    }
+                    Image {
+                        source: @image-url("../assets/icons/square.svg");
+                        width: 11px;
+                        height: 11px;
+                        colorize: t_fs.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                // 3) Close Button: x (28x28)
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 5px;
+                    background: t_cls.has-hover ? #ef444430 : transparent;
+                    t_cls := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.close_clicked(); }
+                    }
+                    Image {
+                        source: @image-url("../assets/icons/x.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: t_cls.has-hover ? #ef4444 : AppTheme.text_secondary;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+        }
+    }
+}

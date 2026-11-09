@@ -3,7 +3,8 @@
 // Uses an isolated Single-Threaded Worker Actor to prevent COM MTA pollution on Tauri's UI thread (STA)
 // and guarantee 100% thread safety against 0xC0000005 ACCESS_VIOLATION.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex as StdMutex;
+use std::time::Instant;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::LazyLock;
 use std::thread;
@@ -21,8 +22,9 @@ use windows::Win32::System::Wmi::{
 const RPC_C_AUTHN_WINNT: u32 = 10;
 const RPC_C_AUTHZ_NONE: u32 = 0;
 
-static MULONG_PROBED: AtomicBool = AtomicBool::new(false);
-static MULONG_AVAILABLE: AtomicBool = AtomicBool::new(false);
+/// 探测缓存：成功结果永久有效；失败结果只缓存一小段时间（启动早期 WMI 可能还没就绪）
+static MULONG_STATE: StdMutex<Option<(bool, Instant)>> = StdMutex::new(None);
+const MULONG_NEGATIVE_TTL: Duration = Duration::from_secs(5);
 
 enum MulongTask {
     Probe(Sender<bool>),
@@ -168,8 +170,12 @@ fn worker_loop(rx: Receiver<MulongTask>) {
 
                         let in_params = in_param_class.SpawnInstance(0).ok()?;
                         let req_data: i64 = ((1i64) << 40) | (addr as i64);
-                        let mut var_data = VARIANT::from(req_data);
-                        in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        // Standard CIM_UINT64 handling in WMI prefers BSTR string representation, with VT_I8 fallback
+                        let mut var_data = VARIANT::from(BSTR::from(format!("{}", req_data)));
+                        if in_params.Put(w!("Data"), 0, &mut var_data, 0).is_err() {
+                            var_data = VARIANT::from(req_data);
+                            in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        }
 
                         let method_name = BSTR::from("GetSetULong");
                         let mut out_params: Option<IWbemClassObject> = None;
@@ -189,7 +195,7 @@ fn worker_loop(rx: Receiver<MulongTask>) {
 
                         let str_val = ret_val.to_string();
                         let raw_u64 = str_val.parse::<u64>().unwrap_or_else(|_| {
-                            if let Some(stripped) = str_val.strip_prefix("0x") {
+                            if let Some(stripped) = str_val.strip_prefix("0x").or_else(|| str_val.strip_prefix("0X")) {
                                 u64::from_str_radix(stripped, 16).unwrap_or(0)
                             } else {
                                 0
@@ -211,8 +217,12 @@ fn worker_loop(rx: Receiver<MulongTask>) {
 
                         let in_params = in_param_class.SpawnInstance(0).ok()?;
                         let req_data: i64 = ((val as i64) << 16) | (addr as i64);
-                        let mut var_data = VARIANT::from(req_data);
-                        in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        // Standard CIM_UINT64 handling in WMI prefers BSTR string representation, with VT_I8 fallback
+                        let mut var_data = VARIANT::from(BSTR::from(format!("{}", req_data)));
+                        if in_params.Put(w!("Data"), 0, &mut var_data, 0).is_err() {
+                            var_data = VARIANT::from(req_data);
+                            in_params.Put(w!("Data"), 0, &mut var_data, 0).ok()?;
+                        }
 
                         let method_name = BSTR::from("GetSetULong");
                         let hr = services.ExecMethod(
@@ -326,8 +336,14 @@ fn worker_loop(rx: Receiver<MulongTask>) {
 
 /// Probes whether AcpiTest_MULong is supported on this machine
 pub fn probe_mulong_available() -> bool {
-    if MULONG_PROBED.load(Ordering::Acquire) {
-        return MULONG_AVAILABLE.load(Ordering::Acquire);
+    {
+        let guard = MULONG_STATE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((ok, at)) = *guard {
+            // 成功：永久有效；失败：只缓存 MULONG_NEGATIVE_TTL，之后允许重试
+            if ok || at.elapsed() < MULONG_NEGATIVE_TTL {
+                return ok;
+            }
+        }
     }
 
     let ok = if let Some(worker) = WORKER.as_ref() {
@@ -341,8 +357,10 @@ pub fn probe_mulong_available() -> bool {
         false
     };
 
-    MULONG_AVAILABLE.store(ok, Ordering::Release);
-    MULONG_PROBED.store(true, Ordering::Release);
+    {
+        let mut guard = MULONG_STATE.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = Some((ok, Instant::now()));
+    }
     ok
 }
 
@@ -364,13 +382,16 @@ pub fn verify_mulong_functional() -> bool {
     false
 }
 
-/// Returns whether AcpiTest_MULong is available
+/// Returns whether AcpiTest_MULong is available（失败结果可重试，不永久缓存）
 pub fn is_mulong_available() -> bool {
-    if !MULONG_PROBED.load(Ordering::Acquire) {
-        probe_mulong_available()
-    } else {
-        MULONG_AVAILABLE.load(Ordering::Acquire)
+    let guard = MULONG_STATE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((ok, _)) = *guard {
+        if ok {
+            return true;
+        }
     }
+    drop(guard);
+    probe_mulong_available()
 }
 
 /// Reads a 1-byte register from EC RAM via native WMI AcpiTest_MULong.GetSetULong

@@ -1,0 +1,252 @@
+import { AppTheme } from "../../theme.slint";
+
+export component ColorProfileBar inherits Rectangle {
+    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile_id: "default_native";
+    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
+    in-out property <bool> is_color_dirty: false;
+    in-out property <string> monitor_name: "京东方";
+
+    callback apply_profile(string);
+    callback import_profile();
+    callback open_cloud_icc();
+
+    height: 46px;
+    border-radius: 8px;
+    background: AppTheme.surface_card;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: space-between;
+
+        // Left Icon + Title
+        HorizontalLayout {
+            spacing: 10px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 6px;
+                    background: #0284c720;
+                    border-width: 1px;
+                    border-color: #0284c750;
+                    Image {
+                        source: @image-url("../../assets/icons/crosshair.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: #38bdf8;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 1px;
+                Text {
+                    text: "屏幕色彩校正 (Color Management)";
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: "当前方案: " + root.active_color_profile + " · " + root.monitor_name;
+                    font-size: 9.5px;
+                    color: AppTheme.text_muted;
+                }
+            }
+        }
+
+        // Right Controls: Profile Dropdown + Apply + Import
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    // Profile Selector Capsule with PopupWindow
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 5px;
+                        background: t_prof.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+
+                        t_prof := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { prof_popup.show(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 6px;
+                            Text {
+                                text: root.active_color_profile;
+                                font-size: 10.5px;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                            Image {
+                                source: @image-url("../../assets/icons/chevron-down.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: AppTheme.text_muted;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        prof_popup := PopupWindow {
+                            x: 0px;
+                            y: 28px;
+                            width: 180px;
+
+                            Rectangle {
+                                background: AppTheme.surface_elevated;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: AppTheme.border_medium;
+                                drop-shadow-blur: 8px;
+                                drop-shadow-color: #00000080;
+
+                                VerticalLayout {
+                                    padding: 4px;
+                                    spacing: 2px;
+
+                                    for p_name[idx] in root.color_profiles_list: Rectangle {
+                                        height: 26px;
+                                        border-radius: 4px;
+                                        background: pt.has-hover ? AppTheme.surface_pill : transparent;
+                                        pt := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => {
+                                                root.active_color_profile = p_name;
+                                                if (idx < root.color_profiles_ids.length) {
+                                                    root.active_color_profile_id = root.color_profiles_ids[idx];
+                                                }
+                                                root.is_color_dirty = true;
+                                            }
+                                        }
+                                        HorizontalLayout {
+                                            padding-left: 8px;
+                                            padding-right: 8px;
+                                            Text {
+                                                text: p_name;
+                                                font-size: 10px;
+                                                color: root.active_color_profile == p_name ? #38bdf8 : AppTheme.text_primary;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Apply Button
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 5px;
+                        background: root.is_color_dirty ? #0284c725 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.is_color_dirty ? #0284c780 : AppTheme.border_subtle;
+                        opacity: root.is_color_dirty ? 1.0 : 0.5;
+                        TouchArea {
+                            mouse-cursor: root.is_color_dirty ? pointer : default;
+                            clicked => {
+                                if (root.is_color_dirty) {
+                                    root.is_color_dirty = false;
+                                    root.apply_profile(root.active_color_profile_id);
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Text {
+                                text: "应用";
+                                font-size: 10.5px;
+                                font-weight: 600;
+                                color: root.is_color_dirty ? #38bdf8 : AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Import Button
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 5px;
+                        background: #0284c718;
+                        border-width: 1px;
+                        border-color: #0284c760;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.import_profile(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Image {
+                                source: @image-url("../../assets/icons/upload.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "导入";
+                                font-size: 10.5px;
+                                font-weight: 600;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Cloud ICC Button
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 5px;
+                        background: #38bdf818;
+                        border-width: 1px;
+                        border-color: #38bdf860;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.open_cloud_icc(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            Image {
+                                source: @image-url("../../assets/icons/crosshair.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "原厂校色";
+                                font-size: 10.5px;
+                                font-weight: 600;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

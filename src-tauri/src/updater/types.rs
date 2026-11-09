@@ -43,6 +43,7 @@ pub struct ReleaseManifest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateCheckResult {
     pub has_update: bool,
+    pub channel: String,       // "stable" | "beta"
     pub current_version: String,
     pub current_commit: String,
     pub latest_version: String,

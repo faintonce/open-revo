@@ -348,40 +348,56 @@ export const WaterCoolerView: React.FC<WaterCoolerViewProps> = ({
   const applyCoolerTemplate = (type: 'standard' | 'quiet' | 'aggressive' | 'linear') => {
     setCurveTemplate(type);
     let pts: CoolerCurvePoint[] = [];
+    let startTemp = 55;
+    let turboTemp = 90;
+
     if (type === 'standard') {
       pts = [
-        { temp: 40, fan_duty: 0, pump_voltage: 0 },
-        { temp: 55, fan_duty: 0, pump_voltage: 2 },
-        { temp: 68, fan_duty: 45, pump_voltage: 2 },
-        { temp: 78, fan_duty: 70, pump_voltage: 2 },
-        { temp: 88, fan_duty: 100, pump_voltage: 3 },
-      ];
-    } else if (type === 'quiet') {
-      pts = [
-        { temp: 40, fan_duty: 0, pump_voltage: 0 },
-        { temp: 65, fan_duty: 0, pump_voltage: 2 },
-        { temp: 75, fan_duty: 40, pump_voltage: 2 },
-        { temp: 84, fan_duty: 70, pump_voltage: 2 },
-        { temp: 92, fan_duty: 100, pump_voltage: 3 },
-      ];
-    } else if (type === 'aggressive') {
-      pts = [
-        { temp: 30, fan_duty: 0, pump_voltage: 0 },
-        { temp: 45, fan_duty: 30, pump_voltage: 2 },
-        { temp: 60, fan_duty: 60, pump_voltage: 2 },
-        { temp: 72, fan_duty: 85, pump_voltage: 3 },
-        { temp: 82, fan_duty: 100, pump_voltage: 3 },
-      ];
-    } else if (type === 'linear') {
-      pts = [
-        { temp: 35, fan_duty: 0, pump_voltage: 0 },
-        { temp: 50, fan_duty: 25, pump_voltage: 2 },
+        { temp: 45, fan_duty: 0, pump_voltage: 0 },
+        { temp: 55, fan_duty: 35, pump_voltage: 2 },
         { temp: 65, fan_duty: 50, pump_voltage: 2 },
-        { temp: 80, fan_duty: 75, pump_voltage: 2 },
+        { temp: 80, fan_duty: 60, pump_voltage: 2 },
+        { temp: 90, fan_duty: 75, pump_voltage: 2 },
         { temp: 95, fan_duty: 100, pump_voltage: 3 },
       ];
+      startTemp = 55;
+      turboTemp = 90;
+    } else if (type === 'quiet') {
+      pts = [
+        { temp: 50, fan_duty: 0, pump_voltage: 0 },
+        { temp: 65, fan_duty: 25, pump_voltage: 2 },
+        { temp: 75, fan_duty: 40, pump_voltage: 2 },
+        { temp: 85, fan_duty: 55, pump_voltage: 2 },
+        { temp: 92, fan_duty: 70, pump_voltage: 2 },
+        { temp: 98, fan_duty: 90, pump_voltage: 3 },
+      ];
+      startTemp = 65;
+      turboTemp = 95;
+    } else if (type === 'aggressive') {
+      pts = [
+        { temp: 40, fan_duty: 20, pump_voltage: 2 },
+        { temp: 45, fan_duty: 40, pump_voltage: 2 },
+        { temp: 55, fan_duty: 60, pump_voltage: 2 },
+        { temp: 70, fan_duty: 80, pump_voltage: 3 },
+        { temp: 85, fan_duty: 95, pump_voltage: 3 },
+        { temp: 90, fan_duty: 100, pump_voltage: 3 },
+      ];
+      startTemp = 45;
+      turboTemp = 80;
+    } else if (type === 'linear') {
+      pts = [
+        { temp: 35, fan_duty: 10, pump_voltage: 0 },
+        { temp: 45, fan_duty: 25, pump_voltage: 2 },
+        { temp: 60, fan_duty: 45, pump_voltage: 2 },
+        { temp: 75, fan_duty: 65, pump_voltage: 2 },
+        { temp: 85, fan_duty: 80, pump_voltage: 2 },
+        { temp: 95, fan_duty: 100, pump_voltage: 3 },
+      ];
+      startTemp = 45;
+      turboTemp = 85;
     }
     handleUpdateCoolerStrategy('smart', pts);
+    handleUpdatePumpThresholds(startTemp, turboTemp, true);
   };
 
   return (

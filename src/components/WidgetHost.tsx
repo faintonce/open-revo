@@ -72,7 +72,7 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
   // 2. Load custom plugin HTML
   const fetchCustomHtml = async () => {
     try {
-      const html = await invoke<string>('load_plugin_html', { pluginId });
+      const html = await invoke<string>('load_plugin_html', { pluginId, surface: 'widget' });
       if (html && html.trim().length > 0) {
         setCustomHtml(html);
         setHasCustomPlugin(true);
@@ -93,7 +93,20 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
     fetchCustomHtml();
   }, [pluginId]);
 
-  // 3. Fallback heartbeat & telemetry sync
+  // 3. Register telemetry consumer for current widget
+  useEffect(() => {
+    invoke('register_telemetry_consumer', {
+      consumerId: pluginId,
+      sensors: ['cpu_temp', 'gpu_temp', 'cpu_power', 'gpu_power', 'fps', 'cpu_fan_rpm', 'gpu_fan_rpm', 'battery_level'],
+    }).catch(() => {});
+    return () => {
+      invoke('unregister_telemetry_consumer', {
+        consumerId: pluginId,
+      }).catch(() => {});
+    };
+  }, [pluginId]);
+
+  // 4. Fallback heartbeat & telemetry sync
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let timer: any;
@@ -158,6 +171,14 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
             break;
           case 'CLOSE_WIDGET':
             await invoke('close_custom_widget', { pluginId });
+            break;
+          case 'EMIT':
+            if (payload?.event) {
+              await invoke('emit_plugin_broadcast', {
+                event: payload.event,
+                payload: payload.payload ?? null,
+              });
+            }
             break;
           default:
             break;

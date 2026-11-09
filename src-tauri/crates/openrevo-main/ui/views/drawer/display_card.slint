@@ -1,0 +1,342 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DrawerDisplayCard inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    height: 68px;
+
+    in-out property <int> refresh_rate: 240;
+    in-out property <bool> auto_min_hz: true;
+    in-out property <string> monitor_name: "京东方";
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
+
+    callback switch_hz(int);
+    callback toggle_auto_min_hz();
+    callback select_monitor_index(int);
+
+    VerticalLayout {
+        padding: 7px;
+        spacing: 6px;
+
+        // Row 1: Title & Monitor Name (with Dropdown)
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 5px;
+                Image {
+                    source: @image-url("../../assets/icons/monitor.svg");
+                    width: 13px;
+                    height: 13px;
+                    colorize: #a5b4fc;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "屏幕刷新率:";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: refresh_rate + "Hz";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #a5b4fc;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Monitor Selector Dropdown (Aligned with GPU view)
+            mon_btn := Rectangle {
+                border-radius: 4px;
+                background: (root.has_secondary_monitor && mon_ta.has-hover) ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+                height: 22px;
+
+                mon_ta := TouchArea {
+                    mouse-cursor: root.has_secondary_monitor ? pointer : default;
+                    clicked => {
+                        if (root.has_secondary_monitor) {
+                            mon_pop.show();
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    padding-left: 7px;
+                    padding-right: 7px;
+                    spacing: 4px;
+                    Text {
+                        text: root.monitor_name + " · " + root.refresh_rate + "Hz";
+                        font-size: 9.5px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    if root.has_secondary_monitor: Image {
+                        source: @image-url("../../assets/icons/chevron-down.svg");
+                        width: 9px;
+                        height: 9px;
+                        colorize: AppTheme.text_muted;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                mon_pop := PopupWindow {
+                    x: -60px;
+                    y: 25px;
+                    width: 180px;
+
+                    Rectangle {
+                        background: AppTheme.surface_elevated;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+
+                        VerticalLayout {
+                            padding: 4px;
+                            spacing: 2px;
+
+                            // Item 0: 内建主屏
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_m0.has-hover ? AppTheme.surface_pill : transparent;
+                                t_m0 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select_monitor_index(0);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    Text {
+                                        text: root.primary_monitor_name != "" ? root.primary_monitor_name : "内置主屏";
+                                        font-size: 10px;
+                                        color: AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+
+                            // Item 1: 外接副屏 (仅在检测到外接副屏时展示)
+                            if root.has_secondary_monitor: Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_m1.has-hover ? AppTheme.surface_pill : transparent;
+                                t_m1 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select_monitor_index(1);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    Text {
+                                        text: root.secondary_monitor_name != "" ? root.secondary_monitor_name : "外接显示器";
+                                        font-size: 10px;
+                                        color: AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Row 2: 拔电低刷 / 60Hz / 240Hz / 更多 (Height 28px)
+        HorizontalLayout {
+            spacing: 5px;
+            height: 28px;
+
+            // 拔电低刷
+            Rectangle {
+                border-radius: 5px;
+                background: auto_min_hz ? #a5b4fc15 : (t_auto.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: 1px;
+                border-color: auto_min_hz ? #a5b4fc : AppTheme.border_subtle;
+
+                t_auto := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { toggle_auto_min_hz(); }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    Rectangle {
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 2px;
+                        background: auto_min_hz ? #a5b4fc : transparent;
+                        border-width: 1px;
+                        border-color: auto_min_hz ? #a5b4fc : AppTheme.border_medium;
+                        y: (parent.height - self.height) / 2;
+
+                        Text {
+                            text: auto_min_hz ? "✓" : "";
+                            font-size: 8px;
+                            font-weight: 800;
+                            color: #1e1b4b;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: "拔电低刷";
+                        font-size: 10px;
+                        font-weight: auto_min_hz ? 600 : 400;
+                        color: auto_min_hz ? #a5b4fc : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 60Hz
+            Rectangle {
+                border-radius: 5px;
+                background: refresh_rate == 60 ? #a5b4fc25 : (t_60.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: 1px;
+                border-color: refresh_rate == 60 ? #a5b4fc : AppTheme.border_subtle;
+
+                t_60 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { switch_hz(60); }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: "60Hz";
+                        font-size: 10.5px;
+                        font-weight: refresh_rate == 60 ? 700 : 500;
+                        color: refresh_rate == 60 ? #a5b4fc : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 240Hz
+            Rectangle {
+                border-radius: 5px;
+                background: refresh_rate == 240 ? #a5b4fc25 : (t_240.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: 1px;
+                border-color: refresh_rate == 240 ? #a5b4fc : AppTheme.border_subtle;
+
+                t_240 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { switch_hz(240); }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: "240Hz";
+                        font-size: 10.5px;
+                        font-weight: refresh_rate == 240 ? 700 : 500;
+                        color: refresh_rate == 240 ? #a5b4fc : AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 更多 ˇ (Dropdown)
+            more_rect := Rectangle {
+                border-radius: 5px;
+                background: t_more.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_subtle;
+
+                t_more := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { more_pop.show(); }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 3px;
+                    Text {
+                        text: "更多";
+                        font-size: 10px;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                    Image {
+                        source: @image-url("../../assets/icons/chevron-down.svg");
+                        width: 8px;
+                        height: 8px;
+                        colorize: AppTheme.text_muted;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                more_pop := PopupWindow {
+                    x: -50px;
+                    y: 31px;
+                    width: 130px;
+
+                    Rectangle {
+                        background: AppTheme.surface_elevated;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+
+                        VerticalLayout {
+                            padding: 4px;
+                            spacing: 2px;
+
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_hz165.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_hz165 := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { switch_hz(165); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    Text {
+                                        text: "165Hz (中间档位)";
+                                        font-size: 9.5px;
+                                        color: AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 4px;
+                                background: t_hdr.has-hover ? AppTheme.surface_card_hover : transparent;
+                                t_hdr := TouchArea {
+                                    mouse-cursor: pointer;
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    Text {
+                                        text: "开启 HDR 增强";
+                                        font-size: 9.5px;
+                                        color: AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>电池充电上限守护者</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --surface-base: #0b0f17;
+      --surface-card: rgba(255, 255, 255, 0.035);
+      --surface-overlay: rgba(255, 255, 255, 0.06);
+      --surface-hover: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-accent: rgba(16, 185, 129, 0.4);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-dim: #94a3b8;
+      --status-ok: #10b981;
+      --status-ok-dim: rgba(16, 185, 129, 0.15);
+      --status-warn: #f59e0b;
+      --status-warn-dim: rgba(245, 158, 11, 0.15);
+      --status-error: #ef4444;
+      --status-error-dim: rgba(239, 68, 68, 0.15);
+      --accent-cyan: #06b6d4;
+      --accent-indigo: #6366f1;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html {
+      color-scheme: dark;
+      background: #0b0f17;
+    }
+
+    body {
+      color-scheme: dark;
+      background: #0b0f17;
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 16px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Header */
+    .header-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(12px);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: var(--status-ok-dim);
+      border: 1px solid var(--border-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--status-ok);
+      flex-shrink: 0;
+    }
+
+    .header-title-box h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--status-ok-dim);
+      color: var(--status-ok);
+      border: 1px solid var(--border-accent);
+      line-height: 1;
+    }
+
+    .header-desc {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-medium);
+      background: var(--surface-overlay);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--surface-hover);
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: rgba(16, 185, 129, 0.18);
+      border-color: var(--border-accent);
+      color: #34d399;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: rgba(16, 185, 129, 0.28);
+      border-color: var(--status-ok);
+      color: #6ee7b7;
+    }
+
+    .btn-danger {
+      background: var(--status-error-dim);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #f87171;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: var(--status-error);
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Hardware Telemetry Grid */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stat-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      display: flex;
+      align-items: baseline;
+      gap: 3px;
+    }
+
+    .stat-val small {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+
+    .stat-hint {
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .indicator-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .indicator-dot.active {
+      background: var(--status-ok);
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+
+    .indicator-dot.warn {
+      background: var(--status-warn);
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+    }
+
+    .indicator-dot.error {
+      background: var(--status-error);
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+    }
+
+    /* Main Settings Panel */
+    .card-panel {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .panel-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-badge {
+      font-size: 10.5px;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      background: var(--surface-overlay);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* Slider Component */
+    .slider-box {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+    }
+
+    .slider-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .slider-info-title {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .slider-val-badge {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--status-ok);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1;
+    }
+
+    .slider-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .range-slider {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--status-ok);
+      border: 2px solid #fff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+      transition: transform 0.1s ease;
+    }
+
+    .range-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.18);
+    }
+
+    .step-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-overlay);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .step-btn:hover {
+      background: var(--surface-hover);
+    }
+
+    /* Preset Capsules */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .preset-capsule {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 6px;
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      gap: 3px;
+    }
+
+    .preset-capsule:hover {
+      background: var(--surface-hover);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .preset-capsule.active {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: var(--border-accent);
+    }
+
+    .preset-capsule.active .preset-pct {
+      color: var(--status-ok);
+      font-weight: 700;
+    }
+
+    .preset-pct {
+      font-size: 13.5px;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .preset-tag {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* Action Row */
+    .action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 6px;
+    }
+
+    .action-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.45;
+      flex: 1;
+    }
+
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Progress Banner */
+    .pulse-progress {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 14px;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-sm);
+    }
+
+    .pulse-progress.visible {
+      display: flex;
+    }
+
+    .pulse-text {
+      font-size: 11.5px;
+      color: var(--status-ok);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pulse-bar-track {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .pulse-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--status-ok);
+      transition: width 0.2s linear;
+    }
+
+    /* Diagnostic Lab Card */
+    .lab-accordion {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      overflow: hidden;
+    }
+
+    .lab-summary {
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-overlay);
+      transition: background 0.15s ease;
+    }
+
+    .lab-summary:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    .lab-accordion {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      overflow: hidden;
+    }
+
+    .lab-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid var(--border-subtle);
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+
+    .lab-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px 12px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .lab-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .lab-label {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .lab-input,
+    .lab-select {
+      background: var(--surface-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      font-size: 11.5px;
+      color: var(--text-primary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      outline: none;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      color-scheme: dark;
+    }
+
+    .lab-select option {
+      background-color: #0b0f17;
+      color: #f8fafc;
+    }
+
+    .lab-input:focus,
+    .lab-select:focus {
+      border-color: var(--border-accent);
+    }
+
+    .lab-footer-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .console-box {
+      background: #06090e;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      max-height: 160px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.45;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-accent);
+      color: #34d399;
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      transform: translateY(60px);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header-card">
+      <div class="header-left">
+        <div class="header-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="6" width="18" height="12" rx="2" ry="2"></rect>
+            <line x1="23" y1="13" x2="23" y2="11"></line>
+            <polyline points="11 10 9 12 12 12 10 14"></polyline>
+          </svg>
+        </div>
+        <div class="header-title-box">
+          <h1>
+            电池硬件限充守护者
+            <span class="header-badge" id="badgeVersion">v2.2.0 Pin-Safe</span>
+          </h1>
+          <div class="header-desc">
+            底层硬件级截断充电回路 · 自适应 0x04/0x05 门控 · 持续常驻心跳锁定 · 彻底杜绝电池鼓包与过充
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-sm" onclick="runSelfProbe()">
+          🔍 探测硬件通道
+        </button>
+        <button class="btn btn-sm" onclick="refreshHardwareState()">
+          🔄 立即刷新
+        </button>
+      </div>
+    </div>
+
+    <!-- Telemetry Realtime Cards -->
+    <div class="stat-grid">
+      <!-- Stat 1: Battery Battery Capacity -->
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>当前电池电量</span>
+          <span id="statAcPill" style="font-size: 10px; color: var(--text-dim);">🔌 外部适配器已连接</span>
+        </div>
+        <div class="stat-val">
+          <span id="statBatteryPct">--</span>
+          <small>%</small>
+        </div>
+        <div class="stat-hint" id="statBatteryStatus">
+          <span class="indicator-dot" id="statChargeDot"></span>
+          <span id="statChargeText">正在读取 BMS...</span>
+        </div>
+      </div>
+
+      <!-- Stat 2: Gate status -->
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>硬件限充控制回路</span>
+          <span style="font-size: 9.5px; color: var(--text-dim);">EC 0x0742</span>
+        </div>
+        <div class="stat-val" id="statGateVal">
+          <span id="statGateText">--</span>
+        </div>
+        <div class="stat-hint" id="statGateHint">
+          <span class="indicator-dot" id="statGateDot"></span>
+          <span id="statGateDetail">bit2=未激活 (无限制)</span>
+        </div>
+      </div>
+
+      <!-- Stat 3: Target Limit in EC -->
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>当前硬件目标上限</span>
+          <span style="font-size: 9.5px; color: var(--text-dim);">EC 0x07B9</span>
+        </div>
+        <div class="stat-val">
+          <span id="statLimitVal">--</span>
+          <small id="statLimitUnit">%</small>
+        </div>
+        <div class="stat-hint" id="statLimitHint">
+          <span id="statLimitDesc">未设置限制</span>
+        </div>
+      </div>
+
+      <!-- Stat 4: Platform Identity -->
+      <div class="stat-card">
+        <div class="stat-label">
+          <span>主板平台门控码</span>
+          <span style="font-size: 9.5px; color: var(--text-dim);">EC 0x07C3</span>
+        </div>
+        <div class="stat-val">
+          <span id="statPlatformVal">0x--</span>
+        </div>
+        <div class="stat-hint" id="statPlatformHint" style="color: var(--text-dim);">
+          <span id="statPlatformDesc">出厂待命 (0x07)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Setting Panel -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>设定目标充电上限 (1% ~ 100% 自由可调)</span>
+          <span class="panel-badge" id="strategyModeBadge">持续门控锁定 (Pin & Keep-Alive)</span>
+        </div>
+        <span style="font-size: 11px; color: var(--text-dim);">
+          到达设定阈值硬件自动切断充电，插着电源也不伤电池
+        </span>
+      </div>
+
+      <!-- Slider Component -->
+      <div class="slider-box">
+        <div class="slider-header">
+          <div class="slider-info-title">滑动调节或选择下方快捷推荐档位</div>
+          <div class="slider-val-badge"><span id="targetDisplay">80</span>%</div>
+        </div>
+        <div class="slider-input-wrapper">
+          <button class="step-btn" onclick="adjustStep(-1)" title="-1%">-</button>
+          <input type="range" id="targetSlider" class="range-slider" min="1" max="100" value="80"
+            oninput="onSliderInput(this.value)" onchange="savePluginStorage()" />
+          <button class="step-btn" onclick="adjustStep(1)" title="+1%">+</button>
+        </div>
+      </div>
+
+      <!-- Preset Capsules -->
+      <div class="preset-grid">
+        <div class="preset-capsule" onclick="selectPreset(50)">
+          <div class="preset-pct">50%</div>
+          <div class="preset-tag">极致防鼓包</div>
+        </div>
+        <div class="preset-capsule" onclick="selectPreset(60)">
+          <div class="preset-pct">60%</div>
+          <div class="preset-tag">原厂工作站</div>
+        </div>
+        <div class="preset-capsule" onclick="selectPreset(70)">
+          <div class="preset-pct">70%</div>
+          <div class="preset-tag">长效均衡</div>
+        </div>
+        <div class="preset-capsule active" onclick="selectPreset(80)">
+          <div class="preset-pct">80%</div>
+          <div class="preset-tag">官方平衡档</div>
+        </div>
+        <div class="preset-capsule" onclick="selectPreset(90)">
+          <div class="preset-pct">90%</div>
+          <div class="preset-tag">准满电通勤</div>
+        </div>
+        <div class="preset-capsule" onclick="selectPreset(100)">
+          <div class="preset-pct">100%</div>
+          <div class="preset-tag">恢复充满</div>
+        </div>
+      </div>
+
+      <!-- Pulse progress bar -->
+      <div id="pulseProgress" class="pulse-progress">
+        <div class="pulse-text">
+          <span id="pulseStepText">正在进行门控自适应探测与写入...</span>
+          <span id="pulseCountdown">保持中</span>
+        </div>
+        <div class="pulse-bar-track">
+          <div id="pulseBarFill" class="pulse-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Action Row -->
+      <div class="action-row">
+        <div class="action-desc" id="actionDescText">
+          <b>运行机制</b>：采用<b>门控持续保持法 (Pin & Keep-Alive)</b>，智能自适应探测开门平台码 (0x04 / 0x05)，写入目标限值并由后台常驻守护。绝不在写入后盲目恢复原厂码（恢复原厂码将导致同方固件立即撤销限值并清零）。
+        </div>
+        <div class="action-buttons">
+          <button id="btnCancel" class="btn btn-danger" onclick="triggerCancelLimit()">
+            取消限充 (恢复充满)
+          </button>
+          <button id="btnApply" class="btn btn-primary" onclick="triggerApplyLimit()">
+            写入并锁定生效
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnostic Lab & Custom Manifest Parameters -->
+    <div class="lab-accordion">
+      <div class="lab-summary" onclick="toggleLab()">
+        <span>🛠️ 极客硬件实验室与协议策略调优 (点击展开 / 折叠)</span>
+        <span id="labToggleIcon">▼</span>
+      </div>
+      <div id="labBody" class="lab-body" style="display: none;">
+        <div class="lab-form-grid">
+          <div class="lab-field">
+            <label class="lab-label" title="限充生效工作模式">生效工作模式 (Mode)</label>
+            <select id="paramMode" class="lab-select" onchange="updateLabConfig()">
+              <option value="pin" selected>持续锁定守护 (Pin & Keep-Alive)</option>
+              <option value="pulse">脉冲存储法 (Pulse NVRAM 兼容)</option>
+            </select>
+          </div>
+          <div class="lab-field">
+            <label class="lab-label" title="通信总线协议">总线协议 (Protocol)</label>
+            <select id="paramProtocol" class="lab-select" onchange="updateLabConfig()">
+              <option value="TongfangDirectEc">TongfangDirectEc (原厂直连)</option>
+              <option value="GenericAcpiWmi">GenericAcpiWmi (ACPI 邮箱)</option>
+              <option value="BldWmiMailbox">BldWmiMailbox (宝龙达双阈值)</option>
+            </select>
+          </div>
+          <div class="lab-field">
+            <label class="lab-label" title="门控开门策略">开门策略 (Gate Strategy)</label>
+            <div style="display: flex; gap: 6px; min-width: 0;">
+              <select id="paramGateStrategy" class="lab-select" style="flex: 1; min-width: 0;" onchange="onGateSelectChange()">
+                <option value="auto" selected>智能自适应 (0x04 / 0x05)</option>
+                <option value="4">强制 0x04 (轻薄/现代机型)</option>
+                <option value="5">强制 0x05 (游戏本/老款)</option>
+                <option value="custom">自定义数值...</option>
+              </select>
+              <input id="paramGateCustomInput" class="lab-input" type="text" placeholder="0x04"
+                style="width: 55px; flex-shrink: 0; display: none;" onchange="updateLabConfig()" />
+            </div>
+          </div>
+          <div class="lab-field">
+            <label class="lab-label">守护间隔 (Keep-Alive Ms)</label>
+            <input id="paramKeepaliveInterval" class="lab-input" type="number" value="4000" step="500" min="1000" max="15000"
+              onchange="updateLabConfig()" />
+          </div>
+          <div class="lab-field">
+            <label class="lab-label">脉冲保持 (Pulse Hold Ms)</label>
+            <input id="paramPulseHold" class="lab-input" type="number" value="2500" step="100" min="1000" max="8000"
+              onchange="updateLabConfig()" />
+          </div>
+          <div class="lab-field">
+            <label class="lab-label">限充寄存器 (Limit Reg)</label>
+            <input id="paramLimitReg" class="lab-input" type="text" value="0x07B9 (1977)"
+              onchange="updateLabConfig()" />
+          </div>
+          <div class="lab-field">
+            <label class="lab-label">门控寄存器 (Gate Reg)</label>
+            <input id="paramGateReg" class="lab-input" type="text" value="0x07C3 (1987)" onchange="updateLabConfig()" />
+          </div>
+          <div class="lab-field">
+            <label class="lab-label">状态判定寄存器 (Status Reg)</label>
+            <input id="paramStatusReg" class="lab-input" type="text" value="0x0742 (1858)"
+              onchange="updateLabConfig()" />
+          </div>
+          <div class="lab-field">
+            <label class="lab-label">原厂平台码 (Factory Backup)</label>
+            <input id="paramOrigPlat" class="lab-input" type="text" value="0x07" readonly style="opacity: 0.75;" />
+          </div>
+        </div>
+
+        <div class="lab-footer-bar">
+          <span style="font-size: 11px; color: var(--text-dim);">底层执行控制台输出与通讯帧诊断：</span>
+          <button class="btn btn-sm" onclick="exportManifestConfig()">
+            📋 导出当前机型配置为 manifest.json 片段
+          </button>
+        </div>
+
+        <div id="consoleLog" class="console-box">[*] 硬件网关就绪，等待交互操作...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">设置已成功生效！</div>
+
+  <script>
+    // --- 状态与配置存储 ---
+    const STATE = {
+      mode: 'pin',            // 'pin' (持续保持守护) | 'pulse' (脉冲瞬时存储)
+      protocol: 'TongfangDirectEc',
+      gateStrategy: 'auto',    // 'auto' | '4' | '5' | 'custom'
+      activeGateVal: 4,       // 当前生效的门控开门值
+      pulseHoldMs: 2500,
+      keepaliveIntervalMs: 4000,
+      limitReg: 1977,         // 0x07B9
+      gateReg: 1987,          // 0x07C3
+      statusReg: 1858,        // 0x0742
+      statusBit: 2,           // bit2 (0x0742 bit2: 1 = control loop active)
+      origPlat: 0x07,         // 原厂出厂平台码 (用于回退恢复充满)
+      currentTarget: 80,
+      isLimitActive: false,
+      isBusy: false,
+      _hasLoadedStorage: false,
+      _keepaliveTimer: null,
+    };
+
+    const PLUGIN_STORAGE_KEY = 'openrevo_battery_limit_storage';
+
+    // --- 统一 RPC 通讯网关 ---
+    async function rpc(command, args = {}) {
+      if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.invoke === 'function') {
+        return await window.parent.__OPENREVO_BRIDGE__.invoke(command, args);
+      }
+      if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+        return await window.__TAURI__.core.invoke(command, args);
+      }
+      return new Promise((resolve, reject) => {
+        const reqId = 'req_' + Math.random().toString(36).substring(2, 9);
+        const timeout = setTimeout(() => {
+          window.removeEventListener('message', onMsg);
+          reject(new Error(`RPC [${command}] 超时`));
+        }, 6000);
+
+        function onMsg(e) {
+          if (!e.data || e.data.reqId !== reqId) return;
+          clearTimeout(timeout);
+          window.removeEventListener('message', onMsg);
+          if (e.data.success) resolve(e.data.payload);
+          else reject(new Error(e.data.error || 'RPC 调用失败'));
+        }
+
+        window.addEventListener('message', onMsg);
+        let action = command.toUpperCase();
+        if (command === 'raw_ec_read') action = 'RAW_EC_READ';
+        if (command === 'raw_ec_write') action = 'RAW_EC_WRITE';
+        if (command === 'raw_mailbox_invoke') action = 'RAW_MAILBOX_INVOKE';
+        if (command === 'get_raw_ec_capabilities') action = 'GET_RAW_EC_CAPABILITIES';
+        if (command === 'get_plugin_storage') action = 'GET_PLUGIN_STORAGE';
+        if (command === 'set_plugin_storage') action = 'SET_PLUGIN_STORAGE';
+
+        window.parent.postMessage({ action, payload: { ...args, reqId } }, '*');
+      });
+    }
+
+    function parseRegValue(str, fallback) {
+      if (!str) return fallback;
+      const clean = str.trim();
+      const hexMatch = clean.match(/^0x([0-9a-fA-F]+)/);
+      if (hexMatch) return parseInt(hexMatch[1], 16);
+      const decMatch = clean.match(/^(\d+)/);
+      if (decMatch) return parseInt(decMatch[1], 10);
+      return fallback;
+    }
+
+    function applyStoredConfig(cfg) {
+      if (!cfg || typeof cfg !== 'object') return;
+      STATE._hasLoadedStorage = true;
+
+      if (cfg.mode) {
+        STATE.mode = cfg.mode;
+        const modeSelect = document.getElementById('paramMode');
+        if (modeSelect) modeSelect.value = cfg.mode;
+        updateStrategyBadge();
+      }
+
+      if (typeof cfg.target_limit === 'number' && cfg.target_limit >= 1 && cfg.target_limit <= 100) {
+        STATE.currentTarget = cfg.target_limit;
+        const slider = document.getElementById('targetSlider');
+        const display = document.getElementById('targetDisplay');
+        if (slider) slider.value = cfg.target_limit;
+        if (display) display.textContent = cfg.target_limit;
+        updatePresetCapsules(cfg.target_limit);
+      }
+
+      if (cfg.protocol) {
+        STATE.protocol = cfg.protocol;
+        const protoSelect = document.getElementById('paramProtocol');
+        if (protoSelect) protoSelect.value = cfg.protocol;
+      }
+
+      if (cfg.gate_strategy !== undefined) {
+        STATE.gateStrategy = String(cfg.gate_strategy);
+        const gateSelect = document.getElementById('paramGateStrategy');
+        const customInput = document.getElementById('paramGateCustomInput');
+        if (gateSelect) {
+          if (['auto', '4', '5'].includes(STATE.gateStrategy)) {
+            gateSelect.value = STATE.gateStrategy;
+            if (customInput) customInput.style.display = 'none';
+          } else {
+            gateSelect.value = 'custom';
+            if (customInput) {
+              customInput.style.display = 'block';
+              customInput.value = '0x' + Number(STATE.gateStrategy).toString(16).toUpperCase();
+            }
+          }
+        }
+      }
+
+      if (cfg.active_gate_val !== undefined) {
+        STATE.activeGateVal = Number(cfg.active_gate_val);
+      }
+
+      if (cfg.orig_plat !== undefined && cfg.orig_plat !== 4 && cfg.orig_plat !== 5) {
+        STATE.origPlat = Number(cfg.orig_plat);
+        const origInput = document.getElementById('paramOrigPlat');
+        if (origInput) origInput.value = '0x' + STATE.origPlat.toString(16).toUpperCase().padStart(2, '0');
+      }
+
+      if (cfg.keepalive_interval_ms) {
+        STATE.keepaliveIntervalMs = Number(cfg.keepalive_interval_ms);
+        const keepInput = document.getElementById('paramKeepaliveInterval');
+        if (keepInput) keepInput.value = STATE.keepaliveIntervalMs;
+      }
+
+      if (cfg.pulse_hold_ms) {
+        STATE.pulseHoldMs = Number(cfg.pulse_hold_ms);
+        const holdInput = document.getElementById('paramPulseHold');
+        if (holdInput) holdInput.value = STATE.pulseHoldMs;
+      }
+
+      if (cfg.limit_reg) STATE.limitReg = Number(cfg.limit_reg);
+      if (cfg.gate_reg) STATE.gateReg = Number(cfg.gate_reg);
+      if (cfg.status_reg) STATE.statusReg = Number(cfg.status_reg);
+      if (cfg.status_bit !== undefined) STATE.statusBit = Number(cfg.status_bit);
+
+      if (cfg.is_limit_active !== undefined) {
+        STATE.isLimitActive = Boolean(cfg.is_limit_active);
+      }
+
+      logConsole(`[*] 已从沙盒恢复机型配置: 模式=${STATE.mode}, 策略=${STATE.gateStrategy}, 开门码=0x0${STATE.activeGateVal}, 原厂码=0x${STATE.origPlat.toString(16).toUpperCase().padStart(2, '0')}, 目标=${STATE.currentTarget}%`);
+
+      // 若之前处于活跃限充且为 pin 模式，启动守护定时器
+      if (STATE.isLimitActive && STATE.currentTarget < 100 && STATE.mode === 'pin') {
+        startKeepAlive();
+      }
+    }
+
+    async function loadPluginStorage() {
+      try {
+        if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.get === 'function') {
+          const data = await window.OpenRevo.storage.get();
+          if (data && Object.keys(data).length > 0) {
+            applyStoredConfig(data);
+            return;
+          }
+        }
+      } catch (_) { }
+
+      try {
+        if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
+          const data = await window.parent.__OPENREVO_BRIDGE__.storage.get();
+          if (data && Object.keys(data).length > 0) {
+            applyStoredConfig(data);
+            return;
+          }
+        }
+      } catch (_) { }
+
+      try {
+        const data = await rpc('get_plugin_storage', { pluginId: 'battery-hardware-limit' });
+        if (data && Object.keys(data).length > 0) {
+          applyStoredConfig(data);
+          return;
+        }
+      } catch (_) { }
+
+      try {
+        const local = localStorage.getItem(PLUGIN_STORAGE_KEY);
+        if (local) applyStoredConfig(JSON.parse(local));
+      } catch (_) { }
+    }
+
+    async function savePluginStorage() {
+      const config = {
+        mode: STATE.mode,
+        target_limit: STATE.currentTarget,
+        protocol: STATE.protocol,
+        gate_strategy: STATE.gateStrategy,
+        active_gate_val: STATE.activeGateVal,
+        orig_plat: STATE.origPlat,
+        keepalive_interval_ms: STATE.keepaliveIntervalMs,
+        pulse_hold_ms: STATE.pulseHoldMs,
+        limit_reg: STATE.limitReg,
+        gate_reg: STATE.gateReg,
+        status_reg: STATE.statusReg,
+        status_bit: STATE.statusBit,
+        is_limit_active: STATE.isLimitActive,
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        localStorage.setItem(PLUGIN_STORAGE_KEY, JSON.stringify(config));
+      } catch (_) { }
+
+      try {
+        if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.set === 'function') {
+          await window.OpenRevo.storage.set(config);
+          return;
+        }
+        if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
+          await window.parent.__OPENREVO_BRIDGE__.storage.set(config);
+          return;
+        }
+        window.parent.postMessage({
+          action: 'SET_PLUGIN_STORAGE',
+          payload: { data: config }
+        }, '*');
+      } catch (e) {
+        console.warn('[BatteryLimit] Failed to save storage:', e);
+      }
+    }
+
+    async function ecRead(address) {
+      const protocolObj = typeof STATE.protocol === 'string' ? { type: STATE.protocol } : STATE.protocol;
+      return await rpc('raw_ec_read', { request: { protocol: protocolObj, address } });
+    }
+
+    async function ecWrite(address, value) {
+      const protocolObj = typeof STATE.protocol === 'string' ? { type: STATE.protocol } : STATE.protocol;
+      return await rpc('raw_ec_write', { request: { protocol: protocolObj, address, value } });
+    }
+
+    function logConsole(msg) {
+      const box = document.getElementById('consoleLog');
+      const time = new Date().toTimeString().split(' ')[0];
+      box.textContent += `\n[${time}] ${msg}`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+
+    function onSliderInput(val) {
+      val = parseInt(val, 10);
+      STATE.currentTarget = val;
+      document.getElementById('targetDisplay').textContent = val;
+      updatePresetCapsules(val);
+    }
+
+    function adjustStep(delta) {
+      let next = STATE.currentTarget + delta;
+      if (next < 1) next = 1;
+      if (next > 100) next = 100;
+      document.getElementById('targetSlider').value = next;
+      onSliderInput(next);
+      savePluginStorage();
+    }
+
+    function selectPreset(val) {
+      document.getElementById('targetSlider').value = val;
+      onSliderInput(val);
+      savePluginStorage();
+    }
+
+    function updatePresetCapsules(curVal) {
+      document.querySelectorAll('.preset-capsule').forEach((el) => {
+        const pct = parseInt(el.querySelector('.preset-pct').textContent, 10);
+        el.classList.toggle('active', pct === curVal);
+      });
+    }
+
+    function toggleLab() {
+      const body = document.getElementById('labBody');
+      const icon = document.getElementById('labToggleIcon');
+      const isHidden = body.style.display === 'none';
+      body.style.display = isHidden ? 'flex' : 'none';
+      icon.textContent = isHidden ? '▲' : '▼';
+    }
+
+    function onGateSelectChange() {
+      const gVal = document.getElementById('paramGateStrategy').value;
+      const customInput = document.getElementById('paramGateCustomInput');
+      if (gVal === 'custom') {
+        customInput.style.display = 'block';
+        customInput.focus();
+      } else {
+        customInput.style.display = 'none';
+      }
+      updateLabConfig();
+    }
+
+    function updateStrategyBadge() {
+      const badge = document.getElementById('strategyModeBadge');
+      const desc = document.getElementById('actionDescText');
+      if (STATE.mode === 'pin') {
+        badge.textContent = '持续门控锁定 (Pin & Keep-Alive)';
+        desc.innerHTML = '<b>运行机制</b>：采用<b>门控持续保持法 (Pin & Keep-Alive)</b>，智能自适应探测开门平台码 (0x04 / 0x05)，写入目标限值并由后台常驻守护。绝不在写入后盲目恢复原厂码（恢复原厂码将导致同方固件立即撤销限值并清零）。';
+      } else {
+        badge.textContent = '传统脉冲触发 (Pulse Trigger)';
+        desc.innerHTML = '<b>运行机制</b>：采用<b>传统脉冲触发法</b>，写入目标限值后临时开门 2.5 秒，随后尝试恢复平台码。仅供部分老款支持固件自动转录至 NVRAM (0x087F) 的模具使用。';
+      }
+    }
+
+    function updateLabConfig() {
+      STATE.mode = document.getElementById('paramMode').value;
+      STATE.protocol = document.getElementById('paramProtocol').value;
+      const gVal = document.getElementById('paramGateStrategy').value;
+      if (gVal === 'custom') {
+        const raw = document.getElementById('paramGateCustomInput').value.trim();
+        const parsed = raw.startsWith('0x') || raw.startsWith('0X') ? parseInt(raw, 16) : parseInt(raw, 10);
+        STATE.gateStrategy = isNaN(parsed) ? '4' : String(parsed);
+      } else {
+        STATE.gateStrategy = gVal;
+      }
+      STATE.keepaliveIntervalMs = parseInt(document.getElementById('paramKeepaliveInterval').value, 10) || 4000;
+      STATE.pulseHoldMs = parseInt(document.getElementById('paramPulseHold').value, 10) || 2500;
+      STATE.limitReg = parseRegValue(document.getElementById('paramLimitReg').value, STATE.limitReg);
+      STATE.gateReg = parseRegValue(document.getElementById('paramGateReg').value, STATE.gateReg);
+      STATE.statusReg = parseRegValue(document.getElementById('paramStatusReg').value, STATE.statusReg);
+
+      updateStrategyBadge();
+      logConsole(`配置更新: 模式=${STATE.mode}, 协议=${STATE.protocol}, 开门策略=${STATE.gateStrategy}, 守护间隔=${STATE.keepaliveIntervalMs}ms`);
+      savePluginStorage();
+    }
+
+    // --- 自适应开门探测核心算法 ---
+    async function probeAndOpenGate() {
+      logConsole(`[*] 开始开门探测 (策略: ${STATE.gateStrategy})...`);
+
+      // 1. 如果是固定指定值
+      if (STATE.gateStrategy === '4') {
+        await ecWrite(STATE.gateReg, 4);
+        STATE.activeGateVal = 4;
+        await new Promise((r) => setTimeout(r, 300));
+        return 4;
+      }
+      if (STATE.gateStrategy === '5') {
+        await ecWrite(STATE.gateReg, 5);
+        STATE.activeGateVal = 5;
+        await new Promise((r) => setTimeout(r, 300));
+        return 5;
+      }
+      if (STATE.gateStrategy !== 'auto') {
+        const customVal = parseInt(STATE.gateStrategy, 10) || 4;
+        await ecWrite(STATE.gateReg, customVal);
+        STATE.activeGateVal = customVal;
+        await new Promise((r) => setTimeout(r, 300));
+        return customVal;
+      }
+
+      // 2. 自适应探测 (Auto Probe: 优先 4，失败试 5)
+      logConsole(`[探测 1/2] 写入 0x07C3 = 0x04 尝试激活控制环路...`);
+      await ecWrite(STATE.gateReg, 4);
+      await new Promise((r) => setTimeout(r, 400));
+
+      let st = await ecRead(STATE.statusReg).catch(() => null);
+      if (st !== null && ((st >> STATE.statusBit) & 1) === 1) {
+        logConsole(`[+] 探测成功！平台码 0x04 成功激活控制环路 (EC 0x0742 bit2=1)`);
+        STATE.activeGateVal = 4;
+        return 4;
+      }
+
+      logConsole(`[-] 平台码 0x04 未能激活 (0x0742=0x${(st || 0).toString(16)})，切换尝试平台码 0x05...`);
+      await ecWrite(STATE.gateReg, 5);
+      await new Promise((r) => setTimeout(r, 400));
+
+      st = await ecRead(STATE.statusReg).catch(() => null);
+      if (st !== null && ((st >> STATE.statusBit) & 1) === 1) {
+        logConsole(`[+] 探测成功！平台码 0x05 激活控制环路 (EC 0x0742 bit2=1)`);
+        STATE.activeGateVal = 5;
+        return 5;
+      }
+
+      logConsole(`[!] 警告: 0x04 与 0x05 写入后 0x0742 bit2 均未置位，默认保持 0x04 进行持续断言`);
+      await ecWrite(STATE.gateReg, 4);
+      STATE.activeGateVal = 4;
+      return 4;
+    }
+
+    // --- Keep-Alive 常驻心跳守护 ---
+    function startKeepAlive() {
+      stopKeepAlive();
+      STATE._keepaliveTimer = setInterval(async () => {
+        if (STATE.isBusy || !STATE.isLimitActive || STATE.currentTarget >= 100 || STATE.mode !== 'pin') {
+          return;
+        }
+        try {
+          // 读取当前门控与上限
+          const curGate = await ecRead(STATE.gateReg).catch(() => null);
+          const curLimit = await ecRead(STATE.limitReg).catch(() => null);
+          const curStatus = await ecRead(STATE.statusReg).catch(() => null);
+
+          // 若门控码偏离或 bit2 掉了，执行无感自愈断言
+          const isGateActive = curStatus !== null && ((curStatus >> STATE.statusBit) & 1) === 1;
+          const isGateTampered = curGate !== null && curGate !== STATE.activeGateVal;
+          const isLimitCleared = curLimit !== null && (curLimit & 0x7f) === 0;
+
+          if (!isGateActive || isGateTampered || isLimitCleared) {
+            logConsole(`[Keep-Alive 自愈] 发现硬件状态漂移 (Gate=0x${(curGate||0).toString(16)}, Bit2=${isGateActive?1:0}, Limit=${curLimit||0})，正在重新断言锁定...`);
+            await ecWrite(STATE.gateReg, STATE.activeGateVal);
+            await ecWrite(STATE.limitReg, STATE.currentTarget);
+          }
+        } catch (_) { }
+      }, STATE.keepaliveIntervalMs);
+    }
+
+    function stopKeepAlive() {
+      if (STATE._keepaliveTimer) {
+        clearInterval(STATE._keepaliveTimer);
+        STATE._keepaliveTimer = null;
+      }
+    }
+
+    // --- 核心业务：写入并生效 ---
+    async function triggerApplyLimit() {
+      if (STATE.isBusy) return;
+      if (STATE.currentTarget >= 100) {
+        await triggerCancelLimit();
+        return;
+      }
+
+      setBusy(true);
+      const target = STATE.currentTarget;
+      logConsole(`=== 开始执行限充设定: 目标值 = ${target}%, 模式 = ${STATE.mode} ===`);
+      showProgress(true, '1/4: 读取并备份出厂主板平台码...', 15);
+
+      try {
+        // Step 1: 读取并安全留存原厂平台码
+        try {
+          const currentPlat = await ecRead(STATE.gateReg);
+          // 仅在当前非 4、非 5 的有效值时更新备份
+          if (currentPlat !== 4 && currentPlat !== 5 && currentPlat > 0 && currentPlat < 255) {
+            STATE.origPlat = currentPlat;
+            document.getElementById('paramOrigPlat').value = '0x' + currentPlat.toString(16).toUpperCase().padStart(2, '0');
+            logConsole(`[1/4] 已锁定出厂平台码: 0x07C3 = 0x${currentPlat.toString(16).toUpperCase().padStart(2, '0')}`);
+          } else {
+            logConsole(`[1/4] 当前 0x07C3 为 0x${currentPlat.toString(16)}，维持原厂备份 0x${STATE.origPlat.toString(16).toUpperCase().padStart(2, '0')}`);
+          }
+        } catch (e) {
+          logConsole(`[!] 读取原厂平台码失败，维持原厂备份 0x${STATE.origPlat.toString(16)}: ${e.message}`);
+        }
+
+        // Step 2: 写入实时限充寄存器 0x07B9
+        showProgress(true, `2/4: 写入硬件限充目标值 (${target}%)...`, 35);
+        await ecWrite(STATE.limitReg, target);
+        logConsole(`[2/4] 写入限充寄存器 0x07B9 = ${target}% (0x${target.toString(16).toUpperCase().padStart(2, '0')})`);
+
+        // Step 3: 根据模式执行开门与锁定
+        if (STATE.mode === 'pin') {
+          // 持续门控保持模式 (Pin & Keep-Alive)
+          showProgress(true, '3/4: 自适应探测并锁定硬件平台门控 (0x04/0x05)...', 65);
+          const activeGate = await probeAndOpenGate();
+
+          // 二次重申限值（避免开门瞬间被 EC 冲掉）
+          await ecWrite(STATE.limitReg, target);
+
+          showProgress(true, '4/4: 等待固件控制环路同步并回读校验...', 90);
+          await new Promise((r) => setTimeout(r, 600));
+
+          // Step 4: 校验成败
+          const gateStatus = await ecRead(STATE.statusReg).catch(() => 0);
+          const isGateActive = ((gateStatus >> STATE.statusBit) & 1) === 1;
+          const liveLimit = await ecRead(STATE.limitReg).catch(() => 0);
+
+          STATE.isLimitActive = true;
+          startKeepAlive();
+          await refreshHardwareState();
+
+          if (isGateActive) {
+            showToast(`✅ 硬件限充已成功锁定在 ${target}% (回路已激活)！`);
+            logConsole(`[+] 成功！控制环路活跃 (0x0742 bit2=1)，门控已钉住 0x0${activeGate}，Keep-Alive 守护已启动。\n`);
+          } else {
+            showToast(`⚠️ 目标已写入，但门控 bit2 未置位，可能需插拔适配器触发！`);
+            logConsole(`[!] 警告: 0x0742 bit2 仍为 0。若电池仍在充向 100%，请在实验室切换强制 0x04 或 0x05 测试。\n`);
+          }
+        } else {
+          // 传统脉冲模式 (老固件备用)
+          showProgress(true, `3/4: 临时脉冲开门保持 ${STATE.pulseHoldMs}ms...`, 50);
+          const pVal = parseInt(STATE.gateStrategy, 10) || 5;
+          await ecWrite(STATE.gateReg, pVal);
+
+          const holdStart = Date.now();
+          await new Promise((resolve) => {
+            const timer = setInterval(() => {
+              const elapsed = Date.now() - holdStart;
+              const remaining = Math.max(0, (STATE.pulseHoldMs - elapsed) / 1000);
+              document.getElementById('pulseCountdown').textContent = `${remaining.toFixed(1)}s`;
+              document.getElementById('pulseBarFill').style.width = `${Math.min(85, 50 + (elapsed / STATE.pulseHoldMs) * 35)}%`;
+              if (elapsed >= STATE.pulseHoldMs) {
+                clearInterval(timer);
+                resolve();
+              }
+            }, 100);
+          });
+
+          showProgress(true, '4/4: 恢复原厂平台码...', 90);
+          await ecWrite(STATE.gateReg, STATE.origPlat);
+          await new Promise((r) => setTimeout(r, 500));
+
+          const gateStatus = await ecRead(STATE.statusReg).catch(() => 0);
+          const isGateActive = ((gateStatus >> STATE.statusBit) & 1) === 1;
+          STATE.isLimitActive = isGateActive;
+          await refreshHardwareState();
+
+          if (isGateActive) {
+            showToast(`✅ 脉冲存储成功，固件已接管 ${target}%！`);
+          } else {
+            showToast(`⚠️ 脉冲后门控关闭且限值可能已被固件清零！建议切换为【持续锁定守护】模式。`);
+            logConsole(`[-] 脉冲模式失败: 原厂值恢复后，固件关闭了控制回路并清空了限值。请改用持续锁定守护法！\n`);
+          }
+        }
+
+        savePluginStorage();
+      } catch (err) {
+        logConsole(`[FAIL] 执行过程发生异常: ${err.message}`);
+        alert(`设定限充失败: ${err.message}`);
+      } finally {
+        showProgress(false);
+        setBusy(false);
+      }
+    }
+
+    // --- 取消限充 (恢复充满 100%) ---
+    async function triggerCancelLimit() {
+      if (STATE.isBusy) return;
+      setBusy(true);
+      logConsole(`=== 开始执行取消限充 (恢复充满 100%) ===`);
+      showProgress(true, '1/3: 停止守护心跳并清零目标上限...', 20);
+
+      try {
+        // 1. 停止常驻心跳
+        stopKeepAlive();
+        STATE.isLimitActive = false;
+
+        // 2. 清零实时上限 0x07B9
+        await ecWrite(STATE.limitReg, 0);
+        logConsole(`[1/3] 写入 0x07B9 = 0 (清零实时上限)`);
+
+        // 3. 将平台码安全还原回出厂值
+        showProgress(true, '2/3: 还原主板出厂平台码...', 60);
+        const restoreVal = (STATE.origPlat === 4 || STATE.origPlat === 5 || !STATE.origPlat) ? 0x07 : STATE.origPlat;
+        await ecWrite(STATE.gateReg, restoreVal);
+        logConsole(`[2/3] 写入 0x07C3 = 0x${restoreVal.toString(16).toUpperCase().padStart(2, '0')} (出厂原码)`);
+
+        // 4. 等待固件关闭控制回路
+        showProgress(true, '3/3: 验证回路关闭状态...', 90);
+        await new Promise((r) => setTimeout(r, 600));
+
+        await refreshHardwareState();
+        showProgress(false);
+        showToast('✅ 已取消限充，恢复原厂充满行为！');
+        logConsole(`=== 限充已成功解除！电池将充满至 100% ===\n`);
+
+        STATE.currentTarget = 100;
+        document.getElementById('targetSlider').value = 100;
+        document.getElementById('targetDisplay').textContent = 100;
+        updatePresetCapsules(100);
+        savePluginStorage();
+      } catch (err) {
+        logConsole(`[FAIL] 取消过程异常: ${err.message}`);
+        alert(`取消限充失败: ${err.message}`);
+      } finally {
+        showProgress(false);
+        setBusy(false);
+      }
+    }
+
+    // --- 状态自检与通道探测 ---
+    async function runSelfProbe() {
+      logConsole('=== 开始执行底层硬件通道深度自检 ===');
+      try {
+        const vPid = await ecRead(1856).catch(() => null);  // 0x0740 Project ID
+        const vRom = await ecRead(1904).catch(() => null);  // 0x0770 ROM ID[0]
+        const vPlat = await ecRead(1987).catch(() => null); // 0x07C3 Platform ID
+        const vLim = await ecRead(1977).catch(() => null);  // 0x07B9 Live Limit
+        const vGate = await ecRead(1858).catch(() => null); // 0x0742 Status Reg
+
+        const bit2 = vGate !== null ? ((vGate >> 2) & 1) : 0;
+        const limVal = vLim !== null ? (vLim & 0x7f) : 0;
+        const isReached = vLim !== null ? ((vLim >> 7) & 1) : 0;
+
+        const report = `
+[+] 硬件寄存器状态快照:
+    - Project ID (0x0740) : 0x${(vPid || 0).toString(16).toUpperCase().padStart(2, '0')} (同方/Uniwill 模具)
+    - ROM ID[0]  (0x0770) : 0x${(vRom || 0).toString(16).toUpperCase().padStart(2, '0')}
+    - Platform   (0x07C3) : 0x${(vPlat || 0).toString(16).toUpperCase().padStart(2, '0')} ${vPlat === 4 ? '(已开门 0x04)' : vPlat === 5 ? '(已开门 0x05)' : '(原厂关闭)'}
+    - Live Limit (0x07B9) : ${limVal}% (已达上限标记bit7=${isReached})
+    - Gate Status(0x0742) : 0x${(vGate || 0).toString(16).toUpperCase().padStart(2, '0')} (bit2控制回路=${bit2 === 1 ? '已激活' : '未开启'})
+        `;
+        logConsole(report);
+
+        let diagMsg = `Project ID: 0x${(vPid||0).toString(16).toUpperCase()} | 门控bit2: ${bit2}`;
+        if (bit2 === 1) {
+          diagMsg += `\n✅ 当前限充回路正在工作中，电池将受限在 ${limVal}%。`;
+        } else {
+          diagMsg += `\nℹ️ 当前回路未开启，点击【写入并锁定生效】将自动探测开门 (0x04 优先)。`;
+        }
+        alert(diagMsg);
+        await refreshHardwareState();
+      } catch (e) {
+        logConsole(`[-] 通道探测失败: ${e.message}`);
+        alert(`通道探测失败，请确认控制台驱动已加载: ${e.message}`);
+      }
+    }
+
+    // --- 状态刷新 ---
+    async function refreshHardwareState() {
+      try {
+        const [vLim, vGate, vPlat] = await Promise.all([
+          ecRead(STATE.limitReg).catch(() => null),
+          ecRead(STATE.statusReg).catch(() => null),
+          ecRead(STATE.gateReg).catch(() => null),
+        ]);
+
+        if (vPlat !== null) {
+          document.getElementById('statPlatformVal').textContent = `0x${vPlat.toString(16).toUpperCase().padStart(2, '0')}`;
+          const pDesc = document.getElementById('statPlatformDesc');
+          if (vPlat === 4) {
+            pDesc.textContent = '● 0x04 门控锁定中 (工作站/轻薄/现代通用)';
+            pDesc.style.color = 'var(--status-ok)';
+          } else if (vPlat === 5) {
+            pDesc.textContent = '● 0x05 门控锁定中 (游戏本专属)';
+            pDesc.style.color = 'var(--status-ok)';
+          } else {
+            pDesc.textContent = `出厂待命 (0x${vPlat.toString(16).toUpperCase().padStart(2, '0')})`;
+            pDesc.style.color = 'var(--text-dim)';
+          }
+        }
+
+        if (vGate !== null) {
+          const isGateActive = ((vGate >> STATE.statusBit) & 1) === 1;
+          const gateValEl = document.getElementById('statGateVal');
+          gateValEl.textContent = isGateActive ? '工作中' : '未激活';
+          gateValEl.style.color = isGateActive ? 'var(--status-ok)' : 'var(--text-dim)';
+          document.getElementById('statGateDot').className = `indicator-dot ${isGateActive ? 'active' : ''}`;
+          document.getElementById('statGateDetail').textContent = isGateActive ? 'bit2=1 固件控制环路工作中' : 'bit2=0 无硬件限制 (充至100%)';
+        }
+
+        if (vLim !== null) {
+          const limitNum = vLim & 0x7f;
+          const isReached = (vLim & 0x80) !== 0;
+          if (limitNum > 0 && limitNum <= 100) {
+            document.getElementById('statLimitVal').textContent = limitNum;
+            document.getElementById('statLimitUnit').textContent = '%';
+            document.getElementById('statLimitDesc').textContent = isReached ? '已达上限，停止充电中' : '硬件受控中，接近目标将停充';
+            if (!STATE._hasLoadedStorage && limitNum < 100) {
+              STATE.currentTarget = limitNum;
+              document.getElementById('targetSlider').value = limitNum;
+              document.getElementById('targetDisplay').textContent = limitNum;
+              updatePresetCapsules(limitNum);
+            }
+          } else {
+            document.getElementById('statLimitVal').textContent = '未限制';
+            document.getElementById('statLimitUnit').textContent = '';
+            document.getElementById('statLimitDesc').textContent = '电池将持续充至 100%';
+          }
+        }
+      } catch (e) {
+        console.warn('刷新硬件状态异常:', e);
+      }
+    }
+
+    function updateTelemetry(data) {
+      if (!data) return;
+      const pct = data.battery_level ?? data.battery_percent ?? data.batteryLevel;
+      if (typeof pct === 'number' && !isNaN(pct) && pct >= 0 && pct <= 100) {
+        document.getElementById('statBatteryPct').textContent = pct;
+      }
+      const isCharging = Boolean(data.is_charging);
+      const isAc = (data.is_ac_online !== undefined) 
+        ? Boolean(data.is_ac_online)
+        : (isCharging || (data.is_dc_online !== false));
+
+      document.getElementById('statAcPill').textContent = isAc ? '🔌 外部适配器已连接' : '🔋 电池供电中';
+
+      const chargeDot = document.getElementById('statChargeDot');
+      const chargeText = document.getElementById('statChargeText');
+
+      if (!isAc) {
+        chargeDot.className = 'indicator-dot';
+        chargeText.textContent = '放电中 (使用电池)';
+      } else if (isCharging) {
+        chargeDot.className = 'indicator-dot active';
+        chargeText.textContent = '正在充电中...';
+      } else {
+        chargeDot.className = 'indicator-dot warn';
+        chargeText.textContent = '未充电 (已达上限或满电)';
+      }
+    }
+
+    function initBatteryProbe() {
+      // 1. 标准 Web Battery API (Chromium / WebView2 毫秒级原生支持)
+      if (typeof navigator.getBattery === 'function') {
+        navigator.getBattery().then(function (battery) {
+          applyBatteryNav(battery);
+          battery.addEventListener('levelchange', function () { applyBatteryNav(battery); });
+          battery.addEventListener('chargingchange', function () { applyBatteryNav(battery); });
+        }).catch(function () {});
+      }
+
+      // 2. 主动拉取宿主硬件状态
+      callRpc('get_hardware_status').then(function (res) {
+        if (res) updateTelemetry(res);
+      }).catch(function () {});
+    }
+
+    function applyBatteryNav(battery) {
+      if (!battery) return;
+      const pct = Math.round((battery.level || 0) * 100);
+      if (pct >= 0 && pct <= 100) {
+        document.getElementById('statBatteryPct').textContent = pct;
+      }
+      const isCharging = Boolean(battery.charging);
+      const isDischarging = (battery.dischargingTime < Infinity) && !isCharging;
+      const isAc = isCharging || !isDischarging;
+
+      document.getElementById('statAcPill').textContent = isAc ? '🔌 外部适配器已连接' : '🔋 电池供电中';
+
+      const chargeDot = document.getElementById('statChargeDot');
+      const chargeText = document.getElementById('statChargeText');
+      if (!isAc) {
+        chargeDot.className = 'indicator-dot';
+        chargeText.textContent = '放电中 (使用电池)';
+      } else if (isCharging) {
+        chargeDot.className = 'indicator-dot active';
+        chargeText.textContent = '正在充电中...';
+      } else {
+        chargeDot.className = 'indicator-dot warn';
+        chargeText.textContent = '未充电 (已达上限或满电)';
+      }
+    }
+
+    function showProgress(visible, text = '', pct = 0) {
+      const box = document.getElementById('pulseProgress');
+      if (!visible) {
+        box.classList.remove('visible');
+        return;
+      }
+      box.classList.add('visible');
+      document.getElementById('pulseStepText').textContent = text;
+      document.getElementById('pulseBarFill').style.width = `${pct}%`;
+    }
+
+    function setBusy(busy) {
+      STATE.isBusy = busy;
+      document.getElementById('btnApply').disabled = busy;
+      document.getElementById('btnCancel').disabled = busy;
+      document.getElementById('targetSlider').disabled = busy;
+    }
+
+    function exportManifestConfig() {
+      const exportData = {
+        strategy: STATE.mode === 'pin' ? 'tongfang_pin' : 'tongfang_pulse',
+        parameters: {
+          protocol: STATE.protocol,
+          mode: STATE.mode,
+          active_gate_val: STATE.activeGateVal,
+          gate_strategy: STATE.gateStrategy,
+          keepalive_interval_ms: STATE.keepaliveIntervalMs,
+          pulse_hold_ms: STATE.pulseHoldMs,
+          limit_reg: STATE.limitReg,
+          gate_reg: STATE.gateReg,
+          status_reg: STATE.statusReg,
+          status_bit: STATE.statusBit,
+          orig_plat: STATE.origPlat,
+        },
+      };
+      const text = JSON.stringify(exportData, null, 2);
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('📋 已复制当前机型调优参数到剪贴板！');
+      }).catch(() => {
+        prompt('请复制以下配置 JSON：', text);
+      });
+    }
+
+    // --- 初始化监听 ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      initBatteryProbe();
+      await loadPluginStorage();
+      await refreshHardwareState();
+
+      window.addEventListener('message', (e) => {
+        if (!e.data) return;
+        if (e.data.type === 'OPENREVO_TELEMETRY') {
+          updateTelemetry(e.data.payload);
+        } else if (e.data.type === 'OPENREVO_PLUGIN_STORAGE_RESULT') {
+          if (e.data.success && e.data.payload) {
+            applyStoredConfig(e.data.payload);
+          }
+        }
+      });
+
+      window.addEventListener('openrevo-telemetry', (e) => {
+        if (e.detail) updateTelemetry(e.detail);
+      });
+
+      setTimeout(refreshHardwareState, 500);
+      setInterval(refreshHardwareState, 4000);
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,292 @@
+import { AppTheme } from "../../theme.slint";
+
+export component DashboardPowerProfiles inherits Rectangle {
+    background: AppTheme.surface_card;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    height: 150px;
+
+    in-out property <int> power_mode: 2; // 1: Office, 2: Balance, 3: Beast, 4: Custom
+    in-out property <int> pl1_target: 75;
+    in-out property <int> tgp_target: 175;
+    in-out property <string> power_target_text: "";
+    in-out property <bool> is_restricted: false; // Power gating: true when on battery/Type-C without unlock
+
+    callback set_power_mode(int);
+    callback open_custom_tuning();
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 12px;
+
+        // Header Row: Title & Subtitle + PL1/TGP Badge
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 3px;
+                alignment: center;
+                Text {
+                    text: "性能释放模式 (Power Profiles)";
+                    font-size: 13.5px;
+                    font-weight: 700;
+                    color: AppTheme.text_primary;
+                }
+                Text {
+                    text: power_mode == 1 ? "当前配置：办公模式 (QUIET / OFFICE) - 极致静音，适合低负载文档办公与省电环境" :
+                          (power_mode == 2 ? "当前配置：均衡模式 (BALANCE / GAMING) - 日常娱乐与工作，平稳释放兼顾流畅散热" :
+                          (power_mode == 3 ? "当前配置：狂暴模式 (TURBO / PERFORMANCE) - 极限性能全开，风扇高转速压榨硬件极限" :
+                          "当前配置：极客自定义调校 (CUSTOM TUNING) - 用户自定义 PL1/PL2/TGP 功耗与温控策略"));
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            // Power Targets Badge
+            Rectangle {
+                border-radius: 6px;
+                background: power_mode == 1 ? #10b98118 :
+                            (power_mode == 2 ? #0284c718 :
+                            (power_mode == 3 ? #f43f5e18 : #a855f718));
+                border-width: 1px;
+                border-color: power_mode == 1 ? #10b98150 :
+                              (power_mode == 2 ? #0284c750 :
+                              (power_mode == 3 ? #f43f5e50 : #a855f750));
+                height: 26px;
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    Text {
+                        text: power_target_text != "" ? power_target_text : ("原厂目标 PL1: " + pl1_target + "W | TGP: " + tgp_target + "W");
+                        font-size: 10.5px;
+                        font-weight: 700;
+                        color: power_mode == 1 ? #10b981 :
+                               (power_mode == 2 ? #38bdf8 :
+                               (power_mode == 3 ? #f43f5e : #c084fc));
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // 4 Profile Cards Grid (Height 76px)
+        HorizontalLayout {
+            spacing: 10px;
+            height: 76px;
+
+            // 1. Office (办公)
+            card_off := Rectangle {
+                border-radius: 6px;
+                background: power_mode == 1 ? #10b98125 : (t_off.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: power_mode == 1 ? 1.5px : 1px;
+                border-color: power_mode == 1 ? #10b981 : AppTheme.border_subtle;
+
+                t_off := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_power_mode(1); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/shield.svg");
+                            width: 18px;
+                            height: 18px;
+                            colorize: power_mode == 1 ? #10b981 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "办公";
+                        font-size: 12px;
+                        font-weight: power_mode == 1 ? 800 : 600;
+                        color: power_mode == 1 ? #10b981 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "静音";
+                        font-size: 9.5px;
+                        color: power_mode == 1 ? #10b981 : AppTheme.text_muted;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 2. Balance (均衡)
+            card_bal := Rectangle {
+                border-radius: 6px;
+                background: power_mode == 2 ? #38bdf825 : (t_bal.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: power_mode == 2 ? 1.5px : 1px;
+                border-color: power_mode == 2 ? #38bdf8 : AppTheme.border_subtle;
+
+                t_bal := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { set_power_mode(2); }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/zap.svg");
+                            width: 18px;
+                            height: 18px;
+                            colorize: power_mode == 2 ? #38bdf8 : AppTheme.text_secondary;
+                        }
+                    }
+                    Text {
+                        text: "均衡";
+                        font-size: 12px;
+                        font-weight: power_mode == 2 ? 800 : 600;
+                        color: power_mode == 2 ? #38bdf8 : AppTheme.text_primary;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: power_mode == 2 ? "● 当前" : "标准";
+                        font-size: 9.5px;
+                        color: power_mode == 2 ? #38bdf8 : AppTheme.text_muted;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 3. Beast (狂暴)
+            card_bst := Rectangle {
+                border-radius: 6px;
+                opacity: is_restricted ? 0.45 : 1.0;
+                background: power_mode == 3 ? #f43f5e25 : (t_bst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: power_mode == 3 ? 1.5px : 1px;
+                border-color: power_mode == 3 ? #f43f5e : AppTheme.border_subtle;
+
+                t_bst := TouchArea {
+                    mouse-cursor: is_restricted ? default : pointer;
+                    clicked => {
+                        if (!is_restricted) {
+                            set_power_mode(3);
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/flame.svg");
+                            width: 18px;
+                            height: 18px;
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_secondary);
+                        }
+                    }
+                    Text {
+                        text: "狂暴";
+                        font-size: 12px;
+                        font-weight: power_mode == 3 ? 800 : 600;
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: is_restricted ? "需圆口DC" : (power_mode == 3 ? "● 当前" : "狂暴");
+                        font-size: 9.5px;
+                        color: is_restricted ? #f59e0b : (power_mode == 3 ? #f43f5e : AppTheme.text_muted);
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // 4. Custom (自定义)
+            card_cst := Rectangle {
+                border-radius: 6px;
+                opacity: is_restricted ? 0.45 : 1.0;
+                background: power_mode == 4 ? #c084fc25 : (t_cst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: power_mode == 4 ? 1.5px : 1px;
+                border-color: power_mode == 4 ? #c084fc : AppTheme.border_subtle;
+
+                t_cst := TouchArea {
+                    mouse-cursor: is_restricted ? default : pointer;
+                    clicked => {
+                        if (!is_restricted) {
+                            if root.power_mode == 4 {
+                                root.open_custom_tuning();
+                            } else {
+                                root.set_power_mode(4);
+                            }
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/sliders.svg");
+                            width: 18px;
+                            height: 18px;
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #c084fc : AppTheme.text_secondary);
+                        }
+                    }
+                    Text {
+                        text: "自定义";
+                        font-size: 12px;
+                        font-weight: power_mode == 4 ? 800 : 600;
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #c084fc : AppTheme.text_primary);
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: is_restricted ? "需圆口DC" : (power_mode == 4 ? "● 当前" : "极客");
+                        font-size: 9.5px;
+                        color: is_restricted ? #f59e0b : (power_mode == 4 ? #c084fc : AppTheme.text_muted);
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // Top-right Corner Badge for Custom Tuning
+                if root.power_mode == 4 && !is_restricted: tune_badge := Rectangle {
+                    x: parent.width - self.width - 6px;
+                    y: 6px;
+                    width: 52px;
+                    height: 20px;
+                    border-radius: 4px;
+                    background: t_tune.has-hover ? #a855f770 : #a855f745;
+                    border-width: 1px;
+                    border-color: #c084fc;
+
+                    t_tune := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open_custom_tuning(); }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 3px;
+
+                        Image {
+                            source: @image-url("../../assets/icons/sliders-horizontal.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: #f3e8ff;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        Text {
+                            text: "调校";
+                            font-size: 9.5px;
+                            font-weight: 700;
+                            color: #f3e8ff;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

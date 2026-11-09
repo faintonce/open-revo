@@ -146,7 +146,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
     setLoading(true);
     setError(null);
     try {
-      const html = await invoke<string>('load_plugin_html', { pluginId: plugin.id });
+      const html = await invoke<string>('load_plugin_html', { pluginId: plugin.id, surface: 'tab' });
       setHtmlContent(html);
     } catch (err: any) {
       console.error('Failed to load plugin html:', err);
@@ -236,6 +236,23 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
       }
     }
   }, [plugin.id]);
+
+  // Register telemetry consumer for current plugin tab
+  useEffect(() => {
+    if (plugin.telemetry?.enabled) {
+      invoke('register_telemetry_consumer', {
+        consumerId: plugin.id,
+        sensors: plugin.telemetry.sensors || null,
+      }).catch(() => {});
+    }
+    return () => {
+      if (plugin.telemetry?.enabled) {
+        invoke('unregister_telemetry_consumer', {
+          consumerId: plugin.id,
+        }).catch(() => {});
+      }
+    };
+  }, [plugin.id, plugin.telemetry?.enabled]);
 
   // Push telemetry snapshot to iframe whenever status updates
   useEffect(() => {
@@ -389,6 +406,14 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
               iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILES_LIST', success: true, payload: files, reqId: payload?.reqId }, '*');
             } catch (e: any) {
               iframeRef.current?.contentWindow?.postMessage({ type: 'OPENREVO_PLUGIN_FILES_LIST', success: false, error: String(e), reqId: payload?.reqId }, '*');
+            }
+            break;
+          case 'EMIT':
+            if (payload?.event) {
+              await invoke('emit_plugin_broadcast', {
+                event: payload.event,
+                payload: payload.payload ?? null,
+              });
             }
             break;
           default:

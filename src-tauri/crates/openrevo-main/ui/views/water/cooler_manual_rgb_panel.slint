@@ -1,0 +1,376 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CoolerManualRgbPanel inherits Rectangle {
+    background: transparent;
+
+    in-out property <int> pump_tier: 2; // 0: 停泵, 2: 标准, 3: 狂暴
+    in-out property <int> pump_voltage: 7;
+    in-out property <int> fan_duty: 40;
+
+    // LED Props
+    in-out property <bool> led_on: true;
+    in-out property <int> led_mode: 2; // 2: 炫彩流动, 3: 七彩呼吸, 4: 旋转光斑, 1: 单色呼吸
+    in-out property <int> led_r: 0;
+    in-out property <int> led_g: 128;
+    in-out property <int> led_b: 0;
+
+    callback set_pump_tier(int);
+    callback set_fan_duty(int);
+    callback set_led_enabled(bool);
+    callback set_led_mode(int);
+    callback set_led_color(int, int, int);
+
+    VerticalLayout {
+        spacing: 6px;
+
+        // 1. Manual tuning bar
+        Rectangle {
+            background: AppTheme.surface_sunken;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 6px;
+                padding-bottom: 6px;
+                alignment: space-between;
+
+                // Left: Pump Tier Controls
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Image {
+                            source: @image-url("../../assets/icons/zap.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: #06b6d4;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "水泵档位：";
+                            font-size: 10.5px;
+                            font-weight: 700;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // [ 停泵 ]
+                    tier0_btn := Rectangle {
+                        width: 44px;
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: root.pump_tier == 0 || root.pump_voltage == 0 ? #06b6d430 : (t0_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                        border-width: 1px;
+                        border-color: root.pump_tier == 0 || root.pump_voltage == 0 ? #06b6d4 : AppTheme.border_subtle;
+
+                        t0_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.set_pump_tier(0); }
+                        }
+
+                        Text {
+                            text: "停泵";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: root.pump_tier == 0 || root.pump_voltage == 0 ? #06b6d4 : AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // [ 标准 ]
+                    tier2_btn := Rectangle {
+                        width: 44px;
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: root.pump_tier == 2 || (root.pump_tier != 0 && root.pump_tier != 3 && root.pump_voltage < 11 && root.pump_voltage > 0) ? #06b6d430 : (t2_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                        border-width: 1px;
+                        border-color: root.pump_tier == 2 || (root.pump_tier != 0 && root.pump_tier != 3 && root.pump_voltage < 11 && root.pump_voltage > 0) ? #06b6d4 : AppTheme.border_subtle;
+
+                        t2_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.set_pump_tier(2); }
+                        }
+
+                        Text {
+                            text: "标准";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: root.pump_tier == 2 || (root.pump_tier != 0 && root.pump_tier != 3 && root.pump_voltage < 11 && root.pump_voltage > 0) ? #06b6d4 : AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // [ 狂暴 ]
+                    tier3_btn := Rectangle {
+                        width: 44px;
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: root.pump_tier == 3 || root.pump_voltage >= 11 ? #f43f5e30 : (t3_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                        border-width: 1px;
+                        border-color: root.pump_tier == 3 || root.pump_voltage >= 11 ? #f43f5e : AppTheme.border_subtle;
+
+                        t3_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.set_pump_tier(3); }
+                        }
+
+                        Text {
+                            text: "狂暴";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: root.pump_tier == 3 || root.pump_voltage >= 11 ? #f43f5e : AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Text {
+                        text: root.pump_tier == 3 || root.pump_voltage >= 11 ? "极速狂暴 (100%)" : (
+                            root.pump_tier == 0 || root.pump_voltage == 0 ? "已停机 (0%)" : "标准巡航 (45%)"
+                        );
+                        font-size: 9.5px;
+                        color: #06b6d4;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Right: Radiator Fan Slider
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Image {
+                            source: @image-url("../../assets/icons/fan.svg");
+                            width: 11px;
+                            height: 11px;
+                            colorize: #a855f7;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "冷排风扇目标转速 (Duty)：";
+                            font-size: 10.5px;
+                            font-weight: 700;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Slider (Golden Layout with Absolute Track Constraints)
+                    fan_track := Rectangle {
+                        width: 140px;
+                        height: 16px;
+                        y: (parent.height - self.height) / 2;
+
+                        // Base track: explicitly locked x: 0 and width: parent.width
+                        Rectangle {
+                            x: 0;
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            height: 4px;
+                            background: AppTheme.surface_pill;
+                            border-radius: 2px;
+
+                            // Active progress fill
+                            Rectangle {
+                                x: 0;
+                                y: 0;
+                                width: Math.max(0px, (root.fan_duty / 100.0) * parent.width);
+                                height: parent.height;
+                                background: #a855f7;
+                                border-radius: 2px;
+                            }
+                        }
+
+                        // Slider Thumb
+                        Rectangle {
+                            x: Math.max(0px, Math.min(parent.width - self.width,
+                                (root.fan_duty / 100.0) * parent.width - self.width / 2));
+                            y: (parent.height - self.height) / 2;
+                            width: 12px;
+                            height: 12px;
+                            border-radius: 6px;
+                            background: #ffffff;
+                            border-width: 2px;
+                            border-color: #a855f7;
+                        }
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            moved => {
+                                if self.pressed {
+                                    let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                    let val = Math.clamp(Math.round(ratio * 20.0) * 5, 0, 100);
+                                    root.fan_duty = val;
+                                    root.set_fan_duty(val);
+                                }
+                            }
+                            clicked => {
+                                let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                let val = Math.clamp(Math.round(ratio * 20.0) * 5, 0, 100);
+                                root.fan_duty = val;
+                                root.set_fan_duty(val);
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: 32px;
+                        text: root.fan_duty + "%";
+                        font-size: 11px;
+                        font-weight: 800;
+                        color: #a855f7;
+                        vertical-alignment: center;
+                        horizontal-alignment: right;
+                    }
+                }
+            }
+        }
+
+        // 2. RGB LED controls
+        Rectangle {
+            background: AppTheme.surface_sunken;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 6px;
+                padding-bottom: 6px;
+                alignment: space-between;
+
+                // Left: Switch & Label
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Image {
+                            source: @image-url("../../assets/icons/palette.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: #ec4899;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "水箱与冷排 RGB 灯效：";
+                            font-size: 10.5px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Switch
+                    Rectangle {
+                        width: 34px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: root.led_on ? #ec4899 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.led_on ? #ec4899 : AppTheme.border_medium;
+                        y: (parent.height - self.height) / 2;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.led_on = !root.led_on;
+                                root.set_led_enabled(root.led_on);
+                            }
+                        }
+
+                        Rectangle {
+                            x: root.led_on ? 18px : 2px;
+                            y: 2px;
+                            width: 12px;
+                            height: 12px;
+                            border-radius: 6px;
+                            background: #ffffff;
+                        }
+                    }
+                }
+
+                // Center: Mode Buttons
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    for m in [
+                        { id: 2, label: "炫彩流动 (默认)" },
+                        { id: 3, label: "七彩呼吸" },
+                        { id: 4, label: "旋转光斑" },
+                        { id: 1, label: "单色呼吸" },
+                    ]: Rectangle {
+                        height: 22px;
+                        border-radius: AppTheme.radius_xs;
+                        background: root.led_mode == m.id ? #ec489930 : (m_touch.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                        border-width: 1px;
+                        border-color: root.led_mode == m.id ? #ec4899 : AppTheme.border_subtle;
+                        y: (parent.height - self.height) / 2;
+
+                        m_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.led_mode = m.id;
+                                root.set_led_mode(m.id);
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 7px;
+                            padding-right: 7px;
+                            Text {
+                                text: m.label;
+                                font-size: 9.5px;
+                                font-weight: root.led_mode == m.id ? 700 : 500;
+                                color: root.led_mode == m.id ? #f472b6 : AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Right: 6 Color Presets
+                HorizontalLayout {
+                    spacing: 5px;
+
+                    for cp in [
+                        { r: 0, g: 128, b: 0, col: #008000, name: "翡翠绿" },
+                        { r: 0, g: 229, b: 255, col: #00e5ff, name: "赛博青" },
+                        { r: 255, g: 23, b: 68, col: #ff1744, name: "烈焰红" },
+                        { r: 213, g: 0, b: 249, col: #d500f9, name: "魅影紫" },
+                        { r: 255, g: 145, b: 0, col: #ff9100, name: "暖阳橙" },
+                        { r: 255, g: 255, b: 255, col: #ffffff, name: "天际白" },
+                    ]: Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 8px;
+                        background: cp.col;
+                        border-width: 1.5px;
+                        border-color: (root.led_r == cp.r && root.led_g == cp.g && root.led_b == cp.b) ? #ffffff : #00000040;
+                        y: (parent.height - self.height) / 2;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.led_r = cp.r;
+                                root.led_g = cp.g;
+                                root.led_b = cp.b;
+                                root.set_led_color(cp.r, cp.g, cp.b);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

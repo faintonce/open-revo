@@ -60,10 +60,20 @@ pub fn apply_lighting_hardware_override(
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
     app_handle: tauri::AppHandle,
 ) -> Result<crate::driver::ite_lighting::LightingRuntimeStatus, String> {
+    apply_lighting_hardware_override_internal(override_cfg, lighting_state.inner(), Some(&app_handle))
+}
+
+pub fn apply_lighting_hardware_override_internal(
+    override_cfg: crate::driver::ite_lighting::LightingHardwareOverride,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
+    app_handle: Option<&tauri::AppHandle>,
+) -> Result<crate::driver::ite_lighting::LightingRuntimeStatus, String> {
     lighting_state.apply_hardware_override_and_reinit(override_cfg)?;
     let status = lighting_state.get_runtime_status();
-    let _ = app_handle.emit("lighting://runtime_status_changed", &status);
-    let _ = app_handle.emit("lighting://hardware_info_changed", ());
+    if let Some(app) = app_handle {
+        let _ = app.emit("lighting://runtime_status_changed", &status);
+        let _ = app.emit("lighting://hardware_info_changed", ());
+    }
     Ok(status)
 }
 
@@ -77,6 +87,12 @@ pub fn get_lighting_hardware_override(
 #[tauri::command]
 pub fn get_keyboard_hardware_info(
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
+) -> KeyboardHardwareInfo {
+    get_keyboard_hardware_info_internal(lighting_state.inner())
+}
+
+pub fn get_keyboard_hardware_info_internal(
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
 ) -> KeyboardHardwareInfo {
     let contract = crate::system::model_engine::get_active_lighting_contract();
     let is_sleep = lighting_state.is_sleeping.load(std::sync::atomic::Ordering::Relaxed);
@@ -271,6 +287,42 @@ pub fn apply_keyboard_lighting(
     custom_script_id: Option<String>,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
 ) -> Result<(), String> {
+    apply_keyboard_lighting_internal(
+        Some(&app),
+        enabled,
+        effect,
+        brightness,
+        speed,
+        direction,
+        color,
+        engine,
+        fps,
+        streamer_effect,
+        streamerEffect,
+        customScriptId,
+        custom_script_id,
+        &lighting_state,
+    )
+}
+
+pub fn apply_keyboard_lighting_internal(
+    app: Option<&tauri::AppHandle>,
+    enabled: bool,
+    effect: u8,
+    brightness: u8,
+    speed: u8,
+    direction: u8,
+    color: String,
+    engine: Option<String>,
+    fps: Option<u32>,
+    streamer_effect: Option<u8>,
+    #[allow(non_snake_case)]
+    streamerEffect: Option<u8>,
+    #[allow(non_snake_case)]
+    customScriptId: Option<String>,
+    custom_script_id: Option<String>,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
+) -> Result<(), String> {
     let se_opt = streamerEffect.or(streamer_effect);
     let csi_opt = customScriptId.or(custom_script_id);
     let (st_snapshot, brightness_changed) = {
@@ -284,6 +336,16 @@ pub fn apply_keyboard_lighting(
         let brightness_changed = prev_lvl != new_lvl;
         if let Some(ref eng) = engine {
             st.kb_engine = eng.clone();
+        }
+        if effect >= 100 && effect < 200 {
+            st.kb_engine = "streamer".to_string();
+            st.streamer_effect = effect;
+        } else if effect >= 200 {
+            st.kb_engine = "custom".to_string();
+            st.streamer_effect = effect;
+        } else if effect > 0 && effect < 100 {
+            st.kb_engine = "hardware".to_string();
+            st.kb_effect = effect;
         }
         if let Some(csi) = csi_opt {
             st.custom_script_id = csi;
@@ -352,6 +414,10 @@ pub fn apply_keyboard_lighting(
         streamer.update_params(sp.clone());
         crate::log_info!("STREAMER", "BetterRGB streamer params applied: effect={}, fps={}, br={}, enabled={}", sp.effect, sp.fps, sp.brightness_pct, is_on);
     } else {
+        if contract.keyboard_type == "PerKey" {
+            let streamer = crate::driver::ite_streamer::get_global_streamer();
+            streamer.stop();
+        }
         let hw_effect = if st_snapshot.kb_effect > 0 && st_snapshot.kb_effect < 100 {
             st_snapshot.kb_effect
         } else {
@@ -370,10 +436,12 @@ pub fn apply_keyboard_lighting(
 
     if brightness_changed {
         let emit_lvl = if is_on { st_snapshot.kb_brightness } else { 0 };
-        crate::system::osd_window::wake_osd_if_enabled(&app);
-        let _ = app.emit("keyboard-brightness-changed", emit_lvl);
-        let _ = app.emit_to("main", "keyboard-brightness-changed", emit_lvl);
-        let _ = app.emit_to("osd", "keyboard-brightness-changed", emit_lvl);
+        if let Some(app) = app {
+            crate::system::osd_window::wake_osd_if_enabled(app);
+            let _ = app.emit("keyboard-brightness-changed", emit_lvl);
+            let _ = app.emit_to("main", "keyboard-brightness-changed", emit_lvl);
+            let _ = app.emit_to("osd", "keyboard-brightness-changed", emit_lvl);
+        }
     }
     Ok(())
 }
@@ -386,6 +454,17 @@ pub fn apply_lightbar_lighting(
     speed: u8,
     color: String,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
+) -> Result<(), String> {
+    apply_lightbar_lighting_internal(enabled, effect, brightness, speed, color, lighting_state.inner())
+}
+
+pub fn apply_lightbar_lighting_internal(
+    enabled: bool,
+    effect: u8,
+    brightness: u8,
+    speed: u8,
+    color: String,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
 ) -> Result<(), String> {
     let contract = crate::system::model_engine::get_active_lighting_contract();
     if !contract.has_coastline {
@@ -416,6 +495,17 @@ pub fn apply_hinge_lighting(
     color: String,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
 ) -> Result<(), String> {
+    apply_hinge_lighting_internal(enabled, effect, brightness, speed, color, lighting_state.inner())
+}
+
+pub fn apply_hinge_lighting_internal(
+    enabled: bool,
+    effect: u8,
+    brightness: u8,
+    speed: u8,
+    color: String,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
+) -> Result<(), String> {
     let contract = crate::system::model_engine::get_active_lighting_contract();
     if !contract.has_air_vent {
         crate::log_warn!("LIGHTING_CMD", "apply_hinge_lighting blocked: Contract declares has_air_vent = false");
@@ -444,6 +534,17 @@ pub fn apply_four_zone_colors(
     zone4: String,
     brightness: u8,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
+) -> Result<(), String> {
+    apply_four_zone_colors_internal(zone1, zone2, zone3, zone4, brightness, lighting_state.inner())
+}
+
+pub fn apply_four_zone_colors_internal(
+    zone1: String,
+    zone2: String,
+    zone3: String,
+    zone4: String,
+    brightness: u8,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
 ) -> Result<(), String> {
     let contract = crate::system::model_engine::get_active_lighting_contract();
     if contract.keyboard_type != "4Zone" {
@@ -481,6 +582,16 @@ pub fn apply_logo_lighting(
     color: String,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
 ) -> Result<(), String> {
+    apply_logo_lighting_internal(enabled, effect, brightness, color, lighting_state.inner())
+}
+
+pub fn apply_logo_lighting_internal(
+    enabled: bool,
+    effect: u8,
+    brightness: u8,
+    color: String,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
+) -> Result<(), String> {
     let contract = crate::system::model_engine::get_active_lighting_contract();
     if !contract.has_logo {
         crate::log_warn!("LIGHTING_CMD", "apply_logo_lighting blocked: Contract declares has_logo = false. Ghost Logo eliminated!");
@@ -512,6 +623,13 @@ pub fn set_lighting_sleep_timer(
     minutes: u8,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
 ) -> Result<(), String> {
+    set_lighting_sleep_timer_internal(minutes, lighting_state.inner())
+}
+
+pub fn set_lighting_sleep_timer_internal(
+    minutes: u8,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
+) -> Result<(), String> {
     let st_snapshot = {
         let mut st = lighting_state.state.lock();
         st.sleep_minutes = minutes;
@@ -526,6 +644,12 @@ pub fn set_lighting_sleep_timer(
 pub fn trigger_lighting_welcome(
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
 ) -> Result<(), String> {
+    trigger_lighting_welcome_internal(lighting_state.inner())
+}
+
+pub fn trigger_lighting_welcome_internal(
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
+) -> Result<(), String> {
     lighting_state.trigger_welcome();
     Ok(())
 }
@@ -534,6 +658,13 @@ pub fn trigger_lighting_welcome(
 pub fn set_ceremony_enabled(
     enabled: bool,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
+) -> Result<(), String> {
+    set_ceremony_enabled_internal(enabled, lighting_state.inner())
+}
+
+pub fn set_ceremony_enabled_internal(
+    enabled: bool,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
 ) -> Result<(), String> {
     let st_snapshot = {
         let mut st = lighting_state.state.lock();
@@ -547,6 +678,12 @@ pub fn set_ceremony_enabled(
 #[tauri::command]
 pub fn save_current_lighting_as_startup(
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
+) -> Result<(), String> {
+    save_current_lighting_as_startup_internal(lighting_state.inner())
+}
+
+pub fn save_current_lighting_as_startup_internal(
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
 ) -> Result<(), String> {
     let st_snapshot = lighting_state.state.lock().clone();
     crate::driver::ite_lighting::save_lighting_state(&st_snapshot);
@@ -595,6 +732,13 @@ pub fn set_keyboard_engine(
 pub fn set_streamer_fps(
     fps: u32,
     lighting_state: State<'_, crate::driver::ite_lighting::SharedIteLightingManager>,
+) -> Result<(), String> {
+    set_streamer_fps_internal(fps, lighting_state.inner())
+}
+
+pub fn set_streamer_fps_internal(
+    fps: u32,
+    lighting_state: &crate::driver::ite_lighting::SharedIteLightingManager,
 ) -> Result<(), String> {
     let streamer = crate::driver::ite_streamer::get_global_streamer();
     streamer.set_fps(fps);

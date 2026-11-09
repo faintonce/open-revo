@@ -1,0 +1,649 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CloudIccModal inherits Rectangle {
+    in-out property <bool> is_open: false;
+
+    // Hardware Identity Properties
+    in-out property <string> panel_pnp: "未检出";
+    in-out property <string> panel_sn: "(无独立面板SN)";
+    in-out property <string> bios_sn: "未检出";
+    in-out property <string> mac_address: "未检出";
+    in-out property <string> arch_name: "识别中...";
+    in-out property <string> recommended_method: "auto"; // "auto" | "50" | "40"
+    in-out property <string> selected_mode: "auto";
+
+    // Query & Hit State
+    in-out property <bool> is_searching: false;
+    in-out property <string> status_text: "就绪";
+    in-out property <bool> hit_found: false;
+    in-out property <string> hit_file_name: "";
+    in-out property <string> hit_meta: "";
+    in-out property <[string]> hit_profiles: [];
+    in-out property <int> selected_profile_idx: 0;
+    in-out property <string> toast_msg: "";
+
+    callback close();
+    callback refresh_identity();
+    callback start_search(string);
+    callback apply_profile(int);
+    callback apply_all_profiles();
+
+    // Backdrop overlay
+    background: #000000bd;
+
+    // Intercept clicks on backdrop to prevent passing through
+    TouchArea { }
+
+    // Modal Card
+    Rectangle {
+        width: Math.min(parent.width - 48px, 860px);
+        height: Math.min(parent.height - 40px, 600px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: AppTheme.is_light ? #ffffff : #0f1522f5;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #38bdf845;
+        clip: true;
+
+        VerticalLayout {
+            // 1. Header Bar
+            Rectangle {
+                height: 56px;
+                background: AppTheme.is_light ? #f8fafc : #131b2e;
+
+                HorizontalLayout {
+                    padding-left: 20px;
+                    padding-right: 18px;
+                    alignment: space-between;
+
+                    // Left icon + titles
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 34px;
+                                height: 34px;
+                                border-radius: 8px;
+                                background: #38bdf820;
+                                border-width: 1px;
+                                border-color: #38bdf860;
+                                Image {
+                                    source: @image-url("../../assets/icons/crosshair.svg");
+                                    width: 17px;
+                                    height: 17px;
+                                    colorize: #38bdf8;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text {
+                                    text: "同方原厂云端校色助手";
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+                                Rectangle {
+                                    height: 18px;
+                                    border-radius: 4px;
+                                    background: #38bdf820;
+                                    border-width: 1px;
+                                    border-color: #38bdf850;
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: "Win32 原生纯净";
+                                            font-size: 9.5px;
+                                            font-weight: 600;
+                                            color: #38bdf8;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                            Text {
+                                text: "出厂硬件指纹智能识别 · Uniwill 40系 & Aistone 50系双节点并发拉取 · 一键应用生效";
+                                font-size: 10px;
+                                color: AppTheme.text_muted;
+                            }
+                        }
+                    }
+
+                    // Right Close Button
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 28px;
+                            height: 28px;
+                            border-radius: 6px;
+                            background: close_touch.has-hover ? AppTheme.surface_pill : transparent;
+                            border-width: 1px;
+                            border-color: close_touch.has-hover ? AppTheme.border_medium : transparent;
+
+                            close_touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.close(); }
+                            }
+
+                            Image {
+                                source: @image-url("../../assets/icons/x.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: close_touch.has-hover ? AppTheme.text_primary : AppTheme.text_muted;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Divider
+            Rectangle {
+                height: 1px;
+                background: AppTheme.border_subtle;
+            }
+
+            // 2. Body Scrollable Content
+            VerticalLayout {
+                padding: 18px;
+                spacing: 14px;
+
+                // Section 1: Hardware Identity Card
+                Rectangle {
+                    border-radius: 8px;
+                    background: AppTheme.surface_card;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 10px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Image {
+                                    source: @image-url("../../assets/icons/monitor.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: #38bdf8;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "本机硬件识别真值";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            Text {
+                                text: root.status_text;
+                                font-size: 10.5px;
+                                font-weight: 600;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // 4 Props Grid
+                        HorizontalLayout {
+                            spacing: 10px;
+
+                            // Prop 1: Arch
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 50px;
+                                border-radius: 6px;
+                                background: AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: AppTheme.border_subtle;
+                                VerticalLayout {
+                                    padding: 6px;
+                                    alignment: center;
+                                    spacing: 2px;
+                                    Text {
+                                        text: "声明式主板架构";
+                                        font-size: 9.5px;
+                                        color: AppTheme.text_muted;
+                                    }
+                                    Text {
+                                        text: root.arch_name;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_primary;
+                                    }
+                                }
+                            }
+
+                            // Prop 2: Screen PnP ID
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 50px;
+                                border-radius: 6px;
+                                background: AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: AppTheme.border_subtle;
+                                VerticalLayout {
+                                    padding: 6px;
+                                    alignment: center;
+                                    spacing: 2px;
+                                    Text {
+                                        text: "屏幕面板 PnP ID";
+                                        font-size: 9.5px;
+                                        color: AppTheme.text_muted;
+                                    }
+                                    Text {
+                                        text: root.panel_pnp;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: #38bdf8;
+                                    }
+                                }
+                            }
+
+                            // Prop 3: BIOS SN
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 50px;
+                                border-radius: 6px;
+                                background: AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: AppTheme.border_subtle;
+                                VerticalLayout {
+                                    padding: 6px;
+                                    alignment: center;
+                                    spacing: 2px;
+                                    Text {
+                                        text: "BIOS 序列号";
+                                        font-size: 9.5px;
+                                        color: AppTheme.text_muted;
+                                    }
+                                    Text {
+                                        text: root.bios_sn != "" ? root.bios_sn : "(标准)";
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_primary;
+                                    }
+                                }
+                            }
+
+                            // Prop 4: MAC
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 50px;
+                                border-radius: 6px;
+                                background: AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: AppTheme.border_subtle;
+                                VerticalLayout {
+                                    padding: 6px;
+                                    alignment: center;
+                                    spacing: 2px;
+                                    Text {
+                                        text: "物理网卡 MAC";
+                                        font-size: 9.5px;
+                                        color: AppTheme.text_muted;
+                                    }
+                                    Text {
+                                        text: root.mac_address;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_primary;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Section 2: Mode Selector & Query Control Bar
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+
+                    // Mode segmented pills
+                    HorizontalLayout {
+                        spacing: 6px;
+
+                        // Auto
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 6px;
+                            background: root.selected_mode == "auto" ? #38bdf825 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.selected_mode == "auto" ? #38bdf880 : AppTheme.border_subtle;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.selected_mode = "auto"; }
+                            }
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                Text {
+                                    text: "智能推荐模式";
+                                    font-size: 10.5px;
+                                    font-weight: root.selected_mode == "auto" ? 700 : 500;
+                                    color: root.selected_mode == "auto" ? #38bdf8 : AppTheme.text_muted;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // 50 series
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 6px;
+                            background: root.selected_mode == "50" ? #38bdf825 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.selected_mode == "50" ? #38bdf880 : AppTheme.border_subtle;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.selected_mode = "50"; }
+                            }
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                Text {
+                                    text: "50系专属 (Aistone / SN)";
+                                    font-size: 10.5px;
+                                    font-weight: root.selected_mode == "50" ? 700 : 500;
+                                    color: root.selected_mode == "50" ? #38bdf8 : AppTheme.text_muted;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // 40 series
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 6px;
+                            background: root.selected_mode == "40" ? #38bdf825 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: root.selected_mode == "40" ? #38bdf880 : AppTheme.border_subtle;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.selected_mode = "40"; }
+                            }
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                Text {
+                                    text: "40系及更早 (Uniwill / MAC)";
+                                    font-size: 10.5px;
+                                    font-weight: root.selected_mode == "40" ? 700 : 500;
+                                    color: root.selected_mode == "40" ? #38bdf8 : AppTheme.text_muted;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // Action buttons: Re-probe + Start Search
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        // Re-probe
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_subtle;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.refresh_identity(); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                spacing: 4px;
+                                Image {
+                                    source: @image-url("../../assets/icons/refresh-cw.svg");
+                                    width: 11px;
+                                    height: 11px;
+                                    colorize: AppTheme.text_muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "重新探测";
+                                    font-size: 10.5px;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Start Search
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 6px;
+                            background: root.is_searching ? #38bdf830 : #38bdf8;
+                            border-width: 1px;
+                            border-color: #38bdf8;
+                            TouchArea {
+                                mouse-cursor: root.is_searching ? default : pointer;
+                                clicked => {
+                                    if (!root.is_searching) {
+                                        root.start_search(root.selected_mode);
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                spacing: 5px;
+                                Image {
+                                    source: @image-url("../../assets/icons/download.svg");
+                                    width: 12px;
+                                    height: 12px;
+                                    colorize: root.is_searching ? #38bdf8 : #000000;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: root.is_searching ? "正在检索云端..." : "开始检索原厂校色";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: root.is_searching ? #38bdf8 : #000000;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Section 3: Hit Results or Guidance Box
+                if !root.hit_found: Rectangle {
+                    height: 140px;
+                    border-radius: 8px;
+                    background: AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        HorizontalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/crosshair.svg");
+                                width: 24px;
+                                height: 24px;
+                                colorize: #38bdf840;
+                            }
+                        }
+                        Text {
+                            text: root.is_searching ? "正在连接原厂校色数据库检索候选哈希队列，请稍候..." : "点击上方【开始检索原厂校色】，系统将自动匹配专属出厂色彩文件";
+                            font-size: 11px;
+                            color: AppTheme.text_muted;
+                            horizontal-alignment: center;
+                        }
+                        if root.toast_msg != "": Text {
+                            text: root.toast_msg;
+                            font-size: 10.5px;
+                            color: #f59e0b;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                if root.hit_found: Rectangle {
+                    border-radius: 8px;
+                    background: #10b98110;
+                    border-width: 1px;
+                    border-color: #10b98160;
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+
+                        // Title Banner
+                        HorizontalLayout {
+                            alignment: space-between;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text {
+                                    text: "🎯 成功命中原厂校色配置包！";
+                                    font-size: 13px;
+                                    font-weight: 700;
+                                    color: #10b981;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            Text {
+                                text: root.hit_meta;
+                                font-size: 10px;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // File name info
+                        Rectangle {
+                            height: 32px;
+                            border-radius: 5px;
+                            background: AppTheme.surface_pill;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                spacing: 6px;
+                                Text {
+                                    text: "命中文件:";
+                                    font-size: 10.5px;
+                                    color: AppTheme.text_muted;
+                                    vertical-alignment: center;
+                                }
+                                Text {
+                                    text: root.hit_file_name;
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Profiles selector if multiple
+                        if root.hit_profiles.length > 1: HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: "当前选用档位:";
+                                font-size: 10.5px;
+                                color: AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                            for p_name[idx] in root.hit_profiles: Rectangle {
+                                height: 26px;
+                                border-radius: 5px;
+                                background: root.selected_profile_idx == idx ? #10b98125 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.selected_profile_idx == idx ? #10b98180 : AppTheme.border_subtle;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.selected_profile_idx = idx; }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    Text {
+                                        text: p_name;
+                                        font-size: 10px;
+                                        font-weight: root.selected_profile_idx == idx ? 700 : 500;
+                                        color: root.selected_profile_idx == idx ? #10b981 : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Action Buttons
+                        HorizontalLayout {
+                            spacing: 10px;
+
+                            // Apply Selected
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                border-radius: 6px;
+                                background: #10b981;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.apply_profile(root.selected_profile_idx); }
+                                }
+                                HorizontalLayout {
+                                    alignment: center;
+                                    spacing: 5px;
+                                    Text {
+                                        text: "✔ 一键应用生效至当前显示器";
+                                        font-size: 11.5px;
+                                        font-weight: 700;
+                                        color: #000000;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // Batch Apply All
+                            if root.hit_profiles.length > 1: Rectangle {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                border-radius: 6px;
+                                background: #38bdf825;
+                                border-width: 1px;
+                                border-color: #38bdf880;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.apply_all_profiles(); }
+                                }
+                                HorizontalLayout {
+                                    alignment: center;
+                                    spacing: 5px;
+                                    Text {
+                                        text: "批量导入全部档位至方案库";
+                                        font-size: 11.5px;
+                                        font-weight: 700;
+                                        color: #38bdf8;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

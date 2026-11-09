@@ -1,0 +1,183 @@
+import { AppTheme } from "../../theme.slint";
+import { DrawerHeader } from "header.slint";
+import { DrawerPowerCard } from "power_card.slint";
+import { DrawerGpuCard } from "gpu_card.slint";
+import { DrawerDisplayCard } from "display_card.slint";
+import { DrawerBrightnessCard } from "brightness_card.slint";
+import { DrawerLightingCard } from "lighting_card.slint";
+import { DrawerBatteryCard } from "battery_card.slint";
+import { DrawerSwitchesCard } from "switches_card.slint";
+import { DrawerFooter } from "footer.slint";
+
+export component DrawerView inherits Rectangle {
+    background: AppTheme.bg_root;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+    clip: true;
+
+    // --- State properties ---
+    in-out property <string> app_version: "v0.9.7";
+    in-out property <int> power_mode: 4;
+    in-out property <string> gpu_mode: "dgpu";
+    in-out property <int> refresh_rate: 240;
+    in-out property <bool> auto_min_hz: true;
+    in-out property <string> monitor_name: "京东方";
+    in-out property <bool> has_secondary_monitor: false;
+    in-out property <string> primary_monitor_name: "内置主屏";
+    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <int> brightness: 76;
+    in-out property <bool> is_single_color: false;
+    in-out property <bool> is_single_zone: false;
+    in-out property <bool> is_four_zone: false;
+    in-out property <bool> kb_enabled: true;
+    in-out property <int> kb_effect: 101;
+    in-out property <int> kb_brightness: 3;
+    in-out property <string> kb_color_hex: "#6366F1";
+    in-out property <color> kb_color: #6366f1;
+    in-out property <int> battery_limit: 60;
+    in-out property <bool> is_ac_online: true;
+    in-out property <bool> is_power_mode_restricted: false;
+
+    // Telemetry
+    in-out property <int> cpu_temp: 62;
+    in-out property <int> cpu_rpm: 2818;
+    in-out property <int> gpu_temp: 48;
+    in-out property <int> gpu_rpm: 2123;
+
+    // Switches
+    in-out property <bool> fan_boost: false;
+    in-out property <bool> camera_enabled: true;
+    in-out property <bool> mic_enabled: true;
+    in-out property <bool> win_locked: false;
+    in-out property <bool> keep_awake: false;
+    in-out property <bool> autostart: false;
+    in-out property <string> custom_status_text: "MECHREVO Gaming Laptop";
+
+    // --- Callbacks ---
+    callback power_mode_clicked(int);
+    callback gpu_mode_clicked(string);
+    callback refresh_rate_switched(int);
+    callback auto_min_hz_toggled();
+    callback select_monitor_index(int);
+    callback brightness_changed(int);
+    callback select_drawer_kbd_effect(int, bool);
+    callback select_drawer_kbd_color(string, color);
+    callback select_drawer_kbd_brightness(int);
+    callback open_lighting_studio();
+    callback battery_limit_clicked(int);
+    callback fan_boost_toggled();
+    callback camera_toggled();
+    callback mic_toggled();
+    callback win_lock_toggled();
+    callback keep_awake_toggled();
+    callback turn_off_screen_clicked();
+    callback autostart_toggled();
+    callback oem_toggled();
+    callback expand_dashboard_clicked();
+    callback toggle_theme_clicked();
+    callback open_sponsor_clicked();
+    callback minimize_clicked();
+    callback close_clicked();
+
+    VerticalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 6px;
+
+        // 1. Header
+        DrawerHeader {
+            app_version: root.app_version;
+            power_mode: root.power_mode;
+            toggle_theme => { root.toggle_theme_clicked(); }
+            open_sponsor => { root.open_sponsor_clicked(); }
+            minimize_clicked => { root.minimize_clicked(); }
+            close_clicked => { root.close_clicked(); }
+        }
+
+        // 2. Power Mode Card
+        DrawerPowerCard {
+            power_mode: root.power_mode;
+            cpu_temp: root.cpu_temp;
+            cpu_rpm: root.cpu_rpm;
+            is_restricted: root.is_power_mode_restricted;
+            set_mode(mode) => { root.power_mode_clicked(mode); }
+        }
+
+        // 3. GPU Mode Card
+        DrawerGpuCard {
+            gpu_mode: root.gpu_mode;
+            gpu_temp: root.gpu_temp;
+            gpu_rpm: root.gpu_rpm;
+            set_gpu_mode(mode) => { root.gpu_mode_clicked(mode); }
+        }
+
+        // 4. Display Refresh Rate Card
+        DrawerDisplayCard {
+            refresh_rate: root.refresh_rate;
+            auto_min_hz: root.auto_min_hz;
+            monitor_name: root.monitor_name;
+            has_secondary_monitor: root.has_secondary_monitor;
+            primary_monitor_name: root.primary_monitor_name;
+            secondary_monitor_name: root.secondary_monitor_name;
+            switch_hz(hz) => { root.refresh_rate_switched(hz); }
+            toggle_auto_min_hz => { root.auto_min_hz_toggled(); }
+            select_monitor_index(idx) => { root.select_monitor_index(idx); }
+        }
+
+        // 5. Display Brightness Card
+        DrawerBrightnessCard {
+            brightness: root.brightness;
+            change_brightness(b) => { root.brightness_changed(b); }
+        }
+
+        // 6. Keyboard Lighting Card
+        DrawerLightingCard {
+            is_single_color: root.is_single_color;
+            is_single_zone: root.is_single_zone;
+            is_four_zone: root.is_four_zone;
+            kb_enabled <=> root.kb_enabled;
+            kb_effect <=> root.kb_effect;
+            kb_brightness <=> root.kb_brightness;
+            kb_color_hex <=> root.kb_color_hex;
+            kb_color <=> root.kb_color;
+            select_effect(effect, enabled) => { root.select_drawer_kbd_effect(effect, enabled); }
+            select_color(hex, clr) => { root.select_drawer_kbd_color(hex, clr); }
+            select_brightness(b) => { root.select_drawer_kbd_brightness(b); }
+            open_more => { root.open_lighting_studio(); }
+        }
+
+        // 7. Battery Card
+        DrawerBatteryCard {
+            battery_limit: root.battery_limit;
+            is_ac_online: root.is_ac_online;
+            set_battery_limit(l) => { root.battery_limit_clicked(l); }
+        }
+
+        // 8. Quick Switches Grid & Status Ribbon
+        DrawerSwitchesCard {
+            fan_boost: root.fan_boost;
+            camera_enabled: root.camera_enabled;
+            mic_enabled: root.mic_enabled;
+            win_locked: root.win_locked;
+            keep_awake: root.keep_awake;
+            custom_status_text: root.custom_status_text;
+            toggle_fan_boost => { root.fan_boost_toggled(); }
+            toggle_camera => { root.camera_toggled(); }
+            toggle_mic => { root.mic_toggled(); }
+            toggle_win_lock => { root.win_lock_toggled(); }
+            toggle_keep_awake => { root.keep_awake_toggled(); }
+            turn_off_screen => { root.turn_off_screen_clicked(); }
+        }
+
+        // 9. Footer
+        DrawerFooter {
+            autostart: root.autostart;
+            toggle_autostart => { root.autostart_toggled(); }
+            toggle_oem => { root.oem_toggled(); }
+            expand_dashboard => { root.expand_dashboard_clicked(); }
+        }
+    }
+}

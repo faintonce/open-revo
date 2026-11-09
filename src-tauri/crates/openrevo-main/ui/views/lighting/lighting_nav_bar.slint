@@ -1,0 +1,492 @@
+import { AppTheme } from "../../theme.slint";
+
+export component LightingNavBar inherits Rectangle {
+    in-out property <int> sub_tab: 0; // 0: 键盘, 1: 海岸灯条, 2: 氛围灯, 3: LOGO
+    in property <bool> has_lightbar: true;
+    in property <bool> has_hinge: false;
+    in property <bool> has_logo: true;
+    in-out property <int> sleep_minutes: 10;
+
+    callback tab_changed(int);
+    callback sleep_minutes_selected(int);
+
+    height: 44px;
+    background: AppTheme.surface_sunken;
+    border-radius: AppTheme.radius_lg;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: space-between;
+
+        // Left: Device Tabs (Vertically Centered)
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+
+                // 0: Keyboard Tab
+                Rectangle {
+                    height: 32px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.sub_tab == 0 ? AppTheme.surface_card : transparent;
+                    border-width: 1px;
+                    border-color: root.sub_tab == 0 ? AppTheme.accent_brand : transparent;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.sub_tab = 0;
+                            root.tab_changed(0);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 6px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/keyboard.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: root.sub_tab == 0 ? AppTheme.accent_brand : AppTheme.text_muted;
+                            }
+                        }
+                        Text {
+                            text: "键盘背光";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.sub_tab == 0 ? AppTheme.text_primary : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // 1: Lightbar Tab
+                if root.has_lightbar : Rectangle {
+                    height: 32px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.sub_tab == 1 ? AppTheme.surface_card : transparent;
+                    border-width: 1px;
+                    border-color: root.sub_tab == 1 ? #06b6d4 : transparent;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.sub_tab = 1;
+                            root.tab_changed(1);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 6px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/zap.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: root.sub_tab == 1 ? #06b6d4 : AppTheme.text_muted;
+                            }
+                        }
+                        Text {
+                            text: "海岸灯条";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.sub_tab == 1 ? AppTheme.text_primary : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // 2: Hinge / Ambient Tab
+                if root.has_hinge : Rectangle {
+                    height: 32px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.sub_tab == 2 ? AppTheme.surface_card : transparent;
+                    border-width: 1px;
+                    border-color: root.sub_tab == 2 ? #06b6d4 : transparent;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.sub_tab = 2;
+                            root.tab_changed(2);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 6px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/wind.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: root.sub_tab == 2 ? #06b6d4 : AppTheme.text_muted;
+                            }
+                        }
+                        Text {
+                            text: "氛围灯条";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.sub_tab == 2 ? AppTheme.text_primary : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // 3: Logo Tab
+                if root.has_logo : Rectangle {
+                    height: 32px;
+                    border-radius: AppTheme.radius_sm;
+                    background: root.sub_tab == 3 ? AppTheme.surface_card : transparent;
+                    border-width: 1px;
+                    border-color: root.sub_tab == 3 ? #f43f5e : transparent;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.sub_tab = 3;
+                            root.tab_changed(3);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 6px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/sparkles.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: root.sub_tab == 3 ? #f43f5e : AppTheme.text_muted;
+                            }
+                        }
+                        Text {
+                            text: "A面 LOGO";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.sub_tab == 3 ? AppTheme.text_primary : AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right: Sleep Timer Dropdown Trigger (Vertically Centered)
+        VerticalLayout {
+            alignment: center;
+
+            sleep_pill := Rectangle {
+                height: 30px;
+                border-radius: AppTheme.radius_sm;
+                background: AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_medium;
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        sleep_popup.show();
+                    }
+                }
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 6px;
+                    alignment: center;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../assets/icons/clock.svg");
+                            width: 13px;
+                            height: 13px;
+                            colorize: AppTheme.accent_brand;
+                        }
+                    }
+
+                    Text {
+                        text: "闲置熄灯:";
+                        font-size: 11px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.sleep_minutes == 0 ? "从不关闭" : (root.sleep_minutes + " 分钟");
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "▼";
+                            font-size: 9px;
+                            color: AppTheme.text_muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Native PopupWindow: Promoted to Window Root Layer (Never Obscured by Subsequent Sibling Views)
+                sleep_popup := PopupWindow {
+                    x: parent.width - self.width;
+                    y: parent.height + 4px;
+                    width: 140px;
+
+                    Rectangle {
+                        background: AppTheme.surface_card;
+                        border-radius: AppTheme.radius_md;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        drop-shadow-blur: 16px;
+                        drop-shadow-color: #000000c0;
+                        drop-shadow-offset-y: 6px;
+
+                        VerticalLayout {
+                            padding: 5px;
+                            spacing: 3px;
+
+                            // Option 0: Never
+                            Rectangle {
+                                height: 28px;
+                                border-radius: AppTheme.radius_xs;
+                                background: opt0_touch.has-hover ? AppTheme.surface_pill : (root.sleep_minutes == 0 ? #6366f125 : transparent);
+                                opt0_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.sleep_minutes = 0;
+                                        root.sleep_minutes_selected(0);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: "从不关闭";
+                                        font-size: 11px;
+                                        font-weight: root.sleep_minutes == 0 ? 700 : 500;
+                                        color: root.sleep_minutes == 0 ? AppTheme.accent_brand : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.sleep_minutes == 0 : VerticalLayout {
+                                        alignment: center;
+                                        Image {
+                                            source: @image-url("../../assets/icons/check.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: AppTheme.accent_brand;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Option 1: 1 Min
+                            Rectangle {
+                                height: 28px;
+                                border-radius: AppTheme.radius_xs;
+                                background: opt1_touch.has-hover ? AppTheme.surface_pill : (root.sleep_minutes == 1 ? #6366f125 : transparent);
+                                opt1_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.sleep_minutes = 1;
+                                        root.sleep_minutes_selected(1);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: "1 分钟";
+                                        font-size: 11px;
+                                        font-weight: root.sleep_minutes == 1 ? 700 : 500;
+                                        color: root.sleep_minutes == 1 ? AppTheme.accent_brand : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.sleep_minutes == 1 : VerticalLayout {
+                                        alignment: center;
+                                        Image {
+                                            source: @image-url("../../assets/icons/check.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: AppTheme.accent_brand;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Option 5: 5 Mins
+                            Rectangle {
+                                height: 28px;
+                                border-radius: AppTheme.radius_xs;
+                                background: opt5_touch.has-hover ? AppTheme.surface_pill : (root.sleep_minutes == 5 ? #6366f125 : transparent);
+                                opt5_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.sleep_minutes = 5;
+                                        root.sleep_minutes_selected(5);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: "5 分钟";
+                                        font-size: 11px;
+                                        font-weight: root.sleep_minutes == 5 ? 700 : 500;
+                                        color: root.sleep_minutes == 5 ? AppTheme.accent_brand : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.sleep_minutes == 5 : VerticalLayout {
+                                        alignment: center;
+                                        Image {
+                                            source: @image-url("../../assets/icons/check.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: AppTheme.accent_brand;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Option 10: 10 Mins (Default)
+                            Rectangle {
+                                height: 28px;
+                                border-radius: AppTheme.radius_xs;
+                                background: opt10_touch.has-hover ? AppTheme.surface_pill : (root.sleep_minutes == 10 ? #6366f125 : transparent);
+                                opt10_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.sleep_minutes = 10;
+                                        root.sleep_minutes_selected(10);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: "10 分钟 (默认)";
+                                        font-size: 11px;
+                                        font-weight: root.sleep_minutes == 10 ? 700 : 500;
+                                        color: root.sleep_minutes == 10 ? AppTheme.accent_brand : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.sleep_minutes == 10 : VerticalLayout {
+                                        alignment: center;
+                                        Image {
+                                            source: @image-url("../../assets/icons/check.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: AppTheme.accent_brand;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Option 15: 15 Mins
+                            Rectangle {
+                                height: 28px;
+                                border-radius: AppTheme.radius_xs;
+                                background: opt15_touch.has-hover ? AppTheme.surface_pill : (root.sleep_minutes == 15 ? #6366f125 : transparent);
+                                opt15_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.sleep_minutes = 15;
+                                        root.sleep_minutes_selected(15);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: "15 分钟";
+                                        font-size: 11px;
+                                        font-weight: root.sleep_minutes == 15 ? 700 : 500;
+                                        color: root.sleep_minutes == 15 ? AppTheme.accent_brand : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.sleep_minutes == 15 : VerticalLayout {
+                                        alignment: center;
+                                        Image {
+                                            source: @image-url("../../assets/icons/check.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: AppTheme.accent_brand;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Option 30: 30 Mins
+                            Rectangle {
+                                height: 28px;
+                                border-radius: AppTheme.radius_xs;
+                                background: opt30_touch.has-hover ? AppTheme.surface_pill : (root.sleep_minutes == 30 ? #6366f125 : transparent);
+                                opt30_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.sleep_minutes = 30;
+                                        root.sleep_minutes_selected(30);
+                                    }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: "30 分钟";
+                                        font-size: 11px;
+                                        font-weight: root.sleep_minutes == 30 ? 700 : 500;
+                                        color: root.sleep_minutes == 30 ? AppTheme.accent_brand : AppTheme.text_primary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.sleep_minutes == 30 : VerticalLayout {
+                                        alignment: center;
+                                        Image {
+                                            source: @image-url("../../assets/icons/check.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: AppTheme.accent_brand;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

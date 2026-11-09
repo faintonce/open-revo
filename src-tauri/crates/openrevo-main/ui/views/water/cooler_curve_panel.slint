@@ -1,0 +1,164 @@
+import { AppTheme } from "../../theme.slint";
+import { CoolerCurveCanvas } from "cooler_curve_canvas.slint";
+import { CoolerCurveTemplates } from "cooler_curve_templates.slint";
+
+export component CoolerCurvePanel inherits Rectangle {
+    background: AppTheme.surface_sunken;
+    border-radius: AppTheme.radius_sm;
+    border-width: 1px;
+    border-color: AppTheme.border_subtle;
+
+    in-out property <string> strategy: "smart";
+    in-out property <string> curve_template: "standard"; // "standard", "quiet", "aggressive", "linear"
+
+    // 6 Points: temperatures (30..100) and fan duties (0..100)
+    in-out property <[int]> curve_temps: [45, 55, 65, 80, 90, 95];
+    in-out property <[int]> curve_duties: [0, 35, 50, 60, 75, 100];
+
+    // Pump thresholds
+    in-out property <int> pump_start_temp: 55;
+    in-out property <int> pump_turbo_temp: 90;
+
+    // Live telemetry probe
+    in-out property <int> live_max_temp: 55;
+    in-out property <int> live_fan_duty: 0;
+    in-out property <bool> is_dragging: false;
+
+    // Callbacks
+    callback set_point(int, int, int); // index, new_temp, new_duty
+    callback commit_curve();
+    callback pump_thresholds_changing(int, int); // start, turbo
+    callback commit_pump_thresholds(int, int);   // start, turbo
+    callback apply_template(string);             // template id
+
+    VerticalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 5px;
+
+        // 1. Header & Legends
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 6px;
+
+                Image {
+                    source: @image-url("../../assets/icons/activity.svg");
+                    width: 13px;
+                    height: 13px;
+                    colorize: #38bdf8;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                Text {
+                    text: "自适应温控曲线 (Fan Duty & Pump Voltage vs Temp)";
+                    font-size: 11px;
+                    font-weight: 800;
+                    color: AppTheme.text_primary;
+                    vertical-alignment: center;
+                }
+
+                Rectangle {
+                    height: 16px;
+                    border-radius: 3px;
+                    background: #0284c718;
+                    border-width: 1px;
+                    border-color: #0284c740;
+                    y: (parent.height - self.height) / 2;
+
+                    HorizontalLayout {
+                        padding-left: 5px;
+                        padding-right: 5px;
+                        Text {
+                            text: "支持节点与水泵阈值拖拽";
+                            font-size: 8.5px;
+                            font-weight: 700;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Legend dots
+            HorizontalLayout {
+                spacing: 10px;
+
+                HorizontalLayout {
+                    spacing: 3px;
+                    Rectangle {
+                        width: 6px;
+                        height: 6px;
+                        border-radius: 3px;
+                        background: #06b6d4;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "风扇 (0%~100%)";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 3px;
+                    Rectangle {
+                        width: 6px;
+                        height: 6px;
+                        border-radius: 3px;
+                        background: #6366f1;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "水泵工况 (双杆拖拽: 启泵/狂暴)";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 3px;
+                    Rectangle {
+                        width: 6px;
+                        height: 6px;
+                        border-radius: 3px;
+                        background: #ef4444;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "实时探针";
+                        font-size: 8.5px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // 2. Interactive SVG Canvas
+        CoolerCurveCanvas {
+            curve_temps <=> root.curve_temps;
+            curve_duties <=> root.curve_duties;
+            pump_start_temp <=> root.pump_start_temp;
+            pump_turbo_temp <=> root.pump_turbo_temp;
+            live_max_temp: root.live_max_temp;
+            live_fan_duty: root.live_fan_duty;
+            is_dragging <=> root.is_dragging;
+            set_point(idx, t, d) => { root.set_point(idx, t, d); }
+            commit_curve => { root.commit_curve(); }
+            pump_thresholds_changing(st, tb) => { root.pump_thresholds_changing(st, tb); }
+            commit_pump_thresholds(st, tb) => { root.commit_pump_thresholds(st, tb); }
+        }
+
+        // 3. Preset Templates Row
+        CoolerCurveTemplates {
+            curve_template: root.curve_template;
+            apply_template(tpl) => { root.apply_template(tpl); }
+        }
+    }
+}

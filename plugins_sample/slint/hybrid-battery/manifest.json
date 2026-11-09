@@ -1,0 +1,27 @@
+{
+  "id": "hybrid-battery",
+  "name": "电池卫士 (混搭示范)",
+  "version": "1.0.0",
+  "author": "OpenRevo Official",
+  "description": "正交混搭架构演示：WebView2 富交互控制台与 Slint 原生轻量桌面挂件完美共存，实现大面板与桌面常驻的最佳平衡。",
+  "type": "app",
+  "tab": {
+    "type": "webview2",
+    "entry": "dist/index.html",
+    "title": "电池管理控制台"
+  },
+  "widget": {
+    "type": "slint",
+    "entry": "widget.slint",
+    "title": "电池常驻挂件",
+    "window": {
+      "width": 260,
+      "height": 80,
+      "resizable": false,
+      "decorations": true,
+      "transparent": false,
+      "always_on_top": true
+    }
+  }
+}
+

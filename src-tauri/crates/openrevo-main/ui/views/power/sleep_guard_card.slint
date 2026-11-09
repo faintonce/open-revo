@@ -1,0 +1,464 @@
+import { AppTheme } from "../../theme.slint";
+import { SwitchToggle } from "switch_toggle.slint";
+
+export component SleepGuardCard inherits Rectangle {
+    in-out property <bool> sleep_guard_enabled: false;
+    in-out property <bool> sleep_disconnect_net: false;
+    in-out property <bool> sleep_block_away: false;
+    in-out property <bool> sleep_ignore_sysreq: false;
+    in-out property <bool> sleep_disable_wake_timers: false;
+    in-out property <bool> sleep_deep_sleep: false;
+    in-out property <bool> sleep_hibernate_30m: false;
+
+    callback toggle_master_sleep_guard();
+    callback toggle_sleep_guard_option(string);
+
+    border-radius: 8px;
+    background: #f43f5e08;
+    border-width: 1px;
+    border-color: root.sleep_guard_enabled ? #f43f5e80 : #f43f5e35;
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+
+        // Master Banner Bar
+        HorizontalLayout {
+            alignment: space-between;
+            height: 32px;
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.toggle_master_sleep_guard(); }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                y: (parent.height - self.height) / 2;
+
+                Rectangle {
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 5px;
+                    background: #f43f5e20;
+                    border-width: 1px;
+                    border-color: #f43f5e50;
+
+                    Image {
+                        source: @image-url("../../assets/icons/shield.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: #f43f5e;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 1px;
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: "智能睡眠守护 / 背包防烫模式 (Anti-Overheat Sleep Guard)";
+                            font-size: 12px;
+                            font-weight: 800;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+
+                        // Badge
+                        Rectangle {
+                            border-radius: 3px;
+                            background: #38bdf825;
+                            border-width: 1px;
+                            border-color: #38bdf850;
+                            height: 16px;
+                            y: (parent.height - self.height) / 2;
+
+                            HorizontalLayout {
+                                padding-left: 5px;
+                                padding-right: 5px;
+                                Text {
+                                    text: "推荐全开";
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: #38bdf8;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "封杀 Windows 现代待机后台偷跑；杜绝密闭背包发烫、电池偷耗以及合盖睡死黑屏无法唤醒。";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+
+            SwitchToggle {
+                checked: root.sleep_guard_enabled;
+                active_color: #f43f5e;
+                y: (parent.height - self.height) / 2;
+                toggled => { root.toggle_master_sleep_guard(); }
+            }
+        }
+
+        // Subtle Divider
+        Rectangle {
+            height: 1px;
+            background: #f43f5e20;
+        }
+
+        // 6 Core Policies (2 Rows x 3 Columns)
+        // Row 1
+        HorizontalLayout {
+            spacing: 8px;
+
+            // Policy 1: 待机断开网络
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 48px;
+                border-radius: 6px;
+                background: t_p1.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.sleep_disconnect_net ? #38bdf860 : AppTheme.border_subtle;
+
+                t_p1 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_sleep_guard_option("disconnect_net"); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Image {
+                                source: @image-url("../../assets/icons/globe.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "待机断开网络连接";
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: "切断休眠 Wi-Fi，阻止系统后台联网唤醒";
+                            font-size: 8.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+
+                    SwitchToggle {
+                        checked: root.sleep_disconnect_net;
+                        active_color: #10b981;
+                        y: (parent.height - self.height) / 2;
+                        toggled => { root.toggle_sleep_guard_option("disconnect_net"); }
+                    }
+                }
+            }
+
+            // Policy 2: 封杀离开模式伪睡眠
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 48px;
+                border-radius: 6px;
+                background: t_p2.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.sleep_block_away ? #f43f5e60 : AppTheme.border_subtle;
+
+                t_p2 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_sleep_guard_option("block_away"); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Image {
+                                source: @image-url("../../assets/icons/ban.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #f43f5e;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "封杀离开模式伪睡眠";
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: "禁止第三方程序以离开模式偷跑发热";
+                            font-size: 8.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+
+                    SwitchToggle {
+                        checked: root.sleep_block_away;
+                        active_color: #10b981;
+                        y: (parent.height - self.height) / 2;
+                        toggled => { root.toggle_sleep_guard_option("block_away"); }
+                    }
+                }
+            }
+
+            // Policy 3: 忽略系统所需策略
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 48px;
+                border-radius: 6px;
+                background: t_p3.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.sleep_ignore_sysreq ? #f59e0b60 : AppTheme.border_subtle;
+
+                t_p3 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_sleep_guard_option("ignore_sysreq"); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Image {
+                                source: @image-url("../../assets/icons/lock.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #f59e0b;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "忽略系统所需策略";
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: "强制无视后台进程的阻止待机声明";
+                            font-size: 8.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+
+                    SwitchToggle {
+                        checked: root.sleep_ignore_sysreq;
+                        active_color: #10b981;
+                        y: (parent.height - self.height) / 2;
+                        toggled => { root.toggle_sleep_guard_option("ignore_sysreq"); }
+                    }
+                }
+            }
+        }
+
+        // Row 2
+        HorizontalLayout {
+            spacing: 8px;
+
+            // Policy 4: 禁用 RTC 唤醒定时器
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 48px;
+                border-radius: 6px;
+                background: t_p4.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.sleep_disable_wake_timers ? #6366f160 : AppTheme.border_subtle;
+
+                t_p4 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_sleep_guard_option("disable_wake_timers"); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Image {
+                                source: @image-url("../../assets/icons/clock.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #818cf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "禁用 RTC 唤醒定时器";
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: "阻止任务计划程序等利用定时器唤醒焖烧";
+                            font-size: 8.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+
+                    SwitchToggle {
+                        checked: root.sleep_disable_wake_timers;
+                        active_color: #10b981;
+                        y: (parent.height - self.height) / 2;
+                        toggled => { root.toggle_sleep_guard_option("disable_wake_timers"); }
+                    }
+                }
+            }
+
+            // Policy 5: 启用 ACPI 深度睡眠
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 48px;
+                border-radius: 6px;
+                background: t_p5.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.sleep_deep_sleep ? #a855f760 : AppTheme.border_subtle;
+
+                t_p5 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_sleep_guard_option("deep_sleep"); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Image {
+                                source: @image-url("../../assets/icons/moon.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #c084fc;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "启用 ACPI 深度睡眠";
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: "允许 CPU 进入极低功耗 C10/D3cold 状态";
+                            font-size: 8.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+
+                    SwitchToggle {
+                        checked: root.sleep_deep_sleep;
+                        active_color: #10b981;
+                        y: (parent.height - self.height) / 2;
+                        toggled => { root.toggle_sleep_guard_option("deep_sleep"); }
+                    }
+                }
+            }
+
+            // Policy 6: 30 分钟超时转入休眠
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 48px;
+                border-radius: 6px;
+                background: t_p6.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
+                border-width: 1px;
+                border-color: root.sleep_hibernate_30m ? #06b6d460 : AppTheme.border_subtle;
+
+                t_p6 := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle_sleep_guard_option("hibernate_30m"); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Image {
+                                source: @image-url("../../assets/icons/snowflake.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: #38bdf8;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: "30 分钟超时转入休眠";
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: "待机半小时未唤醒自动存盘切断供电";
+                            font-size: 8.5px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+
+                    SwitchToggle {
+                        checked: root.sleep_hibernate_30m;
+                        active_color: #10b981;
+                        y: (parent.height - self.height) / 2;
+                        toggled => { root.toggle_sleep_guard_option("hibernate_30m"); }
+                    }
+                }
+            }
+        }
+    }
+}
+

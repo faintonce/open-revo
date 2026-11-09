@@ -1,0 +1,38 @@
+// OpenRevo System Settings Data Types & Structs
+export struct PowerSchemeItem {
+    guid: string,
+    name: string,
+    is_active: bool,
+}
+
+export struct UserDataDirInfo {
+    path: string,
+    mode: string, // "appdata" | "portable" | "custom"
+}
+
+export struct OsdConfigData {
+    enabled: bool,
+    theme: string,    // "cinema" | "fade" | "pill"
+    scale: string,    // "80%" | "100%" | "120%" | "140%"
+    position: string, // "top-left" | "bottom-center" | "center"
+}
+
+export struct UpdateResultData {
+    has_update: bool,
+    current_version: string,
+    latest_version: string,
+    display_version: string,
+    notes: string,
+    chosen_source: string, // "github" | "gitee" | "local_mock"
+    asset_type: string,    // "installer" | "portable"
+    filename: string,
+    download_url: string,
+    size_mb: string,
+    sha256: string,
+    downloading: bool,
+    progress_pct: float,
+    progress_downloaded_mb: string,
+    progress_total_mb: string,
+    progress_speed_mb: string,
+}
+

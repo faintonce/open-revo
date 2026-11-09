@@ -108,6 +108,9 @@ pub fn init_from_cli() -> u8 {
 
         if let Some(ref f) = cli_filter {
             cfg.log_filter = Some(f.clone());
+        } else if requested_level == Some(LOG_LEVEL_ALL) {
+            // Bare --debug / --verbose clears stale filter to show all modules
+            cfg.log_filter = None;
         }
         crate::system::config::save_config(&cfg);
         cfg.log_level
@@ -117,7 +120,13 @@ pub fn init_from_cli() -> u8 {
     };
 
     let effective_filter = if has_cli_log {
-        cli_filter.as_deref().or(cfg.log_filter.as_deref())
+        if cli_filter.is_some() {
+            cli_filter.as_deref()
+        } else if requested_level == Some(LOG_LEVEL_ALL) {
+            None
+        } else {
+            cfg.log_filter.as_deref()
+        }
     } else {
         None
     };
@@ -220,6 +229,11 @@ pub fn expand_filter_patterns(raw: &str) -> Vec<String> {
             }
             "hook" | "hooks" => {
                 for s in &["HOOKS", "KEYBOARD", "DEVICE_SWITCH"] {
+                    patterns.push(s.to_string());
+                }
+            }
+            "webview" | "web" | "widget" | "dock" | "plugin" | "plugins" => {
+                for s in &["MAIN", "EMBEDDED_WEBVIEW", "WIDGET", "ORCHESTRATOR", "SLINT_MAIN", "PLUGIN", "PLUGINS"] {
                     patterns.push(s.to_string());
                 }
             }

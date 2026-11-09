@@ -10,8 +10,11 @@ pub use checker::*;
 pub use installer::*;
 
 #[tauri::command]
-pub async fn check_for_updates_cmd(preferred_source: Option<String>) -> Result<UpdateCheckResult, String> {
-    checker::check_for_updates(preferred_source).await
+pub async fn check_for_updates_cmd(
+    channel: Option<String>,
+    preferred_source: Option<String>,
+) -> Result<UpdateCheckResult, String> {
+    checker::check_for_updates(channel, preferred_source).await
 }
 
 #[tauri::command]
@@ -24,6 +27,7 @@ pub async fn download_and_install_update_cmd(
 ) -> Result<(), String> {
     let downloaded_path = installer::download_update_asset(&app, &download_url, &expected_sha256, &filename).await?;
     installer::apply_update(&downloaded_path, is_installer)?;
+    crate::system::tray::IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
     app.exit(0);
     Ok(())
 }

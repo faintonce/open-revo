@@ -1,0 +1,357 @@
+import { AppTheme } from "../../theme.slint";
+
+export component CpuPowerLimitsCard inherits VerticalLayout {
+    in-out property <bool> is_amd: false;
+
+    in-out property <int> pl1: 75;
+    in-out property <int> pl1_max: 230;
+
+    in-out property <int> pl2: 75;
+    in-out property <int> pl2_max: 230;
+
+    callback change_pl1(int);
+    callback adjust_pl1_max(int);
+    callback change_pl2(int);
+    callback adjust_pl2_max(int);
+
+    spacing: 8px;
+
+    // 1. PL1 (Long Duration Power Limit / AMD SPL)
+    Rectangle {
+        background: AppTheme.surface_pill;
+        border-radius: AppTheme.radius_sm;
+        border-width: 1px;
+        border-color: AppTheme.border_subtle;
+
+        VerticalLayout {
+            padding: 8px;
+            spacing: 6px;
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: root.is_amd ? "长时持续功耗 (SPL):" : "长时功耗 PL1:";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Rectangle {
+                        width: 42px;
+                        height: 20px;
+                        border-radius: 3px;
+                        background: AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: #38bdf880;
+                        Text {
+                            text: root.pl1;
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #38bdf8;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: "W";
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Slider container (PL1)
+            Rectangle {
+                height: 20px;
+                background: transparent;
+                vertical-stretch: 0;
+
+                // Track line
+                Rectangle {
+                    height: 6px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 3px;
+                    background: AppTheme.surface_card;
+                    width: 100%;
+
+                    // Fill
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * Math.clamp((root.pl1 - 25) / Math.max(1, root.pl1_max - 25), 0, 1);
+                        height: 100%;
+                        border-radius: 3px;
+                        background: #38bdf8;
+                    }
+
+                    // Thumb
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.clamp((root.pl1 - 25) / Math.max(1, root.pl1_max - 25), 0, 1);
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                        border-width: 2px;
+                        border-color: #38bdf8;
+                    }
+                }
+
+                TouchArea {
+                    width: 100%;
+                    height: 100%;
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                            let val = Math.clamp(25 + Math.round(ratio * (root.pl1_max - 25)), 25, root.pl1_max);
+                            root.pl1 = val;
+                            root.change_pl1(val);
+                        }
+                    }
+                    moved => {
+                        if self.pressed {
+                            let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                            let val = Math.clamp(25 + Math.round(ratio * (root.pl1_max - 25)), 25, root.pl1_max);
+                            root.pl1 = val;
+                            root.change_pl1(val);
+                        }
+                    }
+                }
+            }
+
+            // Limit hint & buttons
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "25W";
+                    font-size: 9px;
+                    color: AppTheme.text_muted;
+                }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "上限: " + root.pl1_max + "W";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 2px;
+                        background: AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.pl1_max = Math.clamp(root.pl1_max - 5, 45, 300);
+                                root.adjust_pl1_max(-5);
+                            }
+                        }
+                        Text {
+                            text: "-";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 2px;
+                        background: AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.pl1_max = Math.clamp(root.pl1_max + 5, 45, 300);
+                                root.adjust_pl1_max(5);
+                            }
+                        }
+                        Text {
+                            text: "+";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. PL2 (Short Duration Power Limit / AMD sPPT)
+    Rectangle {
+        background: AppTheme.surface_pill;
+        border-radius: AppTheme.radius_sm;
+        border-width: 1px;
+        border-color: AppTheme.border_subtle;
+
+        VerticalLayout {
+            padding: 8px;
+            spacing: 6px;
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: root.is_amd ? "短时爆发功耗 (sPPT):" : "短时功耗 PL2:";
+                    font-size: 11px;
+                    color: AppTheme.text_secondary;
+                    vertical-alignment: center;
+                }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Rectangle {
+                        width: 42px;
+                        height: 20px;
+                        border-radius: 3px;
+                        background: AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: #6366f180;
+                        Text {
+                            text: root.pl2;
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #818cf8;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: "W";
+                        font-size: 10px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Slider container (PL2)
+            Rectangle {
+                height: 20px;
+                background: transparent;
+                vertical-stretch: 0;
+
+                // Track line
+                Rectangle {
+                    height: 6px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 3px;
+                    background: AppTheme.surface_card;
+                    width: 100%;
+
+                    // Fill
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * Math.clamp((root.pl2 - 25) / Math.max(1, root.pl2_max - 25), 0, 1);
+                        height: 100%;
+                        border-radius: 3px;
+                        background: #818cf8;
+                    }
+
+                    // Thumb
+                    Rectangle {
+                        x: (parent.width - self.width) * Math.clamp((root.pl2 - 25) / Math.max(1, root.pl2_max - 25), 0, 1);
+                        y: (parent.height - self.height) / 2;
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 7px;
+                        background: #ffffff;
+                        border-width: 2px;
+                        border-color: #818cf8;
+                    }
+                }
+
+                TouchArea {
+                    width: 100%;
+                    height: 100%;
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                            let val = Math.clamp(25 + Math.round(ratio * (root.pl2_max - 25)), 25, root.pl2_max);
+                            root.pl2 = val;
+                            root.change_pl2(val);
+                        }
+                    }
+                    moved => {
+                        if self.pressed {
+                            let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                            let val = Math.clamp(25 + Math.round(ratio * (root.pl2_max - 25)), 25, root.pl2_max);
+                            root.pl2 = val;
+                            root.change_pl2(val);
+                        }
+                    }
+                }
+            }
+
+            // Limit hint & buttons
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "25W";
+                    font-size: 9px;
+                    color: AppTheme.text_muted;
+                }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "上限: " + root.pl2_max + "W";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 2px;
+                        background: AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.pl2_max = Math.clamp(root.pl2_max - 5, 45, 300);
+                                root.adjust_pl2_max(-5);
+                            }
+                        }
+                        Text {
+                            text: "-";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 2px;
+                        background: AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.pl2_max = Math.clamp(root.pl2_max + 5, 45, 300);
+                                root.adjust_pl2_max(5);
+                            }
+                        }
+                        Text {
+                            text: "+";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

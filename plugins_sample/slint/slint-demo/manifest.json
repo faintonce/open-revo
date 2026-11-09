@@ -1,0 +1,22 @@
+{
+  "id": "slint-demo",
+  "name": "Slint 原生渲染演示",
+  "version": "1.0.0",
+  "author": "OpenRevo Official",
+  "description": "基于 slint-interpreter 的纯原生动态 UI 渲染演示插件，展示声明式组件、双向绑定与无 Chromium 极速启动能力。",
+  "type": "tab",
+  "entry": "main.slint",
+  "tab": {
+    "type": "slint",
+    "entry": "main.slint"
+  },
+  "window": {
+    "width": 960,
+    "height": 680,
+    "resizable": true,
+    "decorations": true,
+    "transparent": false,
+    "always_on_top": false
+  }
+}
+

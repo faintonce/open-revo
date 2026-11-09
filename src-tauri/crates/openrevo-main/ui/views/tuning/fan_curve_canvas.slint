@@ -1,0 +1,404 @@
+import { AppTheme } from "../../theme.slint";
+
+export component FanCurveCanvas inherits VerticalLayout {
+    in-out property <int> active_fan_tab: 0; // 0: CPU, 1: GPU
+    in-out property <bool> fan_linked: true;
+    in-out property <[int]> active_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+
+    callback toggle_link();
+    callback select_fan_tab(int);
+    callback adjust_point(int, int); // index, delta (+1 or -1)
+    callback set_point(int, int);    // index, new_duty (0..100)
+
+    spacing: 7px;
+    vertical-stretch: 1;
+
+    // 1. Channel Tabs & 8-Point Hint: [ CPU风扇 ] [ 🔗 ] [ GPU风扇 ]
+    HorizontalLayout {
+        alignment: space-between;
+
+        HorizontalLayout {
+            spacing: 4px;
+
+            // CPU tab
+            Rectangle {
+                width: 62px;
+                height: 22px;
+                border-radius: 3px;
+                background: root.active_fan_tab == 0 ? #6366f135 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_fan_tab == 0 ? #818cf8 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.active_fan_tab = 0;
+                        root.select_fan_tab(0);
+                    }
+                }
+                Text {
+                    text: "CPU风扇";
+                    font-size: 10px;
+                    font-weight: root.active_fan_tab == 0 ? 700 : 500;
+                    color: root.active_fan_tab == 0 ? #ffffff : AppTheme.text_muted;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Link button
+            Rectangle {
+                width: 24px;
+                height: 22px;
+                border-radius: 3px;
+                background: root.fan_linked ? #6366f140 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.fan_linked ? #818cf8 : AppTheme.border_medium;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.toggle_link();
+                    }
+                }
+                Image {
+                    source: @image-url("../../assets/icons/link.svg");
+                    width: 11px;
+                    height: 11px;
+                    colorize: root.fan_linked ? #818cf8 : AppTheme.text_muted;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // GPU tab
+            Rectangle {
+                width: 62px;
+                height: 22px;
+                border-radius: 3px;
+                background: root.active_fan_tab == 1 ? #10b98135 : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: root.active_fan_tab == 1 ? #10b981 : AppTheme.border_subtle;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.active_fan_tab = 1;
+                        root.select_fan_tab(1);
+                    }
+                }
+                Text {
+                    text: "GPU风扇";
+                    font-size: 10px;
+                    font-weight: root.active_fan_tab == 1 ? 700 : 500;
+                    color: root.active_fan_tab == 1 ? #ffffff : AppTheme.text_muted;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        Text {
+            text: "● 8点曲线调校";
+            font-size: 10px;
+            font-weight: 700;
+            color: #818cf8;
+            vertical-alignment: center;
+        }
+    }
+
+    // 2. Large Interactive Visual Fan Curve Canvas (高大的风扇曲线画布)
+    chart_canvas := Rectangle {
+        vertical-stretch: 1;
+        min-height: 200px;
+        background: AppTheme.surface_sunken;
+        border-radius: AppTheme.radius_sm;
+        border-width: 1px;
+        border-color: AppTheme.border_subtle;
+        clip: true;
+
+        property <length> pad_l: 30px;
+        property <length> pad_r: 16px;
+        property <length> pad_t: 18px;
+        property <length> pad_b: 22px;
+        property <length> plot_w: self.width - self.pad_l - self.pad_r;
+        property <length> plot_h: self.height - self.pad_t - self.pad_b;
+        property <length> floor_y: self.pad_t + self.plot_h;
+
+        // Horizontal dashed grid lines & labels (100%, 75%, 50%, 25%, 0%)
+        Rectangle { x: chart_canvas.pad_l; y: chart_canvas.pad_t; width: chart_canvas.plot_w; height: 1px; background: AppTheme.border_subtle; }
+        Text { x: 4px; y: chart_canvas.pad_t - 6px; text: "100%"; font-size: 8px; color: AppTheme.text_muted; }
+
+        Rectangle { x: chart_canvas.pad_l; y: chart_canvas.pad_t + chart_canvas.plot_h * 0.25; width: chart_canvas.plot_w; height: 1px; background: AppTheme.border_subtle; }
+        Text { x: 4px; y: chart_canvas.pad_t + chart_canvas.plot_h * 0.25 - 6px; text: "75%"; font-size: 8px; color: AppTheme.text_muted; }
+
+        Rectangle { x: chart_canvas.pad_l; y: chart_canvas.pad_t + chart_canvas.plot_h * 0.50; width: chart_canvas.plot_w; height: 1px; background: AppTheme.border_subtle; }
+        Text { x: 4px; y: chart_canvas.pad_t + chart_canvas.plot_h * 0.50 - 6px; text: "50%"; font-size: 8px; color: AppTheme.text_muted; }
+
+        Rectangle { x: chart_canvas.pad_l; y: chart_canvas.pad_t + chart_canvas.plot_h * 0.75; width: chart_canvas.plot_w; height: 1px; background: AppTheme.border_subtle; }
+        Text { x: 4px; y: chart_canvas.pad_t + chart_canvas.plot_h * 0.75 - 6px; text: "25%"; font-size: 8px; color: AppTheme.text_muted; }
+
+        Rectangle { x: chart_canvas.pad_l; y: chart_canvas.floor_y; width: chart_canvas.plot_w; height: 1px; background: AppTheme.border_medium; }
+        Text { x: 4px; y: chart_canvas.floor_y - 6px; text: "0%"; font-size: 8px; color: AppTheme.text_muted; }
+
+        // 8 Nodes Positions
+        property <length> x0: chart_canvas.pad_l + chart_canvas.plot_w * 0 / 7;
+        property <length> y0: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[0]) / 100;
+        property <length> x1: chart_canvas.pad_l + chart_canvas.plot_w * 1 / 7;
+        property <length> y1: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[1]) / 100;
+        property <length> x2: chart_canvas.pad_l + chart_canvas.plot_w * 2 / 7;
+        property <length> y2: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[2]) / 100;
+        property <length> x3: chart_canvas.pad_l + chart_canvas.plot_w * 3 / 7;
+        property <length> y3: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[3]) / 100;
+        property <length> x4: chart_canvas.pad_l + chart_canvas.plot_w * 4 / 7;
+        property <length> y4: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[4]) / 100;
+        property <length> x5: chart_canvas.pad_l + chart_canvas.plot_w * 5 / 7;
+        property <length> y5: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[5]) / 100;
+        property <length> x6: chart_canvas.pad_l + chart_canvas.plot_w * 6 / 7;
+        property <length> y6: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[6]) / 100;
+        property <length> x7: chart_canvas.pad_l + chart_canvas.plot_w * 7 / 7;
+        property <length> y7: chart_canvas.pad_t + chart_canvas.plot_h * (100 - root.active_curve[7]) / 100;
+
+        // 1. Shaded Glowing Area Fill (平滑渐变面积填充)
+        Path {
+            width: 100%;
+            height: 100%;
+            viewbox-x: 0;
+            viewbox-y: 0;
+            viewbox-width: chart_canvas.width / 1px;
+            viewbox-height: chart_canvas.height / 1px;
+            fill: root.active_fan_tab == 0 ?
+                @linear-gradient(180deg, #6366f140 0%, #6366f105 100%) :
+                @linear-gradient(180deg, #10b98140 0%, #10b98105 100%);
+
+            MoveTo { x: chart_canvas.x0 / 1px; y: chart_canvas.floor_y / 1px; }
+            LineTo { x: chart_canvas.x0 / 1px; y: chart_canvas.y0 / 1px; }
+            LineTo { x: chart_canvas.x1 / 1px; y: chart_canvas.y1 / 1px; }
+            LineTo { x: chart_canvas.x2 / 1px; y: chart_canvas.y2 / 1px; }
+            LineTo { x: chart_canvas.x3 / 1px; y: chart_canvas.y3 / 1px; }
+            LineTo { x: chart_canvas.x4 / 1px; y: chart_canvas.y4 / 1px; }
+            LineTo { x: chart_canvas.x5 / 1px; y: chart_canvas.y5 / 1px; }
+            LineTo { x: chart_canvas.x6 / 1px; y: chart_canvas.y6 / 1px; }
+            LineTo { x: chart_canvas.x7 / 1px; y: chart_canvas.y7 / 1px; }
+            LineTo { x: chart_canvas.x7 / 1px; y: chart_canvas.floor_y / 1px; }
+            Close {}
+        }
+
+        // 2. Continuous Stroke Line (在8点之间画平滑连接的亮色斜线)
+        Path {
+            width: 100%;
+            height: 100%;
+            viewbox-x: 0;
+            viewbox-y: 0;
+            viewbox-width: chart_canvas.width / 1px;
+            viewbox-height: chart_canvas.height / 1px;
+            stroke: root.active_fan_tab == 0 ? #818cf8 : #34d399;
+            stroke-width: 2.5px;
+
+            MoveTo { x: chart_canvas.x0 / 1px; y: chart_canvas.y0 / 1px; }
+            LineTo { x: chart_canvas.x1 / 1px; y: chart_canvas.y1 / 1px; }
+            LineTo { x: chart_canvas.x2 / 1px; y: chart_canvas.y2 / 1px; }
+            LineTo { x: chart_canvas.x3 / 1px; y: chart_canvas.y3 / 1px; }
+            LineTo { x: chart_canvas.x4 / 1px; y: chart_canvas.y4 / 1px; }
+            LineTo { x: chart_canvas.x5 / 1px; y: chart_canvas.y5 / 1px; }
+            LineTo { x: chart_canvas.x6 / 1px; y: chart_canvas.y6 / 1px; }
+            LineTo { x: chart_canvas.x7 / 1px; y: chart_canvas.y7 / 1px; }
+        }
+
+        // 3. Vertical Temperature Guides and bottom labels
+        for pt[idx] in [
+            { x: chart_canvas.x0, t: "40°" },
+            { x: chart_canvas.x1, t: "50°" },
+            { x: chart_canvas.x2, t: "60°" },
+            { x: chart_canvas.x3, t: "68°" },
+            { x: chart_canvas.x4, t: "75°" },
+            { x: chart_canvas.x5, t: "82°" },
+            { x: chart_canvas.x6, t: "88°" },
+            { x: chart_canvas.x7, t: "95°" }
+        ]: Rectangle {
+            x: pt.x;
+            y: chart_canvas.pad_t;
+            width: 1px;
+            height: chart_canvas.plot_h;
+            background: AppTheme.border_subtle;
+
+            Text {
+                x: -8px;
+                y: parent.height + 4px;
+                text: pt.t;
+                font-size: 8px;
+                color: AppTheme.text_muted;
+            }
+        }
+
+        // 4. 8 Interactive Glowing Nodes (视觉圆点图层)
+        for node[idx] in [
+            { x: chart_canvas.x0, y: chart_canvas.y0, duty: root.active_curve[0] },
+            { x: chart_canvas.x1, y: chart_canvas.y1, duty: root.active_curve[1] },
+            { x: chart_canvas.x2, y: chart_canvas.y2, duty: root.active_curve[2] },
+            { x: chart_canvas.x3, y: chart_canvas.y3, duty: root.active_curve[3] },
+            { x: chart_canvas.x4, y: chart_canvas.y4, duty: root.active_curve[4] },
+            { x: chart_canvas.x5, y: chart_canvas.y5, duty: root.active_curve[5] },
+            { x: chart_canvas.x6, y: chart_canvas.y6, duty: root.active_curve[6] },
+            { x: chart_canvas.x7, y: chart_canvas.y7, duty: root.active_curve[7] }
+        ]: Rectangle {
+            x: node.x - 7px;
+            y: node.y - 7px;
+            width: 14px;
+            height: 14px;
+            border-radius: 7px;
+            background: root.active_fan_tab == 0 ? #6366f140 : #10b98140;
+            border-width: 1.5px;
+            border-color: root.active_fan_tab == 0 ? #818cf8 : #10b981;
+
+            // Core white circle
+            Rectangle {
+                x: 3px;
+                y: 3px;
+                width: 6px;
+                height: 6px;
+                border-radius: 3px;
+                background: #ffffff;
+            }
+
+            // Value label directly above node
+            Text {
+                x: -10px;
+                y: -14px;
+                width: 34px;
+                text: node.duty + "%";
+                font-size: 8.5px;
+                font-weight: 800;
+                color: root.active_fan_tab == 0 ? (AppTheme.is_light ? #4338ca : #e0e7ff) : (AppTheme.is_light ? #065f46 : #a7f3d0);
+                horizontal-alignment: center;
+            }
+        }
+
+        // 5. Global Interactive Canvas TouchArea (顶层单一固定拖拽与点击画布，无销毁重建盲区)
+        TouchArea {
+            width: 100%;
+            height: 100%;
+            mouse-cursor: self.has-hover ? ns-resize : default;
+
+            property <int> active_idx: -1;
+
+            pointer-event(event) => {
+                if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                    let rel_x = self.mouse-x - chart_canvas.pad_l;
+                    let col_step = chart_canvas.plot_w / 7.0;
+                    let idx = Math.clamp(Math.round(rel_x / col_step), 0, 7);
+                    self.active_idx = idx;
+
+                    let ratio = Math.clamp(1.0 - ((self.mouse-y - chart_canvas.pad_t) / chart_canvas.plot_h), 0.0, 1.0);
+                    let new_duty = Math.clamp(Math.round(ratio * 100), 0, 100);
+                    root.set_point(idx, new_duty);
+                } else if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
+                    self.active_idx = -1;
+                }
+            }
+
+            moved => {
+                if self.active_idx >= 0 {
+                    let ratio = Math.clamp(1.0 - ((self.mouse-y - chart_canvas.pad_t) / chart_canvas.plot_h), 0.0, 1.0);
+                    let new_duty = Math.clamp(Math.round(ratio * 100), 0, 100);
+                    root.set_point(self.active_idx, new_duty);
+                }
+            }
+        }
+    }
+
+    // 3. 8-Point Step Buttons Panel (+, Value, -, Temp)
+    HorizontalLayout {
+        spacing: 4px;
+
+        for node[idx] in root.active_curve: Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+            horizontal-stretch: 1;
+            min-width: 0;
+
+            VerticalLayout {
+                padding: 3px;
+                spacing: 3px;
+
+                // + button
+                Rectangle {
+                    height: 16px;
+                    border-radius: 2px;
+                    background: AppTheme.surface_card;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.adjust_point(idx, 1); }
+                    }
+                    Text {
+                        text: "+";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Percentage Value
+                Text {
+                    width: 100%;
+                    text: node + "%";
+                    font-size: 9.5px;
+                    font-weight: 800;
+                    color: root.active_fan_tab == 0 ? #818cf8 : #10b981;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                }
+
+                // - button
+                Rectangle {
+                    height: 16px;
+                    border-radius: 2px;
+                    background: AppTheme.surface_card;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.adjust_point(idx, -1); }
+                    }
+                    Text {
+                        text: "-";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Temperature Label
+                Text {
+                    text: idx == 0 ? "40°" :
+                          (idx == 1 ? "50°" :
+                          (idx == 2 ? "60°" :
+                          (idx == 3 ? "68°" :
+                          (idx == 4 ? "75°" :
+                          (idx == 5 ? "82°" :
+                          (idx == 6 ? "88°" : "95°"))))));
+                    font-size: 9px;
+                    color: AppTheme.text_muted;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+
+    // 4. Bottom micro hint
+    HorizontalLayout {
+        alignment: space-between;
+        Text {
+            text: "鼠标悬停滚轮微调";
+            font-size: 8.5px;
+            color: AppTheme.text_muted;
+        }
+        Text {
+            text: "8 节点单调递增";
+            font-size: 8.5px;
+            color: AppTheme.text_muted;
+        }
+    }
+}
+

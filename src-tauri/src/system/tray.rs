@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use std::sync::{Arc, OnceLock};
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
-    tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter,
 };
 
@@ -45,6 +45,8 @@ pub struct TrayMenuControls {
 }
 
 pub struct TrayKeeper(#[allow(dead_code)] pub TrayIcon);
+
+pub static IS_EXPLICIT_EXIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 static GLOBAL_TRAY: OnceLock<TrayIcon> = OnceLock::new();
 static TRAY_MENU_CONTROLS: OnceLock<TrayMenuControls> = OnceLock::new();
@@ -191,6 +193,7 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit("physical-mode-switched", 1);
             let _ = app_handle.emit_to("main", "physical-mode-switched", 1);
             let _ = app_handle.emit_to("osd", "physical-mode-switched", 1);
+            crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(1));
         }
         "mode_balance" => {
             ec_clone.lock().set_power_mode(2);
@@ -208,6 +211,7 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit("physical-mode-switched", 2);
             let _ = app_handle.emit_to("main", "physical-mode-switched", 2);
             let _ = app_handle.emit_to("osd", "physical-mode-switched", 2);
+            crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(2));
         }
         "mode_beast" => {
             let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
@@ -229,6 +233,7 @@ pub fn handle_tray_menu_event(
                 let _ = app_handle.emit("physical-mode-switched", 3);
                 let _ = app_handle.emit_to("main", "physical-mode-switched", 3);
                 let _ = app_handle.emit_to("osd", "physical-mode-switched", 3);
+                crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(3));
             }
         }
         "mode_custom" => {
@@ -251,6 +256,7 @@ pub fn handle_tray_menu_event(
                 let _ = app_handle.emit("physical-mode-switched", 4);
                 let _ = app_handle.emit_to("main", "physical-mode-switched", 4);
                 let _ = app_handle.emit_to("osd", "physical-mode-switched", 4);
+                crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(4));
             }
         }
         "toggle_fan" => {
@@ -269,6 +275,7 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit("physical-fan-boost-switched", next);
             let _ = app_handle.emit_to("main", "physical-fan-boost-switched", next);
             let _ = app_handle.emit_to("osd", "physical-fan-boost-switched", next);
+            crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(next));
         }
         "takeover_toggle" => {
             let is_running = crate::system::process::is_oem_service_running();
@@ -282,9 +289,19 @@ pub fn handle_tray_menu_event(
             let _ = app_handle.emit_to("main", "oem-service-status-changed", next_state);
         }
         "quit" => {
+            IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
+            crate::system::native_wry::shutdown_all();
             crate::system::webview_orchestrator::WebviewOrchestrator::global().safe_shutdown_all_subviews();
+            crate::system::osd_window::shutdown_osd_process();
+            crate::system::slint_window::shutdown_slint_process();
             safe_hardware_shutdown_on_exit();
+            crate::system::plugin_service::shutdown_all_plugin_services();
             app_handle.exit(0);
+            // Fallback watchdog: ensure process terminates cleanly within 800ms
+            std::thread::spawn(|| {
+                std::thread::sleep(std::time::Duration::from_millis(800));
+                std::process::exit(0);
+            });
         }
         _ => {}
     }
@@ -296,14 +313,14 @@ pub fn handle_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
     match event {
         TrayIconEvent::Click {
             button: MouseButton::Left,
-            ..
-        }
-        | TrayIconEvent::DoubleClick {
-            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
             ..
         } => {
             let app = tray.app_handle();
-            if let Some(window) = crate::system::window::ensure_window_alive(app) {
+            let cfg = crate::system::config::load_config();
+            if !cfg.use_classic_webview {
+                crate::system::slint_window::toggle_slint_window();
+            } else if let Some(window) = crate::system::window::ensure_window_alive(app) {
                 crate::log_info!(
                     "TRAY",
                     "Left click triggered. Current state: is_visible={:?}, is_minimized={:?}",
@@ -313,6 +330,18 @@ pub fn handle_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
                 crate::system::window::restore_and_sync_window(&window);
             } else {
                 crate::log_error!("TRAY", "CRITICAL: Unable to obtain or resurrect 'main' WebviewWindow on tray click!");
+            }
+        }
+        TrayIconEvent::DoubleClick {
+            button: MouseButton::Left,
+            ..
+        } => {
+            let app = tray.app_handle();
+            let cfg = crate::system::config::load_config();
+            if !cfg.use_classic_webview {
+                crate::system::slint_window::show_slint_window();
+            } else if let Some(window) = crate::system::window::ensure_window_alive(app) {
+                crate::system::window::restore_and_sync_window(&window);
             }
         }
         _ => {}

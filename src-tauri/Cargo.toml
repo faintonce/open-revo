@@ -1,6 +1,6 @@
 [package]
 name = "open-revo"
-version = "0.9.6"
+version = "0.9.7"
 description = "Lightweight Custom Control Center for Mechrevo Laptops"
 license = "GPL-3.0-or-later"
 edition = "2021"
@@ -16,6 +16,8 @@ members = [
     "crates/openrevo-core",
     "crates/openrevo-osd",
     "crates/openrevo-ffi",
+    "crates/openrevo-main",
+    "crates/openrevo-widget",
 ]
 
 [build-dependencies]
@@ -26,7 +28,12 @@ serde_json = "1.0"
 [dependencies]
 openrevo-core = { path = "crates/openrevo-core" }
 openrevo-osd = { path = "crates/openrevo-osd" }
+openrevo-main = { path = "crates/openrevo-main" }
+openrevo-widget = { path = "crates/openrevo-widget" }
 tauri = { version = "2.0.0", features = ["tray-icon"] }
+tao = "0.35"
+wry = "0.55"
+raw-window-handle = "0.6"
 tauri-plugin-autostart = "2.0.0"
 tauri-plugin-single-instance = "2.0.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -40,6 +47,9 @@ sha2 = "0.10"
 rhai = { version = "1.19", features = ["sync", "no_module", "no_custom_syntax", "no_closure", "no_optimize"] }
 windows = { version = "0.58", features = [
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
+    "Win32_UI_Controls",
+    "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_System_Power",
@@ -76,3 +86,4 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
