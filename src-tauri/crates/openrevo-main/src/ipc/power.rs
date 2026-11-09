@@ -9,6 +9,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(ac) = val.get("is_ac_online").and_then(|v| v.as_bool()) {
                 ui.set_is_ac_online(ac);
             }
+            if let Some(dc) = val.get("is_dc_online").and_then(|v| v.as_bool()) {
+                ui.set_is_dc_online(dc);
+            }
+            if let Some(tl) = val.get("is_thin_and_light").and_then(|v| v.as_bool()) {
+                ui.set_is_thin_and_light(tl);
+            }
             if let Some(bm) = val.get("battery_mode").and_then(|v| v.as_str()) {
                 ui.set_battery_mode(bm.into());
             }

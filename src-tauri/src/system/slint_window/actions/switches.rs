@@ -234,6 +234,9 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                         "action": "sync_state", "power_mode": current
                     }));
                 }
+                super::super::sync::sync_slint_switches_state();
+                let fresh_cfg = crate::system::config::load_config();
+                super::super::sync::sync_slint_power_targets(fresh_cfg.power_mode);
             }
             true
         }

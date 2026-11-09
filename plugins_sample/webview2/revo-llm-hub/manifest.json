@@ -1,0 +1,26 @@
+{
+  "id": "revo-llm-hub",
+  "name": "LLM 脑神经中枢",
+  "version": "1.0.0",
+  "author": "OpenRevo Official & Community",
+  "description": "OpenRevo 全域 AI 脑神经网关插件。管理 OpenAI / DeepSeek 兼容 API、模型探测与持久化，为桌面灵动智宠及系统自动化提供统一的 Function Calling 硬件调度能力。",
+  "type": "tab",
+  "entry": "index.html",
+  "min_host_version": "0.9.4",
+  "window": {
+    "width": 1024,
+    "height": 720,
+    "resizable": true,
+    "decorations": true,
+    "transparent": false,
+    "always_on_top": false
+  },
+  "permissions": [
+    "ai:chat",
+    "storage:read",
+    "storage:write",
+    "telemetry:read",
+    "fan:control",
+    "power:control"
+  ]
+}

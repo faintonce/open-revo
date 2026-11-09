@@ -1,4 +1,4 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerPowerCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -10,6 +10,7 @@ export component DrawerPowerCard inherits Rectangle {
     in-out property <int> power_mode: 4; // 1: Office, 2: Balance, 3: Beast, 4: Custom
     in-out property <int> cpu_temp: 62;
     in-out property <int> cpu_rpm: 2818;
+    in-out property <bool> is_restricted: false; // Power gating on battery/Type-C
 
     callback set_mode(int);
 
@@ -129,13 +130,18 @@ export component DrawerPowerCard inherits Rectangle {
             // 3. Beast
             btn_bst := Rectangle {
                 border-radius: 6px;
-                background: power_mode == 3 ? #f43f5e25 : (t_bst.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                opacity: is_restricted ? 0.45 : 1.0;
+                background: power_mode == 3 ? #f43f5e25 : (t_bst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: power_mode == 3 ? 1.5px : 1px;
                 border-color: power_mode == 3 ? #f43f5e : AppTheme.border_subtle;
 
                 t_bst := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { set_mode(3); }
+                    mouse-cursor: is_restricted ? default : pointer;
+                    clicked => {
+                        if (!is_restricted) {
+                            set_mode(3);
+                        }
+                    }
                 }
 
                 VerticalLayout {
@@ -147,14 +153,14 @@ export component DrawerPowerCard inherits Rectangle {
                             source: @image-url("../../assets/icons/flame.svg");
                             width: 15px;
                             height: 15px;
-                            colorize: power_mode == 3 ? #f43f5e : AppTheme.text_secondary;
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_secondary);
                         }
                     }
                     Text {
-                        text: "狂暴";
+                        text: is_restricted ? "需圆口DC" : "狂暴";
                         font-size: 10.5px;
                         font-weight: power_mode == 3 ? 700 : 500;
-                        color: power_mode == 3 ? #f43f5e : AppTheme.text_primary;
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                 }
@@ -163,13 +169,18 @@ export component DrawerPowerCard inherits Rectangle {
             // 4. Custom Tuning
             btn_cst := Rectangle {
                 border-radius: 6px;
-                background: power_mode == 4 ? #38bdf825 : (t_cst.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                opacity: is_restricted ? 0.45 : 1.0;
+                background: power_mode == 4 ? #38bdf825 : (t_cst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: power_mode == 4 ? 1.5px : 1px;
                 border-color: power_mode == 4 ? #38bdf8 : AppTheme.border_subtle;
 
                 t_cst := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { set_mode(4); }
+                    mouse-cursor: is_restricted ? default : pointer;
+                    clicked => {
+                        if (!is_restricted) {
+                            set_mode(4);
+                        }
+                    }
                 }
 
                 VerticalLayout {
@@ -181,14 +192,14 @@ export component DrawerPowerCard inherits Rectangle {
                             source: @image-url("../../assets/icons/sliders.svg");
                             width: 15px;
                             height: 15px;
-                            colorize: power_mode == 4 ? #38bdf8 : AppTheme.text_secondary;
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #38bdf8 : AppTheme.text_secondary);
                         }
                     }
                     Text {
-                        text: "极客调校";
+                        text: is_restricted ? "需圆口DC" : "极客调校";
                         font-size: 10.5px;
                         font-weight: power_mode == 4 ? 700 : 500;
-                        color: power_mode == 4 ? #38bdf8 : AppTheme.text_primary;
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #38bdf8 : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                 }

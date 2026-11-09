@@ -1,0 +1,117 @@
+export component MainWindow inherits Window {
+    title: "电池常驻挂件 (Slint 极速光栅化)";
+    width: 260px;
+    height: 80px;
+    background: #0f131a;
+    default-font-size: 12px;
+
+    in-out property <int> battery_percent: 78;
+    in-out property <bool> is_charging: true;
+    in-out property <bool> eco_mode: true;
+
+    Rectangle {
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: #1e293b;
+        background: #0f131a;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 6px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    // Battery outline
+                    Rectangle {
+                        width: 24px;
+                        height: 14px;
+                        border-radius: 3px;
+                        border-width: 1.5px;
+                        border-color: root.battery_percent > 20 ? #10b981 : #ef4444;
+                        y: (parent.height - self.height) / 2;
+
+                        Rectangle {
+                            x: 2px;
+                            y: 2px;
+                            width: (parent.width - 4px) * (root.battery_percent / 100);
+                            height: parent.height - 4px;
+                            border-radius: 1px;
+                            background: root.battery_percent > 20 ? #10b981 : #ef4444;
+                        }
+                    }
+
+                    Text {
+                        text: root.battery_percent + "%";
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #f1f5f9;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.is_charging ? "⚡ 充电中" : "🔋 电池供电";
+                        font-size: 11px;
+                        color: root.is_charging ? #38bdf8 : #94a3b8;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Tag
+                Rectangle {
+                    height: 18px;
+                    border-radius: 4px;
+                    background: #1e293b;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: "Slint 原生";
+                            font-size: 10px;
+                            color: #38bdf8;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Bottom Actions / Status
+            HorizontalLayout {
+                alignment: space-between;
+
+                Text {
+                    text: root.eco_mode ? "养护上限: 80% (健康保护)" : "养护上限: 100% (满电模式)";
+                    font-size: 11px;
+                    color: #64748b;
+                    vertical-alignment: center;
+                }
+
+                Rectangle {
+                    width: 72px;
+                    height: 22px;
+                    border-radius: 4px;
+                    background: root.eco_mode ? #0284c7 : #334155;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.eco_mode = !root.eco_mode;
+                        }
+                    }
+
+                    Text {
+                        text: root.eco_mode ? "养护中" : "常规模式";
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        color: #ffffff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -2,6 +2,7 @@
 // Routes JSON-RPC messages from Wry-hosted plugins directly to OpenRevo commands.
 
 use serde_json::Value;
+use tauri::Emitter;
 
 pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Result<Value, String> {
     crate::log_info!("NATIVE_WRY", "IPC call: plugin='{}', cmd='{}'", plugin_id, cmd);
@@ -211,13 +212,123 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
         "widget_ready" => {
             let pid = args.get("pluginId").or_else(|| args.get("plugin_id")).and_then(|v| v.as_str()).unwrap_or(plugin_id);
             crate::system::telemetry::register_consumer(pid, &[
-                "cpu_temp".into(), "cpu_fan_rpm".into(), "cpu_power_w".into(),
+                "cpu_temp".into(), "gpu_temp".into(), "cpu_power".into(), "gpu_power".into(),
+                "cpu_fan_rpm".into(), "gpu_fan_rpm".into(), "fps".into(), "frametime_ms".into(),
                 "power_mode".into(), "fan_boost".into(), "battery_level".into(), "is_charging".into()
             ]);
             if let Some(app) = get_app() {
                 let _ = crate::system::widget_manager::widget_ready(app, pid.to_string());
             }
             Ok(Value::Bool(true))
+        }
+
+        // Inter-plugin & Host Event Broadcasting
+        "emit" => {
+            let event = args.get("event").and_then(|v| v.as_str()).unwrap_or_default();
+            let payload = args.get("payload").cloned().unwrap_or(Value::Null);
+            if !event.is_empty() {
+                if let Some(app) = get_app() {
+                    let _ = app.emit(event, &payload);
+                }
+                super::broadcast_event(event, &payload);
+            }
+            Ok(Value::Bool(true))
+        }
+
+        // Dynamic Telemetry Consumer Registration
+        "register_telemetry_consumer" => {
+            let pid = args.get("pluginId").or_else(|| args.get("plugin_id")).and_then(|v| v.as_str()).unwrap_or(plugin_id);
+            let sensors: Vec<String> = args.get("sensors")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_else(|| vec![
+                    "cpu_temp".into(), "gpu_temp".into(), "cpu_power".into(), "gpu_power".into(), "fps".into()
+                ]);
+            crate::system::telemetry::register_consumer(pid, &sensors);
+            Ok(Value::Bool(true))
+        }
+        "unregister_telemetry_consumer" => {
+            let pid = args.get("pluginId").or_else(|| args.get("plugin_id")).and_then(|v| v.as_str()).unwrap_or(plugin_id);
+            crate::system::telemetry::unregister_consumer(pid);
+            Ok(Value::Bool(true))
+        }
+
+        // Watcher Hub APIs for dynamic plugin registration
+        "register_watcher" => {
+            let def: crate::system::watcher_hub::WatcherDefinition = serde_json::from_value(args)
+                .map_err(|e| format!("Invalid WatcherDefinition payload: {}", e))?;
+            let ok = crate::system::watcher_hub::register_watcher(def);
+            Ok(Value::Bool(ok))
+        }
+        "unregister_watcher" => {
+            let id = args.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let ok = crate::system::watcher_hub::unregister_watcher(id);
+            Ok(Value::Bool(ok))
+        }
+        "get_watchers" => {
+            let list = crate::system::watcher_hub::get_all_watchers();
+            serde_json::to_value(list).map_err(|e| e.to_string())
+        }
+
+        // Plugin Companion Services & Enablement Management
+        "start_plugin_service" => {
+            let target_pid = args.get("pluginId")
+                .or_else(|| args.get("plugin_id"))
+                .or_else(|| args.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(plugin_id);
+            let status = crate::system::plugin_service::start_service(target_pid)?;
+            serde_json::to_value(status).map_err(|e| e.to_string())
+        }
+        "stop_plugin_service" => {
+            let target_pid = args.get("pluginId")
+                .or_else(|| args.get("plugin_id"))
+                .or_else(|| args.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(plugin_id);
+            let status = crate::system::plugin_service::stop_service(target_pid)?;
+            serde_json::to_value(status).map_err(|e| e.to_string())
+        }
+        "get_plugin_service_status" => {
+            let target_pid = args.get("pluginId")
+                .or_else(|| args.get("plugin_id"))
+                .or_else(|| args.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(plugin_id);
+            let status = crate::system::plugin_service::get_service_status(target_pid);
+            serde_json::to_value(status).map_err(|e| e.to_string())
+        }
+        "set_custom_plugin_enabled" | "set_plugin_enabled_unified" => {
+            let target_pid = args.get("pluginId")
+                .or_else(|| args.get("plugin_id"))
+                .or_else(|| args.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(plugin_id);
+            let enabled = args.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+            let res = crate::commands::system_cmd::set_custom_plugin_enabled(target_pid.to_string(), enabled)?;
+
+            // If widget or skin, open or close the popout window and manage its companion service
+            let p_dir = crate::commands::system_cmd::find_plugin_dir(target_pid);
+            let manifest_path = p_dir.join("manifest.json");
+            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                    let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
+                    if p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin") {
+                        if enabled {
+                            crate::system::native_wry::open_popout(target_pid);
+                            if let Some(svc) = manifest.service {
+                                if svc.auto_start {
+                                    let _ = crate::system::plugin_service::start_service(target_pid);
+                                }
+                            }
+                        } else {
+                            crate::system::native_wry::close_popout(target_pid);
+                            let _ = crate::system::plugin_service::stop_service(target_pid);
+                        }
+                    }
+                }
+            }
+            crate::system::slint_window::sync::sync_slint_plugins_state();
+            Ok(Value::Bool(res))
         }
 
         // System
@@ -250,6 +361,43 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
                 "is_ac_online": is_ac,
                 "is_charging": is_charging
             }))
+        }
+
+        // AI Gateway & Hub APIs (Native Wry / Slint host compatibility)
+        "ai_get_config" => {
+            let cfg = crate::commands::ai_cmd::ai_get_config()?;
+            serde_json::to_value(cfg).map_err(|e| e.to_string())
+        }
+        "ai_save_config" => {
+            let cfg_val = args.get("config").cloned().unwrap_or(args);
+            let cfg = serde_json::from_value(cfg_val).map_err(|e| format!("配置格式错误: {}", e))?;
+            crate::commands::ai_cmd::ai_save_config(cfg)?;
+            Ok(Value::Bool(true))
+        }
+        "ai_fetch_models" => {
+            let base_url = args.get("baseUrl").or_else(|| args.get("base_url")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            let api_key = args.get("apiKey").or_else(|| args.get("api_key")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            let list = crate::commands::ai_cmd::ai_fetch_models(base_url, api_key)?;
+            serde_json::to_value(list).map_err(|e| e.to_string())
+        }
+        "ai_chat_send" => {
+            let prompt = args.get("prompt").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let session_id = args.get("sessionId").or_else(|| args.get("session_id")).and_then(|v| v.as_str()).map(|s| s.to_string());
+            let enable_tools = args.get("enableTools").or_else(|| args.get("enable_tools")).and_then(|v| v.as_bool());
+            let config_override: Option<crate::system::ai_gateway::types::AiGatewayConfig> = args.get("configOverride")
+                .or_else(|| args.get("config_override"))
+                .and_then(|v| serde_json::from_value(v.clone()).ok());
+            let sid = crate::commands::ai_cmd::ai_chat_send(prompt, session_id, enable_tools, config_override)?;
+            Ok(Value::String(sid))
+        }
+        "ai_get_system_skills" => {
+            let skills = crate::commands::ai_cmd::ai_get_system_skills()?;
+            Ok(skills)
+        }
+        "write_clipboard" => {
+            let text = args.get("text").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let res = crate::commands::market_cmd::write_clipboard(text)?;
+            Ok(Value::Bool(res))
         }
 
         other => {

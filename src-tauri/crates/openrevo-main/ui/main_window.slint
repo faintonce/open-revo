@@ -36,6 +36,8 @@ export component MainWindow inherits Window {
     in-out property <color> kbd_color_preview: #f43f5e;
     in-out property <int> battery_limit: 60;    // 60, 80, 100
     in-out property <bool> is_ac_online: true;
+    in-out property <bool> is_dc_online: true;
+    in-out property <bool> is_thin_and_light: false;
     in-out property <int> battery_percent: 99;
     in-out property <string> battery_mode: "station";
     in-out property <bool> usb_charge_enabled: false;
@@ -298,6 +300,7 @@ export component MainWindow inherits Window {
     callback trigger_osd_preview();
 
     in-out property <bool> unlock_battery_limit: false;
+    in-out property <bool> is_power_mode_restricted: !root.is_thin_and_light && !root.is_dc_online && !root.unlock_battery_limit;
     in-out property <bool> show_unlock_battery_confirm: false;
     in-out property <bool> toggling_unlock_battery: false;
     callback confirm_unlock_battery();
@@ -529,6 +532,7 @@ export component MainWindow inherits Window {
         kb_color <=> root.kb_color;
         battery_limit: root.battery_limit;
         is_ac_online: root.is_ac_online;
+        is_power_mode_restricted: root.is_power_mode_restricted;
 
         cpu_temp: root.cpu_temp;
         cpu_rpm: root.cpu_rpm;
@@ -711,6 +715,7 @@ export component MainWindow inherits Window {
         pl1_target: root.pl1_target;
         tgp_target: root.tgp_target;
         power_target_text: root.power_target_text;
+        is_power_mode_restricted: root.is_power_mode_restricted;
         set_power_mode(m) => { root.power_mode_clicked(m); }
         open_custom_tuning => { root.open_custom_tuning(); }
 

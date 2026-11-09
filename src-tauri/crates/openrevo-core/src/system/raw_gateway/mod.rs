@@ -8,6 +8,20 @@ pub mod executor;
 pub use types::{RawEcCapabilities, RawEcProtocol, RawEcReadRequest, RawEcWriteRequest, RawMailboxRequest};
 pub use executor::{execute_raw_mailbox, execute_raw_read, execute_raw_write};
 
+/// Automatically detects and returns the preferred active Raw EC protocol on this machine
+pub fn detect_auto_raw_protocol() -> RawEcProtocol {
+    let caps = get_gateway_capabilities();
+    if caps.is_direct_ec_available {
+        RawEcProtocol::TongfangDirectEc
+    } else if caps.is_generic_wmi_available {
+        RawEcProtocol::GenericAcpiWmi
+    } else if caps.is_bld_mailbox_available {
+        RawEcProtocol::BldWmiMailbox
+    } else {
+        RawEcProtocol::TongfangDirectEc
+    }
+}
+
 /// Probe and return the active machine's available low-level hardware protocols
 pub fn get_gateway_capabilities() -> RawEcCapabilities {
     let mut available = Vec::new();
@@ -19,12 +33,14 @@ pub fn get_gateway_capabilities() -> RawEcCapabilities {
 
     let is_bld_mailbox = crate::hal::declarative::load_matched_manifest()
         .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
-        .unwrap_or(false);
+        .unwrap_or(false)
+        || crate::driver::bld_driver_mgr::BldDriverManager::get_or_init().is_ok();
     if is_bld_mailbox {
         available.push(RawEcProtocol::BldWmiMailbox);
     }
 
-    let is_generic_wmi = crate::driver::wmi_mulong::is_mulong_available();
+    let is_generic_wmi = crate::driver::wmi_mulong::is_mulong_available()
+        || crate::driver::wmi_ip3::is_ip3_available();
     if is_generic_wmi {
         available.push(RawEcProtocol::GenericAcpiWmi);
     }

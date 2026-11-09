@@ -11,6 +11,7 @@ export component DashboardPowerProfiles inherits Rectangle {
     in-out property <int> pl1_target: 75;
     in-out property <int> tgp_target: 175;
     in-out property <string> power_target_text: "";
+    in-out property <bool> is_restricted: false; // Power gating: true when on battery/Type-C without unlock
 
     callback set_power_mode(int);
     callback open_custom_tuning();
@@ -157,13 +158,18 @@ export component DashboardPowerProfiles inherits Rectangle {
             // 3. Beast (狂暴)
             card_bst := Rectangle {
                 border-radius: 6px;
-                background: power_mode == 3 ? #f43f5e25 : (t_bst.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                opacity: is_restricted ? 0.45 : 1.0;
+                background: power_mode == 3 ? #f43f5e25 : (t_bst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: power_mode == 3 ? 1.5px : 1px;
                 border-color: power_mode == 3 ? #f43f5e : AppTheme.border_subtle;
 
                 t_bst := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { set_power_mode(3); }
+                    mouse-cursor: is_restricted ? default : pointer;
+                    clicked => {
+                        if (!is_restricted) {
+                            set_power_mode(3);
+                        }
+                    }
                 }
 
                 VerticalLayout {
@@ -175,20 +181,20 @@ export component DashboardPowerProfiles inherits Rectangle {
                             source: @image-url("../../assets/icons/flame.svg");
                             width: 18px;
                             height: 18px;
-                            colorize: power_mode == 3 ? #f43f5e : AppTheme.text_secondary;
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_secondary);
                         }
                     }
                     Text {
                         text: "狂暴";
                         font-size: 12px;
                         font-weight: power_mode == 3 ? 800 : 600;
-                        color: power_mode == 3 ? #f43f5e : AppTheme.text_primary;
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: "狂暴";
+                        text: is_restricted ? "需圆口DC" : (power_mode == 3 ? "● 当前" : "狂暴");
                         font-size: 9.5px;
-                        color: power_mode == 3 ? #f43f5e : AppTheme.text_muted;
+                        color: is_restricted ? #f59e0b : (power_mode == 3 ? #f43f5e : AppTheme.text_muted);
                         horizontal-alignment: center;
                     }
                 }
@@ -197,17 +203,20 @@ export component DashboardPowerProfiles inherits Rectangle {
             // 4. Custom (自定义)
             card_cst := Rectangle {
                 border-radius: 6px;
-                background: power_mode == 4 ? #c084fc25 : (t_cst.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                opacity: is_restricted ? 0.45 : 1.0;
+                background: power_mode == 4 ? #c084fc25 : (t_cst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: power_mode == 4 ? 1.5px : 1px;
                 border-color: power_mode == 4 ? #c084fc : AppTheme.border_subtle;
 
                 t_cst := TouchArea {
-                    mouse-cursor: pointer;
+                    mouse-cursor: is_restricted ? default : pointer;
                     clicked => {
-                        if root.power_mode == 4 {
-                            root.open_custom_tuning();
-                        } else {
-                            root.set_power_mode(4);
+                        if (!is_restricted) {
+                            if root.power_mode == 4 {
+                                root.open_custom_tuning();
+                            } else {
+                                root.set_power_mode(4);
+                            }
                         }
                     }
                 }
@@ -221,26 +230,26 @@ export component DashboardPowerProfiles inherits Rectangle {
                             source: @image-url("../../assets/icons/sliders.svg");
                             width: 18px;
                             height: 18px;
-                            colorize: power_mode == 4 ? #c084fc : AppTheme.text_secondary;
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #c084fc : AppTheme.text_secondary);
                         }
                     }
                     Text {
                         text: "自定义";
                         font-size: 12px;
                         font-weight: power_mode == 4 ? 800 : 600;
-                        color: power_mode == 4 ? #c084fc : AppTheme.text_primary;
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #c084fc : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: "极客";
+                        text: is_restricted ? "需圆口DC" : (power_mode == 4 ? "● 当前" : "极客");
                         font-size: 9.5px;
-                        color: power_mode == 4 ? #c084fc : AppTheme.text_muted;
+                        color: is_restricted ? #f59e0b : (power_mode == 4 ? #c084fc : AppTheme.text_muted);
                         horizontal-alignment: center;
                     }
                 }
 
                 // Top-right Corner Badge for Custom Tuning
-                if root.power_mode == 4: tune_badge := Rectangle {
+                if root.power_mode == 4 && !is_restricted: tune_badge := Rectangle {
                     x: parent.width - self.width - 6px;
                     y: 6px;
                     width: 52px;

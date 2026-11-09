@@ -84,6 +84,8 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "battery_limit": cfg.battery_limit,
                         "battery_percent": live_percent,
                         "is_ac_online": live_ac,
+                        "is_dc_online": crate::commands::power_cmd::is_dc_round_plugged_in(),
+                        "is_thin_and_light": crate::commands::power_cmd::is_thin_and_light_or_pure_igpu(),
                         "battery_mode": if cfg.battery_limit >= 95 { "long_life" } else if cfg.battery_limit <= 65 { "station" } else { "balance" },
                         "usb_charge_enabled": cfg.usb_charge_enabled,
                         "ac_recovery_enabled": cfg.ac_recovery_enabled,

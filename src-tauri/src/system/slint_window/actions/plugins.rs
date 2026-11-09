@@ -1,6 +1,138 @@
+use std::collections::HashMap;
 use tauri::AppHandle;
 use super::super::sync::sync_slint_plugins_state;
 use super::super::webview_dock::hide_embedded_webview;
+
+static ACTIVE_SLINT_CHILD: parking_lot::Mutex<Option<std::process::Child>> = parking_lot::Mutex::new(None);
+static ACTIVE_SLINT_WIDGETS: parking_lot::Mutex<Option<HashMap<String, std::process::Child>>> = parking_lot::Mutex::new(None);
+
+fn with_active_slint_widgets<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut HashMap<String, std::process::Child>) -> R,
+{
+    let mut guard = ACTIVE_SLINT_WIDGETS.lock();
+    if guard.is_none() {
+        *guard = Some(HashMap::new());
+    }
+    f(guard.as_mut().unwrap())
+}
+
+pub fn hide_slint_embedded() {
+    let mut guard = ACTIVE_SLINT_CHILD.lock();
+    if let Some(mut child) = guard.take() {
+        let _ = child.kill();
+        let _ = child.wait();
+        crate::log_info!("PLUGINS", "Terminated active Slint embedded child process");
+    }
+}
+
+/// Determine whether the Tab view (embedded in host dashboard) should render using Slint
+pub fn is_slint_tab(pid: &str) -> bool {
+    let p_dir = crate::commands::system_cmd::find_plugin_dir(pid);
+    let m_path = p_dir.join("manifest.json");
+    if let Ok(content) = std::fs::read_to_string(&m_path) {
+        if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+            // 1. Explicit tab config
+            if let Some(ref tab) = manifest.tab {
+                if let Some(ref t) = tab.plugin_type {
+                    if t.eq_ignore_ascii_case("slint") { return true; }
+                    if t.eq_ignore_ascii_case("webview2") || t.eq_ignore_ascii_case("web") || t.eq_ignore_ascii_case("html") {
+                        return false;
+                    }
+                }
+                if let Some(ref e) = tab.entry {
+                    if e.ends_with(".slint") { return true; }
+                    if e.ends_with(".html") || e.ends_with(".htm") { return false; }
+                }
+            }
+
+            // 2. Global plugin_type declaration
+            if let Some(ref pt) = manifest.plugin_type {
+                if pt.eq_ignore_ascii_case("slint") {
+                    if let Some(ref tab) = manifest.tab {
+                        if tab.entry.as_deref().map_or(false, |e| e.ends_with(".html") || e.ends_with(".htm")) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                if pt.eq_ignore_ascii_case("webview2") || pt.eq_ignore_ascii_case("web") {
+                    return false;
+                }
+            }
+
+            // 3. Global entry extension
+            if let Some(ref e) = manifest.entry {
+                if e.ends_with(".slint") { return true; }
+                if e.ends_with(".html") || e.ends_with(".htm") { return false; }
+            }
+        }
+    }
+
+    if p_dir.join("tab.slint").exists() {
+        return true;
+    }
+    if p_dir.join("main.slint").exists() && !p_dir.join("index.html").exists() && !p_dir.join("dist").join("index.html").exists() {
+        return true;
+    }
+    false
+}
+
+/// Determine whether the Widget view (desktop floating or standalone popout) should render using Slint
+pub fn is_slint_widget(pid: &str) -> bool {
+    let p_dir = crate::commands::system_cmd::find_plugin_dir(pid);
+    let m_path = p_dir.join("manifest.json");
+    if let Ok(content) = std::fs::read_to_string(&m_path) {
+        if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+            // 1. Explicit widget config
+            if let Some(ref w) = manifest.widget {
+                if let Some(ref t) = w.plugin_type {
+                    if t.eq_ignore_ascii_case("slint") { return true; }
+                    if t.eq_ignore_ascii_case("webview2") || t.eq_ignore_ascii_case("web") || t.eq_ignore_ascii_case("html") {
+                        return false;
+                    }
+                }
+                if let Some(ref e) = w.entry {
+                    if e.ends_with(".slint") { return true; }
+                    if e.ends_with(".html") || e.ends_with(".htm") { return false; }
+                }
+            }
+
+            // 2. Check for widget.slint existence in plugin dir
+            if p_dir.join("widget.slint").exists() {
+                return true;
+            }
+
+            // 3. Global plugin_type declaration fallback
+            if let Some(ref pt) = manifest.plugin_type {
+                if pt.eq_ignore_ascii_case("slint") {
+                    return true;
+                }
+                if pt.eq_ignore_ascii_case("webview2") || pt.eq_ignore_ascii_case("web") {
+                    return false;
+                }
+            }
+
+            // 4. Global entry fallback
+            if let Some(ref e) = manifest.entry {
+                if e.ends_with(".slint") { return true; }
+                if e.ends_with(".html") || e.ends_with(".htm") { return false; }
+            }
+        }
+    }
+
+    if p_dir.join("widget.slint").exists() {
+        return true;
+    }
+    if p_dir.join("main.slint").exists() && !p_dir.join("widget.html").exists() {
+        return true;
+    }
+    false
+}
+
+pub fn is_slint_plugin(pid: &str) -> bool {
+    is_slint_tab(pid) || is_slint_widget(pid)
+}
 
 pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
@@ -24,19 +156,66 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
                     let _ = crate::commands::system_cmd::set_custom_plugin_enabled(id.to_string(), enabled);
 
-                    // If this plugin is a desktop widget or skin, open or close the floating widget window
+                    // If this plugin has a desktop widget or companion service, toggle them dynamically
                     let p_dir = crate::commands::system_cmd::find_plugin_dir(id);
                     let manifest_path = p_dir.join("manifest.json");
                     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                         if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
                             let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
-                            if p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin") {
-                                if enabled {
-                                    crate::log_info!("PLUGINS", "Toggled widget '{}' ON -> opening desktop widget", id);
-                                    crate::system::native_wry::open_popout(id);
+                            let has_widget = manifest.widget.is_some()
+                                || p_dir.join("widget.slint").exists()
+                                || p_type.eq_ignore_ascii_case("widget")
+                                || p_type.eq_ignore_ascii_case("skin");
+
+                            if has_widget {
+                                if is_slint_widget(id) {
+                                    if enabled {
+                                        crate::log_info!("PLUGINS", "Toggled Slint widget '{}' ON -> launching standalone widget", id);
+                                        let current_exe = std::env::current_exe().unwrap_or_else(|_| "open-revo.exe".into());
+                                        let spawn_res = std::process::Command::new(current_exe)
+                                            .args(&["--slint-widget", id])
+                                            .spawn();
+                                        match spawn_res {
+                                            Ok(child) => {
+                                                with_active_slint_widgets(|widgets| {
+                                                    if let Some(mut old) = widgets.insert(id.to_string(), child) {
+                                                        let _ = old.kill();
+                                                        let _ = old.wait();
+                                                    }
+                                                });
+                                            }
+                                            Err(e) => {
+                                                crate::log_error!("PLUGINS", "Failed to launch Slint widget child for '{}': {:?}", id, e);
+                                            }
+                                        }
+                                    } else {
+                                        crate::log_info!("PLUGINS", "Toggled Slint widget '{}' OFF -> terminating standalone widget", id);
+                                        with_active_slint_widgets(|widgets| {
+                                            if let Some(mut child) = widgets.remove(id) {
+                                                let _ = child.kill();
+                                                let _ = child.wait();
+                                            }
+                                        });
+                                    }
                                 } else {
-                                    crate::log_info!("PLUGINS", "Toggled widget '{}' OFF -> closing desktop widget", id);
-                                    crate::system::native_wry::close_popout(id);
+                                    if enabled {
+                                        crate::log_info!("PLUGINS", "Toggled Web widget '{}' ON -> opening desktop widget", id);
+                                        crate::system::native_wry::open_popout(id);
+                                    } else {
+                                        crate::log_info!("PLUGINS", "Toggled Web widget '{}' OFF -> closing desktop widget", id);
+                                        crate::system::native_wry::close_popout(id);
+                                    }
+                                }
+                            }
+
+                            if let Some(svc) = manifest.service {
+                                if enabled && svc.auto_start {
+                                    let target_id = id.to_string();
+                                    std::thread::spawn(move || {
+                                        let _ = crate::system::plugin_service::start_service(&target_id);
+                                    });
+                                } else if !enabled && svc.auto_stop {
+                                    let _ = crate::system::plugin_service::stop_service(id);
                                 }
                             }
                         }
@@ -53,10 +232,12 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "reload_plugins" => {
             sync_slint_plugins_state();
+            crate::system::native_wry::reload_active_embedded();
             true
         }
         "collapse_dashboard" => {
             crate::log_info!("PLUGINS", "Received collapse_dashboard from Slint UI");
+            hide_slint_embedded();
             crate::system::native_wry::hide_embedded();
             super::super::send_slint_ipc_message(serde_json::json!({ "action": "trigger_full_redraw" }));
             if let Some(app) = app {
@@ -78,6 +259,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
                 crate::log_info!("PLUGINS", "User switched to plugin tab: '{}'", pid);
                 if pid.is_empty() {
+                    hide_slint_embedded();
                     crate::system::native_wry::hide_embedded();
                     super::super::send_slint_ipc_message(serde_json::json!({ "action": "trigger_full_redraw" }));
                     if let Some(app) = app {
@@ -91,11 +273,59 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                     if parent_hwnd_raw != 0 {
                         let parent_hwnd = windows::Win32::Foundation::HWND(parent_hwnd_raw as *mut _);
                         let (target_x, target_y, target_w, target_h, _) = super::super::webview_dock::calc_embedded_geometry(parent_hwnd);
-                        crate::system::native_wry::attach_or_switch_embedded(
-                            parent_hwnd_raw,
-                            pid,
-                            (target_x, target_y, target_w, target_h),
-                        );
+
+                        if is_slint_tab(pid) {
+                            crate::log_info!("PLUGINS", "Detected Slint native tab plugin '{}' -> docking via native child process", pid);
+                            crate::system::native_wry::hide_embedded();
+                            hide_slint_embedded();
+
+                            let current_exe = std::env::current_exe().unwrap_or_else(|_| "open-revo.exe".into());
+                            let spawn_res = std::process::Command::new(current_exe)
+                                .args(&[
+                                    "--slint-widget",
+                                    pid,
+                                    "--embed",
+                                    &parent_hwnd_raw.to_string(),
+                                    &target_x.to_string(),
+                                    &target_y.to_string(),
+                                    &target_w.to_string(),
+                                    &target_h.to_string(),
+                                ])
+                                .spawn();
+
+                            match spawn_res {
+                                Ok(child) => {
+                                    crate::log_info!("PLUGINS", "Spawned Slint embedded child process successfully for '{}'", pid);
+                                    *ACTIVE_SLINT_CHILD.lock() = Some(child);
+                                }
+                                Err(e) => {
+                                    crate::log_error!("PLUGINS", "Failed to spawn Slint embedded child for '{}': {:?}", pid, e);
+                                }
+                            }
+                        } else {
+                            hide_slint_embedded();
+                            crate::system::native_wry::attach_or_switch_embedded(
+                                parent_hwnd_raw,
+                                pid,
+                                (target_x, target_y, target_w, target_h),
+                            );
+                        }
+
+                        // Auto-start companion service if declared and configured with auto_start
+                        let p_dir = crate::commands::system_cmd::find_plugin_dir(pid);
+                        let m_path = p_dir.join("manifest.json");
+                        if let Ok(content) = std::fs::read_to_string(&m_path) {
+                            if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                                if let Some(svc) = manifest.service {
+                                    if svc.auto_start {
+                                        let target_pid = pid.to_string();
+                                        std::thread::spawn(move || {
+                                            let _ = crate::system::plugin_service::start_service(&target_pid);
+                                        });
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         crate::log_warn!("PLUGINS", "Cannot dock plugin '{}': Slint HWND is 0", pid);
                         super::super::send_slint_ipc_message(serde_json::json!({
@@ -110,8 +340,31 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "open_custom_widget" => {
             crate::log_info!("PLUGINS", "Received open_custom_widget: val={:?}, app_is_some={}", val, app.is_some());
             if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
-                crate::log_info!("PLUGINS", "Opening native Wry popout window for plugin: '{}'", pid);
-                crate::system::native_wry::open_popout(pid);
+                if is_slint_widget(pid) {
+                    crate::log_info!("PLUGINS", "Opening standalone Slint widget for plugin: '{}'", pid);
+                    let current_exe = std::env::current_exe().unwrap_or_else(|_| "open-revo.exe".into());
+                    let _ = std::process::Command::new(current_exe)
+                        .args(&["--slint-widget", pid])
+                        .spawn();
+                } else {
+                    crate::log_info!("PLUGINS", "Opening native Wry popout window for plugin: '{}'", pid);
+                    crate::system::native_wry::open_popout(pid);
+                }
+
+                let p_dir = crate::commands::system_cmd::find_plugin_dir(pid);
+                let m_path = p_dir.join("manifest.json");
+                if let Ok(content) = std::fs::read_to_string(&m_path) {
+                    if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
+                        if let Some(svc) = manifest.service {
+                            if svc.auto_start {
+                                let target_pid = pid.to_string();
+                                std::thread::spawn(move || {
+                                    let _ = crate::system::plugin_service::start_service(&target_pid);
+                                });
+                            }
+                        }
+                    }
+                }
             }
             true
         }

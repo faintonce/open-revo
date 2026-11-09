@@ -37,6 +37,7 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
     fn emit(&self, event: &str, payload: serde_json::Value) {
         use tauri::Emitter;
         let _ = self.app.emit(event, payload.clone());
+        crate::system::native_wry::broadcast_event(event, &payload);
 
         match event {
             "win-lock-state-changed" => {
@@ -58,7 +59,8 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
             "feature": feature,
             "value": value
         });
-        let _ = self.app.emit("osd-notify", payload);
+        let _ = self.app.emit("osd-notify", payload.clone());
+        crate::system::native_wry::broadcast_event("osd-notify", &payload);
     }
 
     fn on_power_mode_changed(&self, mode: u8) {
@@ -72,6 +74,8 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
         use tauri::Emitter;
         let _ = self.app.emit("physical-mode-switched", mode);
         let _ = self.app.emit_to("main", "physical-mode-switched", mode);
+        crate::system::native_wry::broadcast_event("power-mode-changed", &serde_json::json!({ "mode": mode }));
+        crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
     }
 
     fn on_fan_boost_changed(&self, enabled: bool) {
@@ -87,6 +91,8 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
         let _ = self.app.emit_to("main", "fan-boost-changed", enabled);
         let _ = self.app.emit("physical-fan-boost-switched", enabled);
         let _ = self.app.emit_to("main", "physical-fan-boost-switched", enabled);
+        crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(enabled));
+        crate::system::native_wry::broadcast_event("physical-fan-boost-switched", &serde_json::json!(enabled));
     }
 }
 
@@ -94,6 +100,7 @@ struct SlintDaemonEventSink;
 
 impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
     fn emit(&self, event: &str, payload: serde_json::Value) {
+        crate::system::native_wry::broadcast_event(event, &payload);
         match event {
             "win-lock-state-changed" => {
                 let locked = payload.as_bool().unwrap_or(false);
@@ -109,6 +116,7 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
 
     fn on_osd_notify(&self, feature: &str, value: &str) {
         crate::log_info!("OSD", "on_osd_notify (daemon): feature={}, value={}", feature, value);
+        crate::system::native_wry::broadcast_event("osd-notify", &serde_json::json!({ "feature": feature, "value": value }));
     }
 
     fn on_power_mode_changed(&self, mode: u8) {
@@ -118,6 +126,8 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
             "action": "sync_state",
             "power_mode": mode
         }));
+        crate::system::native_wry::broadcast_event("power-mode-changed", &serde_json::json!({ "mode": mode }));
+        crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
     }
 
     fn on_fan_boost_changed(&self, enabled: bool) {
@@ -127,6 +137,8 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
             "action": "sync_state",
             "fan_boost": enabled
         }));
+        crate::system::native_wry::broadcast_event("fan-boost-changed", &serde_json::json!(enabled));
+        crate::system::native_wry::broadcast_event("physical-fan-boost-switched", &serde_json::json!(enabled));
     }
 }
 
@@ -241,10 +253,13 @@ fn run_slint_pure_daemon() {
     // 13. Telemetry Loop
     crate::system::telemetry::start_telemetry_loop(None, ec_for_telemetry, gpu_for_telemetry);
 
-    // 14. Autostart Alignment
+    // 14. Watcher Hub & Enabled Plugins Bootstrap
+    crate::commands::system_cmd::bootstrap_enabled_plugins();
+
+    // 15. Autostart Alignment
     crate::system::autostart::sync_autostart_target_path();
 
-    // 15. Check Launch Visibility
+    // 16. Check Launch Visibility
     let args: Vec<String> = std::env::args().collect();
     let cli_visible = args.iter().any(|a| a == "--visible" || a == "--show");
     let cfg = crate::system::config::load_config();
@@ -515,6 +530,9 @@ pub fn run_tauri_runtime() {
             commands::hardware_cmd::set_plugin_enabled_unified,
             commands::hardware_cmd::uninstall_plugin,
             commands::hardware_cmd::install_plugin_from_url,
+            commands::system_cmd::register_telemetry_consumer,
+            commands::system_cmd::unregister_telemetry_consumer,
+            commands::system_cmd::emit_plugin_broadcast,
             commands::system_cmd::load_plugin_theme_css,
             commands::system_cmd::set_active_skin,
             commands::system_cmd::get_active_skin,
@@ -575,6 +593,11 @@ pub fn run_tauri_runtime() {
             commands::plugin_storage_cmd::write_plugin_file,
             commands::plugin_storage_cmd::delete_plugin_file,
             commands::plugin_storage_cmd::list_plugin_files,
+            commands::ai_cmd::ai_get_config,
+            commands::ai_cmd::ai_save_config,
+            commands::ai_cmd::ai_fetch_models,
+            commands::ai_cmd::ai_chat_send,
+            commands::ai_cmd::ai_get_system_skills,
             commands::tuning_cmd::get_gpu_tuning_info,
             commands::tuning_cmd::set_gpu_clock_offsets,
             commands::tuning_cmd::set_gpu_vf_curve_deltas,
@@ -689,7 +712,8 @@ pub fn run_tauri_runtime() {
             // Step 6.14: Initialize Universal Watcher Hub and auto-load plugin watchers
             crate::system::boot_trace::boot_scope("Step 6.14: Watcher Hub Initialization", || {
                 crate::system::watcher_hub::init_watcher_hub(app.handle().clone());
-                let _ = crate::commands::system_cmd::get_custom_plugins();
+                crate::system::broadcast::bind_broadcast_app(app.handle().clone());
+                crate::commands::system_cmd::bootstrap_enabled_plugins();
             });
 
             crate::system::boot_trace::boot_log("TRAY", "System tray mounted and listeners active");

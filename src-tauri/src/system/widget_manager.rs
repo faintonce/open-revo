@@ -88,10 +88,12 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
         return Err(notice.unwrap_or_else(|| "当前 OpenRevo 版本低于该挂件最低要求版本".into()));
     }
 
+    let has_explicit_widget = manifest.widget.is_some();
+    let has_explicit_tab = manifest.tab.is_some();
     let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
-    let is_tab_plugin = p_type.eq_ignore_ascii_case("tab");
+    let is_tab_plugin = !has_explicit_widget && (has_explicit_tab || p_type.eq_ignore_ascii_case("tab"));
 
-    let win_cfg = manifest.window.clone().unwrap_or_else(|| {
+    let win_cfg = manifest.widget.as_ref().and_then(|w| w.window.clone()).or(manifest.window.clone()).unwrap_or_else(|| {
         if is_tab_plugin {
             crate::commands::system_cmd::PluginWindowConfig {
                 width: 1024.0,
@@ -344,7 +346,8 @@ pub fn restore_active_widgets_on_boot(_app: &AppHandle) {
                 if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                     if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
                         let p_type = manifest.plugin_type.unwrap_or_default();
-                        if p_type == "widget" || p_type == "skin" {
+                        let has_widget = manifest.widget.is_some() || p_type == "widget" || p_type == "skin";
+                        if has_widget {
                             crate::log_info!(
                                 "WIDGET",
                                 "Auto-restoring enabled widget '{}' on startup via native Wry runtime...",

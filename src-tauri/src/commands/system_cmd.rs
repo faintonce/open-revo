@@ -50,6 +50,12 @@ pub struct HardwareState {
     pub power_presets: FactoryPowerPresets,
     pub is_dc_online: bool,
     pub high_power_modes_available: bool,
+    #[serde(default)]
+    pub battery_level: u8,
+    #[serde(default)]
+    pub is_charging: bool,
+    #[serde(default)]
+    pub is_ac_online: bool,
     pub cpu_power_w: f32,
     pub gpu_power_w: f32,
     #[serde(default)]
@@ -146,6 +152,7 @@ pub fn collect_hardware_state(
     let oem_installed = process::is_oem_installed();
     let is_intel_13_14_gen = cpu.is_intel_13_14_gen();
     let autostart_enabled = autostart::is_autostart_enabled_cached();
+    let (battery_level, is_ac_online, is_charging) = crate::commands::power_cmd::get_live_power_status();
 
     let cfg = crate::system::config::load_config();
 
@@ -191,6 +198,9 @@ pub fn collect_hardware_state(
             3, super::power_cmd::is_thin_and_light_or_pure_igpu(),
             is_dc_online, cfg.unlock_battery_power_limit,
         ).is_ok(),
+        battery_level,
+        is_charging,
+        is_ac_online,
         cpu_power_w: cpu.get_power_w(),
         gpu_power_w,
         balanced_gpu_dynamic_boost: cfg.balanced_gpu_dynamic_boost,
@@ -276,14 +286,24 @@ pub(crate) fn set_unlock_battery_power_limit_internal(
     let mut cfg = crate::system::config::load_config();
     crate::system::config::ensure_config_writable()?;
     cfg.unlock_battery_power_limit = enable;
+    crate::log_info!("POWER", "Battery power limit unlock state changed to: {}", enable);
     if !enable && !super::power_cmd::is_thin_and_light_or_pure_igpu()
         && !is_dc_round_plugged_in() && cfg.power_mode >= 3
     {
-        cfg.power_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
+        let target_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
+        crate::log_warn!(
+            "POWER",
+            "Battery limit re-enabled on battery while in high mode {}, safely downgrading to {}",
+            cfg.power_mode,
+            target_mode
+        );
+        cfg.power_mode = target_mode;
         ec_state.lock().set_power_mode_with_config(&cfg)?;
-        super::power_cmd::publish_power_mode(app, cfg.power_mode);
+        super::power_cmd::publish_power_mode(app, target_mode);
+        crate::system::slint_window::sync_slint_power_targets(target_mode);
     } else {
         crate::system::config::try_save_config(&cfg)?;
+        crate::system::slint_window::sync_slint_switches_state();
     }
     if let Some(app) = app {
         let _ = app.emit("unlock-battery-power-limit-changed", enable);
@@ -815,6 +835,23 @@ fn default_widget_height() -> f64 { 320.0 }
 fn default_true() -> bool { true }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PluginTabConfig {
+    pub entry: Option<String>,
+    #[serde(default, alias = "type", alias = "engine", alias = "plugin_type")]
+    pub plugin_type: Option<String>,
+    pub title: Option<String>,
+    pub icon: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PluginWidgetConfig {
+    pub entry: Option<String>,
+    #[serde(default, alias = "type", alias = "engine", alias = "plugin_type")]
+    pub plugin_type: Option<String>,
+    pub window: Option<PluginWindowConfig>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CustomPluginItem {
     pub id: String,
     pub name: String,
@@ -838,6 +875,23 @@ pub struct CustomPluginItem {
     pub order: Option<f64>,
     pub is_compatible: bool,
     pub compatibility_notice: Option<String>,
+    // --- Unified Capability Declarations ---
+    #[serde(default)]
+    pub has_tab: bool,
+    #[serde(default)]
+    pub has_widget: bool,
+    #[serde(default)]
+    pub has_slot: bool,
+    #[serde(default)]
+    pub has_service: bool,
+    #[serde(default)]
+    pub has_skin: bool,
+    #[serde(default)]
+    pub has_background: bool,
+    #[serde(default)]
+    pub is_headless: bool,
+    pub tab: Option<PluginTabConfig>,
+    pub widget: Option<PluginWidgetConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -872,6 +926,10 @@ pub struct RawPluginManifest {
     pub min_host_version: Option<String>,
     #[serde(default)]
     pub order: Option<f64>,
+    #[serde(default)]
+    pub tab: Option<PluginTabConfig>,
+    #[serde(default)]
+    pub widget: Option<PluginWidgetConfig>,
 }
 
 pub fn check_version_compatibility(min_host_version: Option<&str>) -> (bool, Option<String>) {
@@ -1234,7 +1292,61 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                         if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
                             let id = manifest.id.unwrap_or_else(|| dir_name.clone());
-                            let plugin_type = manifest.plugin_type.unwrap_or_else(|| "extension".into());
+                            let raw_p_type = manifest.plugin_type.as_deref().unwrap_or("extension");
+
+                            let has_explicit_tab = manifest.tab.is_some();
+                            let has_explicit_widget = manifest.widget.is_some();
+
+                            let has_skin = raw_p_type.eq_ignore_ascii_case("skin") || manifest.theme_css.is_some();
+                            let has_background = raw_p_type.eq_ignore_ascii_case("background") || manifest.background_css.is_some() || manifest.image.is_some();
+                            let has_slot = raw_p_type.eq_ignore_ascii_case("slot") || manifest.target_slot.is_some();
+                            let has_service = manifest.service.is_some();
+
+                            let has_widget = has_explicit_widget || (raw_p_type.eq_ignore_ascii_case("widget") && !has_explicit_tab);
+                            let has_tab = has_explicit_tab || raw_p_type.eq_ignore_ascii_case("tab") || (manifest.entry.is_some() && !has_widget && !has_slot && !has_skin && !has_background);
+                            let is_headless = !has_tab && !has_widget && !has_slot && !has_skin && !has_background;
+
+                            let plugin_type = if has_skin {
+                                "skin".to_string()
+                            } else if has_background {
+                                "background".to_string()
+                            } else if has_tab && has_widget {
+                                "app".to_string()
+                            } else if has_widget {
+                                "widget".to_string()
+                            } else if has_tab {
+                                "tab".to_string()
+                            } else if has_slot {
+                                "slot".to_string()
+                            } else {
+                                "service".to_string()
+                            };
+
+                            let tab_cfg = manifest.tab.clone().or_else(|| {
+                                if has_tab {
+                                    Some(PluginTabConfig {
+                                        entry: manifest.entry.clone(),
+                                        plugin_type: manifest.plugin_type.clone(),
+                                        title: manifest.name.clone(),
+                                        icon: None,
+                                    })
+                                } else {
+                                    None
+                                }
+                            });
+
+                            let widget_cfg = manifest.widget.clone().or_else(|| {
+                                if has_widget {
+                                    Some(PluginWidgetConfig {
+                                        entry: manifest.entry.clone(),
+                                        plugin_type: manifest.plugin_type.clone(),
+                                        window: manifest.window.clone(),
+                                    })
+                                } else {
+                                    None
+                                }
+                            });
+
                             let (is_compatible, compatibility_notice) = check_version_compatibility(manifest.min_host_version.as_deref());
                             let enabled = if !is_compatible {
                                 false
@@ -1245,6 +1357,7 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                             } else {
                                 cfg.custom_plugin_toggles.get(&id).copied().unwrap_or(true)
                             };
+
                             list.push(CustomPluginItem {
                                 id: id.clone(),
                                 name: manifest.name.unwrap_or_else(|| dir_name.clone()),
@@ -1267,6 +1380,15 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 order: manifest.order,
                                 is_compatible,
                                 compatibility_notice,
+                                has_tab,
+                                has_widget,
+                                has_slot,
+                                has_service,
+                                has_skin,
+                                has_background,
+                                is_headless,
+                                tab: tab_cfg,
+                                widget: widget_cfg,
                             });
                             if enabled && is_compatible {
                                 if let Some(ref scs) = manifest.shortcuts {
@@ -1305,6 +1427,15 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                     order: None,
                     is_compatible: true,
                     compatibility_notice: None,
+                    has_tab: false,
+                    has_widget: false,
+                    has_slot: false,
+                    has_service: false,
+                    has_skin: false,
+                    has_background: false,
+                    is_headless: true,
+                    tab: None,
+                    widget: None,
                 });
             }
         }
@@ -1388,6 +1519,17 @@ pub fn find_plugin_dir(plugin_id: &str) -> std::path::PathBuf {
             }
         }
     }
+
+    // Fallback: check repository sample directories
+    let sample_slint = std::path::Path::new("plugins_sample").join("slint").join(plugin_id);
+    if sample_slint.exists() {
+        return sample_slint;
+    }
+    let sample_web = std::path::Path::new("plugins_sample").join("webview2").join(plugin_id);
+    if sample_web.exists() {
+        return sample_web;
+    }
+
     direct
 }
 
@@ -1512,14 +1654,24 @@ pub fn get_active_background() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-pub fn load_plugin_html(plugin_id: String) -> Result<String, String> {
+pub fn load_plugin_html(plugin_id: String, surface: Option<String>) -> Result<String, String> {
     let plugins_dir = find_plugin_dir(&plugin_id);
     let manifest_path = plugins_dir.join("manifest.json");
 
     let entry_file = if manifest_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&manifest_path) {
             if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
-                manifest.entry.unwrap_or_else(|| "index.html".into())
+                let s = surface.as_deref().unwrap_or_default();
+                if s.eq_ignore_ascii_case("widget") {
+                    manifest.widget.and_then(|w| w.entry).or(manifest.entry).unwrap_or_else(|| "index.html".into())
+                } else if s.eq_ignore_ascii_case("tab") {
+                    manifest.tab.and_then(|t| t.entry).or(manifest.entry).unwrap_or_else(|| "index.html".into())
+                } else {
+                    manifest.entry
+                        .or_else(|| manifest.tab.and_then(|t| t.entry))
+                        .or_else(|| manifest.widget.and_then(|w| w.entry))
+                        .unwrap_or_else(|| "index.html".into())
+                }
             } else {
                 "index.html".into()
             }
@@ -1691,3 +1843,79 @@ pub fn get_model_capabilities() -> serde_json::Value {
         "is_debug_mode": is_debug,
     })
 }
+
+/// Automatically loads shortcuts, watchers, and auto-starts services for all enabled and compatible plugins on host startup
+pub fn bootstrap_enabled_plugins() {
+    let cfg = crate::system::config::load_config();
+    let plugins_dir = crate::system::config::get_config_dir().join("plugins");
+    if !plugins_dir.exists() {
+        return;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let dir_name = entry.file_name().to_string_lossy().to_string();
+                let manifest_path = path.join("manifest.json");
+                if manifest_path.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                        if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
+                            let id = manifest.id.unwrap_or_else(|| dir_name.clone());
+                            let enabled = cfg
+                                .custom_plugin_toggles
+                                .get(&id)
+                                .or_else(|| cfg.custom_plugin_toggles.get(&dir_name))
+                                .copied()
+                                .unwrap_or(true);
+                            let (is_compatible, _) = check_version_compatibility(manifest.min_host_version.as_deref());
+                            if enabled && is_compatible {
+                                crate::log_info!("PLUGIN", "Bootstrapping enabled plugin '{}'", id);
+                                if let Some(ref scs) = manifest.shortcuts {
+                                    crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
+                                }
+                                if let Some(ref wts) = manifest.watchers {
+                                    crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
+                                }
+                                if let Some(ref srv) = manifest.service {
+                                    if srv.auto_start {
+                                        crate::log_info!("PLUGIN", "Auto-starting companion service for '{}'", id);
+                                        let _ = crate::system::plugin_service::start_service(&id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn register_telemetry_consumer(consumer_id: String, sensors: Option<Vec<String>>) -> Result<(), String> {
+    let sensor_list = sensors.unwrap_or_else(|| vec![
+        "cpu_temp".into(), "gpu_temp".into(), "cpu_power".into(), "gpu_power".into(), "fps".into()
+    ]);
+    crate::system::telemetry::register_consumer(&consumer_id, &sensor_list);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn unregister_telemetry_consumer(consumer_id: String) -> Result<(), String> {
+    crate::system::telemetry::unregister_consumer(&consumer_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn emit_plugin_broadcast(app: tauri::AppHandle, event: String, payload: serde_json::Value) -> Result<(), String> {
+    use tauri::Emitter;
+    let _ = app.emit(&event, payload.clone());
+    crate::system::native_wry::broadcast_event(&event, &payload);
+    Ok(())
+}
+
+
+
+
+

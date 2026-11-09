@@ -42,7 +42,10 @@ export interface HardwareState {
   model_name?: string;       // e.g. "GM6IX9B" or "MECHREVO"
   board_name?: string;       // e.g. "XINGYAO Series-P916F-STX" or "GM6IX9B"
   power_presets?: FactoryPowerPresets; // Real hardware factory power limits from motherboard EC
-  is_dc_online?: boolean;
+  is_dc_online?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
+  battery_level?: number;    // Real-time battery charge percentage (0-100)
+  is_charging?: boolean;     // true if battery is currently charging
+  is_ac_online?: boolean;    // true if external AC power connected
   high_power_modes_available?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
   cpu_power_w?: number;      // CPU package real-time power (W)
   gpu_power_w?: number;      // GPU real-time power draw (W)
