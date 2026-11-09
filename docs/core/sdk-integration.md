@@ -1,5 +1,7 @@
 # OpenRevo 核心引擎 SDK 接入与生态开发指南
 
+> 文档首页：[docs/README.md](../README.md) · 核心引擎与 SDK：[core/README.md](README.md)
+
 **适用版本**：`>= v0.9.6`  
 **核心定位**：硬件调度与跨语言中台引擎（Core Orchestration Engine）  
 **产物形态**：`openrevo_core.dll` (Windows) / `libopenrevo_core.so` (Linux)

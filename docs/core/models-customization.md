@@ -1,5 +1,7 @@
 # OpenRevo 机型配置与功耗预设定制指南 (models.json)
 
+> 文档首页：[docs/README.md](../README.md) · 核心引擎与 SDK：[core/README.md](README.md)
+
 > **“硬件操控权属于工具，参数决定权归还用户。”**  
 > OpenRevo 秉承真正的开源理念，不再在程序代码中对三大模式（办公/平衡/狂暴）的功耗进行写死锁定。本文档将指导你如何定制与调优属于你自己的机型配置文件。
 

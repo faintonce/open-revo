@@ -391,7 +391,7 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
             </div>
             <div className="plugin-empty-title">暂未检测到第三方自定义插件</div>
             <div className="plugin-empty-desc">
-              将包含 manifest.json 的插件文件夹或 .rhai 脚本放入 plugins 目录后点击右上角“刷新”即可加载。详情可查阅《OpenRevo 第三方插件开发手册》。
+              将包含 manifest.json 的插件文件夹或 .rhai 脚本放入 plugins 目录后点击右上角“刷新”即可加载。详情可查阅《OpenRevo 插件与扩展文档》。
             </div>
             <button onClick={handleOpenPluginsDir} className="toggle-btn active-indigo">
               <FolderOpen size={13} />
