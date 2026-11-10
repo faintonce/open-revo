@@ -143,6 +143,7 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
 }
 
 pub fn run() {
+    std::env::set_var("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "0");
     let cfg = crate::system::config::load_config();
     if cfg.use_classic_webview {
         run_tauri_runtime();

@@ -216,10 +216,10 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
 
             // 13. Custom Cross-Plugin Event Bus
             ShortcutAction::PluginEvent { event_name, payload } => {
-                let _ = app.emit(&event_name, &payload);
+                crate::system::broadcast::broadcast_all(&event_name, &payload);
                 if let Some(ref p_id) = binding.plugin_id {
                     let plugin_topic = format!("plugin:{}:shortcut", p_id);
-                    let _ = app.emit(&plugin_topic, serde_json::json!({
+                    crate::system::broadcast::broadcast_all(&plugin_topic, &serde_json::json!({
                         "shortcut_id": binding.id,
                         "name": binding.name,
                         "combo": binding.combo,

@@ -328,11 +328,14 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
           srcDoc={preparedHtml}
           title={`widget-${pluginId}`}
           sandbox="allow-scripts allow-forms allow-same-origin allow-modals"
+          // @ts-ignore
+          allowTransparency="true"
           style={{
             width: '100%',
             height: '100%',
             border: 'none',
             background: 'transparent',
+            backgroundColor: 'transparent',
             display: 'block',
           }}
           onLoad={() => {

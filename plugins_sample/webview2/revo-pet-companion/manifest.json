@@ -1,0 +1,34 @@
+{
+  "id": "revo-pet-companion",
+  "name": "机甲灵动智宠",
+  "version": "1.0.0",
+  "author": "OpenRevo Community",
+  "description": "桌面常驻悬浮机甲智宠，支持快捷键/语音对讲交互、硬件自然语言调控与微软神经拟真语音流式朗读。",
+  "plugin_type": "widget",
+  "entry": "index.html",
+  "min_host_version": "0.9.3",
+  "window": {
+    "width": 160,
+    "height": 170,
+    "transparent": true,
+    "always_on_top": true,
+    "resizable": false,
+    "decorations": false,
+    "skip_taskbar": true
+  },
+  "telemetry": {
+    "enabled": true,
+    "desiredIntervalMs": 2000,
+    "sensors": [
+      "cpu_temp",
+      "gpu_temp",
+      "fan_boost",
+      "power_mode"
+    ]
+  },
+  "permissions": [
+    "telemetry:read",
+    "fan:control",
+    "power:control"
+  ]
+}

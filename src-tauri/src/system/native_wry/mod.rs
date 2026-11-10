@@ -456,6 +456,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
     let proxy = event_loop.create_proxy();
     let _ = tx.send(proxy.clone());
 
+    std::env::set_var("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "0");
     let data_dir = crate::system::config::get_config_dir().join("webview2_runtime");
     let _ = std::fs::create_dir_all(&data_dir);
     let mut web_context = WebContext::new(Some(data_dir));
@@ -804,13 +805,15 @@ fn spawn_popout_window(
         .with_resizable(resizable)
         .with_decorations(decorations)
         .with_transparent(transparent)
-        .with_always_on_top(always_on_top)
-        .with_visible(true);
+        .with_always_on_top(always_on_top);
 
     #[cfg(target_os = "windows")]
     {
         if skip_taskbar {
             win_builder = win_builder.with_skip_taskbar(true);
+        }
+        if !decorations {
+            win_builder = win_builder.with_undecorated_shadow(false);
         }
     }
 
@@ -822,12 +825,23 @@ fn spawn_popout_window(
         .build(target)
         .map_err(|e| format!("Failed to create tao window: {:?}", e))?;
 
+    #[cfg(target_os = "windows")]
+    {
+        use tao::platform::windows::WindowExtWindows;
+        if !decorations {
+            window.set_undecorated_shadow(false);
+        }
+    }
+
+    window.set_visible(true);
+
     let proxy_for_ipc = proxy.clone();
     let plugin_id_for_ipc = plugin_id.to_string();
     let target_for_ipc = ViewTarget::Popout(plugin_id.to_string());
 
     let webview = WebViewBuilder::new_with_web_context(web_context)
         .with_transparent(transparent)
+        .with_devtools(true)
         .with_custom_protocol("revo".into(), move |_id, request| {
             handle_custom_protocol(request)
         })
@@ -843,7 +857,6 @@ fn spawn_popout_window(
         .build(&window)
         .map_err(|e| format!("Failed to build wry WebView: {:?}", e))?;
 
-    window.set_visible(true);
     if !is_widget {
         window.set_focus();
     }
@@ -865,31 +878,6 @@ fn spawn_popout_window(
             .filter(|s| !s.is_empty())
             .unwrap_or(default_sensors);
         crate::system::telemetry::register_consumer(plugin_id, &sensors);
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        use tao::platform::windows::WindowExtWindows;
-        use windows::Win32::Foundation::HWND;
-        use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SetForegroundWindow, SW_SHOW};
-        let hwnd = HWND(window.hwnd() as *mut _);
-        unsafe {
-            if transparent {
-                use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;
-                use windows::Win32::UI::Controls::MARGINS;
-                let margins = MARGINS {
-                    cxLeftWidth: -1,
-                    cxRightWidth: -1,
-                    cyTopHeight: -1,
-                    cyBottomHeight: -1,
-                };
-                let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
-            }
-            let _ = ShowWindow(hwnd, SW_SHOW);
-            if !is_widget {
-                let _ = SetForegroundWindow(hwnd);
-            }
-        }
     }
 
     Ok((window, webview))

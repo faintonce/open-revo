@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>OpenRevo 机甲智宠</title>
+  <style>
+    :root {
+      --glow-idle: #38bdf8;
+      --glow-listening: #06b6d4;
+      --glow-thinking: #818cf8;
+      --glow-speaking: #34d399;
+      --glow-boost: #f43f5e;
+      --active-glow: var(--glow-idle);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      background: transparent !important;
+      background-color: transparent !important;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 12px;
+    }
+
+    /* --- Speech Bubble Container --- */
+    .bubble-wrapper {
+      width: 284px;
+      margin-bottom: 8px;
+      display: none;
+      flex-direction: column;
+    }
+
+    .bubble-wrapper.show {
+      display: flex;
+      animation: bubbleSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes bubbleSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .speech-bubble {
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 12px -2px var(--active-glow);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 180px;
+    }
+
+    .bubble-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 4px;
+    }
+
+    .bubble-header .status-tag {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--active-glow);
+      font-weight: 600;
+    }
+
+    .bubble-header .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+      font-size: 12px;
+    }
+    .icon-btn:hover {
+      opacity: 1;
+    }
+
+    .bubble-content {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      overflow-y: auto;
+      max-height: 100px;
+      word-break: break-word;
+      padding-right: 4px;
+    }
+
+    .bubble-content::-webkit-scrollbar {
+      width: 3px;
+    }
+    .bubble-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    .action-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 4px;
+    }
+
+    /* Bubble Quick Input Bar */
+    .bubble-input-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 6px;
+    }
+
+    .chat-mini-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: #fff;
+      outline: none;
+    }
+    .chat-mini-input:focus {
+      border-color: var(--active-glow);
+    }
+
+    .voice-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .voice-btn:hover {
+      background: var(--active-glow);
+      color: #0b0f17;
+    }
+    .voice-btn.active {
+      background: #f43f5e;
+      color: #fff;
+      animation: pulse 1s infinite alternate;
+    }
+
+    /* --- Mecha Pet Body --- */
+    .pet-wrapper {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+    }
+
+    .pet-wrapper:active {
+      cursor: grabbing;
+    }
+
+    /* Acoustic / Power Wave Rings */
+    .wave-ring {
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 1.5px solid var(--active-glow);
+      opacity: 0.25;
+      transition: transform 0.15s ease-out, border-color 0.3s;
+      pointer-events: none;
+    }
+
+    .wave-ring-outer {
+      width: 110px;
+      height: 110px;
+      opacity: 0.15;
+    }
+
+    /* Core Armor Chassis */
+    .mecha-chassis {
+      position: relative;
+      width: 78px;
+      height: 78px;
+      background: radial-gradient(circle at 35% 35%, #1e293b, #090d16);
+      border: 1.5px solid rgba(255, 255, 255, 0.18);
+      border-radius: 22px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .mecha-chassis:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 18px var(--active-glow);
+    }
+
+    /* Visor / Eye Screen */
+    .cyber-visor {
+      width: 50px;
+      height: 24px;
+      background: #040711;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.8);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .eye {
+      width: 8px;
+      height: 10px;
+      background: var(--active-glow);
+      border-radius: 3px;
+      box-shadow: 0 0 8px var(--active-glow);
+      transition: all 0.2s;
+    }
+
+    /* Eye Expression Animations */
+    .eye.blink {
+      height: 1.5px;
+    }
+
+    .eye.happy {
+      height: 5px;
+      border-radius: 5px 5px 0 0;
+      border: 2px solid var(--active-glow);
+      border-bottom: none;
+      background: transparent;
+    }
+
+    .eye.thinking {
+      animation: eyeScan 1s infinite alternate;
+    }
+
+    @keyframes eyeScan {
+      0% { transform: translateX(-4px); }
+      100% { transform: translateX(4px); }
+    }
+
+    /* Audio Equalizer Mouth */
+    .audio-mouth {
+      display: flex;
+      align-items: center;
+      gap: 2.5px;
+      height: 8px;
+      margin-top: 6px;
+    }
+
+    .audio-bar {
+      width: 2.5px;
+      height: 3px;
+      background: var(--active-glow);
+      border-radius: 1.5px;
+      transition: height 0.1s;
+    }
+
+    /* Telemetry Mini Pill */
+    .telemetry-pill {
+      position: absolute;
+      bottom: -6px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-size: 9px;
+      font-family: monospace;
+      color: rgba(255, 255, 255, 0.7);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .temp-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.1); }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Speech Bubble -->
+  <div class="bubble-wrapper" id="bubbleWrapper">
+    <div class="speech-bubble">
+      <div class="bubble-header">
+        <div class="status-tag">
+          <span id="statusIcon">🤖</span>
+          <span id="statusText">机甲智宠就绪</span>
+        </div>
+        <div class="controls">
+          <span class="icon-btn" id="ttsToggle" title="切换语音朗读 (TTS)">🔊</span>
+          <span class="icon-btn" id="btnCloseBubble" title="收起气泡">✕</span>
+        </div>
+      </div>
+
+      <div class="bubble-content" id="bubbleContent">
+        主人你好！按 <b>Ctrl+Shift+V</b> 或单击我，就能随时语音吩咐我开强冷、调性能模式或闲聊哦~
+      </div>
+
+      <div class="bubble-input-bar">
+        <input type="text" class="chat-mini-input" id="miniInput" placeholder="输入指令或提问 (Enter 发送)..." />
+        <div class="voice-btn" id="btnVoice" title="按住对讲 / 点击聆听">🎙️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mecha Pet Body -->
+  <div class="pet-wrapper" id="petBody" title="拖拽移动 / 双击展开对讲">
+    <div class="wave-ring wave-ring-outer" id="waveOuter"></div>
+    <div class="wave-ring" id="waveInner"></div>
+
+    <div class="mecha-chassis" id="chassis">
+      <div class="cyber-visor">
+        <div class="eye" id="leftEye"></div>
+        <div class="eye" id="rightEye"></div>
+      </div>
+
+      <div class="audio-mouth" id="mouth">
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+      </div>
+
+      <div class="telemetry-pill" id="telemetryPill">
+        <div class="temp-dot" id="tempDot"></div>
+        <span id="tempVal">--°C</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Universal RPC Bridge (Dual-track Native Wry & Tauri)
+    async function rpc(command, args = {}) {
+      if (window.__OPENREVO__ && typeof window.__OPENREVO__.invoke === 'function') {
+        return await window.__OPENREVO__.invoke(command, args);
+      }
+      if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+        return await window.__TAURI__.core.invoke(command, args);
+      }
+      return new Promise((resolve, reject) => {
+        const reqId = 'req_' + Math.random().toString(36).substring(2, 9);
+        const timer = setTimeout(() => {
+          window.removeEventListener('message', onMsg);
+          reject(new Error('RPC 调用超时: ' + command));
+        }, 12000);
+        function onMsg(e) {
+          if (e.data && e.data.reqId === reqId) {
+            clearTimeout(timer);
+            window.removeEventListener('message', onMsg);
+            if (e.data.error) reject(new Error(e.data.error));
+            else resolve(e.data.result);
+          }
+        }
+        window.addEventListener('message', onMsg);
+        window.parent.postMessage({ action: 'INVOKE_COMMAND', command, args, reqId }, '*');
+      });
+    }
+
+    // --- State Machine ---
+    const STATE = {
+      IDLE: 'idle',
+      LISTENING: 'listening',
+      THINKING: 'thinking',
+      SPEAKING: 'speaking',
+      BOOST: 'boost'
+    };
+    let currentState = STATE.IDLE;
+    let ttsEnabled = true;
+
+    function setState(newState) {
+      currentState = newState;
+      const root = document.documentElement;
+      const statusText = document.getElementById('statusText');
+      const statusIcon = document.getElementById('statusIcon');
+      const leftEye = document.getElementById('leftEye');
+      const rightEye = document.getElementById('rightEye');
+      const btnVoice = document.getElementById('btnVoice');
+
+      // Reset eyes
+      leftEye.className = 'eye';
+      rightEye.className = 'eye';
+      btnVoice.classList.remove('active');
+
+      switch (newState) {
+        case STATE.IDLE:
+          root.style.setProperty('--active-glow', 'var(--glow-idle)');
+          statusText.innerText = '机甲智宠就绪';
+          statusIcon.innerText = '🤖';
+          break;
+        case STATE.LISTENING:
+          root.style.setProperty('--active-glow', 'var(--glow-listening)');
+          statusText.innerText = '正在聆听主人指令...';
+          statusIcon.innerText = '🎙️';
+          btnVoice.classList.add('active');
+          showBubble();
+          break;
+        case STATE.THINKING:
+          root.style.setProperty('--active-glow', 'var(--glow-thinking)');
+          statusText.innerText = '机甲微核推演中...';
+          statusIcon.innerText = '⚡';
+          leftEye.classList.add('thinking');
+          rightEye.classList.add('thinking');
+          break;
+        case STATE.SPEAKING:
+          root.style.setProperty('--active-glow', 'var(--glow-speaking)');
+          statusText.innerText = '正在回复...';
+          statusIcon.innerText = '💬';
+          leftEye.classList.add('happy');
+          rightEye.classList.add('happy');
+          break;
+        case STATE.BOOST:
+          root.style.setProperty('--active-glow', 'var(--glow-boost)');
+          statusText.innerText = '暴走模式激活！';
+          statusIcon.innerText = '🔥';
+          break;
+      }
+    }
+
+    // --- Speech Bubble Toggle ---
+    const bubbleWrapper = document.getElementById('bubbleWrapper');
+    const bubbleContent = document.getElementById('bubbleContent');
+
+    function showBubble() {
+      bubbleWrapper.classList.add('show');
+      rpc('set_window_size', { width: 300, height: 320 });
+    }
+    function hideBubble() {
+      bubbleWrapper.classList.remove('show');
+      rpc('set_window_size', { width: 160, height: 170 });
+    }
+
+    document.getElementById('btnCloseBubble').onclick = (e) => {
+      e.stopPropagation();
+      hideBubble();
+    };
+
+    // --- Dragging & Interaction Handlers ---
+    const petBody = document.getElementById('petBody');
+    let downPos = null;
+    let isDragTriggered = false;
+
+    petBody.addEventListener('pointerdown', (e) => {
+      if (e.button === 0) {
+        downPos = { x: e.screenX, y: e.screenY };
+        isDragTriggered = false;
+      }
+    });
+
+    petBody.addEventListener('pointermove', (e) => {
+      if (downPos && !isDragTriggered) {
+        const dx = Math.abs(e.screenX - downPos.x);
+        const dy = Math.abs(e.screenY - downPos.y);
+        if (dx > 4 || dy > 4) {
+          isDragTriggered = true;
+          if (window.__OPENREVO__ && typeof window.__OPENREVO__.getCurrentWindow === 'function') {
+            window.__OPENREVO__.getCurrentWindow().startDragging();
+          } else if (window.__TAURI__ && window.__TAURI__.window) {
+            window.__TAURI__.window.getCurrentWindow().startDragging();
+          } else {
+            rpc('start_dragging');
+          }
+        }
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      downPos = null;
+    });
+
+    petBody.addEventListener('click', (e) => {
+      if (isDragTriggered) return;
+      if (bubbleWrapper.classList.contains('show')) {
+        hideBubble();
+      } else {
+        showBubble();
+      }
+    });
+
+    petBody.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      toggleListening();
+    });
+
+    // --- Microsoft TTS Synthesis Engine ---
+    let chosenVoice = null;
+    function initTTS() {
+      if (!window.speechSynthesis) return;
+      function pickVoice() {
+        const voices = window.speechSynthesis.getVoices();
+        // Priority: Huihui -> Xiaoxiao -> Yaoyao -> Kangkang -> any zh-CN
+        chosenVoice = voices.find(v => v.name.includes('Huihui'))
+          || voices.find(v => v.name.includes('Xiaoxiao'))
+          || voices.find(v => v.name.includes('Yaoyao'))
+          || voices.find(v => v.name.includes('Kangkang'))
+          || voices.find(v => v.lang.replace('_', '-').toLowerCase().startsWith('zh'));
+      }
+      pickVoice();
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = pickVoice;
+      }
+    }
+
+    function speakText(text) {
+      if (!ttsEnabled || !window.speechSynthesis || !text) return;
+      window.speechSynthesis.cancel(); // Stop prior speech
+      const clean = text.replace(/[*#`_~]/g, '').trim();
+      if (!clean) return;
+
+      const utter = new SpeechSynthesisUtterance(clean);
+      if (chosenVoice) utter.voice = chosenVoice;
+      utter.rate = 1.05;
+      utter.pitch = 1.1;
+
+      utter.onstart = () => {
+        animateMouth(true);
+      };
+      utter.onend = () => {
+        animateMouth(false);
+        if (currentState === STATE.SPEAKING) setState(STATE.IDLE);
+      };
+      utter.onerror = () => {
+        animateMouth(false);
+        if (currentState === STATE.SPEAKING) setState(STATE.IDLE);
+      };
+
+      window.speechSynthesis.speak(utter);
+    }
+
+    const mouthBars = document.querySelectorAll('.audio-bar');
+    let mouthTimer = null;
+    function animateMouth(active) {
+      if (active) {
+        if (!mouthTimer) {
+          mouthTimer = setInterval(() => {
+            mouthBars.forEach(b => {
+              const h = Math.floor(Math.random() * 8) + 2;
+              b.style.height = `${h}px`;
+            });
+          }, 120);
+        }
+      } else {
+        clearInterval(mouthTimer);
+        mouthTimer = null;
+        mouthBars.forEach(b => b.style.height = '3px');
+      }
+    }
+
+    document.getElementById('ttsToggle').onclick = () => {
+      ttsEnabled = !ttsEnabled;
+      document.getElementById('ttsToggle').innerText = ttsEnabled ? '🔊' : '🔇';
+      if (!ttsEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+
+    // --- Audio Spectrum & Mic Analyser ---
+    let audioCtx = null;
+    let micStream = null;
+    let analyser = null;
+    let animFrame = null;
+    const waveInner = document.getElementById('waveInner');
+    const waveOuter = document.getElementById('waveOuter');
+
+    async function startMicVisualizer() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioCtx.createMediaStreamSource(micStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64;
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        function renderWave() {
+          if (currentState !== STATE.LISTENING) {
+            waveInner.style.transform = 'scale(1)';
+            waveOuter.style.transform = 'scale(1)';
+            return;
+          }
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          const avg = sum / dataArray.length;
+          const scale = 1 + (avg / 128) * 0.45;
+          waveInner.style.transform = `scale(${scale})`;
+          waveOuter.style.transform = `scale(${scale * 1.15})`;
+          animFrame = requestAnimationFrame(renderWave);
+        }
+        renderWave();
+      } catch (err) {
+        console.warn('麦克风波形捕获未就绪:', err);
+      }
+    }
+
+    function stopMicVisualizer() {
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+      }
+      waveInner.style.transform = 'scale(1)';
+      waveOuter.style.transform = 'scale(1)';
+    }
+
+    // --- Speech Recognition (ASR) ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+
+    function initASR() {
+      if (!SpeechRecognition) {
+        console.warn('当前 Webview 环境未启用 Web Speech API，可使用文字输入或快捷指令');
+        return;
+      }
+      recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        isListening = true;
+        setState(STATE.LISTENING);
+        startMicVisualizer();
+        bubbleContent.innerHTML = '<span style="color: var(--active-glow);">🎙️ 正在聆听主人说话...</span>';
+      };
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          bubbleContent.innerHTML = `👤 "${transcript}"`;
+        }
+      };
+
+      recognition.onerror = (e) => {
+        console.warn('ASR 识别错误:', e);
+        stopListening();
+        bubbleContent.innerHTML = `<span style="color: var(--glow-boost);">⚠️ 未听清，点击话筒或回车重试</span>`;
+      };
+
+      recognition.onend = () => {
+        if (isListening) {
+          stopListening();
+          const text = bubbleContent.innerText.replace(/^👤\s*"/, '').replace(/"$/, '').trim();
+          if (text && !text.includes('正在聆听') && !text.includes('未听清')) {
+            submitPrompt(text);
+          } else {
+            setState(STATE.IDLE);
+          }
+        }
+      };
+    }
+
+    function startListening() {
+      if (!recognition) initASR();
+      if (recognition && !isListening) {
+        try {
+          recognition.start();
+        } catch (_) {}
+      } else {
+        // Fallback prompt for typing
+        showBubble();
+        document.getElementById('miniInput').focus();
+      }
+    }
+
+    function stopListening() {
+      isListening = false;
+      stopMicVisualizer();
+      if (recognition) {
+        try { recognition.stop(); } catch (_) {}
+      }
+    }
+
+    function toggleListening() {
+      if (isListening) {
+        stopListening();
+        setState(STATE.IDLE);
+      } else {
+        startListening();
+      }
+    }
+
+    document.getElementById('btnVoice').onclick = toggleListening;
+
+    // --- Mini Chat Input & Prompt Submission ---
+    const miniInput = document.getElementById('miniInput');
+    miniInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const text = miniInput.value.trim();
+        if (text) {
+          miniInput.value = '';
+          submitPrompt(text);
+        }
+      }
+    });
+
+    async function submitPrompt(promptText) {
+      showBubble();
+      setState(STATE.THINKING);
+      bubbleContent.innerHTML = `<div>👤 <b>主人:</b> ${promptText}</div><div id="aiReplyArea" style="margin-top: 6px; color: var(--glow-idle);">⏳ 思考推演中...</div>`;
+
+      try {
+        await rpc('ai_chat_send', { prompt: promptText, enableTools: true });
+      } catch (err) {
+        setState(STATE.IDLE);
+        const replyArea = document.getElementById('aiReplyArea');
+        if (replyArea) {
+          replyArea.innerHTML = `<span style="color: var(--glow-boost);">❌ 请求失败: ${err.message}</span>`;
+        }
+      }
+    }
+
+    // --- Universal Event Broadcast Listener ---
+    let currentReplyAccumulator = '';
+    window.addEventListener('message', (e) => {
+      const data = e.data;
+      if (!data || data.type !== 'OPENREVO_EVENT') return;
+
+      const eventType = data.event;
+      const payload = data.payload || {};
+
+      if (eventType === 'pet:toggle_listen') {
+        // Triggered by global shortcut Ctrl+Shift+V
+        toggleListening();
+      } else if (eventType === 'llm:stream:chunk') {
+        const replyArea = document.getElementById('aiReplyArea');
+        if (replyArea && payload.delta) {
+          if (currentState !== STATE.SPEAKING) {
+            setState(STATE.SPEAKING);
+            replyArea.innerHTML = '';
+            currentReplyAccumulator = '';
+          }
+          currentReplyAccumulator += payload.delta;
+          replyArea.innerText = currentReplyAccumulator;
+          bubbleContent.scrollTop = bubbleContent.scrollHeight;
+        }
+      } else if (eventType === 'llm:action:executing') {
+        setState(STATE.BOOST);
+        const replyArea = document.getElementById('aiReplyArea');
+        if (replyArea) {
+          const badge = document.createElement('div');
+          badge.className = 'action-badge';
+          badge.innerHTML = `⚡ 已执行硬件指令: <b>${payload.tool}</b>`;
+          replyArea.appendChild(badge);
+        }
+      } else if (eventType === 'llm:chat:error') {
+        setState(STATE.IDLE);
+        const replyArea = document.getElementById('aiReplyArea');
+        if (replyArea) {
+          replyArea.innerHTML += `<div style="color: var(--glow-boost); margin-top: 4px;">⚠️ ${payload.error}</div>`;
+        }
+      } else if (eventType === 'hardware-state-updated' || eventType === 'openrevo-telemetry-update') {
+        // Real-time hardware telemetry
+        updateTelemetry(payload);
+      }
+    });
+
+    // --- Direct Host Telemetry Receiver ---
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'OPENREVO_TELEMETRY' && e.data.payload) {
+        updateTelemetry(e.data.payload);
+      }
+    });
+
+    window.addEventListener('openrevo-telemetry', (e) => {
+      if (e.detail) {
+        updateTelemetry(e.detail);
+      }
+    });
+
+    // Speak when streaming stops (debounce/chunk boundary)
+    let streamEndTimer = null;
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.event === 'llm:stream:chunk') {
+        clearTimeout(streamEndTimer);
+        streamEndTimer = setTimeout(() => {
+          if (currentReplyAccumulator) {
+            speakText(currentReplyAccumulator);
+          }
+        }, 500);
+      }
+    });
+
+    // --- Telemetry Reactor ---
+    function updateTelemetry(data) {
+      const temp = data.cpu_temp || data.gpu_temp;
+      if (temp !== undefined && temp > 0) {
+        document.getElementById('tempVal').innerText = `${temp}°C`;
+        const dot = document.getElementById('tempDot');
+        if (temp >= 85) {
+          dot.style.background = 'var(--glow-boost)';
+          if (currentState === STATE.IDLE) {
+            document.documentElement.style.setProperty('--active-glow', 'var(--glow-boost)');
+          }
+        } else if (temp >= 70) {
+          dot.style.background = '#f59e0b';
+        } else {
+          dot.style.background = '#10b981';
+          if (currentState === STATE.IDLE) {
+            document.documentElement.style.setProperty('--active-glow', 'var(--glow-idle)');
+          }
+        }
+      }
+    }
+
+    // --- Random Blink Animation ---
+    setInterval(() => {
+      if (currentState === STATE.IDLE) {
+        const leftEye = document.getElementById('leftEye');
+        const rightEye = document.getElementById('rightEye');
+        leftEye.classList.add('blink');
+        rightEye.classList.add('blink');
+        setTimeout(() => {
+          leftEye.classList.remove('blink');
+          rightEye.classList.remove('blink');
+        }, 150);
+      }
+    }, 4200);
+
+    // Initializations
+    initTTS();
+    initASR();
+    setState(STATE.IDLE);
+    rpc('get_hardware_status').then(status => {
+      if (status) updateTelemetry(status);
+    }).catch(() => {});
+  </script>
+</body>
+</html>
+
