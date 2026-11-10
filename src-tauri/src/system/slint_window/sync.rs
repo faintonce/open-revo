@@ -501,6 +501,8 @@ pub fn sync_slint_plugins_state() {
                 "description": p.description,
                 "plugin_type": p.plugin_type,
                 "enabled": p.enabled,
+                "has_tab": p.has_tab,
+                "has_widget": p.has_widget,
                 "tag": tag,
                 "min_version": min_ver,
                 "dir_name": p.dir_name,
