@@ -1,19 +1,27 @@
 export component MainWindow inherits Window {
     title: "电池常驻挂件 (Slint 极速光栅化)";
+    no-frame: true;
+    always-on-top: true;
+    background: transparent;
     width: 260px;
     height: 80px;
-    background: #0f131a;
     default-font-size: 12px;
 
     in-out property <int> battery_percent: 78;
     in-out property <bool> is_charging: true;
     in-out property <bool> eco_mode: true;
 
+    // Full-card background drag area
+    WindowMoveArea {
+        width: 100%;
+        height: 100%;
+    }
+
     Rectangle {
-        border-radius: 8px;
+        border-radius: 12px;
         border-width: 1px;
-        border-color: #1e293b;
-        background: #0f131a;
+        border-color: #334155;
+        background: #0f131aee;
 
         VerticalLayout {
             padding: 10px;

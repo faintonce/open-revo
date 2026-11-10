@@ -18,9 +18,10 @@
       "width": 260,
       "height": 80,
       "resizable": false,
-      "decorations": true,
-      "transparent": false,
-      "always_on_top": true
+      "decorations": false,
+      "transparent": true,
+      "always_on_top": true,
+      "skip_taskbar": true
     }
   }
 }
