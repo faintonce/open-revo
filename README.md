@@ -8,7 +8,7 @@
 
 <div align="center">
 
-![OpenRevo Banner](./docs/logo_s.jpg)
+![OpenRevo Banner](./docs/images/brand/logo_s.jpg)
 
 [![Version](https://img.shields.io/badge/Release-v0.9.3-6366f1.svg?style=flat-square)](https://github.com/faintonce/open-revo/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-10b981.svg?style=flat-square)](LICENSE)
@@ -37,16 +37,16 @@
 以下截图展示了 OpenRevo 的核心交互界面与高频功能入口：
 
 ### 主界面总览 (Dashboard)
-<img src="docs/screenshots/dashboard.jpg" width="600" alt="Dashboard overview" />
+<img src="docs/images/screenshots/dashboard.jpg" width="600" alt="Dashboard overview" />
 
 ### 极速托盘抽屉 (MiniDrawer)
-<img src="docs/screenshots/miniDraw.jpg" width="200" alt="MiniDrawer" />
+<img src="docs/images/screenshots/miniDraw.jpg" width="200" alt="MiniDrawer" />
 
 ### BetterRGB 键盘背光调校室 (Lighting Studio)
-<img src="docs/screenshots/better%20RGB.jpg" width="600" alt="Lighting Studio" />
+<img src="docs/images/screenshots/better-rgb.jpg" width="600" alt="Lighting Studio" />
 
 ### 散热 / 功耗精细调控 (Cooling & Power)
-<img src="docs/screenshots/coolingSys.jpg" width="600" alt="Cooling System" />
+<img src="docs/images/screenshots/coolingSys.jpg" width="600" alt="Cooling System" />
 
 ---
 
@@ -172,6 +172,16 @@ OpenRevo 致力于打造属于全同方/机革玩家的通用硬件基础设施�
 | **前端技术** | React 18 + TypeScript + Vite | 毫秒级响应速度、严谨组件类型、高自由度现代化交互 |
 | **硬件协议** | Direct EC / WMI ACPI / HID / BLE | 深度硬件通信无死角覆盖，全链路防爆盾安全加固 |
 | **网络更新** | ureq + Schannel (Windows 原生) | 告别 OpenSSL 臃肿依赖，极致二进制体积瘦身至 2MB，双源智能竞速 |
+
+---
+
+## 📚 文档导航
+
+- [文档首页（docs/README.md）](docs/README.md)：全部文档的入口与阅读顺序
+- [核心引擎与 SDK](docs/core/README.md)：C-ABI、C# / C++ / Linux 接入
+- [插件开发](docs/plugins/README.md)：清单规范、能力网关与实战用例
+- [机型配置与功耗预设](docs/core/models-customization.md)：`models.json` 调优
+- [插件示例源码](plugins_sample/README.md)：12 个可运行示例与清单入口
 
 ---
 

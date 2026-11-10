@@ -482,7 +482,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
           </div>
           <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-primary)' }}>插件加载失败</h3>
           <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            {error || '未在插件目录中找到 index.html 入口文件。请检查插件目录结构或查阅《OpenRevo 第三方插件开发手册》。'}
+            {error || '未在插件目录中找到 index.html 入口文件。请检查插件目录结构或查阅《OpenRevo 插件与扩展文档》。'}
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
             <button onClick={fetchHtml} className="toggle-btn">
