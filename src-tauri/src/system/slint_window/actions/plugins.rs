@@ -6,6 +6,51 @@ use super::super::webview_dock::hide_embedded_webview;
 static ACTIVE_SLINT_CHILD: parking_lot::Mutex<Option<std::process::Child>> = parking_lot::Mutex::new(None);
 static ACTIVE_SLINT_WIDGETS: parking_lot::Mutex<Option<HashMap<String, std::process::Child>>> = parking_lot::Mutex::new(None);
 
+#[cfg(target_os = "windows")]
+pub fn assign_to_app_job(child: &std::process::Child) {
+    use std::sync::OnceLock;
+    use windows::Win32::System::JobObjects::{
+        CreateJobObjectW, SetInformationJobObject, AssignProcessToJobObject,
+        JobObjectExtendedLimitInformation, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+    use windows::Win32::Foundation::HANDLE;
+
+    static JOB_HANDLE: OnceLock<Option<isize>> = OnceLock::new();
+    let job_opt = JOB_HANDLE.get_or_init(|| {
+        unsafe {
+            if let Ok(job) = CreateJobObjectW(None, None) {
+                let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+                info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                let res = SetInformationJobObject(
+                    job,
+                    JobObjectExtendedLimitInformation,
+                    &info as *const _ as *const _,
+                    std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                );
+                if res.is_ok() {
+                    Some(job.0 as isize)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    });
+
+    if let Some(raw_job) = *job_opt {
+        use std::os::windows::io::AsRawHandle;
+        let raw_h = child.as_raw_handle();
+        unsafe {
+            let _ = AssignProcessToJobObject(HANDLE(raw_job as *mut _), HANDLE(raw_h as *mut _));
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn assign_to_app_job(_child: &std::process::Child) {}
+
 fn with_active_slint_widgets<F, R>(f: F) -> R
 where
     F: FnOnce(&mut HashMap<String, std::process::Child>) -> R,
@@ -15,6 +60,54 @@ where
         *guard = Some(HashMap::new());
     }
     f(guard.as_mut().unwrap())
+}
+
+pub fn launch_slint_widget(id: &str) -> Result<(), String> {
+    crate::log_info!("PLUGINS", "launch_slint_widget requested for '{}'", id);
+    let current_exe = std::env::current_exe().unwrap_or_else(|_| "open-revo.exe".into());
+    let mut cmd = std::process::Command::new(current_exe);
+    cmd.args(&["--slint-widget", id]);
+
+    match cmd.spawn() {
+        Ok(child) => {
+            assign_to_app_job(&child);
+            with_active_slint_widgets(|widgets| {
+                if let Some(mut old) = widgets.insert(id.to_string(), child) {
+                    let _ = old.kill();
+                    let _ = old.wait();
+                }
+            });
+            crate::log_info!("PLUGINS", "Successfully spawned and registered Slint widget '{}'", id);
+            Ok(())
+        }
+        Err(e) => {
+            let err_msg = format!("Failed to spawn Slint widget child for '{}': {:?}", id, e);
+            crate::log_error!("PLUGINS", "{}", err_msg);
+            Err(err_msg)
+        }
+    }
+}
+
+pub fn close_slint_widget(id: &str) {
+    crate::log_info!("PLUGINS", "close_slint_widget requested for '{}'", id);
+    with_active_slint_widgets(|widgets| {
+        if let Some(mut child) = widgets.remove(id) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    });
+}
+
+pub fn terminate_all_slint_processes() {
+    crate::log_info!("PLUGINS", "Terminating all Slint child processes and widgets...");
+    hide_slint_embedded();
+    with_active_slint_widgets(|widgets| {
+        for (id, mut child) in widgets.drain() {
+            let _ = child.kill();
+            let _ = child.wait();
+            crate::log_info!("PLUGINS", "Killed Slint widget process for '{}'", id);
+        }
+    });
 }
 
 pub fn hide_slint_embedded() {
@@ -171,31 +264,10 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                                 if is_slint_widget(id) {
                                     if enabled {
                                         crate::log_info!("PLUGINS", "Toggled Slint widget '{}' ON -> launching standalone widget", id);
-                                        let current_exe = std::env::current_exe().unwrap_or_else(|_| "open-revo.exe".into());
-                                        let spawn_res = std::process::Command::new(current_exe)
-                                            .args(&["--slint-widget", id])
-                                            .spawn();
-                                        match spawn_res {
-                                            Ok(child) => {
-                                                with_active_slint_widgets(|widgets| {
-                                                    if let Some(mut old) = widgets.insert(id.to_string(), child) {
-                                                        let _ = old.kill();
-                                                        let _ = old.wait();
-                                                    }
-                                                });
-                                            }
-                                            Err(e) => {
-                                                crate::log_error!("PLUGINS", "Failed to launch Slint widget child for '{}': {:?}", id, e);
-                                            }
-                                        }
+                                        let _ = launch_slint_widget(id);
                                     } else {
                                         crate::log_info!("PLUGINS", "Toggled Slint widget '{}' OFF -> terminating standalone widget", id);
-                                        with_active_slint_widgets(|widgets| {
-                                            if let Some(mut child) = widgets.remove(id) {
-                                                let _ = child.kill();
-                                                let _ = child.wait();
-                                            }
-                                        });
+                                        close_slint_widget(id);
                                     }
                                 } else {
                                     if enabled {
@@ -295,6 +367,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
 
                             match spawn_res {
                                 Ok(child) => {
+                                    assign_to_app_job(&child);
                                     crate::log_info!("PLUGINS", "Spawned Slint embedded child process successfully for '{}'", pid);
                                     *ACTIVE_SLINT_CHILD.lock() = Some(child);
                                 }
@@ -342,10 +415,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             if let Some(pid) = val.get("plugin_id").and_then(|v| v.as_str()) {
                 if is_slint_widget(pid) {
                     crate::log_info!("PLUGINS", "Opening standalone Slint widget for plugin: '{}'", pid);
-                    let current_exe = std::env::current_exe().unwrap_or_else(|_| "open-revo.exe".into());
-                    let _ = std::process::Command::new(current_exe)
-                        .args(&["--slint-widget", pid])
-                        .spawn();
+                    let _ = launch_slint_widget(pid);
                 } else {
                     crate::log_info!("PLUGINS", "Opening native Wry popout window for plugin: '{}'", pid);
                     crate::system::native_wry::open_popout(pid);

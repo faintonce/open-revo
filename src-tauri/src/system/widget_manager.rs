@@ -25,7 +25,7 @@ pub fn format_widget_label(plugin_id: &str) -> String {
 
 /// Open an independent, sandbox-isolated Webview window for a custom widget plugin
 #[tauri::command]
-pub async fn open_custom_widget(app: AppHandle, plugin_id: String) -> Result<String, String> {
+pub async fn open_custom_widget(_app: AppHandle, plugin_id: String) -> Result<String, String> {
     let label = format_widget_label(&plugin_id);
     crate::log_info!("WIDGET", "open_custom_widget called for plugin '{}', label '{}'", plugin_id, label);
 
@@ -34,44 +34,19 @@ pub async fn open_custom_widget(app: AppHandle, plugin_id: String) -> Result<Str
     cfg.custom_plugin_toggles.insert(plugin_id.clone(), true);
     crate::system::config::save_config(&cfg);
 
-    if !cfg.use_classic_webview {
-        crate::log_info!("WIDGET", "Native Slint mode active: opening unmanaged Wry popout for '{}'", plugin_id);
-        crate::system::native_wry::open_popout(&plugin_id);
-        return Ok(label);
-    }
-
-    // 2. Fast-path: if window already exists (e.g. was hidden), restore and show it instantly
-    if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.show();
-        let _ = win.unminimize();
-        crate::log_info!("WIDGET", "Restored and unhid existing widget window '{}'", label);
-        return Ok(label);
-    }
-
-    // 3. Delegate to WebviewOrchestrator queue for safe staggered creation with circuit-breaker protection
-    crate::log_info!("WIDGET", "Enqueuing widget '{}' to WebviewOrchestrator...", plugin_id);
-    crate::system::webview_orchestrator::WebviewOrchestrator::global().enqueue_widget(plugin_id.clone());
-
-    // 4. Await orchestrator window instantiation (up to 3000ms)
-    for i in 0..60 {
-        if let Some(win) = app.get_webview_window(&label) {
-            let _ = win.show();
-            let _ = win.unminimize();
-            crate::log_info!("WIDGET", "Widget window '{}' successfully presented after {}ms", label, i * 50);
-            return Ok(label);
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-
-    crate::log_error!("WIDGET", "Timed out awaiting widget '{}' creation from orchestrator (3000ms)", plugin_id);
-    Err(format!("Timed out awaiting widget '{}' creation from orchestrator", plugin_id))
+    // Unconditionally delegate to native unmanaged Wry popout:
+    // Ensures 100% borderless transparency, zero iframe white rectangular canvas glitches,
+    // and unified high-performance telemetry event loop across both Slint and Tauri host modes.
+    crate::log_info!("WIDGET", "Opening native unmanaged Wry popout for '{}'", plugin_id);
+    crate::system::native_wry::open_popout(&plugin_id);
+    return Ok(label);
 }
 
 /// Internal asynchronous widget window creation routine executed exclusively by WebviewOrchestrator worker
 pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> Result<String, String> {
     let label = format_widget_label(plugin_id);
 
-    let plugins_dir = crate::system::config::get_config_dir().join("plugins").join(plugin_id);
+    let plugins_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
     let manifest_path = plugins_dir.join("manifest.json");
 
     if !manifest_path.exists() {
@@ -210,6 +185,10 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
     match builder.build() {
         Ok(win) => {
             crate::log_info!("WIDGET", "WebviewWindowBuilder::build SUCCESS for widget '{}'", label);
+            #[cfg(windows)]
+            if win_cfg.transparent && !has_decorations {
+                let _ = win.set_shadow(false);
+            }
             // Watchdog fallback (600ms): if frontend widget_ready event is somehow missed, show gracefully
             let win_fallback = win.clone();
             std::thread::spawn(move || {
@@ -335,25 +314,38 @@ pub fn get_running_widgets() -> Result<Vec<String>, String> {
 }
 
 /// Automatically restore and spawn enabled widget windows on OpenRevo boot via orchestrator queue
-pub fn restore_active_widgets_on_boot(_app: &AppHandle) {
+pub fn restore_active_widgets_on_boot(_app: Option<&AppHandle>) {
     let cfg = crate::system::config::load_config();
-    let plugins_dir = crate::system::config::get_config_dir().join("plugins");
 
     for (plugin_id, enabled) in cfg.custom_plugin_toggles.iter() {
         if *enabled {
-            let manifest_path = plugins_dir.join(plugin_id).join("manifest.json");
+            let p_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
+            let manifest_path = p_dir.join("manifest.json");
             if manifest_path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                     if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
-                        let p_type = manifest.plugin_type.unwrap_or_default();
-                        let has_widget = manifest.widget.is_some() || p_type == "widget" || p_type == "skin";
+                        let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
+                        let has_widget = manifest.widget.is_some()
+                            || p_dir.join("widget.slint").exists()
+                            || p_type.eq_ignore_ascii_case("widget")
+                            || p_type.eq_ignore_ascii_case("skin");
+
                         if has_widget {
-                            crate::log_info!(
-                                "WIDGET",
-                                "Auto-restoring enabled widget '{}' on startup via native Wry runtime...",
-                                plugin_id
-                            );
-                            crate::system::native_wry::open_popout(plugin_id);
+                            if crate::system::slint_window::actions::plugins::is_slint_widget(plugin_id) {
+                                crate::log_info!(
+                                    "WIDGET",
+                                    "Auto-restoring enabled Slint widget '{}' on startup...",
+                                    plugin_id
+                                );
+                                let _ = crate::system::slint_window::actions::plugins::launch_slint_widget(plugin_id);
+                            } else {
+                                crate::log_info!(
+                                    "WIDGET",
+                                    "Auto-restoring enabled Web widget '{}' on startup via native Wry runtime...",
+                                    plugin_id
+                                );
+                                crate::system::native_wry::open_popout(plugin_id);
+                            }
                         }
                     }
                 }

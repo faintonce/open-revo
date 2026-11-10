@@ -2341,6 +2341,8 @@ body,
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* 1. App Root */

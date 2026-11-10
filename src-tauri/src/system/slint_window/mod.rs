@@ -60,6 +60,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
 
         match cmd.spawn() {
             Ok(mut child) => {
+                actions::plugins::assign_to_app_job(&child);
                 if let Some(mut stdin) = child.stdin.take() {
                     // Send initial state sync
                     let switches = crate::system::device_switches::get_switches_state();
@@ -148,6 +149,12 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                 sync_slint_water_state(None, None);
                 sync_slint_power_schemes(None);
                 sync_slint_plugins_state();
+
+                // Restore active widgets for Slint host mode
+                std::thread::spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    crate::system::widget_manager::restore_active_widgets_on_boot(None);
+                });
 
                 // Listen for stdout from companion
                 if let Some(stdout) = child.stdout.take() {
