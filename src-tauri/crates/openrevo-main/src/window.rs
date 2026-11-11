@@ -1,9 +1,9 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use slint::ComponentHandle;
 
-use windows::Win32::Foundation::{BOOL, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::{
     DwmExtendFrameIntoClientArea, DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE,
     DWMWCP_ROUND,
@@ -15,12 +15,14 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::Controls::MARGINS;
+use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, GetFocus, VK_LBUTTON, VK_RBUTTON};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallWindowProcW, EnumThreadWindows, GetWindowLongPtrW, GetWindowRect,
-    IsIconic, SetWindowLongPtrW, SetWindowPos,
+    CallWindowProcW, EnumThreadWindows, GetCursorPos, GetForegroundWindow,
+    GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+    SetWindowLongPtrW, SetWindowPos, ShowWindow,
     GWLP_WNDPROC, GWL_EXSTYLE, SC_MINIMIZE, SC_RESTORE,
-    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOZORDER,
-    WA_INACTIVE, WM_ACTIVATE, WM_EXITSIZEMOVE,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOZORDER, SW_HIDE,
+    WA_INACTIVE, WM_ACTIVATE, WM_ENTERSIZEMOVE, WM_EXITSIZEMOVE, WM_MOVE,
     WM_SYSCOMMAND, WM_WINDOWPOSCHANGED, WNDPROC, WS_EX_APPWINDOW,
 };
 
@@ -43,6 +45,169 @@ pub(crate) static SLINT_UI_WEAK: Mutex<Option<slint::Weak<MainWindow>>> = Mutex:
 pub static HWND_HOLDER: Mutex<Option<SafeHwnd>> = Mutex::new(None);
 pub static SAVED_FULL_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 pub(crate) static LAST_REDRAW_INSTANT: Mutex<Option<Instant>> = Mutex::new(None);
+
+pub static FOCUS_GENERATION: AtomicU64 = AtomicU64::new(0);
+pub static LAST_WAKE_TIME: Mutex<Option<Instant>> = Mutex::new(None);
+pub static LAST_MOVE_TIME: Mutex<Option<Instant>> = Mutex::new(None);
+pub static HOST_PID: AtomicU32 = AtomicU32::new(0);
+
+pub fn set_host_pid(pid: u32) {
+    HOST_PID.store(pid, Ordering::SeqCst);
+}
+
+pub fn mark_window_woken() {
+    FOCUS_GENERATION.fetch_add(1, Ordering::SeqCst);
+    *LAST_WAKE_TIME.lock().unwrap() = Some(Instant::now());
+}
+
+pub fn mark_window_focused() {
+    FOCUS_GENERATION.fetch_add(1, Ordering::SeqCst);
+}
+
+pub fn mark_window_moved() {
+    *LAST_MOVE_TIME.lock().unwrap() = Some(Instant::now());
+}
+
+fn is_foreground_belonging_to_current_app(window_hwnd: HWND) -> bool {
+    unsafe {
+        let fg_hwnd = GetForegroundWindow();
+        if fg_hwnd.0.is_null() {
+            return false;
+        }
+        if fg_hwnd == window_hwnd {
+            return true;
+        }
+        let mut fg_pid = 0u32;
+        GetWindowThreadProcessId(fg_hwnd, Some(&mut fg_pid));
+        if fg_pid != 0 {
+            if fg_pid == std::process::id() {
+                return true;
+            }
+            let host_pid = HOST_PID.load(Ordering::SeqCst);
+            if host_pid != 0 && fg_pid == host_pid {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn is_user_interacting_with_window(window_hwnd: HWND) -> bool {
+    unsafe {
+        let mut pt = POINT::default();
+        let mut rect = RECT::default();
+        if GetCursorPos(&mut pt).is_ok() && GetWindowRect(window_hwnd, &mut rect).is_ok() {
+            let inside_rect = pt.x >= (rect.left - 12)
+                && pt.x <= (rect.right + 12)
+                && pt.y >= (rect.top - 12)
+                && pt.y <= (rect.bottom + 12);
+
+            let lbutton_down = (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0;
+            let rbutton_down = (GetAsyncKeyState(VK_RBUTTON.0 as i32) as u16 & 0x8000) != 0;
+
+            if inside_rect && (lbutton_down || rbutton_down) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+pub fn handle_window_blur(hwnd: HWND) {
+    let (auto_hide, is_expanded) = if let Ok(guard) = SLINT_UI_WEAK.lock() {
+        if let Some(weak) = guard.as_ref() {
+            if let Some(ui) = weak.upgrade() {
+                (ui.get_mini_auto_hide(), ui.get_is_expanded())
+            } else {
+                (false, false)
+            }
+        } else {
+            (false, false)
+        }
+    } else {
+        (false, false)
+    };
+
+    // 4. Panel mode check: Only auto-collapse in Mini Drawer mode, Full Panel stays untouched!
+    if is_expanded || !auto_hide {
+        return;
+    }
+
+    let current_gen = FOCUS_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let safe_hwnd = SafeHwnd(hwnd.0 as isize);
+
+    // Spawn a debounced validation task (160ms) to filter out transient drag/click focus loss
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(160));
+        let hwnd = safe_hwnd.to_hwnd();
+
+        // 1. Generation check: Cancel if focus regained or new wake event occurred
+        if FOCUS_GENERATION.load(Ordering::SeqCst) != current_gen {
+            return;
+        }
+
+        // 2. Cooldown check: Cancel if recently woken (within 500ms)
+        let is_recent_wake = LAST_WAKE_TIME
+            .lock()
+            .unwrap()
+            .map_or(false, |t| t.elapsed() < Duration::from_millis(500));
+        if is_recent_wake {
+            return;
+        }
+
+        // 3. Movement check: Cancel if recently dragged or moved (within 400ms)
+        let is_recent_move = LAST_MOVE_TIME
+            .lock()
+            .unwrap()
+            .map_or(false, |t| t.elapsed() < Duration::from_millis(400));
+        if is_recent_move {
+            return;
+        }
+
+        // 4. Double check panel mode
+        let is_expanded_now = if let Ok(guard) = SLINT_UI_WEAK.lock() {
+            guard.as_ref().and_then(|w| w.upgrade()).map(|ui| ui.get_is_expanded()).unwrap_or(false)
+        } else {
+            false
+        };
+        if is_expanded_now {
+            return;
+        }
+
+        // 5. Visibility / Minimized check
+        unsafe {
+            if !IsWindowVisible(hwnd).as_bool() || IsIconic(hwnd).as_bool() {
+                return;
+            }
+        }
+
+        // 6. Direct focus check: If window is currently focused, do not collapse
+        unsafe {
+            if GetFocus() == hwnd {
+                return;
+            }
+        }
+
+        // 7. Win32 foreground check: If foreground window belongs to current process or host app, cancel collapse
+        if is_foreground_belonging_to_current_app(hwnd) {
+            return;
+        }
+
+        // 8. Active interaction check: If mouse button is held down over window (dragging/clicking), cancel collapse
+        if is_user_interacting_with_window(hwnd) {
+            return;
+        }
+
+        // All validation passed: True external blur detected. Safely collapse window.
+        unsafe {
+            let _ = ShowWindow(hwnd, SW_HIDE);
+        }
+        crate::ipc::send_action_to_host("record_window_mode", serde_json::json!({ "is_expanded": false }));
+        crate::ipc::send_action_to_host("slint_window_hidden", serde_json::json!({}));
+        std::thread::sleep(Duration::from_millis(30));
+        std::process::exit(0);
+    });
+}
 
 pub fn set_slint_ui_weak(weak: slint::Weak<MainWindow>) {
     *SLINT_UI_WEAK.lock().unwrap() = Some(weak);
@@ -121,6 +286,7 @@ unsafe extern "system" fn subclass_wnd_proc(
         WM_ACTIVATE => {
             let active = (wparam.0 & 0xFFFF) as u32;
             if active != WA_INACTIVE {
+                mark_window_focused();
                 let prev = *PREV_WNDPROC.lock().unwrap();
                 let ret = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
                 // Only trigger full redraw if this activation is recovering from minimized iconic state
@@ -128,7 +294,12 @@ unsafe extern "system" fn subclass_wnd_proc(
                     trigger_full_redraw(hwnd);
                 }
                 return ret;
+            } else {
+                handle_window_blur(hwnd);
             }
+        }
+        WM_MOVE | WM_ENTERSIZEMOVE => {
+            mark_window_moved();
         }
         WM_WINDOWPOSCHANGED => {
             if !IsIconic(hwnd).as_bool() && WAS_MINIMIZED.swap(false, Ordering::SeqCst) {
@@ -139,6 +310,7 @@ unsafe extern "system" fn subclass_wnd_proc(
             }
         }
         WM_EXITSIZEMOVE => {
+            mark_window_moved();
             let is_expanded = if let Ok(guard) = SLINT_UI_WEAK.lock() {
                 guard.as_ref().and_then(|w| w.upgrade()).map(|ui| ui.get_is_expanded()).unwrap_or(false)
             } else {

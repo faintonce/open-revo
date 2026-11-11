@@ -93,6 +93,11 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             }
             true
         }
+        "slint_window_hidden" => {
+            crate::system::telemetry::set_main_window_visible(false);
+            crate::log_info!("SLINT_MAIN", "Mini drawer companion hidden / auto-collapsed on blur");
+            true
+        }
         "set_wake_window_mode" => {
             if let Some(m) = val.get("mode").and_then(|v| v.as_str()) {
                 let _ = crate::commands::window_cmd::set_wake_window_mode(m.to_string());

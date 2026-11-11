@@ -227,6 +227,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 if let Some(m) = dd_obj.get("mode").and_then(|v| v.as_str()) { info.mode = m.into(); }
                 ui.set_data_dir_info(info);
             }
+            if let Some(hpid) = val.get("host_pid").and_then(|v| v.as_u64()) {
+                crate::window::set_host_pid(hpid as u32);
+            }
             true
         }
         "show" => {
@@ -249,6 +252,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 } else {
                     crate::window::align_mini_drawer_to_tray(hwnd, 395, 632);
                 }
+                crate::window::mark_window_woken();
                 unsafe {
                     use windows::Win32::UI::WindowsAndMessaging::{
                         SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
@@ -298,6 +302,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                         } else {
                             crate::window::align_mini_drawer_to_tray(hwnd, 395, 632);
                         }
+                        crate::window::mark_window_woken();
                         let _ = ShowWindow(hwnd, SW_RESTORE);
                         let _ = ShowWindow(hwnd, SW_SHOW);
                         let _ = SetForegroundWindow(hwnd);

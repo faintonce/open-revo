@@ -40,6 +40,14 @@ pub fn run_main_standalone() {
     let ui_weak = window.as_weak();
     window::set_slint_ui_weak(ui_weak.clone());
 
+    for arg in std::env::args() {
+        if let Some(pid_str) = arg.strip_prefix("--host-pid=") {
+            if let Ok(pid) = pid_str.parse::<u32>() {
+                window::set_host_pid(pid);
+            }
+        }
+    }
+
     // Start stdin IPC listener from host process
     ipc::start_ipc_listener(ui_weak.clone());
 
@@ -72,6 +80,8 @@ pub fn run_main_standalone() {
             unsafe {
                 let _ = ShowWindow(hwnd, SW_HIDE);
             }
+        } else {
+            window::mark_window_woken();
         }
     }
 

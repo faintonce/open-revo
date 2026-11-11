@@ -46,6 +46,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
         crate::log_info!("SLINT_MAIN", "Spawning native Slint Main Window companion: {:?}", exe_path);
         let mut cmd = Command::new(exe_path);
         cmd.arg("--slint-main");
+        cmd.arg(format!("--host-pid={}", std::process::id()));
         let should_expand = match cfg.wake_window_mode.as_str() {
             "full" => true,
             "mini" => false,
@@ -118,6 +119,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "is_expanded": should_expand,
                         "theme_mode": cfg.theme_mode,
                         "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
+                        "host_pid": std::process::id(),
                         "use_classic_webview": cfg.use_classic_webview,
                         "update_channel": cfg.update_channel,
                         "full_window_x": cfg.full_window_x,
