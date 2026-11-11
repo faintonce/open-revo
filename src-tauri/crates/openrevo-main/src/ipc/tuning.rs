@@ -95,6 +95,40 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(tgp) = val.get("base_tgp").and_then(|v| v.as_i64()) {
                 ui.set_base_tgp(tgp as i32);
             }
+            if let Some(s_ctgp) = val.get("supports_ctgp").and_then(|v| v.as_bool()) {
+                ui.set_supports_ctgp(s_ctgp);
+            }
+            if let Some(fl) = val.get("ctgp_floor_watts").and_then(|v| v.as_i64()) {
+                ui.set_ctgp_floor_watts(fl as i32);
+            }
+            if let Some(mx) = val.get("base_tgp_max_watts").and_then(|v| v.as_i64()) {
+                ui.set_ctgp_max_watts(mx as i32);
+            }
+            if let Some(cw) = val.get("ctgp_watts").and_then(|v| v.as_i64()) {
+                ui.set_ctgp_watts(cw as i32);
+            }
+            if let Some(ce) = val.get("ctgp_enabled").and_then(|v| v.as_bool()) {
+                ui.set_ctgp_enabled(ce);
+            }
+            if let Some(mdb) = val.get("max_db_watts").and_then(|v| v.as_i64()) {
+                ui.set_max_db_watts(mdb as i32);
+            }
+            if let Some(ml) = val.get("is_mode_locked").and_then(|v| v.as_bool()) {
+                ui.set_is_mode_locked(ml);
+            }
+
+            if let Some(fcc) = val.get("fan_custom_curve").and_then(|v| v.as_bool()) {
+                ui.set_fan_custom_curve(fcc);
+            }
+            if let Some(fbm) = val.get("fan_boost_mode").and_then(|v| v.as_str()) {
+                ui.set_fan_boost_mode(fbm.into());
+            }
+            if let Some(idc) = val.get("is_direct_clamp").and_then(|v| v.as_bool()) {
+                ui.set_is_direct_clamp(idc);
+            }
+            if let Some(md) = val.get("min_duty").and_then(|v| v.as_i64()) {
+                ui.set_fan_min_duty(md as i32);
+            }
 
             if let Some(st) = val.get("smooth_transition").and_then(|v| v.as_bool()) {
                 ui.set_smooth_transition(st);

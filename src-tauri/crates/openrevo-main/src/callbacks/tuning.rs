@@ -147,6 +147,15 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         }
     });
 
+    let ui_ctgp = ui_weak.clone();
+    window.on_tuning_change_ctgp_watts(move |w| {
+        ipc::send_action_to_host("tuning_set_ctgp", serde_json::json!({ "watts": w }));
+        if let Some(ui) = ui_ctgp.upgrade() {
+            ui.set_ctgp_watts(w);
+            ui.set_ctgp_enabled(true);
+        }
+    });
+
     let ui_sm = ui_weak.clone();
     window.on_tuning_toggle_smooth(move || {
         ipc::send_action_to_host("tuning_toggle_smooth", serde_json::json!({}));
@@ -208,6 +217,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         if let Some(ui) = ui_fan.upgrade() {
             let active_tab = ui.get_active_fan_tab();
             let is_linked = ui.get_fan_linked();
+            let min_duty = ui.get_fan_min_duty();
 
             let mut cpu_pts: Vec<i32> = ui.get_cpu_curve().iter().collect();
             let mut gpu_pts: Vec<i32> = ui.get_gpu_curve().iter().collect();
@@ -216,13 +226,13 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
             if active_tab == 0 || is_linked {
                 if i < cpu_pts.len() {
                     let cur = cpu_pts[i];
-                    apply_monotonic_fan_rule(&mut cpu_pts, i, cur + delta, 0);
+                    apply_monotonic_fan_rule(&mut cpu_pts, i, cur + delta, min_duty);
                 }
             }
             if active_tab == 1 || is_linked {
                 if i < gpu_pts.len() {
                     let cur = gpu_pts[i];
-                    apply_monotonic_fan_rule(&mut gpu_pts, i, cur + delta, 0);
+                    apply_monotonic_fan_rule(&mut gpu_pts, i, cur + delta, min_duty);
                 }
             }
             if is_linked {
@@ -259,6 +269,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         if let Some(ui) = ui_fan_set.upgrade() {
             let active_tab = ui.get_active_fan_tab();
             let is_linked = ui.get_fan_linked();
+            let min_duty = ui.get_fan_min_duty();
 
             let mut cpu_pts: Vec<i32> = ui.get_cpu_curve().iter().collect();
             let mut gpu_pts: Vec<i32> = ui.get_gpu_curve().iter().collect();
@@ -266,12 +277,12 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
 
             if active_tab == 0 || is_linked {
                 if i < cpu_pts.len() {
-                    apply_monotonic_fan_rule(&mut cpu_pts, i, duty, 0);
+                    apply_monotonic_fan_rule(&mut cpu_pts, i, duty, min_duty);
                 }
             }
             if active_tab == 1 || is_linked {
                 if i < gpu_pts.len() {
-                    apply_monotonic_fan_rule(&mut gpu_pts, i, duty, 0);
+                    apply_monotonic_fan_rule(&mut gpu_pts, i, duty, min_duty);
                 }
             }
             if is_linked {

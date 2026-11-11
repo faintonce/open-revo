@@ -14,6 +14,13 @@ export component GpuTuningCol inherits Rectangle {
     in-out property <bool> db_enabled: true;
     in-out property <int> db_watts: 25;          // 5 .. 25 W
     in-out property <int> base_tgp: 150;         // Base TGP (e.g. 150W)
+    in-out property <bool> supports_ctgp: false;
+    in-out property <bool> ctgp_enabled: false;
+    in-out property <int> ctgp_watts: 115;
+    in-out property <int> ctgp_floor_watts: 50;
+    in-out property <int> ctgp_max_watts: 115;
+    in-out property <int> max_db_watts: 25;
+    in-out property <bool> is_mode_locked: false;
 
     // Callbacks
     callback toggle_super_perf();
@@ -21,6 +28,13 @@ export component GpuTuningCol inherits Rectangle {
     callback change_mem_offset(int);
     callback toggle_db();
     callback change_db_watts(int);
+    callback change_ctgp_watts(int);
+
+    property <int> effective_base_watts: root.super_perf ?
+        (root.supports_ctgp ? root.ctgp_max_watts : root.base_tgp) :
+        (root.supports_ctgp ? root.ctgp_watts : root.base_tgp);
+    property <int> effective_db_watts: (root.super_perf || root.db_enabled) ?
+        (root.super_perf ? root.max_db_watts : root.db_watts) : 0;
 
     VerticalLayout {
         padding: 10px;
@@ -260,8 +274,143 @@ export component GpuTuningCol inherits Rectangle {
             }
         }
 
+        // 4.5. Mode-Locked OEM Notice (模具功耗联动：原厂模式锁定)
+        if root.is_mode_locked: Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 4px;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    Image {
+                        source: @image-url("../../assets/icons/zap.svg");
+                        width: 13px;
+                        height: 13px;
+                        colorize: #10b981;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "模具功耗联动：原厂模式锁定";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #10b981;
+                    }
+                }
+
+                Text {
+                    text: "当前模具 GPU 功耗由原厂性能模式统一调度（狂暴模式自动释放 140W 满血，含 25W Dynamic Boost；办公模式 30W；平衡模式 120W），核心与显存超频正常生效。";
+                    font-size: 9.5px;
+                    color: AppTheme.text_muted;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        // 4.6. Wide cTGP Base TGP Slider (宽 TGP 动态调节滑块)
+        if root.supports_ctgp: Rectangle {
+            background: AppTheme.surface_pill;
+            border-radius: AppTheme.radius_sm;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+            opacity: root.super_perf ? 0.45 : 1.0;
+
+            VerticalLayout {
+                padding: 8px;
+                spacing: 6px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "cTGP 功耗:";
+                        font-size: 11px;
+                        color: AppTheme.text_secondary;
+                    }
+                    Text {
+                        text: (root.super_perf ? root.ctgp_max_watts : root.ctgp_watts) + " W";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: root.super_perf ? AppTheme.text_muted : #38bdf8;
+                    }
+                }
+
+                // Slider container (cTGP Watts)
+                Rectangle {
+                    height: 20px;
+                    background: transparent;
+                    vertical-stretch: 0;
+
+                    // Track line
+                    Rectangle {
+                        height: 6px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 3px;
+                        background: AppTheme.surface_card;
+                        width: 100%;
+
+                        // Thumb
+                        Rectangle {
+                            x: (parent.width - self.width) * Math.clamp(
+                                (root.super_perf ? (root.ctgp_max_watts - root.ctgp_floor_watts) : (root.ctgp_watts - root.ctgp_floor_watts)) / Math.max(1, root.ctgp_max_watts - root.ctgp_floor_watts),
+                                0, 1
+                            );
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: #ffffff;
+                            border-width: 2px;
+                            border-color: #38bdf8;
+                        }
+                    }
+
+                    TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        mouse-cursor: root.super_perf ? not-allowed : pointer;
+                        pointer-event(event) => {
+                            if !root.super_perf && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let span = Math.max(1, root.ctgp_max_watts - root.ctgp_floor_watts);
+                                let val = Math.clamp(root.ctgp_floor_watts + Math.round(ratio * span), root.ctgp_floor_watts, root.ctgp_max_watts);
+                                root.ctgp_watts = val;
+                                root.change_ctgp_watts(val);
+                            }
+                        }
+                        moved => {
+                            if !root.super_perf && self.pressed {
+                                let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
+                                let span = Math.max(1, root.ctgp_max_watts - root.ctgp_floor_watts);
+                                let val = Math.clamp(root.ctgp_floor_watts + Math.round(ratio * span), root.ctgp_floor_watts, root.ctgp_max_watts);
+                                root.ctgp_watts = val;
+                                root.change_ctgp_watts(val);
+                            }
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: root.ctgp_floor_watts + " W";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                    Text {
+                        text: root.ctgp_max_watts + " W";
+                        font-size: 9px;
+                        color: AppTheme.text_muted;
+                    }
+                }
+            }
+        }
+
         // 5. Dynamic Boost Card
-        Rectangle {
+        if !root.is_mode_locked: Rectangle {
             background: AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -284,7 +433,7 @@ export component GpuTuningCol inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         Text {
-                            text: "+" + root.db_watts + " W";
+                            text: "+" + (root.super_perf ? root.max_db_watts : (root.db_enabled ? root.db_watts : 0)) + " W";
                             font-size: 11px;
                             font-weight: 700;
                             color: #10b981;
@@ -295,20 +444,22 @@ export component GpuTuningCol inherits Rectangle {
                             width: 36px;
                             height: 20px;
                             border-radius: 10px;
-                            background: root.db_enabled ? #10b981 : AppTheme.surface_card;
+                            background: (root.super_perf || root.db_enabled) ? #10b981 : AppTheme.surface_card;
                             border-width: 1px;
-                            border-color: root.db_enabled ? #10b981 : AppTheme.border_medium;
+                            border-color: (root.super_perf || root.db_enabled) ? #10b981 : AppTheme.border_medium;
 
                             TouchArea {
-                                mouse-cursor: pointer;
+                                mouse-cursor: root.super_perf ? not-allowed : pointer;
                                 clicked => {
-                                    root.db_enabled = !root.db_enabled;
-                                    root.toggle_db();
+                                    if !root.super_perf {
+                                        root.db_enabled = !root.db_enabled;
+                                        root.toggle_db();
+                                    }
                                 }
                             }
 
                             Rectangle {
-                                x: root.db_enabled ? 18px : 2px;
+                                x: (root.super_perf || root.db_enabled) ? 18px : 2px;
                                 y: 2px;
                                 width: 14px;
                                 height: 14px;
@@ -335,7 +486,10 @@ export component GpuTuningCol inherits Rectangle {
 
                         // Thumb
                         Rectangle {
-                            x: (parent.width - self.width) * Math.clamp((root.db_watts - 5) / 20, 0, 1);
+                            x: (parent.width - self.width) * Math.clamp(
+                                (root.super_perf ? (root.max_db_watts - 5) : (root.db_watts - 5)) / Math.max(1, root.max_db_watts - 5),
+                                0, 1
+                            );
                             y: (parent.height - self.height) / 2;
                             width: 14px;
                             height: 14px;
@@ -349,19 +503,21 @@ export component GpuTuningCol inherits Rectangle {
                     TouchArea {
                         width: 100%;
                         height: 100%;
-                        mouse-cursor: pointer;
+                        mouse-cursor: (root.super_perf || !root.db_enabled) ? not-allowed : pointer;
                         pointer-event(event) => {
-                            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            if !root.super_perf && root.db_enabled && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                                let val = Math.clamp(5 + Math.round(ratio * 20), 5, 25);
+                                let span = Math.max(1, root.max_db_watts - 5);
+                                let val = Math.clamp(5 + Math.round(ratio * span), 5, root.max_db_watts);
                                 root.db_watts = val;
                                 root.change_db_watts(val);
                             }
                         }
                         moved => {
-                            if self.pressed {
+                            if !root.super_perf && root.db_enabled && self.pressed {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                                let val = Math.clamp(5 + Math.round(ratio * 20), 5, 25);
+                                let span = Math.max(1, root.max_db_watts - 5);
+                                let val = Math.clamp(5 + Math.round(ratio * span), 5, root.max_db_watts);
                                 root.db_watts = val;
                                 root.change_db_watts(val);
                             }
@@ -377,7 +533,7 @@ export component GpuTuningCol inherits Rectangle {
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "+25 W";
+                        text: "+" + root.max_db_watts + " W";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
@@ -406,7 +562,7 @@ export component GpuTuningCol inherits Rectangle {
                 }
 
                 Text {
-                    text: (root.base_tgp + (root.db_enabled ? root.db_watts : 0)) + " W (基础 " + root.base_tgp + "W + DB " + (root.db_enabled ? root.db_watts : 0) + "W)";
+                    text: (root.effective_base_watts + root.effective_db_watts) + " W (基础 " + root.effective_base_watts + "W + DB " + root.effective_db_watts + "W)";
                     font-size: 13px;
                     font-weight: 800;
                     color: #38bdf8;

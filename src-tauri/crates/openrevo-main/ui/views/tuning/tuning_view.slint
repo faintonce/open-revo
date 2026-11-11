@@ -36,8 +36,19 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <bool> db_enabled: true;
     in-out property <int> db_watts: 25;
     in-out property <int> base_tgp: 150;
+    in-out property <bool> supports_ctgp: false;
+    in-out property <bool> ctgp_enabled: false;
+    in-out property <int> ctgp_watts: 115;
+    in-out property <int> ctgp_floor_watts: 50;
+    in-out property <int> ctgp_max_watts: 115;
+    in-out property <int> max_db_watts: 25;
+    in-out property <bool> is_mode_locked: false;
 
     // Fan values
+    in-out property <bool> fan_custom_curve: true;
+    in-out property <string> fan_boost_mode: "none";
+    in-out property <bool> is_direct_clamp: false;
+    in-out property <int> fan_min_duty: 0;
     in-out property <bool> smooth_transition: true;
     in-out property <string> smooth_time: "300ms";
     in-out property <bool> fan_isolated_output: true;
@@ -91,6 +102,7 @@ export component DashboardCustomTuningView inherits Rectangle {
     callback change_mem_offset(int);
     callback toggle_db();
     callback change_db_watts(int);
+    callback change_ctgp_watts(int);
 
     // Fan Callbacks
     callback toggle_smooth();
@@ -403,18 +415,30 @@ export component DashboardCustomTuningView inherits Rectangle {
                 db_enabled <=> root.db_enabled;
                 db_watts <=> root.db_watts;
                 base_tgp <=> root.base_tgp;
+                supports_ctgp <=> root.supports_ctgp;
+                ctgp_enabled <=> root.ctgp_enabled;
+                ctgp_watts <=> root.ctgp_watts;
+                ctgp_floor_watts <=> root.ctgp_floor_watts;
+                ctgp_max_watts <=> root.ctgp_max_watts;
+                max_db_watts <=> root.max_db_watts;
+                is_mode_locked <=> root.is_mode_locked;
 
                 toggle_super_perf => { root.toggle_super_perf(); }
                 change_core_offset(o) => { root.change_core_offset(o); }
                 change_mem_offset(o) => { root.change_mem_offset(o); }
                 toggle_db => { root.toggle_db(); }
                 change_db_watts(w) => { root.change_db_watts(w); }
+                change_ctgp_watts(w) => { root.change_ctgp_watts(w); }
             }
 
             // Col 3: Fan
             FanTuningCol {
                 horizontal-stretch: 1;
                 is_bld <=> root.is_bld;
+                fan_custom_curve <=> root.fan_custom_curve;
+                fan_boost_mode <=> root.fan_boost_mode;
+                is_direct_clamp <=> root.is_direct_clamp;
+                min_duty <=> root.fan_min_duty;
                 bld_rpm_cap <=> root.bld_rpm_cap;
                 bld_boost <=> root.bld_boost;
                 cpu_temp <=> root.cpu_temp;

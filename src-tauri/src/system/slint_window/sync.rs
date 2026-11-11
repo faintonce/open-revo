@@ -109,6 +109,26 @@ pub fn sync_slint_tuning_state() {
     let base_tgp = crate::system::power_mode::get_cached_factory_power_presets().map(|fp| fp.base_tgp).unwrap_or(150);
     let is_clamped = crate::driver::bld_driver_mgr::is_bld_fan_clamped();
 
+    let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
+    let gpu_power_tuning_mode = manifest.as_ref()
+        .and_then(|m| m.capabilities.gpu_power_tuning_mode.clone())
+        .unwrap_or_else(|| if is_bld { "mode_locked".to_string() } else { "none".to_string() });
+    let is_mode_locked = gpu_power_tuning_mode == "mode_locked";
+    let supports_ctgp = !is_mode_locked && gpu_caps.supports_ctgp;
+    let ctgp_floor_watts = if gpu_caps.ctgp_floor_watts > 0 { gpu_caps.ctgp_floor_watts } else { base_tgp as u32 };
+    let base_tgp_max_watts = if gpu_caps.base_tgp_max_watts > 0 { gpu_caps.base_tgp_max_watts } else { base_tgp as u32 };
+    let ctgp_watts = if profile.gpu_ctgp_enabled && profile.gpu_ctgp_watts > 0 {
+        profile.gpu_ctgp_watts.clamp(ctgp_floor_watts as u8, base_tgp_max_watts as u8) as u32
+    } else {
+        base_tgp_max_watts
+    };
+    let max_db_watts = if gpu_caps.max_db_watts > 0 { gpu_caps.max_db_watts } else { 25 };
+
+    let fan_custom_curve = manifest.as_ref().map(|m| m.capabilities.fan_custom_curve).unwrap_or(true);
+    let fan_boost_mode = manifest.as_ref().and_then(|m| m.capabilities.fan_boost_mode.clone()).unwrap_or_else(|| "none".to_string());
+    let is_direct_clamp = fan_boost_mode == "direct_rpm_clamp";
+    let min_duty: i32 = if is_direct_clamp { 22 } else { 0 };
+
     let preset_ids: Vec<String> = presets.iter().map(|p| p.id.clone()).collect();
     let preset_names: Vec<String> = presets.iter().map(|p| p.name.clone()).collect();
 
@@ -164,6 +184,17 @@ pub fn sync_slint_tuning_state() {
         "db_enabled": profile.gpu_db_enabled,
         "db_watts": profile.gpu_db_watts,
         "base_tgp": base_tgp,
+        "supports_ctgp": supports_ctgp,
+        "ctgp_floor_watts": ctgp_floor_watts,
+        "base_tgp_max_watts": base_tgp_max_watts,
+        "ctgp_watts": ctgp_watts,
+        "ctgp_enabled": profile.gpu_ctgp_enabled,
+        "max_db_watts": max_db_watts,
+        "is_mode_locked": is_mode_locked,
+        "fan_custom_curve": fan_custom_curve,
+        "fan_boost_mode": fan_boost_mode,
+        "is_direct_clamp": is_direct_clamp,
+        "min_duty": min_duty,
         "smooth_transition": profile.fan_ramp_rate,
         "smooth_time": format!("{}ms", profile.fan_ramp_speed_ms),
         "fan_isolated_output": profile.fan_isolated_output,

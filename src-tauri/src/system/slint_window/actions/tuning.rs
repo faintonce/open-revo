@@ -136,6 +136,19 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             }
             true
         }
+        "tuning_set_ctgp" => {
+            if let Some(w) = val.get("watts").and_then(|v| v.as_i64()) {
+                let watts = w as u8;
+                mutate_active_preset_profile(|p| {
+                    p.gpu_ctgp_watts = watts;
+                    p.gpu_ctgp_enabled = true;
+                });
+                let _ = crate::commands::tuning_cmd::apply_live_custom_tweak_internal(
+                    app, None, None, None, None, Some(true), Some(watts), None, None, None, None, None, None, None
+                );
+            }
+            true
+        }
         "tuning_toggle_smooth" => {
             mutate_active_preset_profile(|p| p.fan_ramp_rate = !p.fan_ramp_rate);
             let cfg = crate::system::config::load_config();
