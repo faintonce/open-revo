@@ -52,6 +52,8 @@ export component DrawerView inherits Rectangle {
     in-out property <bool> win_locked: false;
     in-out property <bool> keep_awake: false;
     in-out property <bool> autostart: false;
+    in-out property <bool> oem_installed: false;
+    in-out property <bool> oem_running: false;
     in-out property <string> custom_status_text: "MECHREVO Gaming Laptop";
 
     // --- Callbacks ---
@@ -175,6 +177,8 @@ export component DrawerView inherits Rectangle {
         // 9. Footer
         DrawerFooter {
             autostart: root.autostart;
+            oem_installed: root.oem_installed;
+            oem_running: root.oem_running;
             toggle_autostart => { root.autostart_toggled(); }
             toggle_oem => { root.oem_toggled(); }
             expand_dashboard => { root.expand_dashboard_clicked(); }

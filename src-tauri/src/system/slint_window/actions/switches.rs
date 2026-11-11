@@ -72,6 +72,28 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             super::super::sync::sync_slint_switches_state();
             true
         }
+        "toggle_oem" => {
+            let take_over = val.get("take_over").and_then(|v| v.as_bool()).unwrap_or_else(|| {
+                crate::system::takeover::is_oem_running()
+            });
+            if let Some(app) = app {
+                let ec: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
+                let gpu: tauri::State<crate::driver::gpu_bridge::SharedGpuBridge> = app.state();
+                let _ = crate::commands::system_cmd::toggle_oem_service(take_over, ec, gpu);
+            } else {
+                let mut cfg = crate::system::config::load_config();
+                cfg.takeover_oem = take_over;
+                let _ = crate::system::config::save_config(&cfg);
+                if take_over {
+                    let _ = crate::system::service_mgr::pause_oem_services();
+                } else {
+                    crate::driver::ite_streamer::get_global_streamer().release_to_oem();
+                    let _ = crate::system::service_mgr::resume_oem_services();
+                }
+            }
+            super::super::sync::sync_slint_switches_state();
+            true
+        }
         "toggle_touchpad" => {
             let state = crate::system::device_switches::get_switches_state();
             let next = !state.touchpad;

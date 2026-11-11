@@ -114,6 +114,8 @@ export component MainWindow inherits Window {
     callback reload_plugins();
     in-out property <bool> keep_awake: false;
     in-out property <bool> autostart: false;
+    in-out property <bool> oem_installed: false;
+    in-out property <bool> oem_running: false;
     in-out property <string> custom_status_text: "MECHREVO Gaming Laptop";
 
     // Model Platform Props
@@ -545,6 +547,8 @@ export component MainWindow inherits Window {
         win_locked: root.win_locked;
         keep_awake: root.keep_awake;
         autostart: root.autostart;
+        oem_installed: root.oem_installed;
+        oem_running: root.oem_running;
         custom_status_text: root.custom_status_text;
 
         power_mode_clicked(m) => { root.power_mode_clicked(m); }

@@ -68,6 +68,8 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "fan_boost": state.fan_boost,
         "model_name": &state.model_name,
         "custom_status_text": &state.model_name,
+        "oem_installed": state.oem_installed,
+        "oem_running": state.oem_running,
     }));
 
     sync_slint_water_state(Some(state.cpu_temp as i32), Some(state.gpu_temp as i32));
@@ -320,6 +322,8 @@ pub fn sync_slint_switches_state() {
         "theme_mode": cfg.theme_mode,
         "model_name": &model_alias,
         "custom_status_text": &model_alias,
+        "oem_installed": crate::system::process::is_oem_installed(),
+        "oem_running": crate::system::takeover::is_oem_running(),
     }));
 }
 

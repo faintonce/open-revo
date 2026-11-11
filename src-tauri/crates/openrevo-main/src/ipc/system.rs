@@ -85,6 +85,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(as_en) = val.get("autostart").and_then(|v| v.as_bool()) {
                 ui.set_autostart(as_en);
             }
+            if let Some(oi) = val.get("oem_installed").and_then(|v| v.as_bool()) {
+                ui.set_oem_installed(oi);
+            }
+            if let Some(orun) = val.get("oem_running").and_then(|v| v.as_bool()) {
+                ui.set_oem_running(orun);
+            }
             if let Some(tl) = val.get("touchpad_locked").and_then(|v| v.as_bool()) {
                 ui.set_touchpad_locked(tl);
             }

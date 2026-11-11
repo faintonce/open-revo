@@ -120,6 +120,8 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "theme_mode": cfg.theme_mode,
                         "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
                         "host_pid": std::process::id(),
+                        "oem_installed": crate::system::process::is_oem_installed(),
+                        "oem_running": crate::system::takeover::is_oem_running(),
                         "use_classic_webview": cfg.use_classic_webview,
                         "update_channel": cfg.update_channel,
                         "full_window_x": cfg.full_window_x,

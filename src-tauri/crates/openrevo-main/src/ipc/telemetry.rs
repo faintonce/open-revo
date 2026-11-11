@@ -104,6 +104,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             ui.set_custom_status_text(text.into());
         }
     }
+    if let Some(oi) = val.get("oem_installed").and_then(|v| v.as_bool()) {
+        ui.set_oem_installed(oi);
+    }
+    if let Some(orun) = val.get("oem_running").and_then(|v| v.as_bool()) {
+        ui.set_oem_running(orun);
+    }
 
     true
 }
