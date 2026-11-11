@@ -539,7 +539,7 @@ export component FullDashboard inherits Rectangle {
         // 2. Right Main Work Area (Width: 920px)
         Rectangle {
             horizontal-stretch: 1;
-            background: AppTheme.bg_root;
+            background: (Math.mod(root.redraw_tick, 2) == 0) ? AppTheme.bg_root : @linear-gradient(180deg, AppTheme.bg_root 0%, AppTheme.bg_root 100%);
             clip: true;
 
             VerticalLayout {

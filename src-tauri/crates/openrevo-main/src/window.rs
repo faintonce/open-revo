@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use slint::ComponentHandle;
 
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, LRESULT, RECT, WPARAM};
@@ -9,7 +9,9 @@ use windows::Win32::Graphics::Dwm::{
     DWMWCP_ROUND,
 };
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, InvalidateRect, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTOPRIMARY,
+    GetMonitorInfoW, InvalidateRect, MonitorFromWindow, RedrawWindow, HRGN, MONITORINFO,
+    MONITOR_DEFAULTTOPRIMARY, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
+    RDW_UPDATENOW,
 };
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::Controls::MARGINS;
@@ -18,8 +20,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     IsIconic, SetWindowLongPtrW, SetWindowPos,
     GWLP_WNDPROC, GWL_EXSTYLE, SC_MINIMIZE, SC_RESTORE,
     SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOZORDER,
-    WA_INACTIVE, WM_ACTIVATE, WM_EXITSIZEMOVE, WM_SYSCOMMAND,
-    WM_WINDOWPOSCHANGED, WNDPROC, WS_EX_APPWINDOW,
+    WA_INACTIVE, WM_ACTIVATE, WM_EXITSIZEMOVE,
+    WM_SYSCOMMAND, WM_WINDOWPOSCHANGED, WNDPROC, WS_EX_APPWINDOW,
 };
 
 use crate::MainWindow;
@@ -40,6 +42,7 @@ pub(crate) static WAS_MINIMIZED: AtomicBool = AtomicBool::new(false);
 pub(crate) static SLINT_UI_WEAK: Mutex<Option<slint::Weak<MainWindow>>> = Mutex::new(None);
 pub static HWND_HOLDER: Mutex<Option<SafeHwnd>> = Mutex::new(None);
 pub static SAVED_FULL_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
+pub(crate) static LAST_REDRAW_INSTANT: Mutex<Option<Instant>> = Mutex::new(None);
 
 pub fn set_slint_ui_weak(weak: slint::Weak<MainWindow>) {
     *SLINT_UI_WEAK.lock().unwrap() = Some(weak);
@@ -48,6 +51,12 @@ pub fn set_slint_ui_weak(weak: slint::Weak<MainWindow>) {
 fn do_redraw_pass(hwnd: HWND) {
     unsafe {
         let _ = InvalidateRect(hwnd, None, true);
+        let _ = RedrawWindow(
+            hwnd,
+            None,
+            HRGN::default(),
+            RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_FRAME | RDW_UPDATENOW,
+        );
     }
 
     if let Ok(guard) = SLINT_UI_WEAK.lock() {
@@ -61,18 +70,18 @@ fn do_redraw_pass(hwnd: HWND) {
 }
 
 pub fn trigger_full_redraw(hwnd: HWND) {
-    do_redraw_pass(hwnd);
+    {
+        let mut last = LAST_REDRAW_INSTANT.lock().unwrap();
+        let now = Instant::now();
+        if let Some(prev) = *last {
+            if now.duration_since(prev) < Duration::from_millis(200) {
+                return;
+            }
+        }
+        *last = Some(now);
+    }
 
-    let safe_hwnd = SafeHwnd(hwnd.0 as isize);
-    slint::Timer::single_shot(Duration::from_millis(50), move || {
-        do_redraw_pass(safe_hwnd.to_hwnd());
-    });
-    slint::Timer::single_shot(Duration::from_millis(150), move || {
-        do_redraw_pass(safe_hwnd.to_hwnd());
-    });
-    slint::Timer::single_shot(Duration::from_millis(300), move || {
-        do_redraw_pass(safe_hwnd.to_hwnd());
-    });
+    do_redraw_pass(hwnd);
 }
 
 unsafe extern "system" fn subclass_wnd_proc(
@@ -88,10 +97,11 @@ unsafe extern "system" fn subclass_wnd_proc(
             if resize_type == SIZE_MINIMIZED {
                 WAS_MINIMIZED.store(true, Ordering::SeqCst);
             } else if resize_type == SIZE_RESTORED {
-                WAS_MINIMIZED.store(false, Ordering::SeqCst);
                 let prev = *PREV_WNDPROC.lock().unwrap();
                 let ret = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
-                trigger_full_redraw(hwnd);
+                if WAS_MINIMIZED.swap(false, Ordering::SeqCst) || IsIconic(hwnd).as_bool() {
+                    trigger_full_redraw(hwnd);
+                }
                 return ret;
             }
         }
@@ -100,27 +110,28 @@ unsafe extern "system" fn subclass_wnd_proc(
             if cmd == SC_MINIMIZE {
                 WAS_MINIMIZED.store(true, Ordering::SeqCst);
             } else if cmd == SC_RESTORE {
-                WAS_MINIMIZED.store(false, Ordering::SeqCst);
                 let prev = *PREV_WNDPROC.lock().unwrap();
                 let ret = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
-                trigger_full_redraw(hwnd);
+                if WAS_MINIMIZED.swap(false, Ordering::SeqCst) || IsIconic(hwnd).as_bool() {
+                    trigger_full_redraw(hwnd);
+                }
                 return ret;
             }
         }
         WM_ACTIVATE => {
             let active = (wparam.0 & 0xFFFF) as u32;
             if active != WA_INACTIVE {
+                let prev = *PREV_WNDPROC.lock().unwrap();
+                let ret = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
+                // Only trigger full redraw if this activation is recovering from minimized iconic state
                 if WAS_MINIMIZED.swap(false, Ordering::SeqCst) || IsIconic(hwnd).as_bool() {
-                    let prev = *PREV_WNDPROC.lock().unwrap();
-                    let ret = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
                     trigger_full_redraw(hwnd);
-                    return ret;
                 }
+                return ret;
             }
         }
         WM_WINDOWPOSCHANGED => {
-            if WAS_MINIMIZED.load(Ordering::SeqCst) && !IsIconic(hwnd).as_bool() {
-                WAS_MINIMIZED.store(false, Ordering::SeqCst);
+            if !IsIconic(hwnd).as_bool() && WAS_MINIMIZED.swap(false, Ordering::SeqCst) {
                 let prev = *PREV_WNDPROC.lock().unwrap();
                 let ret = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
                 trigger_full_redraw(hwnd);
@@ -150,12 +161,28 @@ unsafe extern "system" fn subclass_wnd_proc(
     CallWindowProcW(prev, hwnd, msg, wparam, lparam)
 }
 
-extern "system" fn enum_thread_wnd_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-    unsafe {
+unsafe extern "system" fn enum_thread_wnd_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let mut rect = RECT::default();
+    let _ = GetWindowRect(hwnd, &mut rect);
+    let w = rect.right - rect.left;
+    let h = rect.bottom - rect.top;
+
+    let mut title = [0u16; 64];
+    let len = windows::Win32::UI::WindowsAndMessaging::GetWindowTextW(hwnd, &mut title);
+    let title_str = if len > 0 {
+        String::from_utf16_lossy(&title[..len as usize])
+    } else {
+        String::new()
+    };
+
+    // Filter out 0x0 hidden message-only helper windows; accurately match OpenRevo title or desktop dimensions
+    if title_str.eq_ignore_ascii_case("openrevo") || (w >= 300 && h >= 400) {
         let ptr = lparam.0 as *mut Option<HWND>;
         *ptr = Some(hwnd);
-        BOOL(0)
+        return BOOL(0);
     }
+
+    BOOL(1)
 }
 
 pub fn find_thread_hwnd() -> Option<HWND> {
