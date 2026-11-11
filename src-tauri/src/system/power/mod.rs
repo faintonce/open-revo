@@ -441,12 +441,21 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
             crate::driver::ite_streamer::IteStreamerController::init_from_saved_config();
         }
 
-        // 26H2 delayed USB HID enumeration fallback: if streamer should be active but was skipped, retry after settling
-        if cfg.lighting.kb_engine == "streamer" && !crate::driver::ite_streamer::get_global_streamer().is_running() {
-            std::thread::sleep(std::time::Duration::from_millis(1500));
-            crate::driver::ite_streamer::IteStreamerController::invalidate_probe_cache();
-            lighting.refresh_devices();
-            crate::driver::ite_streamer::IteStreamerController::init_from_saved_config();
+        // Delayed USB HID enumeration fallback. Windows can enumerate the ITE HID
+        // interface several seconds after login, so a single 1.5 s retry is not
+        // enough on some models (observed on MECHREVO YAOSHI 16 Ultra): the keyboard
+        // stays on its firmware effect until the user opens the control center.
+        // "custom" drives the same streamer engine and must be retried as well.
+        if matches!(cfg.lighting.kb_engine.as_str(), "streamer" | "custom") {
+            for delay_ms in [1500u64, 3000, 5000] {
+                if crate::driver::ite_streamer::get_global_streamer().is_running() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                crate::driver::ite_streamer::IteStreamerController::invalidate_probe_cache();
+                lighting.refresh_devices();
+                crate::driver::ite_streamer::IteStreamerController::init_from_saved_config();
+            }
         }
 
 
