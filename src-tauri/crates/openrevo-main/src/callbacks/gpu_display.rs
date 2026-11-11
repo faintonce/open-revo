@@ -42,6 +42,16 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         }
     });
 
+    // Mini-LED local dimming toggle
+    let ui_miniled = ui_weak.clone();
+    window.on_toggle_miniled(move || {
+        if let Some(ui) = ui_miniled.upgrade() {
+            let next = !ui.get_miniled_enabled();
+            ui.set_miniled_enabled(next);
+            ipc::send_action_to_host("set_miniled_status", serde_json::json!({ "enabled": next }));
+        }
+    });
+
     // Display Tuning & Color Management
     let ui_tuning_en = ui_weak.clone();
     window.on_set_tuning_enabled(move |en| {

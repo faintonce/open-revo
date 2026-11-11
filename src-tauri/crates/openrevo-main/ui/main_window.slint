@@ -51,6 +51,17 @@ export component MainWindow inherits Window {
     in-out property <bool> sleep_deep_sleep: false;
     in-out property <bool> sleep_hibernate_30m: false;
     in-out property <bool> sleep_auto_office: false;
+    in-out property <bool> turbo_submode_supported: false;
+    in-out property <bool> turbo_silent: false;
+    in-out property <bool> has_fan_boost: true;
+    in-out property <bool> has_water_cooler: false;
+    in-out property <bool> has_win_lock: true;
+    in-out property <bool> has_fn_lock: true;
+    in-out property <bool> miniled_supported: false;
+    in-out property <bool> miniled_enabled: false;
+
+    callback toggle_miniled();
+    callback open_log_file();
 
     // Telemetry
     in-out property <int> cpu_temp: 64;
@@ -535,6 +546,10 @@ export component MainWindow inherits Window {
         battery_limit: root.battery_limit;
         is_ac_online: root.is_ac_online;
         is_power_mode_restricted: root.is_power_mode_restricted;
+        is_thin_and_light: root.is_thin_and_light;
+        turbo_submode_supported: root.turbo_submode_supported;
+        turbo_silent: root.turbo_silent;
+        has_fan_boost: root.has_fan_boost;
 
         cpu_temp: root.cpu_temp;
         cpu_rpm: root.cpu_rpm;
@@ -691,6 +706,9 @@ export component MainWindow inherits Window {
         cloud_icc_hit_profiles: root.cloud_icc_hit_profiles;
         cloud_icc_selected_profile_idx <=> root.cloud_icc_selected_profile_idx;
         cloud_icc_toast: root.cloud_icc_toast;
+        miniled_supported: root.miniled_supported;
+        miniled_enabled: root.miniled_enabled;
+        toggle_miniled => { root.toggle_miniled(); }
 
         open_cloud_icc => { root.open_cloud_icc(); }
         refresh_cloud_icc_identity => { root.refresh_cloud_icc_identity(); }
@@ -1102,6 +1120,7 @@ export component MainWindow inherits Window {
         show_migrate_modal <=> root.show_migrate_modal;
         migrating_data: root.migrating_data;
         open_user_data_dir => { root.open_user_data_dir(); }
+        open_log_file => { root.open_log_file(); }
         confirm_clear_user_data => { root.confirm_clear_user_data(); }
         confirm_migrate_user_data(path) => { root.confirm_migrate_user_data(path); }
 

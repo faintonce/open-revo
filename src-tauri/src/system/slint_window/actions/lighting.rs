@@ -188,6 +188,78 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             sync_slint_lighting_state();
             true
         }
+        "cycle_kbd_effect" => {
+            let state = global_lm.state.lock().clone();
+            let cur = if state.kb_engine == "streamer" { state.streamer_effect } else { state.kb_effect };
+            let effects = [101u8, 102, 103, 104, 105, 106];
+            let next = if let Some(pos) = effects.iter().position(|&e| e == cur) {
+                effects[(pos + 1) % effects.len()]
+            } else {
+                101
+            };
+            let engine = if next >= 100 { "streamer".to_string() } else { "hardware".to_string() };
+            let _ = crate::commands::lighting_cmd::apply_keyboard_lighting_internal(
+                app,
+                true,
+                next,
+                state.kb_brightness.max(1),
+                state.kb_speed,
+                state.kb_direction,
+                state.kb_color.clone(),
+                Some(engine),
+                None,
+                Some(next),
+                Some(next),
+                None,
+                None,
+                &global_lm,
+            );
+            sync_slint_lighting_state();
+            true
+        }
+        "cycle_kbd_color" => {
+            let colors = [
+                "#6366F1", // Indigo
+                "#06B6D4", // Cyan
+                "#10B981", // Emerald
+                "#EF4444", // Red
+                "#F59E0B", // Amber
+                "#EC4899", // Pink
+                "#8B5CF6", // Purple
+                "#FFFFFF", // White
+            ];
+            let state = global_lm.state.lock().clone();
+            let cur_hex = state.kb_color.to_uppercase();
+            let next_color = if let Some(pos) = colors.iter().position(|&c| c.eq_ignore_ascii_case(&cur_hex)) {
+                colors[(pos + 1) % colors.len()]
+            } else {
+                colors[0]
+            };
+            let engine = if state.kb_effect >= 100 { "streamer".to_string() } else { "hardware".to_string() };
+            let _ = crate::commands::lighting_cmd::apply_keyboard_lighting_internal(
+                app,
+                true,
+                state.kb_effect,
+                state.kb_brightness.max(1),
+                state.kb_speed,
+                state.kb_direction,
+                next_color.to_string(),
+                Some(engine),
+                None,
+                if state.kb_effect >= 100 { Some(state.kb_effect) } else { None },
+                if state.kb_effect >= 100 { Some(state.kb_effect) } else { None },
+                None,
+                None,
+                &global_lm,
+            );
+            sync_slint_lighting_state();
+            true
+        }
+        "open_brfx_in_notepad" => {
+            let filename = val.get("filename").and_then(|v| v.as_str()).unwrap_or("custom.brfx").to_string();
+            let _ = crate::commands::lighting_cmd::open_brfx_in_notepad(filename);
+            true
+        }
         _ => false,
     }
 }

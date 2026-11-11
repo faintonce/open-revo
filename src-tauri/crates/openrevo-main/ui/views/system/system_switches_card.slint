@@ -28,6 +28,7 @@ export component SystemSwitchesCard inherits Rectangle {
         mode: "appdata"
     };
     callback open_user_data_dir();
+    callback open_log_file();
     callback request_migrate_data();
     callback request_clear_data();
 
@@ -408,6 +409,7 @@ export component SystemSwitchesCard inherits Rectangle {
         StorageManagementRow {
             data_dir_info: root.data_dir_info;
             open_user_data_dir => { root.open_user_data_dir(); }
+            open_log_file => { root.open_log_file(); }
             request_migrate_data => { root.request_migrate_data(); }
             request_clear_data => { root.request_clear_data(); }
         }

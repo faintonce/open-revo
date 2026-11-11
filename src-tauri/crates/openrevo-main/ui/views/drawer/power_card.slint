@@ -11,6 +11,8 @@ export component DrawerPowerCard inherits Rectangle {
     in-out property <int> cpu_temp: 62;
     in-out property <int> cpu_rpm: 2818;
     in-out property <bool> is_restricted: false; // Power gating on battery/Type-C
+    in-out property <bool> turbo_submode_supported: false;
+    in-out property <bool> turbo_silent: false;
 
     callback set_mode(int);
 
@@ -131,9 +133,9 @@ export component DrawerPowerCard inherits Rectangle {
             btn_bst := Rectangle {
                 border-radius: 6px;
                 opacity: is_restricted ? 0.45 : 1.0;
-                background: power_mode == 3 ? #f43f5e25 : (t_bst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                background: power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf825 : #f43f5e25) : (t_bst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: power_mode == 3 ? 1.5px : 1px;
-                border-color: power_mode == 3 ? #f43f5e : AppTheme.border_subtle;
+                border-color: power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf8 : #f43f5e) : AppTheme.border_subtle;
 
                 t_bst := TouchArea {
                     mouse-cursor: is_restricted ? default : pointer;
@@ -150,17 +152,17 @@ export component DrawerPowerCard inherits Rectangle {
                     HorizontalLayout {
                         alignment: center;
                         Image {
-                            source: @image-url("../../assets/icons/flame.svg");
+                            source: (power_mode == 3 && root.turbo_submode_supported && root.turbo_silent) ? @image-url("../../assets/icons/snowflake.svg") : @image-url("../../assets/icons/flame.svg");
                             width: 15px;
                             height: 15px;
-                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_secondary);
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf8 : #f43f5e) : AppTheme.text_secondary);
                         }
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : "狂暴";
+                        text: is_restricted ? "需圆口DC" : (power_mode == 3 && root.turbo_submode_supported ? (root.turbo_silent ? "静音狂暴" : "高能狂暴") : "狂暴");
                         font-size: 10.5px;
                         font-weight: power_mode == 3 ? 700 : 500;
-                        color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf8 : #f43f5e) : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                 }

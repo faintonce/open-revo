@@ -10,6 +10,7 @@ export component DrawerGpuCard inherits Rectangle {
     in-out property <string> gpu_mode: "dgpu"; // "igpu" | "hybrid" | "dgpu"
     in-out property <int> gpu_temp: 48;
     in-out property <int> gpu_rpm: 2123;
+    in-out property <bool> is_thin_and_light: false;
 
     callback set_gpu_mode(string);
 
@@ -129,13 +130,18 @@ export component DrawerGpuCard inherits Rectangle {
             // 3. dGPU
             btn_dgpu := Rectangle {
                 border-radius: 6px;
-                background: gpu_mode == "dgpu" ? #10b98125 : (t_dgpu.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                opacity: root.is_thin_and_light ? 0.45 : 1.0;
+                background: gpu_mode == "dgpu" ? #10b98125 : (t_dgpu.has-hover && !root.is_thin_and_light ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: gpu_mode == "dgpu" ? 1.5px : 1px;
                 border-color: gpu_mode == "dgpu" ? #10b981 : AppTheme.border_subtle;
 
                 t_dgpu := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { set_gpu_mode("dgpu"); }
+                    mouse-cursor: root.is_thin_and_light ? default : pointer;
+                    clicked => {
+                        if (!root.is_thin_and_light) {
+                            set_gpu_mode("dgpu");
+                        }
+                    }
                 }
 
                 VerticalLayout {
@@ -147,14 +153,14 @@ export component DrawerGpuCard inherits Rectangle {
                             source: @image-url("../../assets/icons/crosshair.svg");
                             width: 15px;
                             height: 15px;
-                            colorize: gpu_mode == "dgpu" ? #10b981 : AppTheme.text_secondary;
+                            colorize: root.is_thin_and_light ? AppTheme.text_muted : (gpu_mode == "dgpu" ? #10b981 : AppTheme.text_secondary);
                         }
                     }
                     Text {
-                        text: "独显直连";
+                        text: root.is_thin_and_light ? "需独显机型" : "独显直连";
                         font-size: 10.5px;
                         font-weight: gpu_mode == "dgpu" ? 700 : 500;
-                        color: gpu_mode == "dgpu" ? #10b981 : AppTheme.text_primary;
+                        color: root.is_thin_and_light ? AppTheme.text_muted : (gpu_mode == "dgpu" ? #10b981 : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                 }

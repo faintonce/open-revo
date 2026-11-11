@@ -49,6 +49,10 @@ pub fn register(
         ipc::send_action_to_host("open_user_data_dir", serde_json::json!({}));
     });
 
+    window.on_open_log_file(move || {
+        ipc::send_action_to_host("open_log_file", serde_json::json!({}));
+    });
+
     let ui_cb = ui_weak.clone();
     window.on_confirm_clear_user_data(move || {
         ipc::send_action_to_host("clear_user_data_dir", serde_json::json!({}));
@@ -90,12 +94,25 @@ pub fn register(
 
     let ui_cb = ui_weak.clone();
     window.on_start_download_update(move || {
+        let mut download_url = String::new();
+        let mut expected_sha256 = String::new();
+        let mut filename = String::new();
+        let mut is_installer = false;
         if let Some(ui) = ui_cb.upgrade() {
             let mut d = ui.get_update_data();
             d.downloading = true;
+            download_url = d.download_url.to_string();
+            expected_sha256 = d.sha256.to_string();
+            filename = d.filename.to_string();
+            is_installer = d.asset_type.eq_ignore_ascii_case("installer");
             ui.set_update_data(d);
         }
-        ipc::send_action_to_host("start_download_update", serde_json::json!({}));
+        ipc::send_action_to_host("start_download_update", serde_json::json!({
+            "download_url": download_url,
+            "expected_sha256": expected_sha256,
+            "filename": filename,
+            "is_installer": is_installer
+        }));
     });
 
     let hwnd_expand = hwnd_holder.clone();
@@ -141,7 +158,18 @@ pub fn register(
         }
     });
 
+    let hwnd_sponsor = hwnd_holder.clone();
+    let ui_sponsor = ui_weak.clone();
     window.on_open_sponsor_clicked(move || {
+        if let Some(h) = *hwnd_sponsor.lock().unwrap() {
+            let saved = *SAVED_FULL_POS.lock().unwrap();
+            expand_native_window(h.to_hwnd(), 1120, 760, saved);
+        }
+        if let Some(ui) = ui_sponsor.upgrade() {
+            ui.set_is_expanded(true);
+            ui.set_active_tab(7);
+            ui.set_active_plugin_id(slint::SharedString::from(""));
+        }
         ipc::send_action_to_host("open_sponsor", serde_json::json!({}));
     });
 

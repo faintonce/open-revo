@@ -196,6 +196,21 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             sync_slint_power_schemes(Some(&msg));
             true
         }
+        "apply_turbo_profile" => {
+            if let Some(silent) = val.get("silent").and_then(|v| v.as_bool()) {
+                if let Some(app) = app {
+                    let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
+                    let _ = crate::commands::power_cmd::apply_turbo_profile(silent, app.clone(), ec_state);
+                    sync_slint_power_state();
+                } else {
+                    let mut cfg = crate::system::config::load_config();
+                    cfg.turbo_silent = silent;
+                    let _ = crate::system::config::save_config(&cfg);
+                    sync_slint_power_state();
+                }
+            }
+            true
+        }
         _ => false,
     }
 }

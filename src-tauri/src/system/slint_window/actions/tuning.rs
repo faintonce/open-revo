@@ -342,6 +342,33 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             let _ = crate::commands::tuning_cmd::open_profiles_folder();
             true
         }
+        "tuning_adjust_pl1_max" | "tuning_adjust_pl2_max" | "tuning_adjust_pl4_max" | "tuning_adjust_temp_wall_max" => {
+            crate::log_info!("SLINT_MAIN", "Tuning slider range adjusted: {} with delta {:?}", action, val.get("delta"));
+            true
+        }
+        "tuning_select_fan_tab" => {
+            if let Some(tab) = val.get("tab").and_then(|v| v.as_i64()) {
+                crate::log_info!("SLINT_MAIN", "Tuning fan tab selected: {}", tab);
+            }
+            true
+        }
+        "tuning_rename_preset" => {
+            let active_id = {
+                let cfg = crate::system::config::load_config();
+                if !cfg.active_profile_id.is_empty() {
+                    cfg.active_profile_id
+                } else {
+                    "preset_balance".to_string()
+                }
+            };
+            if let Some(new_name) = val.get("new_name").and_then(|v| v.as_str()) {
+                let _ = crate::commands::tuning_cmd::rename_profile_preset(active_id, new_name.to_string());
+                sync_slint_tuning_state();
+            } else {
+                crate::log_info!("SLINT_MAIN", "tuning_rename_preset called for active preset: {}", active_id);
+            }
+            true
+        }
         _ => false,
     }
 }

@@ -208,6 +208,56 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             });
             true
         }
+        "open_sponsor" => {
+            crate::log_info!("SLINT_MAIN", "Sponsor view opened from Slint UI");
+            let mut cfg = crate::system::config::load_config();
+            cfg.last_window_expanded = true;
+            let _ = crate::system::config::save_config(&cfg);
+            crate::system::tray::update_tray_window_mode(true);
+            true
+        }
+        "start_download_update" => {
+            let app = _app.cloned();
+            let val = val.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Some(app) = app {
+                    let download_url = val.get("download_url").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let expected_sha256 = val.get("expected_sha256").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let filename = val.get("filename").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let is_installer = val.get("is_installer").and_then(|v| v.as_bool()).unwrap_or(false);
+
+                    if !download_url.is_empty() && !expected_sha256.is_empty() && !filename.is_empty() {
+                        crate::log_info!("SLINT_MAIN", "Starting update download from Slint: {}", filename);
+                        if let Err(e) = crate::updater::download_and_install_update_cmd(
+                            app, download_url, expected_sha256, filename, is_installer
+                        ).await {
+                            crate::log_error!("UPDATER", "Slint update download/install failed: {}", e);
+                            send_slint_ipc_message(serde_json::json!({
+                                "action": "sync_update_result",
+                                "status": "error",
+                                "message": format!("升级失败: {}", e),
+                                "update": { "has_update": false }
+                            }));
+                        }
+                    } else {
+                        crate::log_warn!("UPDATER", "start_download_update received empty parameters");
+                    }
+                } else {
+                    crate::log_warn!("UPDATER", "start_download_update called without valid AppHandle");
+                }
+            });
+            true
+        }
+        "open_log_file" => {
+            let _ = crate::commands::system_cmd::open_log_file();
+            true
+        }
+        "set_log_level" => {
+            if let Some(level) = val.get("level").and_then(|v| v.as_i64()) {
+                let _ = crate::commands::system_cmd::set_log_level(level as u8);
+            }
+            true
+        }
         _ => false,
     }
 }

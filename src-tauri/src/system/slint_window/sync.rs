@@ -232,6 +232,10 @@ pub fn sync_slint_display_state() {
         "has_secondary_monitor": has_secondary_monitor,
         "primary_monitor_name": primary_monitor_name,
         "secondary_monitor_name": secondary_monitor_name,
+        "miniled_supported": crate::driver::wmi_ec::raw_driver_read_ec(crate::hal::vault::ec::ADDR_LOCAL_DIMMING_SUPPORT)
+            .map(|val| val != 0xFF && (val & crate::hal::vault::mask::MASK_LOCAL_DIMMING_SUPPORT) != 0)
+            .unwrap_or(false),
+        "miniled_enabled": crate::commands::display_cmd::get_miniled_status().unwrap_or(false),
     }));
 }
 
@@ -263,6 +267,8 @@ pub fn sync_slint_power_state() {
             "sleep_deep_sleep": info.sleep_deep_sleep,
             "sleep_hibernate_30m": info.sleep_hibernate_30m,
             "sleep_auto_office": info.sleep_auto_office,
+            "turbo_submode_supported": crate::system::power::turbo_submode::is_supported(),
+            "turbo_silent": cfg.turbo_silent,
         }));
     } else {
         let cfg = crate::system::config::load_config();
@@ -302,6 +308,7 @@ pub fn sync_slint_switches_state() {
     let switches = crate::system::device_switches::get_switches_state();
     let cfg = crate::system::config::load_config();
     let model_alias = crate::system::model_engine::get_active_alias();
+    let flags = crate::driver::wmi_ec::get_hardware_support_flags();
     send_slint_ipc_message(serde_json::json!({
         "action": "sync_state",
         "camera_enabled": switches.camera,
@@ -324,6 +331,11 @@ pub fn sync_slint_switches_state() {
         "custom_status_text": &model_alias,
         "oem_installed": crate::system::process::is_oem_installed(),
         "oem_running": crate::system::takeover::is_oem_running(),
+        "has_fan_boost": flags.has_fan_boost,
+        "has_water_cooler": flags.has_water_cooler,
+        "has_win_lock": flags.has_win_lock,
+        "has_fn_lock": flags.has_fn_lock,
+        "has_lightbar": flags.has_lightbar,
     }));
 }
 
@@ -471,6 +483,7 @@ pub fn sync_slint_water_state(opt_cpu: Option<i32>, opt_gpu: Option<i32>) {
 
 pub fn sync_slint_plugins_state() {
     let toggles = crate::system::config::get_module_toggles();
+    let has_wc = crate::driver::wmi_ec::get_hardware_support_flags().has_water_cooler;
 
     // 1. Sync Builtin Module Toggles
     send_slint_ipc_message(serde_json::json!({
@@ -480,7 +493,7 @@ pub fn sync_slint_plugins_state() {
             "gpu": toggles.get("gpu").copied().unwrap_or(true),
             "tuning": toggles.get("tuning").copied().unwrap_or(true),
             "lighting": toggles.get("lighting").copied().unwrap_or(true),
-            "water": toggles.get("water").copied().unwrap_or(true),
+            "water": toggles.get("water").copied().unwrap_or(has_wc) && has_wc,
         }
     }));
 

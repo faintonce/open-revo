@@ -495,7 +495,11 @@ export component FullDashboard inherits Rectangle {
     in-out property <[string]> cloud_icc_hit_profiles: [];
     in-out property <int> cloud_icc_selected_profile_idx: 0;
     in-out property <string> cloud_icc_toast: "";
+    in-out property <bool> miniled_supported: false;
+    in-out property <bool> miniled_enabled: false;
 
+    callback toggle_miniled();
+    callback open_log_file();
     callback open_cloud_icc();
     callback refresh_cloud_icc_identity();
     callback start_cloud_icc_search(string);
@@ -879,6 +883,9 @@ export component FullDashboard inherits Rectangle {
                 cloud_icc_hit_profiles: root.cloud_icc_hit_profiles;
                 cloud_icc_selected_profile_idx <=> root.cloud_icc_selected_profile_idx;
                 cloud_icc_toast: root.cloud_icc_toast;
+                miniled_supported: root.miniled_supported;
+                miniled_enabled: root.miniled_enabled;
+                toggle_miniled => { root.toggle_miniled(); }
 
                 open_cloud_icc => { root.open_cloud_icc(); }
                 refresh_cloud_icc_identity => { root.refresh_cloud_icc_identity(); }
@@ -1127,6 +1134,7 @@ export component FullDashboard inherits Rectangle {
                 show_migrate_modal <=> root.show_migrate_modal;
                 migrating_data: root.migrating_data;
                 open_user_data_dir => { root.open_user_data_dir(); }
+                open_log_file => { root.open_log_file(); }
                 confirm_clear_user_data => { root.confirm_clear_user_data(); }
                 confirm_migrate_user_data(path) => { root.confirm_migrate_user_data(path); }
 
