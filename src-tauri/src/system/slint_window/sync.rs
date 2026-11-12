@@ -317,6 +317,7 @@ pub fn sync_slint_display_state() {
         "color_profiles_list": profiles_list,
         "color_profiles_ids": profiles_ids,
         "monitor_name": monitor_name,
+        "brightness": crate::system::display::get_brightness().unwrap_or(76),
         "refresh_rate": curr_hz,
         "rates_row1": rates_row1,
         "rates_row2": rates_row2,

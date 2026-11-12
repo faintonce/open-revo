@@ -518,7 +518,25 @@ pub fn get_brightness() -> Result<u8, String> {
         CloseHandle(h as *mut std::ffi::c_void);
 
         if ok != 0 {
-            let val = data.uc_ac_brightness.max(data.uc_dc_brightness).min(100);
+            let val = match data.uc_display_policy {
+                1 => data.uc_ac_brightness,
+                2 => data.uc_dc_brightness,
+                _ => {
+                    let mut pwr = windows::Win32::System::Power::SYSTEM_POWER_STATUS::default();
+                    if windows::Win32::System::Power::GetSystemPowerStatus(&mut pwr).is_ok() {
+                        if pwr.ACLineStatus == 1 {
+                            data.uc_ac_brightness
+                        } else if pwr.ACLineStatus == 0 {
+                            data.uc_dc_brightness
+                        } else {
+                            data.uc_ac_brightness.max(data.uc_dc_brightness)
+                        }
+                    } else {
+                        data.uc_ac_brightness.max(data.uc_dc_brightness)
+                    }
+                }
+            }
+            .min(100);
             Ok(val)
         } else {
             Err("IOCTL_VIDEO_QUERY_DISPLAY_BRIGHTNESS failed".into())

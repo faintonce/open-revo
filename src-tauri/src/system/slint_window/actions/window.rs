@@ -96,6 +96,12 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
         }
         "slint_window_shown" => {
             crate::system::telemetry::set_main_window_visible(true);
+            if let Ok(b) = crate::system::display::get_brightness() {
+                send_slint_ipc_message(serde_json::json!({
+                    "action": "sync_state",
+                    "brightness": b,
+                }));
+            }
             true
         }
         "slint_window_hidden" => {

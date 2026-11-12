@@ -82,7 +82,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "gpu_mode": cfg.gpu_mode,
                         "refresh_rate": cfg.refresh_rate,
                         "auto_min_hz": cfg.auto_min_refresh_on_battery,
-                        "brightness": 76,
+                        "brightness": crate::system::display::get_brightness().unwrap_or(76),
                         "battery_limit": cfg.battery_limit,
                         "battery_percent": live_percent,
                         "is_ac_online": live_ac,

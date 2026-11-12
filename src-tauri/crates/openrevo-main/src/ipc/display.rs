@@ -71,6 +71,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(hz) = val.get("refresh_rate").and_then(|v| v.as_i64()) {
                 ui.set_refresh_rate(hz as i32);
             }
+            if let Some(b) = val.get("brightness").and_then(|v| v.as_i64()) {
+                ui.set_brightness(b as i32);
+            }
             if let Some(r1_arr) = val.get("rates_row1").and_then(|v| v.as_array()) {
                 let r1: Vec<i32> = r1_arr.iter().filter_map(|r| r.as_i64().map(|v| v as i32)).collect();
                 if !r1.is_empty() {
