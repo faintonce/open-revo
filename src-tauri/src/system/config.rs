@@ -664,21 +664,23 @@ pub fn migrate_data_dir(target_dir: &std::path::Path) -> Result<(), String> {
     ensure_config_writable()?;
     copy_dir_recursive(&canonical_current, &canonical_target)?;
     crate::system::data_dir::mark_owned_directory(&canonical_target)?;
+    // The pointer, registry and live path all keep the plain form of the resolved target.
+    let stored_target = crate::system::path_safety::without_verbatim_prefix(&canonical_target);
 
     // Write pointer file in default %APPDATA%\OpenRevo\data_dir.ptr
     if let Ok(app_data) = std::env::var("APPDATA") {
         let default_dir = PathBuf::from(app_data).join("OpenRevo");
         fs::create_dir_all(&default_dir).map_err(|e| e.to_string())?;
         let ptr_file = default_dir.join("data_dir.ptr");
-        crate::system::config_io::atomic_write(&ptr_file, canonical_target.to_string_lossy().as_bytes())?;
+        crate::system::config_io::atomic_write(&ptr_file, stored_target.to_string_lossy().as_bytes())?;
     }
 
     // Sync registry
     #[cfg(target_os = "windows")]
-    sync_registry_data_path(target_dir);
+    sync_registry_data_path(&stored_target);
 
-    openrevo_core::system::config::adopt_data_dir(canonical_target.clone());
-    adopt_data_dir(canonical_target);
+    openrevo_core::system::config::adopt_data_dir(stored_target.clone());
+    adopt_data_dir(stored_target);
     Ok(())
 }
 

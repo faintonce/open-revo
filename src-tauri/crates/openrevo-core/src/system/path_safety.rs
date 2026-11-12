@@ -76,6 +76,35 @@ pub fn resolve_within(base: &Path, relative: &str) -> Result<PathBuf, String> {
     Ok(target)
 }
 
+/// Drops the `\\?\` prefix that `canonicalize` adds on Windows, so a stored data path stays a
+/// normal `D:\...` or `\\server\share\...` path for the UI, Explorer and the registry.
+/// Any other path is returned unchanged.
+pub fn without_verbatim_prefix(path: &Path) -> PathBuf {
+    use std::path::{Component, Prefix};
+    let mut components = path.components();
+    let mut plain = match components.next() {
+        Some(Component::Prefix(prefix)) => match prefix.kind() {
+            Prefix::VerbatimDisk(drive) => PathBuf::from(format!("{}:\\", drive as char)),
+            Prefix::VerbatimUNC(server, share) => {
+                let mut unc = std::ffi::OsString::from(r"\\");
+                unc.push(server);
+                unc.push(r"\");
+                unc.push(share);
+                unc.push(r"\");
+                PathBuf::from(unc)
+            }
+            _ => return path.to_path_buf(),
+        },
+        _ => return path.to_path_buf(),
+    };
+    for component in components {
+        if !matches!(component, Component::RootDir) {
+            plain.push(component.as_os_str());
+        }
+    }
+    plain
+}
+
 pub fn validate_migration_dirs(source: &Path, destination: &Path) -> Result<(), String> {
     if source.starts_with(destination) || destination.starts_with(source) {
         return Err("Source and destination data directories must not overlap".into());
@@ -129,6 +158,25 @@ mod tests {
         assert!(validate_migration_dirs(&base, &base.join("nested")).is_err());
         assert!(validate_migration_dirs(&base.join("nested"), &base).is_err());
         assert!(validate_migration_dirs(&base, &base.with_file_name("openrevo-other")).is_ok());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn regression_stored_data_paths_drop_the_verbatim_prefix() {
+        for (input, expected) in [
+            (r"\\?\D:\OpenRevo Data\用户", r"D:\OpenRevo Data\用户"),
+            (r"\\?\D:\", r"D:\"),
+            (r"\\?\UNC\server\share\OpenRevo", r"\\server\share\OpenRevo"),
+            (r"D:\Already\Plain", r"D:\Already\Plain"),
+            (r"\\server\share\Plain", r"\\server\share\Plain"),
+            (r"\\?\Volume{01234567-89ab-cdef-0123-456789abcdef}\data", r"\\?\Volume{01234567-89ab-cdef-0123-456789abcdef}\data"),
+        ] {
+            assert_eq!(without_verbatim_prefix(Path::new(input)), PathBuf::from(expected), "{input}");
+        }
+        let canonical = std::env::temp_dir().canonicalize().unwrap();
+        let plain = without_verbatim_prefix(&canonical);
+        assert!(!plain.to_string_lossy().starts_with(r"\\?\"));
+        assert_eq!(plain.canonicalize().unwrap(), canonical);
     }
 
     #[cfg(windows)]
