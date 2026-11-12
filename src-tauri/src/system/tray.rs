@@ -323,13 +323,35 @@ pub fn handle_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
     match event {
         TrayIconEvent::Click {
             button: MouseButton::Left,
+            button_state: MouseButtonState::Down,
+            ..
+        } => {
+            let cfg = crate::system::config::load_config();
+            if !cfg.use_classic_webview {
+                #[cfg(windows)]
+                unsafe {
+                    use windows::Win32::UI::WindowsAndMessaging::{AllowSetForegroundWindow, ASFW_ANY};
+                    let _ = AllowSetForegroundWindow(ASFW_ANY);
+                }
+                crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                    "action": "tray_click_guard"
+                }));
+            }
+        }
+        TrayIconEvent::Click {
+            button: MouseButton::Left,
             button_state: MouseButtonState::Up,
             ..
         } => {
             let app = tray.app_handle();
             let cfg = crate::system::config::load_config();
             if !cfg.use_classic_webview {
-                crate::system::slint_window::toggle_slint_window();
+                #[cfg(windows)]
+                unsafe {
+                    use windows::Win32::UI::WindowsAndMessaging::{AllowSetForegroundWindow, ASFW_ANY};
+                    let _ = AllowSetForegroundWindow(ASFW_ANY);
+                }
+                crate::system::slint_window::show_slint_window();
             } else if let Some(window) = crate::system::window::ensure_window_alive(app) {
                 crate::log_info!(
                     "TRAY",

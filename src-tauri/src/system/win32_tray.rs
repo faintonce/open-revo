@@ -8,15 +8,18 @@ use windows::Win32::Foundation::{
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::{
     Shell_NotifyIconW, NOTIFYICONDATAW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE,
+    NIM_MODIFY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CheckMenuItem, CheckMenuRadioItem, CreatePopupMenu, CreateWindowExW,
-    DefWindowProcW, DestroyMenu, DispatchMessageW, GetCursorPos, GetMessageW, LoadIconW,
-    PostMessageW, PostQuitMessage, RegisterClassExW, SetForegroundWindow, TrackPopupMenu,
-    TranslateMessage, CW_USEDEFAULT, HICON, HMENU, IDI_APPLICATION, MF_BYCOMMAND, MF_CHECKED,
-    MF_GRAYED, MF_SEPARATOR, MF_STRING, MSG, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, WINDOW_EX_STYLE,
-    WM_COMMAND, WM_DESTROY, WM_LBUTTONDBLCLK, WM_LBUTTONUP, WM_NULL, WM_RBUTTONUP,
-    WM_USER, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+    AllowSetForegroundWindow, AppendMenuW, ChangeWindowMessageFilterEx, CheckMenuItem,
+    CheckMenuRadioItem, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu,
+    DispatchMessageW, GetCursorPos, GetMessageW, KillTimer, LoadIconW, PostMessageW,
+    PostQuitMessage, RegisterClassExW, RegisterWindowMessageW, SetForegroundWindow, SetTimer,
+    TrackPopupMenu, TranslateMessage, ASFW_ANY, CW_USEDEFAULT, HICON, HMENU, IDI_APPLICATION,
+    MF_BYCOMMAND, MF_CHECKED, MF_GRAYED, MF_SEPARATOR, MF_STRING, MSG, MSGFLT_ALLOW,
+    TPM_BOTTOMALIGN, TPM_RIGHTALIGN, WINDOW_EX_STYLE, WM_COMMAND, WM_DESTROY, WM_LBUTTONDBLCLK,
+    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_NULL, WM_RBUTTONUP, WM_TIMER, WM_USER, WNDCLASSEXW,
+    WS_OVERLAPPEDWINDOW,
 };
 
 use crate::driver::ec_bridge::SharedEcBridge;
@@ -41,9 +44,44 @@ const ID_NOTICE: usize = 5301;
 const ID_QUIT: usize = 5302;
 
 static GLOBAL_EC_BRIDGE: std::sync::OnceLock<SharedEcBridge> = std::sync::OnceLock::new();
+static WM_TASKBAR_CREATED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+static TRAY_ICON_HANDLE: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+
+const TIMER_ID_TRAY_RETRY: usize = 1;
+const TIMER_ID_TRAY_HEALTH: usize = 2;
+const TRAY_RETRY_INTERVAL_MS: u32 = 2000;
+const TRAY_HEALTH_INTERVAL_MS: u32 = 15000;
 
 fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+fn build_notify_icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
+    let tip = to_wide("OpenRevo 控制中枢");
+    let mut tip_arr = [0u16; 128];
+    let copy_len = tip.len().min(127);
+    tip_arr[..copy_len].copy_from_slice(&tip[..copy_len]);
+
+    let h_icon = HICON(TRAY_ICON_HANDLE.load(std::sync::atomic::Ordering::Relaxed) as *mut core::ffi::c_void);
+
+    NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: 1,
+        uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
+        uCallbackMessage: WM_TRAY_ICON,
+        hIcon: h_icon,
+        szTip: tip_arr,
+        ..Default::default()
+    }
+}
+
+unsafe fn ensure_tray_icon_registered(hwnd: HWND) -> bool {
+    let nid = build_notify_icon_data(hwnd);
+    if Shell_NotifyIconW(NIM_ADD, &nid).as_bool() {
+        return true;
+    }
+    Shell_NotifyIconW(NIM_MODIFY, &nid).as_bool()
 }
 
 unsafe extern "system" fn tray_window_proc(
@@ -52,14 +90,29 @@ unsafe extern "system" fn tray_window_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    let taskbar_created_msg = WM_TASKBAR_CREATED.load(std::sync::atomic::Ordering::Relaxed);
+    if taskbar_created_msg != 0 && msg == taskbar_created_msg {
+        crate::log_info!("TRAY", "TaskbarCreated broadcast received. Re-registering Win32 tray icon...");
+        if ensure_tray_icon_registered(hwnd) {
+            let _ = KillTimer(hwnd, TIMER_ID_TRAY_RETRY);
+        } else {
+            let _ = SetTimer(hwnd, TIMER_ID_TRAY_RETRY, TRAY_RETRY_INTERVAL_MS, None);
+        }
+        return LRESULT(0);
+    }
+
     match msg {
         WM_TRAY_ICON => {
             let event = lparam.0 as u32;
             match event {
-                WM_LBUTTONUP => {
-                    crate::system::slint_window::toggle_slint_window();
+                WM_LBUTTONDOWN => {
+                    let _ = AllowSetForegroundWindow(ASFW_ANY);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "tray_click_guard"
+                    }));
                 }
-                WM_LBUTTONDBLCLK => {
+                WM_LBUTTONUP | WM_LBUTTONDBLCLK => {
+                    let _ = AllowSetForegroundWindow(ASFW_ANY);
                     crate::system::slint_window::show_slint_window();
                 }
                 WM_RBUTTONUP => {
@@ -74,12 +127,35 @@ unsafe extern "system" fn tray_window_proc(
             crate::system::slint_window::show_slint_window();
             LRESULT(0)
         }
+        WM_TIMER => {
+            match wparam.0 {
+                TIMER_ID_TRAY_RETRY => {
+                    if ensure_tray_icon_registered(hwnd) {
+                        crate::log_info!("TRAY", "Win32 tray icon registered after retry.");
+                        let _ = KillTimer(hwnd, TIMER_ID_TRAY_RETRY);
+                    }
+                }
+                TIMER_ID_TRAY_HEALTH => {
+                    let nid = build_notify_icon_data(hwnd);
+                    if !Shell_NotifyIconW(NIM_MODIFY, &nid).as_bool() {
+                        crate::log_warn!("TRAY", "Win32 tray icon missing from shell; re-registering...");
+                        if !Shell_NotifyIconW(NIM_ADD, &nid).as_bool() {
+                            let _ = SetTimer(hwnd, TIMER_ID_TRAY_RETRY, TRAY_RETRY_INTERVAL_MS, None);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            LRESULT(0)
+        }
         WM_COMMAND => {
             let cmd_id = (wparam.0 & 0xFFFF) as usize;
             handle_tray_menu_command(hwnd, cmd_id);
             LRESULT(0)
         }
         WM_DESTROY => {
+            let _ = KillTimer(hwnd, TIMER_ID_TRAY_RETRY);
+            let _ = KillTimer(hwnd, TIMER_ID_TRAY_HEALTH);
             PostQuitMessage(0);
             LRESULT(0)
         }
@@ -242,6 +318,8 @@ fn handle_tray_menu_command(_hwnd: HWND, cmd_id: usize) {
             crate::system::tray::safe_hardware_shutdown_on_exit();
             crate::system::plugin_service::shutdown_all_plugin_services();
             unsafe {
+                let nid = build_notify_icon_data(_hwnd);
+                let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
                 let _ = PostQuitMessage(0);
             }
             std::process::exit(0);
@@ -342,25 +420,23 @@ pub fn run_tray_loop(ec_instance: SharedEcBridge) {
         };
 
         let h_icon = load_best_tray_icon(h_inst.into());
+        TRAY_ICON_HANDLE.store(h_icon.0 as isize, std::sync::atomic::Ordering::Relaxed);
 
-        let tip = to_wide("OpenRevo 控制中枢");
-        let mut tip_arr = [0u16; 128];
-        let copy_len = tip.len().min(127);
-        tip_arr[..copy_len].copy_from_slice(&tip[..copy_len]);
+        let taskbar_created = RegisterWindowMessageW(w!("TaskbarCreated"));
+        if taskbar_created != 0 {
+            WM_TASKBAR_CREATED.store(taskbar_created, std::sync::atomic::Ordering::Relaxed);
+            // Allow TaskbarCreated from medium-integrity explorer.exe when running elevated (UIPI bypass for shell broadcast)
+            let _ = ChangeWindowMessageFilterEx(hwnd, taskbar_created, MSGFLT_ALLOW, None);
+        }
+        let _ = ChangeWindowMessageFilterEx(hwnd, WM_TRAY_WAKE_INSTANCE, MSGFLT_ALLOW, None);
 
-        let nid = NOTIFYICONDATAW {
-            cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
-            hWnd: hwnd,
-            uID: 1,
-            uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
-            uCallbackMessage: WM_TRAY_ICON,
-            hIcon: h_icon,
-            szTip: tip_arr,
-            ..Default::default()
-        };
-
-        let _ = Shell_NotifyIconW(NIM_ADD, &nid);
-        crate::log_info!("TRAY", "Native Win32 system tray registered successfully. Message loop running.");
+        if ensure_tray_icon_registered(hwnd) {
+            crate::log_info!("TRAY", "Native Win32 system tray registered successfully. Message loop running.");
+        } else {
+            crate::log_warn!("TRAY", "Initial Win32 tray registration failed (shell may not be ready); scheduling retry.");
+            let _ = SetTimer(hwnd, TIMER_ID_TRAY_RETRY, TRAY_RETRY_INTERVAL_MS, None);
+        }
+        let _ = SetTimer(hwnd, TIMER_ID_TRAY_HEALTH, TRAY_HEALTH_INTERVAL_MS, None);
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
@@ -368,6 +444,7 @@ pub fn run_tray_loop(ec_instance: SharedEcBridge) {
             DispatchMessageW(&msg);
         }
 
+        let nid = build_notify_icon_data(hwnd);
         let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
     }
 }

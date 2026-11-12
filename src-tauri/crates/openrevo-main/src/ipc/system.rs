@@ -250,6 +250,10 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             true
         }
+        "tray_click_guard" => {
+            crate::window::mark_window_woken();
+            true
+        }
         "show" => {
             if let Some(exp) = val.get("is_expanded").and_then(|v| v.as_bool()) {
                 ui.set_is_expanded(exp);
@@ -273,10 +277,11 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 crate::window::mark_window_woken();
                 unsafe {
                     use windows::Win32::UI::WindowsAndMessaging::{
-                        SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
+                        BringWindowToTop, SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
                     };
                     let _ = ShowWindow(hwnd, SW_RESTORE);
                     let _ = ShowWindow(hwnd, SW_SHOW);
+                    let _ = BringWindowToTop(hwnd);
                     let _ = SetForegroundWindow(hwnd);
                     crate::window::trigger_full_redraw(hwnd);
                 }
