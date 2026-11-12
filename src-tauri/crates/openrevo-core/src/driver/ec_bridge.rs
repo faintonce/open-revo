@@ -1,5 +1,8 @@
+#[path = "ec_poller.rs"]
+mod ec_poller;
 use parking_lot::Mutex;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Duration, Instant};
 use crate::driver::wmi_ec;
@@ -36,6 +39,7 @@ impl Default for HardwareStateCache {
 }
 
 pub struct EcBridge {
+    poller: Option<ec_poller::EcPoller>,
     cache: Arc<Mutex<HardwareStateCache>>,
     pub is_mock: bool,
     pub oem_conflict_detected: bool,
@@ -65,32 +69,35 @@ impl EcBridge {
         let cache = Arc::new(Mutex::new(initial_cache));
         let cache_for_poller = Arc::clone(&cache);
 
-        // Dedicated background poller thread
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(500));
+        let poller = ec_poller::EcPoller::spawn(
+            || {
+                // On non-Tongfang Ultrabooks, background polling is completely disabled!
+                // Fan RPM is only fetched on-demand by Telemetry when the window is in the foreground.
+                if crate::hal::platform_probe::is_ultrabook()
+                    && !crate::hal::platform_probe::is_tongfang_family()
+                {
+                    crate::log_info!("EC_BRIDGE", "Non-Tongfang Ultrabook detected: background EC/WMI fan poller permanently bypassed.");
+                    return false;
+                }
+                true
+            },
+            move |stopped| {
+                let register_list = [
+                    wmi_ec::ADDR_SUPER_PERFORMANCE, // Fan Boost Hardware Clamp (Bit 6: 0x40)
+                    wmi_ec::ADDR_MODE_INDEX, // Operating Mode (1: Office, 0: Balance, 2: Turbo)
+                    wmi_ec::ADDR_BATTERY_PROTECTION_MODE, // Battery Mode | Touchpad mask
+                    wmi_ec::ADDR_BATTERY_LIMIT_UP, // Battery Limit Upper
+                    wmi_ec::ADDR_MAIN_FAN_RPM_B1, // CPU Fan RPM High
+                    wmi_ec::ADDR_MAIN_FAN_RPM_B2, // CPU Fan RPM Low
+                    wmi_ec::ADDR_SECOND_FAN_RPM_B1, // GPU Fan RPM High
+                    wmi_ec::ADDR_SECOND_FAN_RPM_B2, // GPU Fan RPM Low
+                ];
 
-            // On non-Tongfang Ultrabooks, background polling is completely disabled!
-            // Fan RPM is only fetched on-demand by Telemetry when the window is in the foreground.
-            if crate::hal::platform_probe::is_ultrabook() && !crate::hal::platform_probe::is_tongfang_family() {
-                crate::log_info!("EC_BRIDGE", "Non-Tongfang Ultrabook detected: background EC/WMI fan poller permanently bypassed.");
-                return;
-            }
-
-            let register_list = [
-                wmi_ec::ADDR_SUPER_PERFORMANCE,       // Fan Boost Hardware Clamp (Bit 6: 0x40)
-                wmi_ec::ADDR_MODE_INDEX,              // Operating Mode (1: Office, 0: Balance, 2: Turbo)
-                wmi_ec::ADDR_BATTERY_PROTECTION_MODE, // Battery Mode | Touchpad mask
-                wmi_ec::ADDR_BATTERY_LIMIT_UP,        // Battery Limit Upper
-                wmi_ec::ADDR_MAIN_FAN_RPM_B1,         // CPU Fan RPM High
-                wmi_ec::ADDR_MAIN_FAN_RPM_B2,         // CPU Fan RPM Low
-                wmi_ec::ADDR_SECOND_FAN_RPM_B1,       // GPU Fan RPM High
-                wmi_ec::ADDR_SECOND_FAN_RPM_B2,       // GPU Fan RPM Low
-            ];
-
-            loop {
                 if !wmi_ec::is_acpi_driver_available() {
                     let hal = crate::hal::get_hardware_driver();
-                    if hal.kind() != crate::hal::DriverKind::TongfangAcpi && hal.is_hardware_supported() {
+                    if hal.kind() != crate::hal::DriverKind::TongfangAcpi
+                        && hal.is_hardware_supported()
+                    {
                         if let Ok((cpu_rpm, gpu_rpm)) = hal.read_fan_rpm() {
                             let mut c = cache_for_poller.lock();
                             if cpu_rpm > 0 {
@@ -105,11 +112,13 @@ impl EcBridge {
                         // We must NEVER let periodic background polling blindly overwrite c.power_mode,
                         // which caused the catastrophic 5-second mode revert back to Balance!
                     }
-                    thread::sleep(Duration::from_millis(1500));
-                    continue;
+                    return Duration::from_millis(1500);
                 }
 
                 if let Some(bytes) = wmi_ec::wmi_batch_read_ec(&register_list) {
+                    if stopped.load(Ordering::Acquire) {
+                        return Duration::ZERO;
+                    }
                     if bytes.len() == 8 {
                         let raw_fan_clamp = bytes[0];
                         let raw_mode = bytes[1];
@@ -142,7 +151,16 @@ impl EcBridge {
                                 c.fan_boost = cfg_boost;
                                 // Self-healing: if software Fan Boost is ON but EC clamp bit dropped, re-assert clamp!
                                 if cfg_boost && (raw_fan_clamp & wmi_ec::FAN_BOOST_CLAMP_BIT) == 0 {
-                                    let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, raw_fan_clamp | wmi_ec::FAN_BOOST_CLAMP_BIT);
+                                    let _ = wmi_ec::wmi_modify_ec(
+                                        wmi_ec::ADDR_FAN_BOOST_CLAMP,
+                                        |current| {
+                                            ec_poller::set_bits_if_running(
+                                                stopped,
+                                                current,
+                                                wmi_ec::FAN_BOOST_CLAMP_BIT,
+                                            )
+                                        },
+                                    );
                                 }
                             }
                         }
@@ -185,9 +203,13 @@ impl EcBridge {
 
                         // 5. Battery Gate Watchdog: Protect platform override from accidental drop (Tongfang platforms only)
                         if now >= c.battery_limit_cooldown_until {
+                            if stopped.load(Ordering::Acquire) {
+                                return Duration::ZERO;
+                            }
                             let cfg_snap = crate::system::config::load_config();
                             if crate::hal::declarative::load_matched_manifest().is_none() && cfg_snap.battery_hardware_limit_enabled && c.battery_limit < 95 {
                                 if let Some(cur_plat_id) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID) {
+                                    if stopped.load(Ordering::Acquire) { return Duration::ZERO; }
                                     if cur_plat_id != 0x04 {
                                         crate::log_warn!(
                                             "EC_WATCHDOG",
@@ -207,21 +229,26 @@ impl EcBridge {
                 }
 
                 // Heartbeat: ensure APExist is maintained continuously
-                if let Some(val) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AP_OEM_BYTE) {
-                    if (val & 0x01) == 0 {
-                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_AP_OEM_BYTE, val | 0x01);
-                    }
+                if stopped.load(Ordering::Acquire) {
+                    return Duration::ZERO;
                 }
-
-                thread::sleep(Duration::from_millis(2000));
-            }
-        });
+                let _ = wmi_ec::wmi_modify_ec(wmi_ec::ADDR_AP_OEM_BYTE, |current| {
+                    ec_poller::set_bits_if_running(
+                        stopped,
+                        current,
+                        crate::hal::vault::power::AP_EXIST_BIT,
+                    )
+                });
+                Duration::from_millis(2000)
+            },
+        );
 
         let hal_supported = crate::hal::get_hardware_driver().is_hardware_supported();
         let is_mock = !wmi_ec::is_acpi_driver_available()
             && !crate::driver::wmi_mulong::is_mulong_available()
             && !hal_supported;
         Self {
+            poller: Some(poller),
             cache,
             is_mock,
             oem_conflict_detected: conflict,
@@ -230,6 +257,7 @@ impl EcBridge {
 
     pub fn dummy() -> Self {
         Self {
+            poller: None,
             cache: Arc::new(Mutex::new(HardwareStateCache::default())),
             is_mock: true,
             oem_conflict_detected: false,
@@ -254,7 +282,12 @@ impl EcBridge {
     }
 
     pub fn reload(&mut self) {
+        self.stop_polling();
         *self = Self::auto_load();
+    }
+
+    pub fn stop_polling(&mut self) {
+        self.poller.take();
     }
 
     pub fn get_cpu_temp(&self) -> i32 {

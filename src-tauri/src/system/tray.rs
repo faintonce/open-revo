@@ -88,6 +88,7 @@ pub fn update_tray_log_state(_enabled: bool) {
 
 /// Graceful hardware shutdown and MCU handover on application exit.
 pub fn safe_hardware_shutdown_on_exit() {
+    crate::driver::ec_bridge::stop_global_polling();
     println!("[OpenRevo] Tray quit requested. Safely shutting down water cooler, handing over logo & keyboard to MCU...");
     // 1. Terminate all Slint standalone widgets & embedded child tabs
     crate::system::slint_window::actions::plugins::terminate_all_slint_processes();

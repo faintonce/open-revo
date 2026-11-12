@@ -1,6 +1,5 @@
 #![recursion_limit = "256"]
 
-use parking_lot::Mutex;
 use std::sync::Arc;
 use tauri::Manager;
 
@@ -12,7 +11,7 @@ pub mod updater;
 
 pub use openrevo_core;
 
-use crate::driver::ec_bridge::{EcBridge, SharedEcBridge};
+use crate::driver::ec_bridge::SharedEcBridge;
 use crate::driver::gpu_bridge::SharedGpuBridge;
 
 // Re-export common tray, window, and logger utilities for 100% backward compatibility
@@ -354,7 +353,7 @@ pub fn run_tauri_runtime() {
 
     // Step 2: Initialize EC driver bridge
     let ec_instance: SharedEcBridge = crate::system::boot_trace::boot_scope("Step 2: EcBridge Auto-load", || {
-        Arc::new(Mutex::new(EcBridge::auto_load()))
+        crate::driver::ec_bridge::get_global_ec()
     });
 
     // Step 3: Initialize GPU telemetry bridge
