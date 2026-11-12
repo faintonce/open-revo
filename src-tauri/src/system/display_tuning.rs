@@ -167,7 +167,8 @@ pub fn kelvin_to_rgb(kelvin: u32) -> (f32, f32, f32) {
     )
 }
 
-/// Apply hardware Gamma Ramp via Win32 GDI SetDeviceGammaRamp (Best-effort, does not fail if unsupported)
+/// Apply hardware Gamma Ramp via Win32 GDI SetDeviceGammaRamp (Best-effort, does not fail if unsupported).
+/// Preserves any active Windows/OpenRevo ICC profile's VCGT/MHC2 calibration curve as the base ramp.
 pub fn apply_gamma_ramp(preset: &DisplayColorPreset) {
     let (temp_r, temp_g, temp_b) = kelvin_to_rgb(preset.color_temp_k);
     let final_r = preset.gain_r.clamp(0.0, 2.0) * temp_r;
@@ -177,25 +178,52 @@ pub fn apply_gamma_ramp(preset: &DisplayColorPreset) {
     let gamma = preset.gamma.clamp(0.5, 2.0);
     let contrast = preset.contrast.clamp(0.5, 2.0);
 
+    let build_channel = |base_val: f32, gain: f32| -> u16 {
+        let curved = base_val.powf(1.0 / gamma);
+        let adjusted = (curved - 0.5) * contrast + 0.5;
+        let val = (adjusted * gain).clamp(0.0, 1.0);
+        (val * 65535.0).round() as u16
+    };
+
+    let devices = crate::system::color_calibration::enumerate_active_display_devices();
+    if !devices.is_empty() {
+        for dev in devices {
+            let base_opt = crate::system::color_calibration::get_effective_base_ramp_for_device(&dev);
+            let mut ramp = crate::system::color_calibration::GammaRamp {
+                red: [0; 256],
+                green: [0; 256],
+                blue: [0; 256],
+            };
+            for i in 0..256 {
+                let linear_x = (i as f32) / 255.0;
+                let (bx_r, bx_g, bx_b) = if let Some(ref base) = base_opt {
+                    (
+                        (base.red[i] as f32) / 65535.0,
+                        (base.green[i] as f32) / 65535.0,
+                        (base.blue[i] as f32) / 65535.0,
+                    )
+                } else {
+                    (linear_x, linear_x, linear_x)
+                };
+                ramp.red[i] = build_channel(bx_r, final_r);
+                ramp.green[i] = build_channel(bx_g, final_g);
+                ramp.blue[i] = build_channel(bx_b, final_b);
+            }
+            let _ = crate::system::color_calibration::apply_hardware_ramp_for_device(&dev, &ramp);
+        }
+        return;
+    }
+
     let mut ramp = GammaRamp {
         red: [0; 256],
         green: [0; 256],
         blue: [0; 256],
     };
-
     for i in 0..256 {
         let x = (i as f32) / 255.0;
-
-        let calc_channel = |gain: f32| -> u16 {
-            let curved = x.powf(1.0 / gamma);
-            let adjusted = (curved - 0.5) * contrast + 0.5;
-            let val = (adjusted * gain).clamp(0.0, 1.0);
-            (val * 65535.0).round() as u16
-        };
-
-        ramp.red[i] = calc_channel(final_r);
-        ramp.green[i] = calc_channel(final_g);
-        ramp.blue[i] = calc_channel(final_b);
+        ramp.red[i] = build_channel(x, final_r);
+        ramp.green[i] = build_channel(x, final_g);
+        ramp.blue[i] = build_channel(x, final_b);
     }
 
     unsafe {
@@ -275,26 +303,28 @@ pub fn apply_color_matrix(preset: &DisplayColorPreset) -> Result<(), String> {
     Ok(())
 }
 
-/// Reset display tuning completely back to 100% linear default
+/// Reset display tuning back to active ICC calibration (or 100% linear default if none)
 pub fn reset_display_tuning_to_default() {
     let _lock = ENGINE_LOCK.lock();
-    // 1. Restore linear identity Gamma Ramp
-    let mut linear_ramp = GammaRamp {
-        red: [0; 256],
-        green: [0; 256],
-        blue: [0; 256],
-    };
-    for i in 0..256 {
-        let val = ((i as f32 / 255.0) * 65535.0).round() as u16;
-        linear_ramp.red[i] = val;
-        linear_ramp.green[i] = val;
-        linear_ramp.blue[i] = val;
-    }
-    unsafe {
-        let hdc = GetDC(HWND::default());
-        if !hdc.0.is_null() {
-            let _ = SetDeviceGammaRamp(hdc, &linear_ramp as *const _ as *const _);
-            let _ = ReleaseDC(HWND::default(), hdc);
+    // 1. Restore each display's active ICC hardware gamma ramp (fallback to linear identity ramp)
+    if !crate::system::color_calibration::restore_active_icc_ramps_for_all_devices() {
+        let mut linear_ramp = GammaRamp {
+            red: [0; 256],
+            green: [0; 256],
+            blue: [0; 256],
+        };
+        for i in 0..256 {
+            let val = ((i as f32 / 255.0) * 65535.0).round() as u16;
+            linear_ramp.red[i] = val;
+            linear_ramp.green[i] = val;
+            linear_ramp.blue[i] = val;
+        }
+        unsafe {
+            let hdc = GetDC(HWND::default());
+            if !hdc.0.is_null() {
+                let _ = SetDeviceGammaRamp(hdc, &linear_ramp as *const _ as *const _);
+                let _ = ReleaseDC(HWND::default(), hdc);
+            }
         }
     }
 

@@ -14,6 +14,7 @@ export component OsdWindow inherits Window {
     in-out property <string> icon_symbol: "⚡";
     in-out property <string> osd_theme: "pill"; // "cinema" | "fade" | "pill"
     in-out property <float> osd_scale: 1.0;     // 0.8 | 1.0 | 1.2 | 1.4
+    in-out property <string> osd_position: "top-left";
 
     // Theme detection
     property <bool> is_cinema: osd_theme == "cinema" || osd_theme == "subtitle";
@@ -23,7 +24,9 @@ export component OsdWindow inherits Window {
     card := Rectangle {
         width: (is_cinema ? 380px : (is_fade ? 410px : 430px)) * osd_scale;
         height: (is_cinema ? 68px : (is_fade ? 74px : 76px)) * osd_scale;
-        x: (parent.width - self.width) / 2;
+        x: (osd_position == "top-left" || osd_position == "left" || osd_position == "bottom-left") ? 0px
+            : ((osd_position == "top-right" || osd_position == "right") ? (parent.width - self.width)
+            : ((parent.width - self.width) / 2));
         y: is_active ? ((parent.height - self.height) / 2) : -100px;
         opacity: is_active ? 1.0 : 0.0;
 
