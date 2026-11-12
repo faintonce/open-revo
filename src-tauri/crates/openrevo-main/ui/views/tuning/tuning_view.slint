@@ -116,12 +116,26 @@ export component DashboardCustomTuningView inherits Rectangle {
     callback restore_bld_auto();
 
     VerticalLayout {
-        padding: 10px;
-        spacing: 8px;
+        padding: 0px;
+        spacing: 0px;
 
-        // 1. Top Navigation & Preset Bar
-        HorizontalLayout {
-            alignment: space-between;
+        // 1. Top Navigation & Preset Bar (Full-width header with WindowMoveArea drag region)
+        Rectangle {
+            height: 42px;
+            background: transparent;
+
+            // Full-size background drag region (enables dragging across the entire tuning header bar)
+            WindowMoveArea {
+                width: 100%;
+                height: 100%;
+            }
+
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-top: 10px;
+                padding-bottom: 4px;
+                alignment: space-between;
 
             // Left: Back button + Title
             HorizontalLayout {
@@ -359,7 +373,17 @@ export component DashboardCustomTuningView inherits Rectangle {
                     }
                 }
             }
+            }
         }
+
+        // Body Wrapper (Columns + Disclaimer)
+        VerticalLayout {
+            vertical-stretch: 1;
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 4px;
+            padding-bottom: 10px;
+            spacing: 8px;
 
         // 2. Main Three Columns (CPU, GPU, Fan)
         HorizontalLayout {
@@ -485,6 +509,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                     overflow: elide;
                 }
             }
+        }
         }
     }
 
