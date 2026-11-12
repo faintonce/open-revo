@@ -79,7 +79,10 @@ export component DashboardGpuView inherits Rectangle {
     in-out property <[string]> cloud_icc_hit_profiles: [];
     in-out property <int> cloud_icc_selected_profile_idx: 0;
     in-out property <string> cloud_icc_toast: "";
+    in-out property <bool> miniled_supported: false;
+    in-out property <bool> miniled_enabled: false;
 
+    callback toggle_miniled();
     callback open_cloud_icc();
     callback refresh_cloud_icc_identity();
     callback start_cloud_icc_search(string);
@@ -137,9 +140,14 @@ export component DashboardGpuView inherits Rectangle {
         // 2. Brightness Control Row
         BrightnessCard {
             brightness: root.brightness;
+            miniled_supported: root.miniled_supported;
+            miniled_enabled: root.miniled_enabled;
             change_brightness(b) => {
                 root.brightness = b;
                 root.change_brightness(b);
+            }
+            toggle_miniled => {
+                root.toggle_miniled();
             }
         }
 

@@ -40,6 +40,15 @@ function RootRouter() {
     };
   }, []);
 
+  useEffect(() => {
+    if (route.isWidget) {
+      document.documentElement.style.background = 'transparent';
+      document.documentElement.style.backgroundColor = 'transparent';
+      document.body.style.background = 'transparent';
+      document.body.style.backgroundColor = 'transparent';
+    }
+  }, [route.isWidget]);
+
   if (route.isOsd) {
     return <OsdOverlay />;
   }

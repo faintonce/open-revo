@@ -4,6 +4,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
     spacing: 6px;
 
     in-out property <bool> fan_boost: false;
+    in-out property <bool> has_fan_boost: true;
     in-out property <bool> camera_enabled: true;
     in-out property <bool> mic_enabled: true;
     in-out property <bool> win_locked: false;
@@ -25,13 +26,18 @@ export component DrawerSwitchesCard inherits VerticalLayout {
         // 1. 一键强冷
         btn_fb := Rectangle {
             border-radius: 6px;
-            background: fan_boost ? #38bdf825 : (t_fb.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
-            border-width: fan_boost ? 1.5px : 1px;
-            border-color: fan_boost ? #38bdf8 : AppTheme.border_subtle;
+            opacity: root.has_fan_boost ? 1.0 : 0.45;
+            background: (root.has_fan_boost && fan_boost) ? #38bdf825 : (t_fb.has-hover && root.has_fan_boost ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+            border-width: (root.has_fan_boost && fan_boost) ? 1.5px : 1px;
+            border-color: (root.has_fan_boost && fan_boost) ? #38bdf8 : AppTheme.border_subtle;
 
             t_fb := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { toggle_fan_boost(); }
+                mouse-cursor: root.has_fan_boost ? pointer : default;
+                clicked => {
+                    if (root.has_fan_boost) {
+                        toggle_fan_boost();
+                    }
+                }
             }
 
             VerticalLayout {
@@ -43,14 +49,14 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                         source: @image-url("../../assets/icons/fan.svg");
                         width: 18px;
                         height: 18px;
-                        colorize: fan_boost ? #38bdf8 : AppTheme.text_secondary;
+                        colorize: !root.has_fan_boost ? AppTheme.text_muted : (fan_boost ? #38bdf8 : AppTheme.text_secondary);
                     }
                 }
                 Text {
-                    text: "一键强冷";
+                    text: root.has_fan_boost ? "一键强冷" : "暂不支持";
                     font-size: 9.5px;
-                    font-weight: fan_boost ? 700 : 500;
-                    color: fan_boost ? #38bdf8 : AppTheme.text_primary;
+                    font-weight: (root.has_fan_boost && fan_boost) ? 700 : 500;
+                    color: !root.has_fan_boost ? AppTheme.text_muted : (fan_boost ? #38bdf8 : AppTheme.text_primary);
                     horizontal-alignment: center;
                 }
             }

@@ -2,8 +2,11 @@ import { AppTheme } from "../../theme.slint";
 
 export component BrightnessCard inherits Rectangle {
     in-out property <int> brightness: 76; // 0 - 100
+    in-out property <bool> miniled_supported: false;
+    in-out property <bool> miniled_enabled: false;
 
     callback change_brightness(int);
+    callback toggle_miniled();
 
     height: 46px;
     border-radius: 8px;
@@ -159,6 +162,37 @@ export component BrightnessCard inherits Rectangle {
                             color: root.brightness == q_val ? #fbbf24 : AppTheme.text_secondary;
                             horizontal-alignment: center;
                             vertical-alignment: center;
+                        }
+                    }
+
+                    if root.miniled_supported: Rectangle {
+                        height: 24px;
+                        border-radius: 4px;
+                        background: root.miniled_enabled ? #38bdf825 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.miniled_enabled ? #38bdf880 : AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.toggle_miniled(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            spacing: 3px;
+                            Image {
+                                source: @image-url("../../assets/icons/layers.svg");
+                                width: 11px;
+                                height: 11px;
+                                colorize: root.miniled_enabled ? #38bdf8 : AppTheme.text_secondary;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: root.miniled_enabled ? "MiniLED 开" : "MiniLED 关";
+                                font-size: 10px;
+                                font-weight: root.miniled_enabled ? 700 : 500;
+                                color: root.miniled_enabled ? #38bdf8 : AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
                         }
                     }
                 }

@@ -4,6 +4,7 @@ export component FanCurveCanvas inherits VerticalLayout {
     in-out property <int> active_fan_tab: 0; // 0: CPU, 1: GPU
     in-out property <bool> fan_linked: true;
     in-out property <[int]> active_curve: [20, 30, 45, 55, 65, 75, 85, 100];
+    in-out property <int> min_duty: 0; // 22 for direct_rpm_clamp, 0 otherwise
 
     callback toggle_link();
     callback select_fan_tab(int);
@@ -287,7 +288,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                     self.active_idx = idx;
 
                     let ratio = Math.clamp(1.0 - ((self.mouse-y - chart_canvas.pad_t) / chart_canvas.plot_h), 0.0, 1.0);
-                    let new_duty = Math.clamp(Math.round(ratio * 100), 0, 100);
+                    let new_duty = Math.clamp(Math.round(ratio * 100), root.min_duty, 100);
                     root.set_point(idx, new_duty);
                 } else if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
                     self.active_idx = -1;
@@ -297,7 +298,7 @@ export component FanCurveCanvas inherits VerticalLayout {
             moved => {
                 if self.active_idx >= 0 {
                     let ratio = Math.clamp(1.0 - ((self.mouse-y - chart_canvas.pad_t) / chart_canvas.plot_h), 0.0, 1.0);
-                    let new_duty = Math.clamp(Math.round(ratio * 100), 0, 100);
+                    let new_duty = Math.clamp(Math.round(ratio * 100), root.min_duty, 100);
                     root.set_point(self.active_idx, new_duty);
                 }
             }
@@ -305,16 +306,19 @@ export component FanCurveCanvas inherits VerticalLayout {
     }
 
     // 3. 8-Point Step Buttons Panel (+, Value, -, Temp)
-    HorizontalLayout {
-        spacing: 4px;
+    Rectangle {
+        height: 76px;
+        property <length> step_w: Math.max(0px, (self.width - 28px) / 8);
 
         for node[idx] in root.active_curve: Rectangle {
+            x: idx * (parent.step_w + 4px);
+            y: 0px;
+            width: parent.step_w;
+            height: parent.height;
             background: AppTheme.surface_pill;
             border-radius: 4px;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
-            horizontal-stretch: 1;
-            min-width: 0;
 
             VerticalLayout {
                 padding: 3px;
@@ -371,6 +375,7 @@ export component FanCurveCanvas inherits VerticalLayout {
 
                 // Temperature Label
                 Text {
+                    width: 100%;
                     text: idx == 0 ? "40°" :
                           (idx == 1 ? "50°" :
                           (idx == 2 ? "60°" :

@@ -51,6 +51,17 @@ export component MainWindow inherits Window {
     in-out property <bool> sleep_deep_sleep: false;
     in-out property <bool> sleep_hibernate_30m: false;
     in-out property <bool> sleep_auto_office: false;
+    in-out property <bool> turbo_submode_supported: false;
+    in-out property <bool> turbo_silent: false;
+    in-out property <bool> has_fan_boost: true;
+    in-out property <bool> has_water_cooler: false;
+    in-out property <bool> has_win_lock: true;
+    in-out property <bool> has_fn_lock: true;
+    in-out property <bool> miniled_supported: false;
+    in-out property <bool> miniled_enabled: false;
+
+    callback toggle_miniled();
+    callback open_log_file();
 
     // Telemetry
     in-out property <int> cpu_temp: 64;
@@ -67,6 +78,8 @@ export component MainWindow inherits Window {
 
     in-out property <int> cpu_rpm: 2746;
     in-out property <int> gpu_rpm: 2635;
+    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_watts: "--";
 
     in-out property <string> vram_text: "1.7 / 16.0 GB";
     in-out property <int> vram_mhz: 810;
@@ -114,6 +127,8 @@ export component MainWindow inherits Window {
     callback reload_plugins();
     in-out property <bool> keep_awake: false;
     in-out property <bool> autostart: false;
+    in-out property <bool> oem_installed: false;
+    in-out property <bool> oem_running: false;
     in-out property <string> custom_status_text: "MECHREVO Gaming Laptop";
 
     // Model Platform Props
@@ -129,13 +144,23 @@ export component MainWindow inherits Window {
     in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
     in-out property <int> temp_wall: 95;
     in-out property <bool> temp_wall_enabled: true;
+    in-out property <int> temp_wall_min: 85;
     in-out property <int> temp_wall_max: 95;
+    in-out property <int> max_temp_wall: 100;
+    in-out property <int> min_pl: 15;
+    in-out property <int> pl4_margin: 20;
     in-out property <int> pl1: 75;
     in-out property <int> pl1_max: 230;
+    in-out property <int> min_max_pl1: 90;
+    in-out property <int> max_max_pl1: 255;
     in-out property <int> pl2: 75;
     in-out property <int> pl2_max: 230;
+    in-out property <int> min_max_pl2: 105;
+    in-out property <int> max_max_pl2: 255;
     in-out property <int> pl4: 126;
     in-out property <int> pl4_max: 275;
+    in-out property <int> min_max_pl4: 155;
+    in-out property <int> max_max_pl4: 280;
     in-out property <bool> bios_oc_enabled: true;
     in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
     in-out property <string> bios_oc_btn_text: "关闭";
@@ -145,10 +170,24 @@ export component MainWindow inherits Window {
     in-out property <bool> super_perf: true;
     in-out property <int> core_offset: 0;
     in-out property <int> mem_offset: 0;
+    in-out property <int> gpu_offset_step: 5;
+    in-out property <int> gpu_core_offset_max: 250;
+    in-out property <int> gpu_mem_offset_max: 1000;
     in-out property <bool> db_enabled: true;
     in-out property <int> db_watts: 25;
     in-out property <int> base_tgp: 150;
+    in-out property <bool> supports_ctgp: false;
+    in-out property <bool> ctgp_enabled: false;
+    in-out property <int> ctgp_watts: 115;
+    in-out property <int> ctgp_floor_watts: 50;
+    in-out property <int> ctgp_max_watts: 115;
+    in-out property <int> max_db_watts: 25;
+    in-out property <bool> is_mode_locked: false;
 
+    in-out property <bool> fan_custom_curve: true;
+    in-out property <string> fan_boost_mode: "none";
+    in-out property <bool> is_direct_clamp: false;
+    in-out property <int> fan_min_duty: 0;
     in-out property <bool> smooth_transition: true;
     in-out property <string> smooth_time: "300ms";
     in-out property <bool> fan_isolated_output: true;
@@ -186,6 +225,7 @@ export component MainWindow inherits Window {
     callback tuning_change_mem_offset(int);
     callback tuning_toggle_db();
     callback tuning_change_db_watts(int);
+    callback tuning_change_ctgp_watts(int);
 
     callback tuning_toggle_smooth();
     callback tuning_toggle_isolated();
@@ -533,6 +573,10 @@ export component MainWindow inherits Window {
         battery_limit: root.battery_limit;
         is_ac_online: root.is_ac_online;
         is_power_mode_restricted: root.is_power_mode_restricted;
+        is_thin_and_light: root.is_thin_and_light;
+        turbo_submode_supported: root.turbo_submode_supported;
+        turbo_silent: root.turbo_silent;
+        has_fan_boost: root.has_fan_boost;
 
         cpu_temp: root.cpu_temp;
         cpu_rpm: root.cpu_rpm;
@@ -545,6 +589,8 @@ export component MainWindow inherits Window {
         win_locked: root.win_locked;
         keep_awake: root.keep_awake;
         autostart: root.autostart;
+        oem_installed: root.oem_installed;
+        oem_running: root.oem_running;
         custom_status_text: root.custom_status_text;
 
         power_mode_clicked(m) => { root.power_mode_clicked(m); }
@@ -687,6 +733,9 @@ export component MainWindow inherits Window {
         cloud_icc_hit_profiles: root.cloud_icc_hit_profiles;
         cloud_icc_selected_profile_idx <=> root.cloud_icc_selected_profile_idx;
         cloud_icc_toast: root.cloud_icc_toast;
+        miniled_supported: root.miniled_supported;
+        miniled_enabled: root.miniled_enabled;
+        toggle_miniled => { root.toggle_miniled(); }
 
         open_cloud_icc => { root.open_cloud_icc(); }
         refresh_cloud_icc_identity => { root.refresh_cloud_icc_identity(); }
@@ -706,6 +755,8 @@ export component MainWindow inherits Window {
 
         cpu_rpm: root.cpu_rpm;
         gpu_rpm: root.gpu_rpm;
+        telemetry_total_label: root.telemetry_total_label;
+        telemetry_total_watts: root.telemetry_total_watts;
 
         vram_text: root.vram_text;
         vram_mhz: root.vram_mhz;
@@ -781,13 +832,23 @@ export component MainWindow inherits Window {
         preset_names <=> root.preset_names;
         temp_wall <=> root.temp_wall;
         temp_wall_enabled <=> root.temp_wall_enabled;
+        temp_wall_min <=> root.temp_wall_min;
         temp_wall_max <=> root.temp_wall_max;
+        max_temp_wall <=> root.max_temp_wall;
+        min_pl <=> root.min_pl;
+        pl4_margin <=> root.pl4_margin;
         pl1 <=> root.pl1;
         pl1_max <=> root.pl1_max;
+        min_max_pl1 <=> root.min_max_pl1;
+        max_max_pl1 <=> root.max_max_pl1;
         pl2 <=> root.pl2;
         pl2_max <=> root.pl2_max;
+        min_max_pl2 <=> root.min_max_pl2;
+        max_max_pl2 <=> root.max_max_pl2;
         pl4 <=> root.pl4;
         pl4_max <=> root.pl4_max;
+        min_max_pl4 <=> root.min_max_pl4;
+        max_max_pl4 <=> root.max_max_pl4;
         bios_oc_enabled <=> root.bios_oc_enabled;
         bios_oc_desc <=> root.bios_oc_desc;
         bios_oc_btn_text <=> root.bios_oc_btn_text;
@@ -797,9 +858,24 @@ export component MainWindow inherits Window {
         super_perf <=> root.super_perf;
         core_offset <=> root.core_offset;
         mem_offset <=> root.mem_offset;
+        gpu_offset_step <=> root.gpu_offset_step;
+        gpu_core_offset_max <=> root.gpu_core_offset_max;
+        gpu_mem_offset_max <=> root.gpu_mem_offset_max;
         db_enabled <=> root.db_enabled;
         db_watts <=> root.db_watts;
         base_tgp <=> root.base_tgp;
+        supports_ctgp <=> root.supports_ctgp;
+        ctgp_enabled <=> root.ctgp_enabled;
+        ctgp_watts <=> root.ctgp_watts;
+        ctgp_floor_watts <=> root.ctgp_floor_watts;
+        ctgp_max_watts <=> root.ctgp_max_watts;
+        max_db_watts <=> root.max_db_watts;
+        is_mode_locked <=> root.is_mode_locked;
+
+        fan_custom_curve <=> root.fan_custom_curve;
+        fan_boost_mode <=> root.fan_boost_mode;
+        is_direct_clamp <=> root.is_direct_clamp;
+        fan_min_duty <=> root.fan_min_duty;
 
         smooth_transition <=> root.smooth_transition;
         smooth_time <=> root.smooth_time;
@@ -870,6 +946,9 @@ export component MainWindow inherits Window {
         }
         tuning_change_db_watts(w) => {
             root.tuning_change_db_watts(w);
+        }
+        tuning_change_ctgp_watts(w) => {
+            root.tuning_change_ctgp_watts(w);
         }
 
         tuning_toggle_smooth => {
@@ -1098,6 +1177,7 @@ export component MainWindow inherits Window {
         show_migrate_modal <=> root.show_migrate_modal;
         migrating_data: root.migrating_data;
         open_user_data_dir => { root.open_user_data_dir(); }
+        open_log_file => { root.open_log_file(); }
         confirm_clear_user_data => { root.confirm_clear_user_data(); }
         confirm_migrate_user_data(path) => { root.confirm_migrate_user_data(path); }
 

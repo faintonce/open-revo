@@ -98,8 +98,14 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         }
     });
 
+    let ui_oem = ui_weak.clone();
     window.on_oem_toggled(move || {
-        ipc::send_action_to_host("toggle_oem", serde_json::json!({}));
+        let cur_running = if let Some(ui) = ui_oem.upgrade() {
+            ui.get_oem_running()
+        } else {
+            false
+        };
+        ipc::send_action_to_host("toggle_oem", serde_json::json!({ "take_over": !cur_running }));
     });
 
     // GPU Boost Handlers

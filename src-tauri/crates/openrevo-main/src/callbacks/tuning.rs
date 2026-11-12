@@ -54,53 +54,71 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_adjust_temp_wall_max(move |delta| {
         ipc::send_action_to_host("tuning_adjust_temp_wall_max", serde_json::json!({ "delta": delta }));
         if let Some(ui) = ui_tw_max.upgrade() {
-            let next = (ui.get_temp_wall_max() + delta).clamp(85, 105);
+            let next = (ui.get_temp_wall_max() + delta).clamp(ui.get_temp_wall_min(), ui.get_max_temp_wall());
             ui.set_temp_wall_max(next);
+            if ui.get_temp_wall() > next {
+                ui.set_temp_wall(next);
+            }
         }
     });
     let ui_p1 = ui_weak.clone();
     window.on_tuning_change_pl1(move |w| {
-        ipc::send_action_to_host("tuning_set_pl1", serde_json::json!({ "watts": w }));
         if let Some(ui) = ui_p1.upgrade() {
-            ui.set_pl1(w);
+            let (p1, p2, p4) = update_coupled_pl(&ui, "pl1", w);
+            ipc::send_action_to_host("tuning_set_pl1", serde_json::json!({ "watts": p1, "pl1": p1, "pl2": p2, "pl4": p4 }));
+        } else {
+            ipc::send_action_to_host("tuning_set_pl1", serde_json::json!({ "watts": w }));
         }
     });
     let ui_p1_max = ui_weak.clone();
     window.on_tuning_adjust_pl1_max(move |delta| {
         ipc::send_action_to_host("tuning_adjust_pl1_max", serde_json::json!({ "delta": delta }));
         if let Some(ui) = ui_p1_max.upgrade() {
-            let next = (ui.get_pl1_max() + delta).clamp(15, 255);
+            let next = (ui.get_pl1_max() + delta).clamp(ui.get_min_max_pl1(), ui.get_max_max_pl1());
             ui.set_pl1_max(next);
+            if ui.get_pl1() > next {
+                update_coupled_pl(&ui, "pl1", next);
+            }
         }
     });
     let ui_p2 = ui_weak.clone();
     window.on_tuning_change_pl2(move |w| {
-        ipc::send_action_to_host("tuning_set_pl2", serde_json::json!({ "watts": w }));
         if let Some(ui) = ui_p2.upgrade() {
-            ui.set_pl2(w);
+            let (p1, p2, p4) = update_coupled_pl(&ui, "pl2", w);
+            ipc::send_action_to_host("tuning_set_pl2", serde_json::json!({ "watts": p2, "pl1": p1, "pl2": p2, "pl4": p4 }));
+        } else {
+            ipc::send_action_to_host("tuning_set_pl2", serde_json::json!({ "watts": w }));
         }
     });
     let ui_p2_max = ui_weak.clone();
     window.on_tuning_adjust_pl2_max(move |delta| {
         ipc::send_action_to_host("tuning_adjust_pl2_max", serde_json::json!({ "delta": delta }));
         if let Some(ui) = ui_p2_max.upgrade() {
-            let next = (ui.get_pl2_max() + delta).clamp(15, 255);
+            let next = (ui.get_pl2_max() + delta).clamp(ui.get_min_max_pl2(), ui.get_max_max_pl2());
             ui.set_pl2_max(next);
+            if ui.get_pl2() > next {
+                update_coupled_pl(&ui, "pl2", next);
+            }
         }
     });
     let ui_p4 = ui_weak.clone();
     window.on_tuning_change_pl4(move |w| {
-        ipc::send_action_to_host("tuning_set_pl4", serde_json::json!({ "watts": w }));
         if let Some(ui) = ui_p4.upgrade() {
-            ui.set_pl4(w);
+            let (p1, p2, p4) = update_coupled_pl(&ui, "pl4", w);
+            ipc::send_action_to_host("tuning_set_pl4", serde_json::json!({ "watts": p4, "pl1": p1, "pl2": p2, "pl4": p4 }));
+        } else {
+            ipc::send_action_to_host("tuning_set_pl4", serde_json::json!({ "watts": w }));
         }
     });
     let ui_p4_max = ui_weak.clone();
     window.on_tuning_adjust_pl4_max(move |delta| {
         ipc::send_action_to_host("tuning_adjust_pl4_max", serde_json::json!({ "delta": delta }));
         if let Some(ui) = ui_p4_max.upgrade() {
-            let next = (ui.get_pl4_max() + delta).clamp(35, 300);
+            let next = (ui.get_pl4_max() + delta).clamp(ui.get_min_max_pl4(), ui.get_max_max_pl4());
             ui.set_pl4_max(next);
+            if ui.get_pl4() > next {
+                update_coupled_pl(&ui, "pl4", next);
+            }
         }
     });
     let ui_oc = ui_weak.clone();
@@ -113,23 +131,40 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
 
     let ui_sp = ui_weak.clone();
     window.on_tuning_toggle_super_perf(move || {
-        ipc::send_action_to_host("tuning_toggle_super_perf", serde_json::json!({}));
         if let Some(ui) = ui_sp.upgrade() {
+            if ui.get_is_mode_locked() {
+                ui.set_super_perf(true);
+                return;
+            }
             ui.set_super_perf(!ui.get_super_perf());
         }
+        ipc::send_action_to_host("tuning_toggle_super_perf", serde_json::json!({}));
     });
     let ui_co = ui_weak.clone();
     window.on_tuning_change_core_offset(move |o| {
-        ipc::send_action_to_host("tuning_set_core_offset", serde_json::json!({ "offset": o }));
         if let Some(ui) = ui_co.upgrade() {
-            ui.set_core_offset(o);
+            if !ui.get_is_mode_locked() && !ui.get_super_perf() {
+                return;
+            }
+            let clamped = o.clamp(0, ui.get_gpu_core_offset_max());
+            ui.set_core_offset(clamped);
+            ipc::send_action_to_host("tuning_set_core_offset", serde_json::json!({ "offset": clamped }));
+        } else {
+            ipc::send_action_to_host("tuning_set_core_offset", serde_json::json!({ "offset": o }));
         }
     });
     let ui_mo = ui_weak.clone();
     window.on_tuning_change_mem_offset(move |o| {
-        ipc::send_action_to_host("tuning_set_mem_offset", serde_json::json!({ "offset": o }));
         if let Some(ui) = ui_mo.upgrade() {
-            ui.set_mem_offset(o);
+            if !ui.get_is_mode_locked() && !ui.get_super_perf() {
+                return;
+            }
+            let max = ui.get_gpu_mem_offset_max();
+            let clamped = o.clamp(-max, max);
+            ui.set_mem_offset(clamped);
+            ipc::send_action_to_host("tuning_set_mem_offset", serde_json::json!({ "offset": clamped }));
+        } else {
+            ipc::send_action_to_host("tuning_set_mem_offset", serde_json::json!({ "offset": o }));
         }
     });
     let ui_db = ui_weak.clone();
@@ -144,6 +179,15 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         ipc::send_action_to_host("tuning_set_db_watts", serde_json::json!({ "watts": w }));
         if let Some(ui) = ui_dbw.upgrade() {
             ui.set_db_watts(w);
+        }
+    });
+
+    let ui_ctgp = ui_weak.clone();
+    window.on_tuning_change_ctgp_watts(move |w| {
+        ipc::send_action_to_host("tuning_set_ctgp", serde_json::json!({ "watts": w }));
+        if let Some(ui) = ui_ctgp.upgrade() {
+            ui.set_ctgp_watts(w);
+            ui.set_ctgp_enabled(true);
         }
     });
 
@@ -208,6 +252,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         if let Some(ui) = ui_fan.upgrade() {
             let active_tab = ui.get_active_fan_tab();
             let is_linked = ui.get_fan_linked();
+            let min_duty = ui.get_fan_min_duty();
 
             let mut cpu_pts: Vec<i32> = ui.get_cpu_curve().iter().collect();
             let mut gpu_pts: Vec<i32> = ui.get_gpu_curve().iter().collect();
@@ -216,13 +261,13 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
             if active_tab == 0 || is_linked {
                 if i < cpu_pts.len() {
                     let cur = cpu_pts[i];
-                    apply_monotonic_fan_rule(&mut cpu_pts, i, cur + delta, 0);
+                    apply_monotonic_fan_rule(&mut cpu_pts, i, cur + delta, min_duty);
                 }
             }
             if active_tab == 1 || is_linked {
                 if i < gpu_pts.len() {
                     let cur = gpu_pts[i];
-                    apply_monotonic_fan_rule(&mut gpu_pts, i, cur + delta, 0);
+                    apply_monotonic_fan_rule(&mut gpu_pts, i, cur + delta, min_duty);
                 }
             }
             if is_linked {
@@ -259,6 +304,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         if let Some(ui) = ui_fan_set.upgrade() {
             let active_tab = ui.get_active_fan_tab();
             let is_linked = ui.get_fan_linked();
+            let min_duty = ui.get_fan_min_duty();
 
             let mut cpu_pts: Vec<i32> = ui.get_cpu_curve().iter().collect();
             let mut gpu_pts: Vec<i32> = ui.get_gpu_curve().iter().collect();
@@ -266,12 +312,12 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
 
             if active_tab == 0 || is_linked {
                 if i < cpu_pts.len() {
-                    apply_monotonic_fan_rule(&mut cpu_pts, i, duty, 0);
+                    apply_monotonic_fan_rule(&mut cpu_pts, i, duty, min_duty);
                 }
             }
             if active_tab == 1 || is_linked {
                 if i < gpu_pts.len() {
-                    apply_monotonic_fan_rule(&mut gpu_pts, i, duty, 0);
+                    apply_monotonic_fan_rule(&mut gpu_pts, i, duty, min_duty);
                 }
             }
             if is_linked {
@@ -311,5 +357,46 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_restore_bld_auto(move || {
         ipc::send_action_to_host("tuning_restore_bld_auto", serde_json::json!({}));
     });
+}
+
+fn update_coupled_pl(ui: &MainWindow, kind: &str, raw: i32) -> (i32, i32, i32) {
+    let min_pl = ui.get_min_pl();
+    let margin = ui.get_pl4_margin().max(1);
+    let min_pl4 = min_pl + margin;
+    let p1_max = ui.get_pl1_max();
+    let p2_max = ui.get_pl2_max();
+    let p4_max = ui.get_pl4_max();
+
+    let mut p1 = ui.get_pl1();
+    let mut p2 = ui.get_pl2();
+    let mut p4 = ui.get_pl4();
+
+    match kind {
+        "pl1" => {
+            p1 = raw.clamp(min_pl, p1_max);
+            p2 = p2.max(p1).clamp(min_pl, p2_max);
+            p4 = p4.max(p2 + margin).clamp(min_pl4, p4_max);
+            p2 = p2.min((p4 - margin).max(min_pl));
+            p1 = p1.min(p2);
+        }
+        "pl2" => {
+            p2 = raw.clamp(min_pl, p2_max);
+            p1 = p1.min(p2).clamp(min_pl, p1_max);
+            p4 = p4.max(p2 + margin).clamp(min_pl4, p4_max);
+            p2 = p2.min((p4 - margin).max(min_pl));
+            p1 = p1.min(p2);
+        }
+        _ => {
+            p4 = raw.clamp(min_pl4, p4_max);
+            let max_allowed_pl2 = (p4 - margin).max(min_pl);
+            p2 = p2.min(max_allowed_pl2).clamp(min_pl, p2_max);
+            p1 = p1.min(p2).clamp(min_pl, p1_max);
+        }
+    }
+
+    ui.set_pl1(p1);
+    ui.set_pl2(p2);
+    ui.set_pl4(p4);
+    (p1, p2, p4)
 }
 

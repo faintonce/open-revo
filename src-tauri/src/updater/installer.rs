@@ -153,6 +153,14 @@ fn download_update_asset_sync<R: tauri::Runtime>(
                 percentage,
                 speed_bytes_per_sec: speed,
             });
+
+            crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                "action": "sync_update_progress",
+                "percentage": percentage,
+                "speed_mb": format!("{:.2} MB/s", (speed as f64) / (1024.0 * 1024.0)),
+                "downloaded_mb": format!("{:.2}", (downloaded as f64) / (1024.0 * 1024.0)),
+                "total_mb": format!("{:.2}", (total_size as f64) / (1024.0 * 1024.0)),
+            }));
         }
     }
 

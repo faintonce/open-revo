@@ -11,6 +11,10 @@ export component FanTuningCol inherits Rectangle {
 
     // Model characteristics
     in-out property <bool> is_bld: false; // Baolongda BM5235 Direct RPM mode
+    in-out property <bool> fan_custom_curve: true;
+    in-out property <string> fan_boost_mode: "none";
+    in-out property <bool> is_direct_clamp: false;
+    in-out property <int> min_duty: 0;
 
     // BLD Props
     in-out property <int> bld_rpm_cap: 5800;
@@ -61,7 +65,7 @@ export component FanTuningCol inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: root.is_bld ? "原厂散热策略与闭环温控" : "风扇策略与曲线";
+                    text: !root.fan_custom_curve ? "原厂散热策略与闭环温控" : "风扇策略与曲线";
                     font-size: 13px;
                     font-weight: 700;
                     color: #818cf8;
@@ -69,7 +73,7 @@ export component FanTuningCol inherits Rectangle {
                 }
             }
 
-            if root.is_bld: Rectangle {
+            if !root.fan_custom_curve: Rectangle {
                 width: 60px;
                 height: 20px;
                 border-radius: 3px;
@@ -90,8 +94,8 @@ export component FanTuningCol inherits Rectangle {
             }
         }
 
-        // 2. BLD MODE
-        if root.is_bld: FanBldPanel {
+        // 2. BLD STRATEGY MODE (Only for models without custom fan curve)
+        if !root.fan_custom_curve: FanBldPanel {
             bld_rpm_cap <=> root.bld_rpm_cap;
             bld_boost <=> root.bld_boost;
             cpu_temp: root.cpu_temp;
@@ -102,10 +106,68 @@ export component FanTuningCol inherits Rectangle {
             change_bld_cap(cap) => { root.change_bld_cap(cap); }
         }
 
-        // 3. NORMAL 8-POINT CURVE MODE
-        if !root.is_bld: VerticalLayout {
+        // 3. 8-POINT CURVE MODE (Standard or Direct RPM Clamp with Min Duty)
+        if root.fan_custom_curve: VerticalLayout {
             spacing: 7px;
             vertical-stretch: 1;
+
+            if root.is_direct_clamp: Rectangle {
+                background: root.bld_boost ? #0284c718 : AppTheme.surface_pill;
+                border-radius: AppTheme.radius_sm;
+                border-width: 1px;
+                border-color: root.bld_boost ? #38bdf860 : AppTheme.border_subtle;
+
+                HorizontalLayout {
+                    padding: 8px;
+                    spacing: 8px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        min-width: 0px;
+                        spacing: 2px;
+                        Text {
+                            text: "双风扇强制狂暴加速";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.bld_boost ? #38bdf8 : AppTheme.text_primary;
+                            wrap: word-wrap;
+                        }
+                        Text {
+                            text: "无视温度曲线强制全速拉满 5800 RPM (BM5235 直接总线写入)";
+                            font-size: 9px;
+                            color: AppTheme.text_muted;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    Rectangle {
+                        width: 36px;
+                        height: 20px;
+                        border-radius: 10px;
+                        background: root.bld_boost ? #38bdf8 : AppTheme.surface_card;
+                        border-width: 1px;
+                        border-color: root.bld_boost ? #38bdf8 : AppTheme.border_medium;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.bld_boost = !root.bld_boost;
+                                root.toggle_bld_boost();
+                            }
+                        }
+
+                        Rectangle {
+                            x: root.bld_boost ? 18px : 2px;
+                            y: 2px;
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 7px;
+                            background: #ffffff;
+                        }
+                    }
+                }
+            }
 
             FanControlsCard {
                 smooth_transition <=> root.smooth_transition;
@@ -119,6 +181,7 @@ export component FanTuningCol inherits Rectangle {
                 active_fan_tab <=> root.active_fan_tab;
                 fan_linked <=> root.fan_linked;
                 active_curve: root.active_curve;
+                min_duty: root.min_duty;
                 toggle_link => { root.toggle_link(); }
                 select_fan_tab(tab) => { root.select_fan_tab(tab); }
                 adjust_point(idx, delta) => { root.adjust_point(idx, delta); }

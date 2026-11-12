@@ -15,6 +15,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(tl) = val.get("is_thin_and_light").and_then(|v| v.as_bool()) {
                 ui.set_is_thin_and_light(tl);
             }
+            if let Some(t_sup) = val.get("turbo_submode_supported").and_then(|v| v.as_bool()) {
+                ui.set_turbo_submode_supported(t_sup);
+            }
+            if let Some(t_sil) = val.get("turbo_silent").and_then(|v| v.as_bool()) {
+                ui.set_turbo_silent(t_sil);
+            }
             if let Some(bm) = val.get("battery_mode").and_then(|v| v.as_str()) {
                 ui.set_battery_mode(bm.into());
             }

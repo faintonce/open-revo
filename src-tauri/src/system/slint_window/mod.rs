@@ -46,6 +46,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
         crate::log_info!("SLINT_MAIN", "Spawning native Slint Main Window companion: {:?}", exe_path);
         let mut cmd = Command::new(exe_path);
         cmd.arg("--slint-main");
+        cmd.arg(format!("--host-pid={}", std::process::id()));
         let should_expand = match cfg.wake_window_mode.as_str() {
             "full" => true,
             "mini" => false,
@@ -60,6 +61,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
 
         match cmd.spawn() {
             Ok(mut child) => {
+                actions::plugins::assign_to_app_job(&child);
                 if let Some(mut stdin) = child.stdin.take() {
                     // Send initial state sync
                     let switches = crate::system::device_switches::get_switches_state();
@@ -117,6 +119,9 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "is_expanded": should_expand,
                         "theme_mode": cfg.theme_mode,
                         "mini_auto_hide": crate::commands::window_cmd::get_mini_auto_hide(),
+                        "host_pid": std::process::id(),
+                        "oem_installed": crate::system::process::is_oem_installed(),
+                        "oem_running": crate::system::takeover::is_oem_running(),
                         "use_classic_webview": cfg.use_classic_webview,
                         "update_channel": cfg.update_channel,
                         "full_window_x": cfg.full_window_x,
@@ -148,6 +153,12 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                 sync_slint_water_state(None, None);
                 sync_slint_power_schemes(None);
                 sync_slint_plugins_state();
+
+                // Restore active widgets for Slint host mode
+                std::thread::spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    crate::system::widget_manager::restore_active_widgets_on_boot(None);
+                });
 
                 // Listen for stdout from companion
                 if let Some(stdout) = child.stdout.take() {
@@ -182,11 +193,7 @@ where
     F: FnOnce(&mut crate::system::config::CustomProfileConfig),
 {
     let mut cfg = crate::system::config::load_config();
-    let active_id = if !cfg.active_profile_id.is_empty() {
-        cfg.active_profile_id.clone()
-    } else {
-        "preset_balance".to_string()
-    };
+    let active_id = sync::active_profile_id_or_default(&cfg);
     f(&mut cfg.custom_profile);
 
     // 同步到当前的预设文件
@@ -218,6 +225,7 @@ pub fn send_slint_ipc_message(payload: serde_json::Value) {
 }
 
 pub fn show_slint_window() {
+    crate::system::telemetry::set_main_window_visible(true);
     let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
     ensure_slint_main_process(app_opt.as_ref());
     let cfg = crate::system::config::load_config();

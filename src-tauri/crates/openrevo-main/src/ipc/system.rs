@@ -45,6 +45,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(fb) = val.get("fan_boost").and_then(|v| v.as_bool()) {
                 ui.set_fan_boost(fb);
             }
+            if let Some(hfb) = val.get("has_fan_boost").and_then(|v| v.as_bool()) {
+                ui.set_has_fan_boost(hfb);
+            }
+            if let Some(hwc) = val.get("has_water_cooler").and_then(|v| v.as_bool()) {
+                ui.set_has_water_cooler(hwc);
+            }
             if let Some(bp) = val.get("battery_percent").and_then(|v| v.as_i64()) {
                 ui.set_battery_percent(bp as i32);
             }
@@ -84,6 +90,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             if let Some(as_en) = val.get("autostart").and_then(|v| v.as_bool()) {
                 ui.set_autostart(as_en);
+            }
+            if let Some(oi) = val.get("oem_installed").and_then(|v| v.as_bool()) {
+                ui.set_oem_installed(oi);
+            }
+            if let Some(orun) = val.get("oem_running").and_then(|v| v.as_bool()) {
+                ui.set_oem_running(orun);
             }
             if let Some(tl) = val.get("touchpad_locked").and_then(|v| v.as_bool()) {
                 ui.set_touchpad_locked(tl);
@@ -227,6 +239,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 if let Some(m) = dd_obj.get("mode").and_then(|v| v.as_str()) { info.mode = m.into(); }
                 ui.set_data_dir_info(info);
             }
+            if let Some(hpid) = val.get("host_pid").and_then(|v| v.as_u64()) {
+                crate::window::set_host_pid(hpid as u32);
+            }
             true
         }
         "show" => {
@@ -249,6 +264,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 } else {
                     crate::window::align_mini_drawer_to_tray(hwnd, 395, 632);
                 }
+                crate::window::mark_window_woken();
                 unsafe {
                     use windows::Win32::UI::WindowsAndMessaging::{
                         SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
@@ -258,6 +274,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                     let _ = SetForegroundWindow(hwnd);
                     crate::window::trigger_full_redraw(hwnd);
                 }
+                crate::ipc::send_action_to_host("slint_window_shown", serde_json::json!({}));
             }
             true
         }
@@ -298,10 +315,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                         } else {
                             crate::window::align_mini_drawer_to_tray(hwnd, 395, 632);
                         }
+                        crate::window::mark_window_woken();
                         let _ = ShowWindow(hwnd, SW_RESTORE);
                         let _ = ShowWindow(hwnd, SW_SHOW);
                         let _ = SetForegroundWindow(hwnd);
                         crate::window::trigger_full_redraw(hwnd);
+                        crate::ipc::send_action_to_host("slint_window_shown", serde_json::json!({}));
                     }
                 }
             }
@@ -331,6 +350,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
         "sync_custom_plugins" => {
             if let Some(arr) = val.get("plugins").and_then(|v| v.as_array()) {
                 let mut list = Vec::new();
+                let mut tab_items = Vec::new();
                 for p in arr {
                     let id = p.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
                     let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -339,9 +359,19 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                     let description = p.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
                     let plugin_type = p.get("plugin_type").and_then(|v| v.as_str()).unwrap_or("service").to_string();
                     let enabled = p.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let has_tab = p.get("has_tab").and_then(|v| v.as_bool()).unwrap_or(false)
+                        || plugin_type == "tab"
+                        || plugin_type == "app";
                     let tag = p.get("tag").and_then(|v| v.as_str()).unwrap_or("").to_string();
                     let min_version = p.get("min_version").and_then(|v| v.as_str()).unwrap_or("").to_string();
                     let dir_name = p.get("dir_name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                    if enabled && has_tab {
+                        tab_items.push(crate::PluginItemData {
+                            id: id.clone().into(),
+                            name: name.clone().into(),
+                        });
+                    }
 
                     list.push(crate::CustomPluginItem {
                         id: id.into(),
@@ -355,15 +385,6 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                         min_version: min_version.into(),
                         dir_name: dir_name.into(),
                     });
-                }
-                let mut tab_items = Vec::new();
-                for p in &list {
-                    if p.enabled && p.plugin_type == "tab" {
-                        tab_items.push(crate::PluginItemData {
-                            id: p.id.clone(),
-                            name: p.name.clone(),
-                        });
-                    }
                 }
                 ui.set_plugin_items(slint::ModelRc::new(slint::VecModel::from(tab_items)));
                 ui.set_custom_plugins(slint::ModelRc::new(slint::VecModel::from(list)));

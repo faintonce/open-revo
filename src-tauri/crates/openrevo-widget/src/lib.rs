@@ -8,7 +8,7 @@ use slint_interpreter::Compiler;
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{HWND, LPARAM};
 #[cfg(target_os = "windows")]
-use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE};
+use windows::Win32::Graphics::Dwm::DWMWA_USE_IMMERSIVE_DARK_MODE;
 #[cfg(target_os = "windows")]
 use windows::Win32::System::Threading::GetCurrentThreadId;
 #[cfg(target_os = "windows")]
@@ -152,19 +152,112 @@ pub fn run_widget_standalone(plugin_id: &str) {
     // Bind universal hardware microkernel callbacks (Raw EC, Fan Boost, Power Mode, Battery Health)
     bind_openrevo_hardware_callbacks(&instance);
 
+    // Parse window configuration from manifest.json
+    let (always_on_top, decorations, transparent, skip_taskbar) = if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+            let win = val.get("widget").and_then(|w| w.get("window")).or_else(|| val.get("window"));
+            let aot = win.and_then(|w| w.get("always_on_top")).and_then(|v| v.as_bool()).unwrap_or(true);
+            let dec = win.and_then(|w| w.get("decorations")).and_then(|v| v.as_bool()).unwrap_or(false);
+            let trans = win.and_then(|w| w.get("transparent")).and_then(|v| v.as_bool()).unwrap_or(true);
+            let skip_tb = win.and_then(|w| w.get("skip_taskbar")).and_then(|v| v.as_bool()).unwrap_or(true);
+            (aot, dec, trans, skip_tb)
+        } else {
+            (true, false, true, true)
+        }
+    } else {
+        (true, false, true, true)
+    };
+
     let _ = instance.show();
 
     #[cfg(target_os = "windows")]
-    if let Some(hwnd) = find_thread_hwnd() {
-        unsafe {
-            let dark_mode: i32 = 1;
-            let _ = DwmSetWindowAttribute(
-                hwnd,
-                DWMWA_USE_IMMERSIVE_DARK_MODE,
-                &dark_mode as *const _ as *const _,
-                std::mem::size_of::<i32>() as u32,
-            );
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongW, SetWindowLongW, SetWindowPos,
+            GWL_STYLE, GWL_EXSTYLE,
+            WS_CAPTION, WS_THICKFRAME, WS_MINIMIZEBOX, WS_MAXIMIZEBOX,
+            WS_POPUP, WS_EX_TOOLWINDOW, WS_EX_APPWINDOW,
+            HWND_TOPMOST, HWND_NOTOPMOST,
+            SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE, SWP_FRAMECHANGED,
+        };
+        use windows::Win32::Graphics::Dwm::{
+            DwmExtendFrameIntoClientArea, DwmSetWindowAttribute,
+            DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+        };
+        use windows::Win32::UI::Controls::MARGINS;
+
+        let apply_standalone_styles = move |hwnd: HWND| {
+            unsafe {
+                let dark_mode: i32 = 1;
+                let _ = DwmSetWindowAttribute(
+                    hwnd,
+                    DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    &dark_mode as *const _ as *const _,
+                    std::mem::size_of::<i32>() as u32,
+                );
+
+                if !decorations {
+                    let style = GetWindowLongW(hwnd, GWL_STYLE) as u32;
+                    let remove_mask = WS_CAPTION.0 | WS_THICKFRAME.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0;
+                    let new_style = ((style & !remove_mask) | WS_POPUP.0) as i32;
+                    let _ = SetWindowLongW(hwnd, GWL_STYLE, new_style);
+
+                    let pref = DWMWCP_ROUND;
+                    let _ = DwmSetWindowAttribute(
+                        hwnd,
+                        DWMWA_WINDOW_CORNER_PREFERENCE,
+                        &pref as *const _ as _,
+                        std::mem::size_of_val(&pref) as u32,
+                    );
+                }
+
+                if skip_taskbar {
+                    let mut ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+                    ex_style = (ex_style & !WS_EX_APPWINDOW.0) | WS_EX_TOOLWINDOW.0;
+                    let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style as i32);
+                }
+
+                if transparent {
+                    let margins = MARGINS {
+                        cxLeftWidth: -1,
+                        cxRightWidth: -1,
+                        cyTopHeight: -1,
+                        cyBottomHeight: -1,
+                    };
+                    let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
+                }
+
+                let top_flag = if always_on_top { HWND_TOPMOST } else { HWND_NOTOPMOST };
+                let _ = SetWindowPos(
+                    hwnd,
+                    top_flag,
+                    0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+                );
+            }
+        };
+
+        if let Some(hwnd) = find_thread_hwnd() {
+            apply_standalone_styles(hwnd);
         }
+
+        // Watchdog fallback (16ms & 60ms) to ensure styles take effect after initial window creation
+        let timer = slint::Timer::default();
+        let applied = Arc::new(Mutex::new(false));
+        let applied_clone = applied.clone();
+        timer.start(
+            slint::TimerMode::Repeated,
+            Duration::from_millis(16),
+            move || {
+                let mut done = applied_clone.lock().unwrap();
+                if !*done {
+                    if let Some(hwnd) = find_thread_hwnd() {
+                        apply_standalone_styles(hwnd);
+                        *done = true;
+                    }
+                }
+            },
+        );
     }
 
     println!("[Slint Widget] Running standalone instance for '{}'", plugin_id);

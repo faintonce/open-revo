@@ -8,6 +8,7 @@ export component StorageManagementRow inherits HorizontalLayout {
     };
 
     callback open_user_data_dir();
+    callback open_log_file();
     callback request_migrate_data();
     callback request_clear_data();
 
@@ -78,6 +79,32 @@ export component StorageManagementRow inherits HorizontalLayout {
                         y: (parent.height - self.height) / 2;
                     }
                     Text { text: "打开目录"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                }
+            }
+
+            // View Logs
+            Rectangle {
+                height: 26px;
+                border-radius: 4px;
+                background: t_open_log.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: AppTheme.border_medium;
+                t_open_log := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open_log_file(); }
+                }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 4px;
+                    Image {
+                        source: @image-url("../../assets/icons/activity.svg");
+                        width: 11px;
+                        height: 11px;
+                        colorize: AppTheme.text_secondary;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text { text: "查看日志"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
                 }
             }
 

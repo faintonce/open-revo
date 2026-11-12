@@ -142,7 +142,32 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
     }
 }
 
+fn wait_for_relaunch_parent_exit() {
+    for arg in std::env::args().skip(1) {
+        if let Some(pid_str) = arg.strip_prefix("--relaunch-wait=") {
+            if let Ok(pid) = pid_str.parse::<u32>() {
+                #[cfg(windows)]
+                unsafe {
+                    use windows::Win32::Foundation::CloseHandle;
+                    use windows::Win32::System::Threading::{
+                        OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
+                    };
+                    if let Ok(handle) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+                        if !handle.is_invalid() {
+                            let _ = WaitForSingleObject(handle, 5000);
+                            let _ = CloseHandle(handle);
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+}
+
 pub fn run() {
+    wait_for_relaunch_parent_exit();
+    std::env::set_var("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "0");
     let cfg = crate::system::config::load_config();
     if cfg.use_classic_webview {
         run_tauri_runtime();
@@ -701,7 +726,7 @@ pub fn run_tauri_runtime() {
 
             // Step 6.12: Enqueue enabled widget windows into WebviewOrchestrator for safe serial startup
             crate::system::boot_trace::boot_scope("Step 6.12: Widgets Orchestrator Enqueue", || {
-                crate::system::widget_manager::restore_active_widgets_on_boot(&app.handle());
+                crate::system::widget_manager::restore_active_widgets_on_boot(Some(&app.handle()));
             });
 
             // Step 6.13: Verify & auto-heal autostart scheduled task to align with current executable

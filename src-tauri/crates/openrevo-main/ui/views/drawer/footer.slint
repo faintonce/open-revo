@@ -1,10 +1,12 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerFooter inherits Rectangle {
     height: 32px;
     background: transparent;
 
     in-out property <bool> autostart: false;
+    in-out property <bool> oem_installed: false;
+    in-out property <bool> oem_running: false;
     callback toggle_autostart();
     callback toggle_oem();
     callback expand_dashboard();
@@ -59,12 +61,12 @@ export component DrawerFooter inherits Rectangle {
                 }
             }
 
-            // Restore OEM Button (Height 28px)
-            Rectangle {
+            // Restore / Takeover OEM Button (Height 28px) - 仅在机器已安装官方控制台时显示
+            if root.oem_installed : Rectangle {
                 border-radius: 5px;
-                background: t_oem.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                background: root.oem_running ? #f59e0b26 : (t_oem.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: 1px;
-                border-color: AppTheme.border_subtle;
+                border-color: root.oem_running ? #f59e0b59 : AppTheme.border_subtle;
                 height: 28px;
 
                 t_oem := TouchArea {
@@ -77,17 +79,17 @@ export component DrawerFooter inherits Rectangle {
                     padding-right: 8px;
                     spacing: 5px;
                     Image {
-                        source: @image-url("../../assets/icons/refresh-cw.svg");
+                        source: root.oem_running ? @image-url("../../assets/icons/shield.svg") : @image-url("../../assets/icons/refresh-cw.svg");
                         width: 12px;
                         height: 12px;
-                        colorize: AppTheme.text_secondary;
+                        colorize: root.oem_running ? #fbbf24 : AppTheme.text_secondary;
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: "恢复官方控制台";
+                        text: root.oem_running ? "接管官方控制台" : "恢复官方控制台";
                         font-size: 10px;
                         font-weight: 600;
-                        color: AppTheme.text_secondary;
+                        color: root.oem_running ? #fbbf24 : AppTheme.text_secondary;
                         vertical-alignment: center;
                     }
                 }

@@ -9,6 +9,12 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
                 // Restricted on battery/Type-C without unlocking: prevent action and preserve current mode
                 return;
             }
+            if mode == 3 && ui.get_power_mode() == 3 && ui.get_turbo_submode_supported() {
+                let next_silent = !ui.get_turbo_silent();
+                ui.set_turbo_silent(next_silent);
+                ipc::send_action_to_host("apply_turbo_profile", serde_json::json!({ "silent": next_silent }));
+                return;
+            }
             ipc::send_action_to_host("set_power_mode", serde_json::json!({ "mode": mode }));
             ui.set_power_mode(mode);
         }

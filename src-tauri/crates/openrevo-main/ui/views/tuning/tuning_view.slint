@@ -15,13 +15,23 @@ export component DashboardCustomTuningView inherits Rectangle {
     // CPU values
     in-out property <int> temp_wall: 95;
     in-out property <bool> temp_wall_enabled: true;
+    in-out property <int> temp_wall_min: 85;
     in-out property <int> temp_wall_max: 95;
+    in-out property <int> max_temp_wall: 100;
+    in-out property <int> min_pl: 15;
+    in-out property <int> pl4_margin: 20;
     in-out property <int> pl1: 75;
     in-out property <int> pl1_max: 230;
+    in-out property <int> min_max_pl1: 90;
+    in-out property <int> max_max_pl1: 255;
     in-out property <int> pl2: 75;
     in-out property <int> pl2_max: 230;
+    in-out property <int> min_max_pl2: 105;
+    in-out property <int> max_max_pl2: 255;
     in-out property <int> pl4: 126;
     in-out property <int> pl4_max: 275;
+    in-out property <int> min_max_pl4: 155;
+    in-out property <int> max_max_pl4: 280;
     in-out property <bool> bios_oc_enabled: true;
     in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
     in-out property <string> bios_oc_btn_text: "关闭";
@@ -33,11 +43,25 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <bool> super_perf: true;
     in-out property <int> core_offset: 0;
     in-out property <int> mem_offset: 0;
+    in-out property <int> gpu_offset_step: 5;
+    in-out property <int> gpu_core_offset_max: 250;
+    in-out property <int> gpu_mem_offset_max: 1000;
     in-out property <bool> db_enabled: true;
     in-out property <int> db_watts: 25;
     in-out property <int> base_tgp: 150;
+    in-out property <bool> supports_ctgp: false;
+    in-out property <bool> ctgp_enabled: false;
+    in-out property <int> ctgp_watts: 115;
+    in-out property <int> ctgp_floor_watts: 50;
+    in-out property <int> ctgp_max_watts: 115;
+    in-out property <int> max_db_watts: 25;
+    in-out property <bool> is_mode_locked: false;
 
     // Fan values
+    in-out property <bool> fan_custom_curve: true;
+    in-out property <string> fan_boost_mode: "none";
+    in-out property <bool> is_direct_clamp: false;
+    in-out property <int> fan_min_duty: 0;
     in-out property <bool> smooth_transition: true;
     in-out property <string> smooth_time: "300ms";
     in-out property <bool> fan_isolated_output: true;
@@ -55,6 +79,8 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <int> gpu_temp: 54;
     in-out property <int> gpu_rpm: 2123;
     in-out property <string> gpu_watts: "20.4 W";
+    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_watts: "--";
 
     // Presets
     in-out property <string> active_preset_name: "均衡电竞";
@@ -91,6 +117,7 @@ export component DashboardCustomTuningView inherits Rectangle {
     callback change_mem_offset(int);
     callback toggle_db();
     callback change_db_watts(int);
+    callback change_ctgp_watts(int);
 
     // Fan Callbacks
     callback toggle_smooth();
@@ -104,12 +131,26 @@ export component DashboardCustomTuningView inherits Rectangle {
     callback restore_bld_auto();
 
     VerticalLayout {
-        padding: 10px;
-        spacing: 8px;
+        padding: 0px;
+        spacing: 0px;
 
-        // 1. Top Navigation & Preset Bar
-        HorizontalLayout {
-            alignment: space-between;
+        // 1. Top Navigation & Preset Bar (Full-width header with WindowMoveArea drag region)
+        Rectangle {
+            height: 42px;
+            background: transparent;
+
+            // Full-size background drag region (enables dragging across the entire tuning header bar)
+            WindowMoveArea {
+                width: 100%;
+                height: 100%;
+            }
+
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-top: 10px;
+                padding-bottom: 4px;
+                alignment: space-between;
 
             // Left: Back button + Title
             HorizontalLayout {
@@ -347,28 +388,53 @@ export component DashboardCustomTuningView inherits Rectangle {
                     }
                 }
             }
+            }
         }
 
-        // 2. Main Three Columns (CPU, GPU, Fan)
-        HorizontalLayout {
-            spacing: 12px;
+        // Body Wrapper (Columns + Disclaimer)
+        VerticalLayout {
             vertical-stretch: 1;
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 4px;
+            padding-bottom: 10px;
+            spacing: 8px;
+
+        // 2. Main Three Columns (CPU, GPU, Fan) — strict equal 1/3 width & full height
+        Rectangle {
+            vertical-stretch: 1;
+            min-height: 0px;
+
+            property <length> col_w: Math.max(0px, (self.width - 24px) / 3);
 
             // Col 1: CPU
             CpuTuningCol {
-                horizontal-stretch: 1;
+                x: 0px;
+                y: 0px;
+                width: parent.col_w;
+                height: parent.height;
                 cpu_vendor <=> root.cpu_vendor;
                 cpu_tuning_type <=> root.cpu_tuning_type;
                 cpu_supports_fppt <=> root.cpu_supports_fppt;
                 temp_wall <=> root.temp_wall;
                 temp_wall_enabled <=> root.temp_wall_enabled;
+                temp_wall_min <=> root.temp_wall_min;
                 temp_wall_max <=> root.temp_wall_max;
+                max_temp_wall <=> root.max_temp_wall;
+                min_pl <=> root.min_pl;
+                pl4_margin <=> root.pl4_margin;
                 pl1 <=> root.pl1;
                 pl1_max <=> root.pl1_max;
+                min_max_pl1 <=> root.min_max_pl1;
+                max_max_pl1 <=> root.max_max_pl1;
                 pl2 <=> root.pl2;
                 pl2_max <=> root.pl2_max;
+                min_max_pl2 <=> root.min_max_pl2;
+                max_max_pl2 <=> root.max_max_pl2;
                 pl4 <=> root.pl4;
                 pl4_max <=> root.pl4_max;
+                min_max_pl4 <=> root.min_max_pl4;
+                max_max_pl4 <=> root.max_max_pl4;
                 bios_oc_enabled <=> root.bios_oc_enabled;
                 bios_oc_desc <=> root.bios_oc_desc;
                 bios_oc_btn_text <=> root.bios_oc_btn_text;
@@ -380,6 +446,8 @@ export component DashboardCustomTuningView inherits Rectangle {
                 gpu_temp <=> root.gpu_temp;
                 gpu_rpm <=> root.gpu_rpm;
                 gpu_watts <=> root.gpu_watts;
+                telemetry_total_label: root.telemetry_total_label;
+                telemetry_total_watts: root.telemetry_total_watts;
 
                 toggle_temp_wall => { root.toggle_temp_wall(); }
                 change_temp_wall(t) => { root.change_temp_wall(t); }
@@ -395,26 +463,47 @@ export component DashboardCustomTuningView inherits Rectangle {
 
             // Col 2: GPU
             GpuTuningCol {
-                horizontal-stretch: 1;
+                x: parent.col_w + 12px;
+                y: 0px;
+                width: parent.col_w;
+                height: parent.height;
                 gpu_name <=> root.gpu_name;
                 super_perf <=> root.super_perf;
                 core_offset <=> root.core_offset;
                 mem_offset <=> root.mem_offset;
+                gpu_offset_step <=> root.gpu_offset_step;
+                gpu_core_offset_max <=> root.gpu_core_offset_max;
+                gpu_mem_offset_max <=> root.gpu_mem_offset_max;
                 db_enabled <=> root.db_enabled;
                 db_watts <=> root.db_watts;
                 base_tgp <=> root.base_tgp;
+                supports_ctgp <=> root.supports_ctgp;
+                ctgp_enabled <=> root.ctgp_enabled;
+                ctgp_watts <=> root.ctgp_watts;
+                ctgp_floor_watts <=> root.ctgp_floor_watts;
+                ctgp_max_watts <=> root.ctgp_max_watts;
+                max_db_watts <=> root.max_db_watts;
+                is_mode_locked <=> root.is_mode_locked;
 
                 toggle_super_perf => { root.toggle_super_perf(); }
                 change_core_offset(o) => { root.change_core_offset(o); }
                 change_mem_offset(o) => { root.change_mem_offset(o); }
                 toggle_db => { root.toggle_db(); }
                 change_db_watts(w) => { root.change_db_watts(w); }
+                change_ctgp_watts(w) => { root.change_ctgp_watts(w); }
             }
 
             // Col 3: Fan
             FanTuningCol {
-                horizontal-stretch: 1;
+                x: (parent.col_w + 12px) * 2;
+                y: 0px;
+                width: parent.col_w;
+                height: parent.height;
                 is_bld <=> root.is_bld;
+                fan_custom_curve <=> root.fan_custom_curve;
+                fan_boost_mode <=> root.fan_boost_mode;
+                is_direct_clamp <=> root.is_direct_clamp;
+                min_duty <=> root.fan_min_duty;
                 bld_rpm_cap <=> root.bld_rpm_cap;
                 bld_boost <=> root.bld_boost;
                 cpu_temp <=> root.cpu_temp;
@@ -461,6 +550,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                     overflow: elide;
                 }
             }
+        }
         }
     }
 

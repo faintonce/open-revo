@@ -1,5 +1,9 @@
 # OpenRevo Core Native SDK (openrevo-ffi)
 
+> 相关文档：[Core SDK 接入指南](../../../docs/core/sdk-integration.md) · [核心引擎与 SDK 导览](../../../docs/core/README.md)
+>
+> 本 README 保持 crate 级快速上手为唯一权威，指南侧重生态接入与跨语言约定。
+
 `openrevo-ffi` 是 OpenRevo 官方提供的跨语言原生 C-ABI 动态链接库导出层。它将底层的硬件控制算法、机型钥匙库适配、性能模式调度以及状态遥测抽象为极其稳定、防崩（Panic-Proof）的 C 语言函数接口。
 
 无论你是开发 **WinUI 3 (C#)**、**WPF**、**Qt / C++**、**Python**、**Electron / Node.js**，还是基于 Linux 打造控制中心，只需加载该动态库即可获得与官方相同的全套底层硬件调控能力。

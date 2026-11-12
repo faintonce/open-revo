@@ -95,7 +95,7 @@ export component LightingCeremonyBar inherits Rectangle {
                 Rectangle {
                     height: 28px;
                     border-radius: AppTheme.radius_sm;
-                    background: root.is_previewing ? #6366f160 : AppTheme.accent_brand;
+                    background: root.is_previewing ? (AppTheme.is_mono ? #ffffff99 : #6366f160) : AppTheme.accent_brand;
 
                     TouchArea {
                         mouse-cursor: root.is_previewing ? default : pointer;
@@ -118,7 +118,7 @@ export component LightingCeremonyBar inherits Rectangle {
                                 source: @image-url("../../assets/icons/sparkles.svg");
                                 width: 13px;
                                 height: 13px;
-                                colorize: #ffffff;
+                                colorize: AppTheme.tag_brand_text;
                             }
                         }
 
@@ -126,7 +126,7 @@ export component LightingCeremonyBar inherits Rectangle {
                             text: root.is_previewing ? "演示中..." : "预览全域仪式";
                             font-size: 11px;
                             font-weight: 700;
-                            color: #ffffff;
+                            color: AppTheme.tag_brand_text;
                             vertical-alignment: center;
                         }
                     }

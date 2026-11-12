@@ -321,6 +321,18 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             });
             true
         }
+        "set_miniled_status" | "toggle_miniled" => {
+            let next_val = if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
+                en
+            } else {
+                !crate::commands::display_cmd::get_miniled_status().unwrap_or(false)
+            };
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::commands::display_cmd::set_miniled_status(next_val).await;
+                sync_slint_display_state();
+            });
+            true
+        }
         _ => false,
     }
 }

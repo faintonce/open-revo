@@ -8,7 +8,7 @@
 
 <div align="center">
 
-![OpenRevo Banner](./docs/logo_s.jpg)
+![OpenRevo Banner](./docs/images/brand/logo_s.jpg)
 
 [![Version](https://img.shields.io/badge/Release-v0.9.3-6366f1.svg?style=flat-square)](https://github.com/faintonce/open-revo/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-10b981.svg?style=flat-square)](LICENSE)
@@ -35,16 +35,16 @@ Portable single-binary (~2MB / ~15MB RAM), zero official dependencies, open hard
 ## 🖥️ Interface Preview
 
 ### Dashboard Overview
-<img src="docs/screenshots/dashboard.jpg" width="600" alt="Dashboard overview" />
+<img src="docs/images/screenshots/dashboard.jpg" width="600" alt="Dashboard overview" />
 
 ### MiniDrawer (Quick Tray Drawer)
-<img src="docs/screenshots/miniDraw.jpg" width="200" alt="MiniDrawer" />
+<img src="docs/images/screenshots/miniDraw.jpg" width="200" alt="MiniDrawer" />
 
 ### Lighting Studio (BetterRGB High-FPS Engine)
-<img src="docs/screenshots/better%20RGB.jpg" width="600" alt="Lighting Studio" />
+<img src="docs/images/screenshots/better-rgb.jpg" width="600" alt="Lighting Studio" />
 
 ### Cooling & Power Tuning
-<img src="docs/screenshots/coolingSys.jpg" width="600" alt="Cooling System" />
+<img src="docs/images/screenshots/coolingSys.jpg" width="600" alt="Cooling System" />
 
 ---
 
@@ -107,6 +107,16 @@ If you have an unadapted model (Jiaolong, Kuangshi, Yaoshi, Jiguang, Wujie, Yilo
 1. Refer to the standardized schema in `src-tauri/config/ec_registry.json`;
 2. Dump/test your model's EC offsets (PL limits, fan RPM, battery thresholds, RGB);
 3. **Submit a Pull Request!** Let's power up all Mechrevo models together!
+
+---
+
+## 📚 Documentation
+
+- [Documentation home (docs/README.md)](docs/README.md): entry point and reading order for all guides
+- [Core engine & SDK](docs/core/README.md): C-ABI, C# / C++ and Linux integration
+- [Plugin development](docs/plugins/README.md): manifest reference, capability gateway and worked use cases
+- [Model config & power presets](docs/core/models-customization.md): tuning `models.json`
+- [Sample plugins](plugins_sample/README.md): 12 runnable samples with manifest entries
 
 ---
 

@@ -115,17 +115,79 @@ fn find_thread_hwnd() -> Option<HWND> {
     }
 }
 
-fn calculate_osd_position(position_str: &str, win_width: i32, win_height: i32) -> (i32, i32) {
-    let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-    let screen_h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+fn get_window_dpi_scale(hwnd: HWND) -> f32 {
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetDpiForWindow(hwnd: HWND) -> u32;
+    }
+    let dpi = unsafe { GetDpiForWindow(hwnd) };
+    if dpi > 0 {
+        dpi as f32 / 96.0
+    } else {
+        1.0
+    }
+}
 
-    match position_str {
-        "top-left" | "left" => (36, 42),
-        "top-right" | "right" => (screen_w - win_width - 36, 42),
-        "bottom-center" | "bottom" => ((screen_w - win_width) / 2, screen_h - win_height - 72),
-        "bottom-left" => (36, screen_h - win_height - 72),
-        "center" => ((screen_w - win_width) / 2, (screen_h - win_height) / 2),
-        _ => ((screen_w - win_width) / 2, 42), // Default "top-center"
+fn get_monitor_bounds(hwnd: HWND) -> (i32, i32, i32, i32) {
+    use windows::Win32::Graphics::Gdi::{
+        GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    };
+    unsafe {
+        let hmon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if !hmon.is_invalid() {
+            let mut mi = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            if GetMonitorInfoW(hmon, &mut mi).as_bool() {
+                let r = mi.rcMonitor;
+                return (r.left, r.top, r.right - r.left, r.bottom - r.top);
+            }
+        }
+        (0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN))
+    }
+}
+
+fn calculate_osd_position(hwnd: HWND, position_str: &str, win_width: i32, win_height: i32) -> (i32, i32) {
+    let dpi_scale = get_window_dpi_scale(hwnd);
+    let (mon_x, mon_y, screen_w, screen_h) = get_monitor_bounds(hwnd);
+
+    let w = if win_width > 0 { win_width } else { (640.0 * dpi_scale).round() as i32 };
+    let h = if win_height > 0 { win_height } else { (130.0 * dpi_scale).round() as i32 };
+
+    let margin_x = (36.0 * dpi_scale).round() as i32;
+    let margin_top = (36.0 * dpi_scale).round() as i32;
+    let margin_bottom = (70.0 * dpi_scale).round() as i32;
+
+    let (rel_x, rel_y) = match position_str {
+        "top-center" => ((screen_w - w) / 2, margin_top),
+        "top-right" | "right" => (screen_w - w - margin_x, margin_top),
+        "bottom-center" | "bottom" => ((screen_w - w) / 2, screen_h - h - margin_bottom),
+        "bottom-left" => (margin_x, screen_h - h - margin_bottom),
+        "center" => ((screen_w - w) / 2, (screen_h - h) / 2),
+        _ => (margin_x, margin_top), // Default: "top-left"
+    };
+
+    (mon_x + rel_x, mon_y + rel_y)
+}
+
+fn reposition_osd_window(hwnd: HWND, position_str: &str) {
+    unsafe {
+        let mut rect = RECT::default();
+        let _ = GetWindowRect(hwnd, &mut rect);
+        let win_width = rect.right - rect.left;
+        let win_height = rect.bottom - rect.top;
+
+        let (x, y) = calculate_osd_position(hwnd, position_str, win_width, win_height);
+        let _ = SetWindowPos(
+            hwnd,
+            HWND_TOPMOST,
+            x,
+            y,
+            0,
+            0,
+            SWP_NOSIZE | SWP_NOACTIVATE,
+        );
     }
 }
 
@@ -165,7 +227,7 @@ pub fn apply_osd_window_styles(hwnd: HWND, position_str: &str) {
         let win_width = rect.right - rect.left;
         let win_height = rect.bottom - rect.top;
 
-        let (x, y) = calculate_osd_position(position_str, win_width, win_height);
+        let (x, y) = calculate_osd_position(hwnd, position_str, win_width, win_height);
 
         // Crucial: SWP_FRAMECHANGED forces Windows DWM to discard and recalculate non-client caption bar!
         let _ = SetWindowPos(
@@ -194,6 +256,11 @@ static OSD_STATE: OnceLock<OsdGlobalState> = OnceLock::new();
 
 fn reveal_osd_window(hwnd_opt: Option<SafeHwnd>) {
     if let Some(safe_hwnd) = hwnd_opt {
+        let pos = OSD_STATE
+            .get()
+            .and_then(|s| s.config.lock().ok().map(|c| c.position.clone()))
+            .unwrap_or_else(|| "top-left".to_string());
+        reposition_osd_window(safe_hwnd.as_hwnd(), &pos);
         unsafe {
             let _ = ShowWindow(safe_hwnd.as_hwnd(), SW_SHOWNOACTIVATE);
             let _ = SetWindowPos(
@@ -332,6 +399,7 @@ pub fn handle_ipc_message(
                 if let Some(ui) = weak.upgrade() {
                     ui.set_osd_theme(theme.into());
                     ui.set_osd_scale(scale_factor);
+                    ui.set_osd_position(position.clone().into());
                     if let Some(safe_hwnd) = *hwnd_cloned.lock().unwrap() {
                         apply_osd_window_styles(safe_hwnd.as_hwnd(), &position);
                     }
@@ -602,6 +670,16 @@ fn schedule_auto_hide_internal(ui: &OsdWindow, hwnd_shared: Arc<Mutex<Option<Saf
 /// Standalone entrypoint for --osd-companion process mode.
 /// Runs exclusively on the true Main Thread without conflicting with foreign event loops.
 pub fn run_osd_standalone() {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        #[link(name = "user32")]
+        extern "system" {
+            fn SetProcessDpiAwarenessContext(value: isize) -> i32;
+        }
+        const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
+        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+
     std::panic::set_hook(Box::new(|info| {
         osd_log(&format!("FATAL PANIC in OSD Companion: {}", info));
     }));
@@ -656,6 +734,7 @@ pub fn run_osd_standalone() {
                     if let Some(ui) = osd_init_weak.upgrade() {
                         ui.set_osd_theme(theme.clone().into());
                         ui.set_osd_scale(parse_scale_factor(&scale));
+                        ui.set_osd_position(pos.clone().into());
                     }
                     apply_osd_window_styles(hwnd, &pos);
                     *hwnd_setter.lock().unwrap() = Some(SafeHwnd::from_hwnd(hwnd));

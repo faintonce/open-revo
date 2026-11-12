@@ -44,6 +44,7 @@ export component DashboardSystemView inherits Rectangle {
     in-out property <bool> show_migrate_modal: false;
     in-out property <bool> migrating_data: false;
     callback open_user_data_dir();
+    callback open_log_file();
     callback confirm_clear_user_data();
     callback confirm_migrate_user_data(string);
 
@@ -105,6 +106,7 @@ export component DashboardSystemView inherits Rectangle {
 
             data_dir_info: root.data_dir_info;
             open_user_data_dir => { root.open_user_data_dir(); }
+            open_log_file => { root.open_log_file(); }
             request_migrate_data => { root.show_migrate_modal = true; }
             request_clear_data => { root.show_clear_confirm = true; }
 
