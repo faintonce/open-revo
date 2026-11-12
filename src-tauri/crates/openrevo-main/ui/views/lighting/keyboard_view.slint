@@ -3,6 +3,7 @@ import { ColorPaletteRow } from "color_palette.slint";
 import { KeyboardEngineBar } from "keyboard_engine_bar.slint";
 import { KeyboardEffectsGrid } from "keyboard_effects_grid.slint";
 import { KeyboardControlsBar } from "keyboard_controls_bar.slint";
+import { BrfxScriptItem } from "lighting_types.slint";
 
 export component KeyboardLightingView inherits Rectangle {
     in-out property <bool> kb_enabled: true;
@@ -16,9 +17,22 @@ export component KeyboardLightingView inherits Rectangle {
     in-out property <color> kb_color: #6366f1;
 
     // Custom BRFX Script properties
-    in-out property <int> custom_script_idx: 0; // 0: 龟派气功, 1: 万象莲花, 2: 奇点黑洞, 3: 像素跑马灯
-    in-out property <int> custom_scale: 100; // 50..200 (%)
+    in-out property <[BrfxScriptItem]> custom_scripts: [];
+    in-out property <string> custom_script_id: "kamehameha";
+    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_file_name: "kamehameha.brfx";
+    in-out property <string> custom_script_author: "OpenRevo Community";
+    in-out property <string> custom_script_desc: "";
+    in-out property <int> custom_speed_x10: 12;
+    in-out property <int> custom_scale_pct: 100;
     in-out property <bool> custom_reactive: false;
+    in-out property <bool> custom_is_marquee: false;
+    in-out property <string> custom_marquee_text: "I LOVE OPEN-REVO";
+    in-out property <int> custom_default_speed_x10: 12;
+    in-out property <int> custom_default_scale_pct: 100;
+    in-out property <int> custom_default_direction: 0;
+    in-out property <bool> custom_default_reactive: false;
+    in-out property <string> custom_default_color_hex: "#00F0FF";
 
     in property <string> hw_desc: "键盘背光控制器";
     in property <string> hardware_type: "PerKeyRgb";
@@ -35,9 +49,13 @@ export component KeyboardLightingView inherits Rectangle {
     callback change_speed(int);
     callback change_color(string, color);
 
-    callback select_custom_script(int);
-    callback toggle_custom_reactive();
-    callback change_custom_scale(int);
+    callback select_custom_script_id(string);
+    callback refresh_custom_scripts();
+    callback view_custom_script_source(string);
+    callback import_custom_script();
+    callback export_custom_script(string);
+    callback update_custom_tuning(int, int, int, bool, string, string);
+    callback reset_custom_tuning();
 
     border-radius: AppTheme.radius_md;
     background: AppTheme.surface_card;
@@ -156,15 +174,105 @@ export component KeyboardLightingView inherits Rectangle {
             kb_effect <=> root.kb_effect;
             is_single_zone: root.is_single_zone;
             is_four_zone: root.is_four_zone;
-            custom_script_idx <=> root.custom_script_idx;
+            custom_scripts: root.custom_scripts;
+            custom_script_id <=> root.custom_script_id;
+            custom_script_name <=> root.custom_script_name;
+            custom_script_file_name <=> root.custom_script_file_name;
+            custom_script_author <=> root.custom_script_author;
+            custom_script_desc <=> root.custom_script_desc;
+            custom_speed_x10 <=> root.custom_speed_x10;
+            custom_scale_pct <=> root.custom_scale_pct;
+            kb_direction <=> root.kb_direction;
             custom_reactive <=> root.custom_reactive;
+            kb_color_hex <=> root.kb_color_hex;
+            kb_color <=> root.kb_color;
+            custom_is_marquee <=> root.custom_is_marquee;
+            custom_marquee_text <=> root.custom_marquee_text;
+            custom_default_speed_x10: root.custom_default_speed_x10;
+            custom_default_scale_pct: root.custom_default_scale_pct;
+            custom_default_direction: root.custom_default_direction;
+            custom_default_reactive: root.custom_default_reactive;
+            custom_default_color_hex: root.custom_default_color_hex;
             select_effect(eff) => { root.select_effect(eff); }
-            select_custom_script(idx) => { root.select_custom_script(idx); }
-            toggle_custom_reactive() => { root.toggle_custom_reactive(); }
+            select_custom_script_id(id) => { root.select_custom_script_id(id); }
+            refresh_custom_scripts() => { root.refresh_custom_scripts(); }
+            view_custom_script_source(fn) => { root.view_custom_script_source(fn); }
+            import_custom_script() => { root.import_custom_script(); }
+            export_custom_script(id) => { root.export_custom_script(id); }
+            update_custom_tuning(sp, sc, dir, rx, col, txt) => { root.update_custom_tuning(sp, sc, dir, rx, col, txt); }
+            reset_custom_tuning() => { root.reset_custom_tuning(); }
         }
 
-        // 4. Direction & Sliders Row
-        KeyboardControlsBar {
+        // 4. Global Brightness Slider for Custom Engine (Mode 2)
+        if !root.is_single_color && !root.is_single_zone && !root.is_four_zone && root.kb_engine == 2 : Rectangle {
+            border-radius: AppTheme.radius_md;
+            background: AppTheme.surface_sunken;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding: 12px;
+                spacing: 6px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            Image { source: @image-url("../../assets/icons/sun.svg"); width: 12px; height: 12px; colorize: #f59e0b; }
+                        }
+                        Text { text: "全域键盘亮度"; font-size: 12px; font-weight: 600; color: AppTheme.text_secondary; vertical-alignment: center; }
+                    }
+                    Text {
+                        text: root.kb_brightness == 0 ? "关闭 (0)" : (root.kb_brightness + " 档");
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #818cf8;
+                        vertical-alignment: center;
+                    }
+                }
+
+                cb_track := Rectangle {
+                    height: 18px;
+                    background: transparent;
+                    Rectangle {
+                        x: 0; y: (parent.height - self.height) / 2;
+                        width: parent.width; height: 4px;
+                        background: AppTheme.surface_pill;
+                        border-radius: 2px;
+                        Rectangle {
+                            x: 0; y: 0;
+                            width: Math.max(0px, (root.kb_brightness / 4.0) * parent.width);
+                            height: parent.height;
+                            background: #818cf8;
+                            border-radius: 2px;
+                        }
+                    }
+                    Rectangle {
+                        x: Math.max(0px, Math.min(parent.width - self.width, (root.kb_brightness / 4.0) * parent.width - self.width / 2));
+                        y: (parent.height - self.height) / 2;
+                        width: 14px; height: 14px; border-radius: 7px; background: #ffffff;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        pointer-event(event) => {
+                            if event.kind == PointerEventKind.down || (event.kind == PointerEventKind.move && self.pressed) {
+                                let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                let next_b = Math.round(ratio * 4.0);
+                                if (next_b != root.kb_brightness) {
+                                    root.kb_brightness = next_b;
+                                    root.change_brightness(next_b);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4b. Direction & Sliders Row (Hardware / Streamer)
+        if root.is_single_color || root.is_single_zone || root.is_four_zone || root.kb_engine != 2 : KeyboardControlsBar {
             is_single_color: root.is_single_color;
             is_single_zone: root.is_single_zone;
             is_four_zone: root.is_four_zone;
@@ -176,8 +284,8 @@ export component KeyboardLightingView inherits Rectangle {
             change_speed(s) => { root.change_speed(s); }
         }
 
-        // 5. Color Palette Row
-        if !root.is_single_color : ColorPaletteRow {
+        // 5. Color Palette Row (Hardware / Streamer)
+        if !root.is_single_color && (root.is_single_zone || root.is_four_zone || root.kb_engine != 2) : ColorPaletteRow {
             active_color_hex <=> root.kb_color_hex;
             active_color <=> root.kb_color;
             label_text: "定制主色调:";

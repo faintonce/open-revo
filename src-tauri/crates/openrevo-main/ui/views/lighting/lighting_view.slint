@@ -6,6 +6,7 @@ import { LightbarView } from "lightbar_view.slint";
 import { AmbientLightingView } from "ambient_view.slint";
 import { LogoLightingView } from "logo_view.slint";
 import { LightingTopologyModal } from "topology_modal.slint";
+import { BrfxScriptItem } from "lighting_types.slint";
 
 export component DashboardLightingView inherits Rectangle {
     background: transparent;
@@ -43,6 +44,24 @@ export component DashboardLightingView inherits Rectangle {
     in-out property <int> kb_speed: 2;
     in-out property <string> kb_color_hex: "#6366F1";
     in-out property <color> kb_color: #6366f1;
+
+    // Custom BRFX state
+    in-out property <[BrfxScriptItem]> custom_scripts: [];
+    in-out property <string> custom_script_id: "kamehameha";
+    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_file_name: "kamehameha.brfx";
+    in-out property <string> custom_script_author: "OpenRevo Community";
+    in-out property <string> custom_script_desc: "";
+    in-out property <int> custom_speed_x10: 12;
+    in-out property <int> custom_scale_pct: 100;
+    in-out property <bool> custom_reactive: false;
+    in-out property <bool> custom_is_marquee: false;
+    in-out property <string> custom_marquee_text: "I LOVE OPEN-REVO";
+    in-out property <int> custom_default_speed_x10: 12;
+    in-out property <int> custom_default_scale_pct: 100;
+    in-out property <int> custom_default_direction: 0;
+    in-out property <bool> custom_default_reactive: false;
+    in-out property <string> custom_default_color_hex: "#00F0FF";
 
     // Lightbar state
     in-out property <bool> lb_enabled: true;
@@ -91,6 +110,13 @@ export component DashboardLightingView inherits Rectangle {
     callback set_kb_brightness(int);
     callback set_kb_speed(int);
     callback set_kb_color(string, color);
+    callback select_custom_script_id(string);
+    callback refresh_custom_scripts();
+    callback view_custom_script_source(string);
+    callback import_custom_script();
+    callback export_custom_script(string);
+    callback update_custom_tuning(int, int, int, bool, string, string);
+    callback reset_custom_tuning();
 
     // Lightbar callbacks
     callback toggle_lb_enabled();
@@ -159,6 +185,22 @@ export component DashboardLightingView inherits Rectangle {
             is_four_zone: root.is_four_zone;
             is_single_zone: root.is_single_zone;
             is_single_color: root.is_single_color;
+            custom_scripts: root.custom_scripts;
+            custom_script_id <=> root.custom_script_id;
+            custom_script_name <=> root.custom_script_name;
+            custom_script_file_name <=> root.custom_script_file_name;
+            custom_script_author <=> root.custom_script_author;
+            custom_script_desc <=> root.custom_script_desc;
+            custom_speed_x10 <=> root.custom_speed_x10;
+            custom_scale_pct <=> root.custom_scale_pct;
+            custom_reactive <=> root.custom_reactive;
+            custom_is_marquee <=> root.custom_is_marquee;
+            custom_marquee_text <=> root.custom_marquee_text;
+            custom_default_speed_x10: root.custom_default_speed_x10;
+            custom_default_scale_pct: root.custom_default_scale_pct;
+            custom_default_direction: root.custom_default_direction;
+            custom_default_reactive: root.custom_default_reactive;
+            custom_default_color_hex: root.custom_default_color_hex;
 
             toggle_enabled => { root.toggle_kb_enabled(); }
             select_engine(eng) => { root.set_kb_engine(eng); }
@@ -168,6 +210,13 @@ export component DashboardLightingView inherits Rectangle {
             change_brightness(b) => { root.set_kb_brightness(b); }
             change_speed(s) => { root.set_kb_speed(s); }
             change_color(hex, c) => { root.set_kb_color(hex, c); }
+            select_custom_script_id(id) => { root.select_custom_script_id(id); }
+            refresh_custom_scripts() => { root.refresh_custom_scripts(); }
+            view_custom_script_source(fn) => { root.view_custom_script_source(fn); }
+            import_custom_script() => { root.import_custom_script(); }
+            export_custom_script(id) => { root.export_custom_script(id); }
+            update_custom_tuning(sp, sc, dir, rx, col, txt) => { root.update_custom_tuning(sp, sc, dir, rx, col, txt); }
+            reset_custom_tuning() => { root.reset_custom_tuning(); }
         }
 
         if root.sub_tab == 1 : LightbarView {

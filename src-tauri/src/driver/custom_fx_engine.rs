@@ -7,6 +7,9 @@ pub struct CustomFxEngine {
     active_ast: RwLock<Option<Arc<rhai::AST>>>,
     active_name: RwLock<String>,
     active_text: RwLock<String>,
+    active_speed: RwLock<Option<f64>>,
+    active_scale: RwLock<f64>,
+    active_reactive: RwLock<bool>,
 }
 
 pub static GLOBAL_CUSTOM_FX_ENGINE: std::sync::OnceLock<CustomFxEngine> = std::sync::OnceLock::new();
@@ -80,7 +83,28 @@ impl CustomFxEngine {
             active_ast: RwLock::new(None),
             active_name: RwLock::new(String::new()),
             active_text: RwLock::new("I LOVE OPEN-REVO".to_string()),
+            active_speed: RwLock::new(None),
+            active_scale: RwLock::new(1.0),
+            active_reactive: RwLock::new(false),
         }
+    }
+
+    pub fn set_tuning(&self, speed: Option<f64>, scale: f64, reactive: bool) {
+        *self.active_speed.write() = speed;
+        *self.active_scale.write() = scale.clamp(0.2, 5.0);
+        *self.active_reactive.write() = reactive;
+    }
+
+    pub fn get_tuning_speed(&self) -> Option<f64> {
+        *self.active_speed.read()
+    }
+
+    pub fn get_tuning_scale(&self) -> f64 {
+        *self.active_scale.read()
+    }
+
+    pub fn get_tuning_reactive(&self) -> bool {
+        *self.active_reactive.read()
     }
 
     pub fn has_active_script(&self) -> bool {

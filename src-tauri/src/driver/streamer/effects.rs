@@ -696,12 +696,15 @@ pub fn render_streamer_frame(
         200..=255 => {
             let custom_engine = crate::driver::custom_fx_engine::get_custom_fx_engine();
             if custom_engine.has_active_script() {
+                let c_speed = custom_engine.get_tuning_speed().unwrap_or(speed_mult);
+                let c_scale = custom_engine.get_tuning_scale();
+                let c_reactive = custom_engine.get_tuning_reactive();
                 if custom_engine.render_frame(
                     *t,
-                    speed_mult,
-                    1.0,
+                    c_speed,
+                    c_scale,
                     params.direction as i64,
-                    false,
+                    c_reactive,
                     &params.color_hex,
                     buf,
                 ) {

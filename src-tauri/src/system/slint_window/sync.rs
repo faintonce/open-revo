@@ -446,18 +446,40 @@ pub fn sync_slint_switches_state() {
 pub fn sync_slint_lighting_state() {
     let lm = crate::driver::ite_lighting::get_global_lighting();
     let st = lm.state.lock().clone();
+    if st.kb_engine == "custom" {
+        let _ = super::actions::lighting::ensure_active_custom_script_loaded(&st.custom_script_id);
+    }
+    let scripts = super::actions::lighting::load_parsed_brfx_scripts();
+    let fx = crate::driver::custom_fx_engine::get_custom_fx_engine();
+    let active_script = scripts
+        .iter()
+        .find(|s| s.id == st.custom_script_id)
+        .or_else(|| scripts.first());
+    let custom_speed = fx
+        .get_tuning_speed()
+        .unwrap_or_else(|| active_script.map(|s| s.default_speed).unwrap_or(1.2));
+    let custom_scale = fx.get_tuning_scale();
+    let custom_reactive = fx.get_tuning_reactive();
+    let custom_marquee_text = fx.get_active_text();
+
     send_slint_ipc_message(serde_json::json!({
         "action": "sync_lighting_state",
         "sleep_minutes": st.sleep_minutes,
         "ceremony_enabled": st.ceremony_enabled,
         "kb_enabled": st.kb_enabled,
-        "kb_effect": if st.kb_engine == "streamer" { st.streamer_effect } else { st.kb_effect },
+        "kb_effect": if st.kb_engine == "streamer" || st.kb_engine == "custom" { st.streamer_effect } else { st.kb_effect },
         "kb_brightness": st.kb_brightness,
         "kb_speed": st.kb_speed,
         "kb_direction": st.kb_direction,
         "kb_color": st.kb_color,
         "kb_engine": st.kb_engine,
         "kb_fps": st.kb_fps,
+        "custom_script_id": active_script.map(|s| s.id.as_str()).unwrap_or(&st.custom_script_id),
+        "custom_speed": custom_speed,
+        "custom_scale": custom_scale,
+        "custom_reactive": custom_reactive,
+        "custom_marquee_text": custom_marquee_text,
+        "custom_scripts": scripts,
         "lb_enabled": st.lb_enabled,
         "lb_effect": st.lb_effect,
         "lb_brightness": st.lb_brightness,

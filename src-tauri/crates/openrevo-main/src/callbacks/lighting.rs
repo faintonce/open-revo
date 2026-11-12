@@ -127,6 +127,17 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     });
 
     // Keyboard Callbacks
+    fn kb_engine_str(ui: &MainWindow) -> &'static str {
+        if ui.get_is_single_zone() || ui.get_is_four_zone() || ui.get_is_single_color() {
+            return "hardware";
+        }
+        match ui.get_kb_engine() {
+            0 => "hardware",
+            2 => "custom",
+            _ => "streamer",
+        }
+    }
+
     let ui_cb = ui_weak.clone();
     window.on_toggle_kb_enabled(move || {
         if let Some(ui) = ui_cb.upgrade() {
@@ -137,10 +148,9 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
                 target_brightness = if ui.get_is_single_color() { 2 } else { 3 };
                 ui.set_kb_brightness(target_brightness);
             }
-            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": next,
-                "engine": if is_streamer { "streamer" } else { "hardware" },
+                "engine": kb_engine_str(&ui),
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
@@ -155,16 +165,8 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_engine(move |eng| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_engine(eng);
-            let is_streamer = eng == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
-            ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
-                "enabled": ui.get_kb_enabled(),
-                "engine": if is_streamer { "streamer" } else { "hardware" },
-                "fps": ui.get_kb_fps(),
-                "effect": ui.get_kb_effect(),
-                "direction": ui.get_kb_direction(),
-                "brightness": ui.get_kb_brightness(),
-                "speed": ui.get_kb_speed(),
-                "color": ui.get_kb_color_hex().as_str(),
+            ipc::send_action_to_host("set_kb_engine", serde_json::json!({
+                "engine": kb_engine_str(&ui),
             }));
         }
     });
@@ -181,10 +183,9 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_effect(move |eff| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_effect(eff);
-            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if is_streamer { "streamer" } else { "hardware" },
+                "engine": kb_engine_str(&ui),
                 "fps": ui.get_kb_fps(),
                 "effect": eff,
                 "direction": ui.get_kb_direction(),
@@ -199,10 +200,9 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_direction(move |dir| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_direction(dir);
-            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if is_streamer { "streamer" } else { "hardware" },
+                "engine": kb_engine_str(&ui),
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": dir,
@@ -217,10 +217,9 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_brightness(move |b| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_brightness(b);
-            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if is_streamer { "streamer" } else { "hardware" },
+                "engine": kb_engine_str(&ui),
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
@@ -235,10 +234,9 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_speed(move |s| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_speed(s);
-            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if is_streamer { "streamer" } else { "hardware" },
+                "engine": kb_engine_str(&ui),
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
@@ -253,15 +251,69 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_set_kb_color(move |hex, _c| {
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_kb_color_hex(hex.clone());
-            let is_streamer = ui.get_kb_engine() == 1 && !ui.get_is_single_zone() && !ui.get_is_four_zone() && !ui.get_is_single_color();
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
                 "enabled": ui.get_kb_enabled(),
-                "engine": if is_streamer { "streamer" } else { "hardware" },
+                "engine": kb_engine_str(&ui),
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
                 "direction": ui.get_kb_direction(),
                 "brightness": ui.get_kb_brightness(),
                 "speed": ui.get_kb_speed(),
+                "color": hex.as_str(),
+            }));
+        }
+    });
+
+    // Custom BRFX Script Callbacks
+    window.on_select_custom_script_id(move |id| {
+        ipc::send_action_to_host("select_custom_script", serde_json::json!({ "id": id.as_str() }));
+    });
+
+    window.on_refresh_custom_scripts(move || {
+        ipc::send_action_to_host("refresh_custom_scripts", serde_json::json!({}));
+    });
+
+    window.on_view_custom_script_source(move |file_name| {
+        ipc::send_action_to_host("open_brfx_in_notepad", serde_json::json!({ "file_name": file_name.as_str() }));
+    });
+
+    window.on_import_custom_script(move || {
+        ipc::send_action_to_host("import_custom_script", serde_json::json!({}));
+    });
+
+    window.on_export_custom_script(move |id| {
+        ipc::send_action_to_host("export_custom_script", serde_json::json!({ "id": id.as_str() }));
+    });
+
+    window.on_update_custom_tuning(move |speed_x10, scale_pct, dir, reactive, hex, txt| {
+        ipc::send_action_to_host("update_custom_tuning", serde_json::json!({
+            "speed": (speed_x10 as f64) / 10.0,
+            "scale": (scale_pct as f64) / 100.0,
+            "direction": dir,
+            "reactive": reactive,
+            "color": hex.as_str(),
+            "marquee_text": txt.as_str(),
+        }));
+    });
+
+    let ui_cb = ui_weak.clone();
+    window.on_reset_custom_tuning(move || {
+        if let Some(ui) = ui_cb.upgrade() {
+            let sp = ui.get_custom_default_speed_x10();
+            let sc = ui.get_custom_default_scale_pct();
+            let dir = ui.get_custom_default_direction();
+            let rx = ui.get_custom_default_reactive();
+            let hex = ui.get_custom_default_color_hex();
+            ui.set_custom_speed_x10(sp);
+            ui.set_custom_scale_pct(sc);
+            ui.set_kb_direction(dir);
+            ui.set_custom_reactive(rx);
+            ui.set_kb_color_hex(hex.clone());
+            ipc::send_action_to_host("update_custom_tuning", serde_json::json!({
+                "speed": (sp as f64) / 10.0,
+                "scale": (sc as f64) / 100.0,
+                "direction": dir,
+                "reactive": rx,
                 "color": hex.as_str(),
             }));
         }

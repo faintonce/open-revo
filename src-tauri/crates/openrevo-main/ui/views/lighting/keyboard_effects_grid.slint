@@ -1,16 +1,43 @@
+import { LineEdit } from "std-widgets.slint";
 import { AppTheme } from "../../theme.slint";
+import { ColorPaletteRow } from "color_palette.slint";
+import { BrfxScriptItem } from "lighting_types.slint";
 
 export component KeyboardEffectsGrid inherits VerticalLayout {
     in-out property <int> kb_engine: 1; // 0: hardware, 1: streamer, 2: custom
     in-out property <int> kb_effect: 101; // effect id (101: Wave, etc.)
     in property <bool> is_single_zone: false;
     in property <bool> is_four_zone: false;
-    in-out property <int> custom_script_idx: 0; // 0: 龟派气功, 1: 万象莲花, 2: 奇点黑洞, 3: 像素跑马灯
+
+    // Custom BRFX Studio Properties
+    in-out property <[BrfxScriptItem]> custom_scripts: [];
+    in-out property <string> custom_script_id: "kamehameha";
+    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_file_name: "kamehameha.brfx";
+    in-out property <string> custom_script_author: "OpenRevo Community";
+    in-out property <string> custom_script_desc: "";
+    in-out property <int> custom_speed_x10: 12; // 2..30 -> 0.2x..3.0x
+    in-out property <int> custom_scale_pct: 100; // 50..250 -> 50%..250%
+    in-out property <int> kb_direction: 0;
     in-out property <bool> custom_reactive: false;
+    in-out property <string> kb_color_hex: "#00F0FF";
+    in-out property <color> kb_color: #00f0ff;
+    in-out property <bool> custom_is_marquee: false;
+    in-out property <string> custom_marquee_text: "I LOVE OPEN-REVO";
+    in-out property <int> custom_default_speed_x10: 12;
+    in-out property <int> custom_default_scale_pct: 100;
+    in-out property <int> custom_default_direction: 0;
+    in-out property <bool> custom_default_reactive: false;
+    in-out property <string> custom_default_color_hex: "#00F0FF";
 
     callback select_effect(int);
-    callback select_custom_script(int);
-    callback toggle_custom_reactive();
+    callback select_custom_script_id(string);
+    callback refresh_custom_scripts();
+    callback view_custom_script_source(string);
+    callback import_custom_script();
+    callback export_custom_script(string);
+    callback update_custom_tuning(int, int, int, bool, string, string);
+    callback reset_custom_tuning();
 
     spacing: 8px;
     alignment: start; // Crucial: tight packing!
@@ -498,94 +525,290 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
         }
     }
 
-    // Mode 2: Custom BRFX Studio Panel
+    // Mode 2: Custom BRFX Studio Panel (Aligned with Tauri BrfxSelectorBar + BrfxTuningPanel)
     if !root.is_single_zone && !root.is_four_zone && root.kb_engine == 2 : VerticalLayout {
-        spacing: 8px;
+        spacing: 10px;
         alignment: start;
 
-        // Script Selection Bar
+        // 1. BrfxSelectorBar
         Rectangle {
-            height: 40px;
-            border-radius: AppTheme.radius_sm;
+            border-radius: AppTheme.radius_md;
             background: AppTheme.surface_sunken;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
 
-            HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                alignment: space-between;
+            VerticalLayout {
+                padding: 12px;
+                spacing: 8px;
 
-                VerticalLayout {
-                    alignment: center;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: space-between;
 
+                    // Left: Label + Dropdown
                     HorizontalLayout {
                         spacing: 8px;
                         alignment: start;
+                        horizontal-stretch: 1;
 
                         Text {
-                            text: "当前动效脚本:";
+                            text: "动效脚本:";
                             font-size: 11px;
-                            font-weight: 700;
-                            color: AppTheme.text_secondary;
+                            font-weight: 600;
+                            color: AppTheme.text_muted;
                             vertical-alignment: center;
                         }
 
-                        // Preset Script Chips
                         Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.custom_script_idx == 0 ? #f43f5e25 : AppTheme.surface_pill;
+                            width: 280px;
+                            height: 30px;
+                            border-radius: AppTheme.radius_sm;
+                            background: AppTheme.surface_pill;
                             border-width: 1px;
-                            border-color: root.custom_script_idx == 0 ? #f43f5e : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 0; root.select_custom_script(0); } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "⚡ 龟派气功 (Kamehameha)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 0 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
+                            border-color: script_drop_ta.has-hover ? AppTheme.border_medium : AppTheme.border_subtle;
+
+                            script_drop_ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { script_popup.show(); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                alignment: space-between;
+
+                                Text {
+                                    text: root.custom_script_name;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("../../assets/icons/chevron-down.svg");
+                                        width: 12px;
+                                        height: 12px;
+                                        colorize: AppTheme.text_muted;
+                                    }
+                                }
+                            }
+
+                            script_popup := PopupWindow {
+                                x: 0px;
+                                y: 32px;
+                                width: 320px;
+
+                                Rectangle {
+                                    background: AppTheme.surface_elevated;
+                                    border-radius: AppTheme.radius_sm;
+                                    border-width: 1px;
+                                    border-color: AppTheme.border_medium;
+                                    drop-shadow-blur: 10px;
+                                    drop-shadow-color: #00000090;
+
+                                    VerticalLayout {
+                                        padding: 4px;
+                                        spacing: 2px;
+
+                                        for item in root.custom_scripts: Rectangle {
+                                            height: 28px;
+                                            border-radius: 4px;
+                                            background: item.id == root.custom_script_id ? #6366f125 : (opt_ta.has-hover ? AppTheme.surface_pill : transparent);
+
+                                            opt_ta := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => {
+                                                    root.custom_script_id = item.id;
+                                                    root.custom_script_name = item.name;
+                                                    root.custom_script_file_name = item.file_name;
+                                                    root.custom_script_author = item.author;
+                                                    root.custom_script_desc = item.description;
+                                                    root.custom_is_marquee = item.is_marquee;
+                                                    root.select_custom_script_id(item.id);
+                                                }
+                                            }
+
+                                            HorizontalLayout {
+                                                padding-left: 8px;
+                                                padding-right: 8px;
+                                                Text {
+                                                    text: item.name;
+                                                    font-size: 11px;
+                                                    font-weight: item.id == root.custom_script_id ? 700 : 500;
+                                                    color: item.id == root.custom_script_id ? #818cf8 : AppTheme.text_primary;
+                                                    vertical-alignment: center;
+                                                    overflow: elide;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Right: Refresh, View Source, Import, Export
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: end;
+
+                        // Refresh
+                        Rectangle {
+                            height: 30px;
+                            border-radius: AppTheme.radius_sm;
+                            background: ref_ta.has-hover ? AppTheme.surface_elevated : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_medium;
+                            ref_ta := TouchArea { mouse-cursor: pointer; clicked => { root.refresh_custom_scripts(); } }
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                spacing: 4px;
+                                alignment: center;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { source: @image-url("../../assets/icons/refresh-cw.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
+                                }
+                                Text { text: "刷新"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                            }
                         }
 
+                        // View Source (Opens in Notepad for editing)
                         Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.custom_script_idx == 1 ? #f43f5e25 : AppTheme.surface_pill;
+                            height: 30px;
+                            border-radius: AppTheme.radius_sm;
+                            background: src_ta.has-hover ? #6366f140 : #6366f125;
                             border-width: 1px;
-                            border-color: root.custom_script_idx == 1 ? #f43f5e : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 1; root.select_custom_script(1); } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "🌸 万象莲花 (Lotus)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 1 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
+                            border-color: #6366f180;
+                            src_ta := TouchArea { mouse-cursor: pointer; clicked => { root.view_custom_script_source(root.custom_script_file_name); } }
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                spacing: 4px;
+                                alignment: center;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { source: @image-url("../../assets/icons/edit.svg"); width: 11px; height: 11px; colorize: #818cf8; }
+                                }
+                                Text { text: "查看源码"; font-size: 11px; font-weight: 600; color: #818cf8; vertical-alignment: center; }
+                            }
                         }
 
+                        // Import & Export Capsule
                         Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.custom_script_idx == 2 ? #f43f5e25 : AppTheme.surface_pill;
+                            height: 30px;
+                            border-radius: AppTheme.radius_sm;
+                            background: AppTheme.surface_pill;
                             border-width: 1px;
-                            border-color: root.custom_script_idx == 2 ? #f43f5e : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 2; root.select_custom_script(2); } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "🌌 奇点黑洞 (Singularity)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 2 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
+                            border-color: AppTheme.border_medium;
+                            clip: true;
 
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.custom_script_idx == 3 ? #f43f5e25 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.custom_script_idx == 3 ? #f43f5e : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.custom_script_idx = 3; root.select_custom_script(3); } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "💬 跑马灯字幕 (Marquee)"; font-size: 10px; font-weight: 600; color: root.custom_script_idx == 3 ? #fb7185 : AppTheme.text_muted; vertical-alignment: center; } }
+                            HorizontalLayout {
+                                spacing: 0px;
+
+                                Rectangle {
+                                    background: imp_ta.has-hover ? AppTheme.surface_elevated : transparent;
+                                    imp_ta := TouchArea { mouse-cursor: pointer; clicked => { root.import_custom_script(); } }
+                                    HorizontalLayout {
+                                        padding-left: 9px;
+                                        padding-right: 9px;
+                                        spacing: 4px;
+                                        alignment: center;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Image { source: @image-url("../../assets/icons/upload.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
+                                        }
+                                        Text { text: "导入"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    }
+                                }
+
+                                Rectangle { width: 1px; background: AppTheme.border_subtle; }
+
+                                Rectangle {
+                                    background: exp_ta.has-hover ? AppTheme.surface_elevated : transparent;
+                                    exp_ta := TouchArea { mouse-cursor: pointer; clicked => { root.export_custom_script(root.custom_script_id); } }
+                                    HorizontalLayout {
+                                        padding-left: 9px;
+                                        padding-right: 9px;
+                                        spacing: 4px;
+                                        alignment: center;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Image { source: @image-url("../../assets/icons/download.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
+                                        }
+                                        Text { text: "导出"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                // Reactive Toggle
-                VerticalLayout {
-                    alignment: center;
+                // Description & Author
+                if root.custom_script_desc != "" : Text {
+                    text: root.custom_script_desc + (root.custom_script_author != "" ? ("  by " + root.custom_script_author) : "");
+                    font-size: 11px;
+                    color: AppTheme.text_muted;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        // 2. BrfxTuningPanel
+        tuning_panel := Rectangle {
+            border-radius: AppTheme.radius_md;
+            background: AppTheme.surface_sunken;
+            border-width: 1px;
+            border-color: AppTheme.border_subtle;
+
+            property <bool> is_modified: root.custom_speed_x10 != root.custom_default_speed_x10
+                || root.custom_scale_pct != root.custom_default_scale_pct
+                || root.kb_direction != root.custom_default_direction
+                || root.custom_reactive != root.custom_default_reactive
+                || root.kb_color_hex != root.custom_default_color_hex;
+
+            VerticalLayout {
+                padding: 12px;
+                spacing: 10px;
+
+                // Header + Reset Default
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+                        VerticalLayout {
+                            alignment: center;
+                            Image { source: @image-url("../../assets/icons/sliders.svg"); width: 13px; height: 13px; colorize: #818cf8; }
+                        }
+                        Text {
+                            text: "上位通用参数微调 (实时映射物理键盘)";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+                    }
 
                     Rectangle {
-                        height: 26px;
+                        height: 24px;
                         border-radius: 4px;
-                        background: root.custom_reactive ? #f43f5e25 : AppTheme.surface_pill;
+                        background: tuning_panel.is_modified ? AppTheme.surface_pill : transparent;
                         border-width: 1px;
-                        border-color: root.custom_reactive ? #f43f5e : AppTheme.border_subtle;
+                        border-color: tuning_panel.is_modified ? AppTheme.border_medium : transparent;
+                        opacity: tuning_panel.is_modified ? 1.0 : 0.4;
 
-                        TouchArea { mouse-cursor: pointer; clicked => { root.toggle_custom_reactive(); } }
+                        reset_ta := TouchArea {
+                            mouse-cursor: tuning_panel.is_modified ? pointer : default;
+                            enabled: tuning_panel.is_modified;
+                            clicked => { root.reset_custom_tuning(); }
+                        }
+
                         HorizontalLayout {
                             padding-left: 8px;
                             padding-right: 8px;
@@ -593,20 +816,262 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                             alignment: center;
                             VerticalLayout {
                                 alignment: center;
+                                Image { source: @image-url("../../assets/icons/rotate-ccw.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
+                            }
+                            Text { text: "恢复默认"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                        }
+                    }
+                }
+
+                // 2-Column Sliders: Speed & Scale
+                HorizontalLayout {
+                    spacing: 16px;
+
+                    // Speed Slider (0.2x .. 3.0x)
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            HorizontalLayout {
+                                spacing: 4px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { source: @image-url("../../assets/icons/zap.svg"); width: 11px; height: 11px; colorize: #38bdf8; }
+                                }
+                                Text { text: "动效流速"; font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
+                            }
+                            Text {
+                                text: Math.floor(root.custom_speed_x10 / 10) + "." + Math.mod(root.custom_speed_x10, 10) + "x";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        spd_track := Rectangle {
+                            height: 16px;
+                            background: transparent;
+                            Rectangle {
+                                x: 0; y: (parent.height - self.height) / 2;
+                                width: parent.width; height: 4px;
+                                background: AppTheme.surface_pill;
+                                border-radius: 2px;
+                                Rectangle {
+                                    x: 0; y: 0;
+                                    width: Math.max(0px, ((root.custom_speed_x10 - 2) / 28.0) * parent.width);
+                                    height: parent.height;
+                                    background: #38bdf8;
+                                    border-radius: 2px;
+                                }
+                            }
+                            Rectangle {
+                                x: Math.max(0px, Math.min(parent.width - self.width, ((root.custom_speed_x10 - 2) / 28.0) * parent.width - self.width / 2));
+                                y: (parent.height - self.height) / 2;
+                                width: 12px; height: 12px; border-radius: 6px; background: #ffffff;
+                            }
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                pointer-event(event) => {
+                                    if event.kind == PointerEventKind.down || (event.kind == PointerEventKind.move && self.pressed) {
+                                        let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                        let next_val = Math.round(2.0 + ratio * 28.0);
+                                        if (next_val != root.custom_speed_x10) {
+                                            root.custom_speed_x10 = next_val;
+                                            root.update_custom_tuning(next_val, root.custom_scale_pct, root.kb_direction, root.custom_reactive, root.kb_color_hex, root.custom_marquee_text);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Scale Slider (50% .. 250%)
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            HorizontalLayout {
+                                spacing: 4px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { source: @image-url("../../assets/icons/maximize2.svg"); width: 11px; height: 11px; colorize: #818cf8; }
+                                }
+                                Text { text: "空间尺度 / 扩散"; font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
+                            }
+                            Text {
+                                text: root.custom_scale_pct + "%";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: #818cf8;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        scl_track := Rectangle {
+                            height: 16px;
+                            background: transparent;
+                            Rectangle {
+                                x: 0; y: (parent.height - self.height) / 2;
+                                width: parent.width; height: 4px;
+                                background: AppTheme.surface_pill;
+                                border-radius: 2px;
+                                Rectangle {
+                                    x: 0; y: 0;
+                                    width: Math.max(0px, ((root.custom_scale_pct - 50) / 200.0) * parent.width);
+                                    height: parent.height;
+                                    background: #818cf8;
+                                    border-radius: 2px;
+                                }
+                            }
+                            Rectangle {
+                                x: Math.max(0px, Math.min(parent.width - self.width, ((root.custom_scale_pct - 50) / 200.0) * parent.width - self.width / 2));
+                                y: (parent.height - self.height) / 2;
+                                width: 12px; height: 12px; border-radius: 6px; background: #ffffff;
+                            }
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                pointer-event(event) => {
+                                    if event.kind == PointerEventKind.down || (event.kind == PointerEventKind.move && self.pressed) {
+                                        let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                        let next_val = Math.round(5.0 + ratio * 20.0) * 10;
+                                        if (next_val != root.custom_scale_pct) {
+                                            root.custom_scale_pct = next_val;
+                                            root.update_custom_tuning(root.custom_speed_x10, next_val, root.kb_direction, root.custom_reactive, root.kb_color_hex, root.custom_marquee_text);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Divider
+                Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+                // Direction & Keypress Reaction Row
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+
+                        Text { text: "流动方向:"; font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
+
+                        HorizontalLayout {
+                            spacing: 4px;
+                            // 0: Right, 1: Left, 2: Up, 3: Down
+                            Rectangle {
+                                width: 28px; height: 28px; border-radius: 4px;
+                                background: root.kb_direction == 0 ? #6366f1 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.kb_direction == 0 ? #818cf8 : AppTheme.border_subtle;
+                                TouchArea { mouse-cursor: pointer; clicked => { root.kb_direction = 0; root.update_custom_tuning(root.custom_speed_x10, root.custom_scale_pct, 0, root.custom_reactive, root.kb_color_hex, root.custom_marquee_text); } }
+                                VerticalLayout { alignment: center; Image { source: @image-url("../../assets/icons/arrow-right.svg"); width: 13px; height: 13px; colorize: root.kb_direction == 0 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; } }
+                            }
+                            Rectangle {
+                                width: 28px; height: 28px; border-radius: 4px;
+                                background: root.kb_direction == 1 ? #6366f1 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.kb_direction == 1 ? #818cf8 : AppTheme.border_subtle;
+                                TouchArea { mouse-cursor: pointer; clicked => { root.kb_direction = 1; root.update_custom_tuning(root.custom_speed_x10, root.custom_scale_pct, 1, root.custom_reactive, root.kb_color_hex, root.custom_marquee_text); } }
+                                VerticalLayout { alignment: center; Image { source: @image-url("../../assets/icons/arrow-left.svg"); width: 13px; height: 13px; colorize: root.kb_direction == 1 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; } }
+                            }
+                            Rectangle {
+                                width: 28px; height: 28px; border-radius: 4px;
+                                background: root.kb_direction == 2 ? #6366f1 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.kb_direction == 2 ? #818cf8 : AppTheme.border_subtle;
+                                TouchArea { mouse-cursor: pointer; clicked => { root.kb_direction = 2; root.update_custom_tuning(root.custom_speed_x10, root.custom_scale_pct, 2, root.custom_reactive, root.kb_color_hex, root.custom_marquee_text); } }
+                                VerticalLayout { alignment: center; Image { source: @image-url("../../assets/icons/arrow-up.svg"); width: 13px; height: 13px; colorize: root.kb_direction == 2 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; } }
+                            }
+                            Rectangle {
+                                width: 28px; height: 28px; border-radius: 4px;
+                                background: root.kb_direction == 3 ? #6366f1 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.kb_direction == 3 ? #818cf8 : AppTheme.border_subtle;
+                                TouchArea { mouse-cursor: pointer; clicked => { root.kb_direction = 3; root.update_custom_tuning(root.custom_speed_x10, root.custom_scale_pct, 3, root.custom_reactive, root.kb_color_hex, root.custom_marquee_text); } }
+                                VerticalLayout { alignment: center; Image { source: @image-url("../../assets/icons/arrow-down.svg"); width: 13px; height: 13px; colorize: root.kb_direction == 3 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; } }
+                            }
+                        }
+                    }
+
+                    // Reactive Toggle
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 4px;
+                        background: root.custom_reactive ? #10b98125 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.custom_reactive ? #10b981 : AppTheme.border_subtle;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.custom_reactive = !root.custom_reactive;
+                                root.update_custom_tuning(root.custom_speed_x10, root.custom_scale_pct, root.kb_direction, root.custom_reactive, root.kb_color_hex, root.custom_marquee_text);
+                            }
+                        }
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 6px;
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
                                 Image {
                                     source: @image-url("../../assets/icons/activity.svg");
-                                    width: 11px;
-                                    height: 11px;
-                                    colorize: root.custom_reactive ? #fb7185 : AppTheme.text_muted;
+                                    width: 12px;
+                                    height: 12px;
+                                    colorize: root.custom_reactive ? #10b981 : AppTheme.text_muted;
                                 }
                             }
                             Text {
-                                text: root.custom_reactive ? "按键高频反馈 (已开启)" : "静态环境模式";
-                                font-size: 10px;
+                                text: root.custom_reactive ? "击键互动: 开启" : "击键互动: 关闭";
+                                font-size: 11px;
                                 font-weight: 600;
-                                color: root.custom_reactive ? #fb7185 : AppTheme.text_muted;
+                                color: root.custom_reactive ? #10b981 : AppTheme.text_muted;
                                 vertical-alignment: center;
                             }
+                        }
+                    }
+                }
+
+                // Divider
+                Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+                // Color Palette Row
+                ColorPaletteRow {
+                    active_color_hex <=> root.kb_color_hex;
+                    active_color <=> root.kb_color;
+                    label_text: "定制主色调:";
+                    color_selected(hex, c) => {
+                        root.kb_color_hex = hex;
+                        root.kb_color = c;
+                        root.update_custom_tuning(root.custom_speed_x10, root.custom_scale_pct, root.kb_direction, root.custom_reactive, hex, root.custom_marquee_text);
+                    }
+                }
+
+                // Optional Marquee Text Input
+                if root.custom_is_marquee : VerticalLayout {
+                    spacing: 6px;
+                    Rectangle { height: 1px; background: AppTheme.border_subtle; }
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text { text: "滚动弹幕文本 (实时映射物理键盘)"; font-size: 11px; color: AppTheme.text_muted; }
+                        Text { text: "支持大写英文、数字与符号"; font-size: 10px; color: AppTheme.text_muted; }
+                    }
+                    LineEdit {
+                        text <=> root.custom_marquee_text;
+                        placeholder-text: "输入弹幕文字，例如: I LOVE OPEN-REVO";
+                        font-size: 12px;
+                        edited(txt) => {
+                            root.custom_marquee_text = txt;
+                            root.update_custom_tuning(root.custom_speed_x10, root.custom_scale_pct, root.kb_direction, root.custom_reactive, root.kb_color_hex, txt);
                         }
                     }
                 }
