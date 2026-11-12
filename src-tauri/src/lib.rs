@@ -176,6 +176,175 @@ pub fn run() {
     }
 }
 
+fn core_pid_file_path() -> std::path::PathBuf {
+    let base = std::env::var_os("LOCALAPPDATA")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    base.join("OpenRevo").join("core.pid")
+}
+
+pub fn write_core_pid_file() {
+    let path = core_pid_file_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(path, std::process::id().to_string());
+}
+
+pub fn remove_core_pid_file() {
+    let path = core_pid_file_path();
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if content.trim().parse::<u32>().ok() == Some(std::process::id()) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
+#[cfg(windows)]
+unsafe fn try_wake_existing_core() -> bool {
+    use windows::core::w;
+    use windows::Win32::Foundation::{LPARAM, WPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        AllowSetForegroundWindow, FindWindowW, SendMessageTimeoutW, ASFW_ANY, SMTO_ABORTIFHUNG,
+        SMTO_BLOCK,
+    };
+
+    let _ = AllowSetForegroundWindow(ASFW_ANY);
+
+    for attempt in 0..6 {
+        if let Ok(hwnd) = FindWindowW(w!("OpenRevo_Tray_WndClass"), None) {
+            if !hwnd.0.is_null() {
+                let mut res: usize = 0;
+                let ok = SendMessageTimeoutW(
+                    hwnd,
+                    crate::system::win32_tray::WM_TRAY_WAKE_INSTANCE,
+                    WPARAM(0),
+                    LPARAM(0),
+                    SMTO_ABORTIFHUNG | SMTO_BLOCK,
+                    1500,
+                    Some(&mut res),
+                );
+                if ok.0 != 0 {
+                    return true;
+                }
+                crate::log_warn!("SINGLE_INST", "Existing tray window did not respond to SendMessageTimeoutW.");
+                return false;
+            }
+        }
+        if attempt < 5 {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+        }
+    }
+    false
+}
+
+#[cfg(windows)]
+unsafe fn terminate_hung_core_by_pid() -> bool {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, TerminateProcess, WaitForSingleObject,
+        PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
+        PROCESS_TERMINATE,
+    };
+
+    let Ok(pid_str) = std::fs::read_to_string(core_pid_file_path()) else {
+        return false;
+    };
+    let Ok(pid) = pid_str.trim().parse::<u32>() else {
+        return false;
+    };
+    if pid == 0 || pid == std::process::id() {
+        return false;
+    }
+
+    let Ok(handle) = OpenProcess(
+        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | PROCESS_SYNCHRONIZE,
+        false,
+        pid,
+    ) else {
+        crate::log_warn!("SINGLE_INST", "Cannot open hung Core PID {} (possibly elevated).", pid);
+        return false;
+    };
+    if handle.is_invalid() {
+        return false;
+    }
+
+    let mut exe_buf = [0u16; 1024];
+    let mut len = exe_buf.len() as u32;
+    let is_same_exe = QueryFullProcessImageNameW(
+        handle,
+        PROCESS_NAME_WIN32,
+        windows::core::PWSTR(exe_buf.as_mut_ptr()),
+        &mut len,
+    )
+    .is_ok()
+        && std::env::current_exe().ok().map_or(false, |cur| {
+            let target = String::from_utf16_lossy(&exe_buf[..len as usize]);
+            std::path::Path::new(&target)
+                .file_name()
+                .map_or(false, |name| Some(name) == cur.file_name())
+        });
+
+    let terminated = if is_same_exe {
+        crate::log_warn!("SINGLE_INST", "Terminating hung Core PID {} for clean recovery...", pid);
+        let ok = TerminateProcess(handle, 1).is_ok();
+        if ok {
+            let _ = WaitForSingleObject(handle, 3000);
+        }
+        ok
+    } else {
+        false
+    };
+
+    let _ = CloseHandle(handle);
+    terminated
+}
+
+#[cfg(windows)]
+unsafe fn acquire_single_instance_or_recover() -> Option<windows::Win32::Foundation::HANDLE> {
+    use windows::core::w;
+    use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS};
+    use windows::Win32::System::Threading::CreateMutexW;
+
+    let mutex_name = w!("Local\\OpenRevo_Core_SingleInstance_Mutex");
+
+    for attempt in 0..2 {
+        match CreateMutexW(None, true, mutex_name) {
+            Ok(handle) => {
+                if GetLastError() == ERROR_ALREADY_EXISTS {
+                    let _ = CloseHandle(handle);
+                } else {
+                    write_core_pid_file();
+                    return Some(handle);
+                }
+            }
+            Err(err) => {
+                let code = err.code();
+                if code != ERROR_ACCESS_DENIED.into() && code != ERROR_ALREADY_EXISTS.into() {
+                    crate::log_warn!("SINGLE_INST", "CreateMutexW unexpected error: {:?}", err);
+                    return None;
+                }
+            }
+        }
+
+        crate::log_info!("SINGLE_INST", "Another instance detected. Attempting wake & liveness probe...");
+        if try_wake_existing_core() {
+            crate::log_info!("SINGLE_INST", "Existing Core responded and woke UI. Exiting duplicate instance.");
+            return None;
+        }
+
+        if attempt == 0 && terminate_hung_core_by_pid() {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            continue;
+        }
+
+        crate::log_warn!("SINGLE_INST", "Existing Core did not respond and could not be recovered. Exiting duplicate instance.");
+        return None;
+    }
+
+    None
+}
+
 fn run_slint_pure_daemon() {
     // 0. Ensure Host process is Per-Monitor DPI Aware V2 so Win32 coordinate queries (GetClientRect) match Slint physical resolution
     #[cfg(target_os = "windows")]
@@ -188,29 +357,14 @@ fn run_slint_pure_daemon() {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
 
-    // 0. Single Instance Lock (Native Win32 Mutex)
-    unsafe {
-        use windows::Win32::System::Threading::CreateMutexW;
-        use windows::Win32::Foundation::GetLastError;
-        use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, PostMessageW};
-        use windows::core::w;
-
-        let _mutex = CreateMutexW(None, true, w!("Global\\OpenRevo_Core_SingleInstance_Mutex"));
-        if GetLastError() == windows::Win32::Foundation::ERROR_ALREADY_EXISTS {
-            crate::log_info!("SINGLE_INST", "Another instance running. Sending wake message to existing instance...");
-            if let Ok(hwnd) = FindWindowW(w!("OpenRevo_Tray_WndClass"), None) {
-                if !hwnd.0.is_null() {
-                    let _ = PostMessageW(
-                        hwnd,
-                        crate::system::win32_tray::WM_TRAY_WAKE_INSTANCE,
-                        windows::Win32::Foundation::WPARAM(0),
-                        windows::Win32::Foundation::LPARAM(0),
-                    );
-                }
-            }
-            return;
+    // 0. Single Instance Lock (Native Win32 Mutex + Liveness Probe + Hung Core Recovery)
+    #[cfg(windows)]
+    let _single_instance_mutex = unsafe {
+        match acquire_single_instance_or_recover() {
+            Some(handle) => handle,
+            None => return,
         }
-    }
+    };
 
     // 1. Install unconditional emergency panic hook immediately on process startup
     crate::system::logger::install_panic_hook();

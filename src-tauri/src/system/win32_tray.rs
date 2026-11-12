@@ -317,6 +317,7 @@ fn handle_tray_menu_command(_hwnd: HWND, cmd_id: usize) {
             crate::system::slint_window::shutdown_slint_process();
             crate::system::tray::safe_hardware_shutdown_on_exit();
             crate::system::plugin_service::shutdown_all_plugin_services();
+            crate::remove_core_pid_file();
             unsafe {
                 let nid = build_notify_icon_data(_hwnd);
                 let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
@@ -446,5 +447,6 @@ pub fn run_tray_loop(ec_instance: SharedEcBridge) {
 
         let nid = build_notify_icon_data(hwnd);
         let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
+        crate::remove_core_pid_file();
     }
 }

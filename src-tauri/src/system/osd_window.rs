@@ -34,6 +34,7 @@ pub fn ensure_companion_process() {
 
         match cmd.spawn() {
             Ok(mut child) => {
+                crate::system::slint_window::actions::plugins::assign_to_app_job(&child);
                 if let Some(mut stdin) = child.stdin.take() {
                     let line = format!("{}\n", serde_json::json!({
                         "action": "config",
