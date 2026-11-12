@@ -578,16 +578,22 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
         }
         WatcherAction::SetFanBoost { enable } => {
             crate::log_info!("WATCHER_ACT", "[{}] Setting fan boost to {}", watcher_name, enable);
-            let hal = crate::hal::get_hardware_driver();
-            let mut cfg = crate::system::config::load_config();
-            if hal.set_fan_boost(*enable).is_ok() {
-                cfg.fan_boost = *enable;
-                crate::system::config::save_config(&cfg);
-                if let Some(handle) = get_app_handle() {
-                    let _ = handle.emit("fan-boost-changed", *enable);
-                    let _ = handle.emit_to("osd", "fan-boost-changed", *enable);
-                    let _ = handle.emit_to("main", "fan-boost-changed", *enable);
-                }
+            // The Slint daemon evaluates watchers without a Tauri host, so fall back to the
+            // global bridge instead of dropping the action.
+            let handle = get_app_handle();
+            let bridge = handle
+                .as_ref()
+                .and_then(|handle| {
+                    use tauri::Manager;
+                    handle
+                        .try_state::<crate::driver::ec_bridge::SharedEcBridge>()
+                        .map(|state| state.inner().clone())
+                })
+                .unwrap_or_else(crate::driver::ec_bridge::get_global_ec);
+            let result = bridge.lock().set_fan_boost(*enable);
+            match result {
+                Ok(()) => crate::commands::power_cmd::publish_fan_boost_state(handle.as_ref(), *enable),
+                Err(error) => crate::log_warn!("WATCHER_HUB", "Fan Boost action failed: {}", error),
             }
         }
         WatcherAction::DelayMs { duration } => {

@@ -50,7 +50,7 @@ fn main() {
                 if let Some(val) = args.get(2) {
                     let enable = val == "on" || val == "1" || val == "true";
                     println!("[>] Setting Fan Boost to: {}", enable);
-                    ec.set_fan_boost(enable);
+                    if let Err(error) = ec.set_fan_boost(enable) { eprintln!("Fan Boost failed: {}", error); std::process::exit(1); }
                     println!("[✓] Fan boost set successfully.");
                 }
             }

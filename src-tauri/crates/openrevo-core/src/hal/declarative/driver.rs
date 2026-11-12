@@ -231,7 +231,7 @@ impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
                 .iter()
                 .filter_map(|v| v.as_u64().map(|n| n as u8))
                 .collect();
-            let _ = self.execute_buffer_action(&u8_bytes);
+            self.execute_buffer_action(&u8_bytes)?;
             return Ok(());
         }
 

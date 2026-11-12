@@ -26,6 +26,9 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
     fan_boost: false,
   });
   const [togglingBoost, setTogglingBoost] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const boostBusy = useRef(false);
+  const snapshotRevision = useRef(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // 1. Expose Universal Tauri & OpenRevo bridge to iframe
@@ -116,6 +119,7 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
     const fetchSnapshot = async () => {
       try {
         const state = await invoke<HardwareState>('get_hardware_status');
+        snapshotRevision.current += 1;
         setHardware((prev) => ({ ...prev, ...state }));
         // Broadcast to sandboxed iframe as postMessage backup
         if (iframeRef.current?.contentWindow) {
@@ -131,7 +135,8 @@ export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
       await fetchSnapshot();
       try {
         unlisten = await listen<HardwareState>('hardware-state-updated', (event) => {
-          setHardware((prev) => ({ ...prev, ...event.payload }));
+          snapshotRevision.current += 1;
+        setHardware((prev) => ({ ...prev, ...event.payload }));
           if (iframeRef.current?.contentWindow) {
             iframeRef.current.contentWindow.postMessage(
               { type: 'OPENREVO_TELEMETRY', payload: event.payload },
@@ -295,15 +300,20 @@ html, body {
 
   const handleToggleFanBoost = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (togglingBoost) return;
+    if (boostBusy.current || hardware.support_flags?.has_fan_boost !== true) return;
+    boostBusy.current = true;
     setTogglingBoost(true);
-    const nextVal = !hardware.fan_boost;
-    setHardware((prev) => ({ ...prev, fan_boost: nextVal }));
+    setActionError(null);
+    const current = !!hardware.fan_boost;
+    const nextVal = !current;
+    const revision = snapshotRevision.current;
     try {
       await invoke('set_fan_boost', { enable: nextVal });
-    } catch (_) {
-      setHardware((prev) => ({ ...prev, fan_boost: !nextVal }));
+      setHardware((prev) => snapshotRevision.current === revision ? { ...prev, fan_boost: nextVal } : prev);
+    } catch (error) {
+      setActionError(`切换强冷失败：${String(error)}`);
     } finally {
+      boostBusy.current = false;
       setTogglingBoost(false);
     }
   };
@@ -522,6 +532,8 @@ html, body {
 
           <button
             onClick={handleToggleFanBoost}
+            disabled={togglingBoost || hardware.support_flags?.has_fan_boost !== true}
+            aria-busy={togglingBoost}
             title="一键全速强冷 (Fan Boost)"
             style={{
               flex: 1,
@@ -545,6 +557,7 @@ html, body {
             <span>{hardware.fan_boost ? '强冷中' : '强冷'}</span>
           </button>
         </div>
+        {actionError && <p className="sys-row-desc" role="alert">{actionError}</p>}
       </div>
     </div>
   );
