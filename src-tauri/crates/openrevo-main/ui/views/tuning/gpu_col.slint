@@ -101,7 +101,6 @@ export component GpuTuningCol inherits Rectangle {
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
-                            root.super_perf = !root.super_perf;
                             root.toggle_super_perf();
                         }
                     }
@@ -452,7 +451,6 @@ export component GpuTuningCol inherits Rectangle {
                                 mouse-cursor: root.super_perf ? not-allowed : pointer;
                                 clicked => {
                                     if !root.super_perf {
-                                        root.db_enabled = !root.db_enabled;
                                         root.toggle_db();
                                     }
                                 }

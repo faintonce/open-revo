@@ -50,7 +50,6 @@ export component CpuTempWallCard inherits Rectangle {
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
-                            root.temp_wall_enabled = !root.temp_wall_enabled;
                             root.toggle_temp_wall();
                         }
                     }
