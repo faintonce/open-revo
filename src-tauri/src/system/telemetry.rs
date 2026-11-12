@@ -23,7 +23,8 @@ pub fn register_consumer(consumer_id: &str, sensors: &[String]) {
     let mut map = get_subscribed_sensors().lock();
     let set: HashSet<String> = sensors.iter().cloned().collect();
     map.insert(consumer_id.to_string(), set);
-    let count = ACTIVE_SUBSCRIBERS.fetch_add(1, Ordering::SeqCst) + 1;
+    let count = map.len() as u32;
+    ACTIVE_SUBSCRIBERS.store(count, Ordering::SeqCst);
     crate::log_info!(
         "TELEMETRY",
         "Registered consumer '{}' with {} sensors. Total active consumers: {}",
@@ -37,7 +38,8 @@ pub fn register_consumer(consumer_id: &str, sensors: &[String]) {
 pub fn unregister_consumer(consumer_id: &str) {
     let mut map = get_subscribed_sensors().lock();
     if map.remove(consumer_id).is_some() {
-        let count = ACTIVE_SUBSCRIBERS.fetch_sub(1, Ordering::SeqCst).saturating_sub(1);
+        let count = map.len() as u32;
+        ACTIVE_SUBSCRIBERS.store(count, Ordering::SeqCst);
         crate::log_info!(
             "TELEMETRY",
             "Unregistered consumer '{}'. Remaining active consumers: {}",
@@ -96,6 +98,9 @@ pub fn is_telemetry_active() -> bool {
 /// CRITICAL DEFENSE: If no GPU metrics are requested and main console is closed,
 /// NEVER query GPU to prevent waking up NVIDIA dGPU from D3Cold ultra-low power state.
 pub fn should_query_gpu() -> bool {
+    if REBOOT_FREEZE.load(Ordering::Relaxed) || SCREEN_SUSPENDED.load(Ordering::Relaxed) {
+        return false;
+    }
     if MAIN_WINDOW_VISIBLE.load(Ordering::Relaxed) {
         return true;
     }
@@ -185,4 +190,81 @@ pub fn get_telemetry_heartbeat_status() -> Result<serde_json::Value, String> {
         "screen_suspended": screen_suspended,
         "query_gpu": query_gpu,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    struct SavedState {
+        sensors: HashMap<String, HashSet<String>>,
+        subscribers: u32,
+        visible: bool,
+        suspended: bool,
+        rebooting: bool,
+    }
+
+    impl SavedState {
+        fn reset() -> Self {
+            Self {
+                sensors: std::mem::take(&mut *get_subscribed_sensors().lock()),
+                subscribers: ACTIVE_SUBSCRIBERS.swap(0, Ordering::SeqCst),
+                visible: MAIN_WINDOW_VISIBLE.swap(true, Ordering::SeqCst),
+                suspended: SCREEN_SUSPENDED.swap(false, Ordering::SeqCst),
+                rebooting: REBOOT_FREEZE.swap(false, Ordering::SeqCst),
+            }
+        }
+    }
+
+    impl Drop for SavedState {
+        fn drop(&mut self) {
+            *get_subscribed_sensors().lock() = std::mem::take(&mut self.sensors);
+            ACTIVE_SUBSCRIBERS.store(self.subscribers, Ordering::SeqCst);
+            MAIN_WINDOW_VISIBLE.store(self.visible, Ordering::SeqCst);
+            SCREEN_SUSPENDED.store(self.suspended, Ordering::SeqCst);
+            REBOOT_FREEZE.store(self.rebooting, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn regression_consumer_registration_is_idempotent() {
+        let _serial = TEST_LOCK.lock();
+        let _saved = SavedState::reset();
+
+        register_consumer("first", &["cpu_temp".into()]);
+        register_consumer("first", &["gpu_temp".into()]);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 1);
+        assert_eq!(get_subscribed_sensors().lock()["first"], HashSet::from(["gpu_temp".into()]));
+
+        register_consumer("second", &[]);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 2);
+        unregister_consumer("unknown");
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 2);
+        unregister_consumer("first");
+        unregister_consumer("first");
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 1);
+        unregister_consumer("second");
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), 0);
+        assert!(get_subscribed_sensors().lock().is_empty());
+    }
+
+    #[test]
+    fn regression_gpu_queries_stop_during_suspend_and_reboot() {
+        let _serial = TEST_LOCK.lock();
+        let _saved = SavedState::reset();
+
+        assert!(should_query_gpu());
+        SCREEN_SUSPENDED.store(true, Ordering::SeqCst);
+        assert!(!should_query_gpu());
+        SCREEN_SUSPENDED.store(false, Ordering::SeqCst);
+        REBOOT_FREEZE.store(true, Ordering::SeqCst);
+        assert!(!should_query_gpu());
+        SCREEN_SUSPENDED.store(true, Ordering::SeqCst);
+        assert!(!should_query_gpu());
+        SCREEN_SUSPENDED.store(false, Ordering::SeqCst);
+        REBOOT_FREEZE.store(false, Ordering::SeqCst);
+        assert!(should_query_gpu());
+    }
 }
