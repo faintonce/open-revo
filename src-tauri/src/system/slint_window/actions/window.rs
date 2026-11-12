@@ -131,9 +131,20 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             crate::log_info!("SLINT_MAIN", "Restart requested from Slint UI");
             crate::system::tray::safe_hardware_shutdown_on_exit();
             if let Ok(exe) = std::env::current_exe() {
-                let _ = std::process::Command::new(exe)
-                    .arg(format!("--relaunch-wait={}", std::process::id()))
-                    .spawn();
+                let mut cmd = std::process::Command::new(&exe);
+                cmd.arg(format!("--relaunch-wait={}", std::process::id()))
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null());
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    // DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+                    cmd.creation_flags(0x0000_0008 | 0x0000_0200);
+                }
+                if let Err(e) = cmd.spawn() {
+                    crate::log_error!("SLINT_MAIN", "Failed to spawn relaunch process {:?}: {}", exe, e);
+                }
             }
             std::process::exit(0);
         }

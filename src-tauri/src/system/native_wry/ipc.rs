@@ -306,13 +306,13 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             let enabled = args.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
             let res = crate::commands::system_cmd::set_custom_plugin_enabled(target_pid.to_string(), enabled)?;
 
-            // If widget or skin, open or close the popout window and manage its companion service
+            // If widget, open or close the popout window and manage its companion service
             let p_dir = crate::commands::system_cmd::find_plugin_dir(target_pid);
             let manifest_path = p_dir.join("manifest.json");
             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                 if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
                     let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
-                    if p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin") {
+                    if manifest.widget.is_some() || p_type.eq_ignore_ascii_case("widget") {
                         if enabled {
                             crate::system::native_wry::open_popout(target_pid);
                             if let Some(svc) = manifest.service {

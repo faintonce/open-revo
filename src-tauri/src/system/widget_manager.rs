@@ -327,8 +327,7 @@ pub fn restore_active_widgets_on_boot(_app: Option<&AppHandle>) {
                         let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
                         let has_widget = manifest.widget.is_some()
                             || p_dir.join("widget.slint").exists()
-                            || p_type.eq_ignore_ascii_case("widget")
-                            || p_type.eq_ignore_ascii_case("skin");
+                            || p_type.eq_ignore_ascii_case("widget");
 
                         if has_widget {
                             if crate::system::slint_window::actions::plugins::is_slint_widget(plugin_id) {

@@ -754,7 +754,7 @@ fn spawn_popout_window(
             if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
                 let has_explicit_widget = manifest.widget.is_some();
                 let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
-                is_widget = has_explicit_widget || p_type.eq_ignore_ascii_case("widget") || p_type.eq_ignore_ascii_case("skin");
+                is_widget = has_explicit_widget || p_type.eq_ignore_ascii_case("widget");
                 telemetry_config = manifest.telemetry;
 
                 entry_file = if is_widget {
