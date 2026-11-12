@@ -399,6 +399,17 @@ pub fn sync_slint_switches_state() {
     let switches = crate::system::device_switches::get_switches_state();
     let cfg = crate::system::config::load_config();
     let model_alias = crate::system::model_engine::get_active_alias();
+    let manifest = crate::hal::declarative::load_matched_manifest();
+    let is_bld_fan_lock = manifest
+        .as_ref()
+        .and_then(|m| m.capabilities.fan_boost_mode.as_deref())
+        == Some("direct_rpm_clamp");
+    let clamped_rpm = crate::driver::bld_driver_mgr::get_bld_fan_clamp_rpm();
+    let bld_fan_rpm = if clamped_rpm >= 2200 {
+        clamped_rpm
+    } else {
+        super::actions::switches::get_slint_bld_target_rpm()
+    };
     let flags = crate::driver::wmi_ec::get_hardware_support_flags();
     send_slint_ipc_message(serde_json::json!({
         "action": "sync_state",
@@ -413,6 +424,8 @@ pub fn sync_slint_switches_state() {
         "wifi_enabled": switches.wifi,
         "bt_enabled": switches.bluetooth,
         "fan_boost": cfg.fan_boost,
+        "is_bld_fan_lock": is_bld_fan_lock,
+        "bld_fan_rpm": bld_fan_rpm,
         "power_mode": cfg.power_mode,
         "is_dc_online": crate::commands::power_cmd::is_dc_round_plugged_in(),
         "is_thin_and_light": crate::commands::power_cmd::is_thin_and_light_or_pure_igpu(),

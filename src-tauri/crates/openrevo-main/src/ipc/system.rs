@@ -45,6 +45,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(fb) = val.get("fan_boost").and_then(|v| v.as_bool()) {
                 ui.set_fan_boost(fb);
             }
+            if let Some(bld_lock) = val.get("is_bld_fan_lock").and_then(|v| v.as_bool()) {
+                ui.set_is_bld_fan_lock(bld_lock);
+            }
+            if let Some(bld_rpm) = val.get("bld_fan_rpm").and_then(|v| v.as_i64()) {
+                ui.set_bld_fan_rpm(bld_rpm as i32);
+            }
             if let Some(hfb) = val.get("has_fan_boost").and_then(|v| v.as_bool()) {
                 ui.set_has_fan_boost(hfb);
             }

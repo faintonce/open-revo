@@ -1,8 +1,40 @@
+use std::sync::atomic::{AtomicU16, Ordering};
 use tauri::AppHandle;
 use tauri::Manager;
 
+static SLINT_BLD_TARGET_RPM: AtomicU16 = AtomicU16::new(5800);
+
+pub fn get_slint_bld_target_rpm() -> u16 {
+    SLINT_BLD_TARGET_RPM.load(Ordering::SeqCst).clamp(2200, 5800)
+}
+
 pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
+        "toggle_bld_fan_lock" => {
+            if let Some(rpm) = val.get("rpm").and_then(|v| v.as_i64()) {
+                if rpm >= 2200 {
+                    SLINT_BLD_TARGET_RPM.store((rpm as u16).clamp(2200, 5800), Ordering::SeqCst);
+                }
+            }
+            let is_clamped = crate::driver::bld_driver_mgr::is_bld_fan_clamped();
+            let target = if is_clamped { 0 } else { get_slint_bld_target_rpm() };
+            let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap_internal(app, target);
+            super::super::sync::sync_slint_switches_state();
+            super::super::sync::sync_slint_tuning_state();
+            true
+        }
+        "set_bld_fan_rpm" => {
+            if let Some(rpm) = val.get("rpm").and_then(|v| v.as_i64()) {
+                let target = (rpm as u16).clamp(2200, 5800);
+                SLINT_BLD_TARGET_RPM.store(target, Ordering::SeqCst);
+                if crate::driver::bld_driver_mgr::is_bld_fan_clamped() {
+                    let _ = crate::commands::tuning_cmd::set_bld_fan_speed_cap_internal(app, target);
+                }
+                super::super::sync::sync_slint_switches_state();
+                super::super::sync::sync_slint_tuning_state();
+            }
+            true
+        }
         "toggle_fan_boost" => {
             let cfg = crate::system::config::load_config();
             let next = !cfg.fan_boost;

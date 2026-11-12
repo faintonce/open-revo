@@ -54,6 +54,8 @@ export component MainWindow inherits Window {
     in-out property <bool> turbo_submode_supported: false;
     in-out property <bool> turbo_silent: false;
     in-out property <bool> has_fan_boost: true;
+    in-out property <bool> is_bld_fan_lock: false;
+    in-out property <int> bld_fan_rpm: 5800;
     in-out property <bool> has_water_cooler: false;
     in-out property <bool> has_win_lock: true;
     in-out property <bool> has_fn_lock: true;
@@ -248,6 +250,8 @@ export component MainWindow inherits Window {
     callback kbd_more_clicked();
     callback battery_limit_clicked(int);
     callback fan_boost_toggled();
+    callback bld_fan_lock_toggled(int);
+    callback bld_fan_rpm_changed(int);
     callback wifi_toggled();
     callback bt_toggled();
     callback touchpad_toggled();
@@ -793,6 +797,9 @@ export component MainWindow inherits Window {
         select_battery_mode(m) => { root.select_battery_mode(m); }
 
         fan_boost: root.fan_boost;
+        has_fan_boost: root.has_fan_boost;
+        is_bld_fan_lock: root.is_bld_fan_lock;
+        bld_fan_rpm <=> root.bld_fan_rpm;
         auto_min_hz: root.auto_min_hz;
         refresh_rate: root.refresh_rate;
         monitor_name: root.monitor_name;
@@ -802,6 +809,8 @@ export component MainWindow inherits Window {
         primary_monitor_name: root.primary_monitor_name;
         secondary_monitor_name: root.secondary_monitor_name;
         toggle_fan_boost => { root.fan_boost_toggled(); }
+        toggle_bld_fan_lock(rpm) => { root.bld_fan_lock_toggled(rpm); }
+        change_bld_fan_rpm(rpm) => { root.bld_fan_rpm_changed(rpm); }
         toggle_auto_min_hz => { root.auto_min_hz_toggled(); }
         switch_hz(hz) => { root.refresh_rate_switched(hz); }
         select_monitor_index(idx) => { root.select_monitor_index(idx); }

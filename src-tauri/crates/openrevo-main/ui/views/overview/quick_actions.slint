@@ -6,6 +6,9 @@ export component DashboardQuickActions inherits Rectangle {
     background: transparent;
 
     in-out property <bool> fan_boost: false;
+    in-out property <bool> has_fan_boost: true;
+    in-out property <bool> is_bld_fan_lock: false;
+    in-out property <int> bld_fan_rpm: 5800;
     in-out property <bool> auto_min_hz: true;
     in-out property <OsdConfigData> osd_config: {
         enabled: true,
@@ -15,6 +18,8 @@ export component DashboardQuickActions inherits Rectangle {
     };
 
     callback toggle_fan_boost();
+    callback toggle_bld_fan_lock(int);
+    callback change_bld_fan_rpm(int);
     callback toggle_auto_min_hz();
     callback change_osd_theme(string);
     callback change_osd_scale(string);
@@ -24,8 +29,177 @@ export component DashboardQuickActions inherits Rectangle {
     HorizontalLayout {
         spacing: 12px;
 
-        // 1. 一键强冷 (Compact width: 190px)
-        card_fb := Rectangle {
+        // 1. 一键强冷 (同方物理开关 / 宝龙达强冷锁速滑块)
+        if root.has_fan_boost && root.is_bld_fan_lock : card_bld_fb := Rectangle {
+            width: 215px;
+            background: AppTheme.surface_card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: fan_boost ? #38bdf880 : AppTheme.border_subtle;
+
+            VerticalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 9px;
+                padding-bottom: 9px;
+                spacing: 8px;
+                alignment: center;
+
+                // Top Row: Icon + 强冷锁速 + RPM Badge + 自动/已锁定 Button
+                HorizontalLayout {
+                    alignment: space-between;
+                    height: 22px;
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../assets/icons/fan.svg");
+                                width: 15px;
+                                height: 15px;
+                                colorize: fan_boost ? #38bdf8 : AppTheme.text_secondary;
+                            }
+                        }
+
+                        Text {
+                            text: "强冷锁速";
+                            font-size: 11.5px;
+                            font-weight: 700;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                height: 17px;
+                                border-radius: 4px;
+                                background: fan_boost ? #38bdf822 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: fan_boost ? #38bdf860 : AppTheme.border_subtle;
+
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    padding-right: 6px;
+                                    Text {
+                                        text: root.bld_fan_rpm + " RPM";
+                                        font-size: 9.5px;
+                                        font-weight: 700;
+                                        color: fan_boost ? #38bdf8 : AppTheme.text_muted;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Auto / Locked Toggle Button
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 20px;
+                            border-radius: 4px;
+                            background: fan_boost ? #38bdf8 : AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: fan_boost ? #38bdf8 : AppTheme.border_medium;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.toggle_bld_fan_lock(root.bld_fan_rpm); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                Text {
+                                    text: fan_boost ? "已锁定" : "自动";
+                                    font-size: 10px;
+                                    font-weight: 700;
+                                    color: fan_boost ? #0f172a : AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Bottom Row: 2200 [Slider] 5800
+                HorizontalLayout {
+                    spacing: 8px;
+                    height: 16px;
+                    alignment: stretch;
+
+                    Text {
+                        text: "2200";
+                        font-size: 9.5px;
+                        font-weight: 600;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+
+                        bld_track := Rectangle {
+                            height: 5px;
+                            border-radius: 2.5px;
+                            background: AppTheme.surface_pill;
+
+                            Rectangle {
+                                x: 0px;
+                                y: 0px;
+                                height: 100%;
+                                width: Math.clamp((root.bld_fan_rpm - 2200) / 3600.0, 0.0, 1.0) * parent.width;
+                                border-radius: 2.5px;
+                                background: fan_boost ? #38bdf8 : AppTheme.border_highlight;
+                            }
+
+                            Rectangle {
+                                width: 12px;
+                                height: 12px;
+                                border-radius: 6px;
+                                background: #ffffff;
+                                border-width: 1.5px;
+                                border-color: fan_boost ? #38bdf8 : AppTheme.border_medium;
+                                x: Math.clamp((root.bld_fan_rpm - 2200) / 3600.0, 0.0, 1.0) * (parent.width - 12px);
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                pointer-event(ev) => {
+                                    if (ev.kind == PointerEventKind.down && ev.button == PointerEventButton.left) {
+                                        root.bld_fan_rpm = Math.round(Math.clamp(self.mouse-x / self.width, 0.0, 1.0) * 36.0) * 100 + 2200;
+                                    } else if (ev.kind == PointerEventKind.up && ev.button == PointerEventButton.left) {
+                                        root.bld_fan_rpm = Math.round(Math.clamp(self.mouse-x / self.width, 0.0, 1.0) * 36.0) * 100 + 2200;
+                                        root.change_bld_fan_rpm(root.bld_fan_rpm);
+                                    }
+                                }
+                                moved => {
+                                    if self.pressed {
+                                        root.bld_fan_rpm = Math.round(Math.clamp(self.mouse-x / self.width, 0.0, 1.0) * 36.0) * 100 + 2200;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "5800";
+                        font-size: 9.5px;
+                        font-weight: 600;
+                        color: AppTheme.text_muted;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        if root.has_fan_boost && !root.is_bld_fan_lock : card_fb := Rectangle {
             width: 190px;
             background: AppTheme.surface_card;
             border-radius: 8px;

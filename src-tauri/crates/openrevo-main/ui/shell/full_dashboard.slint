@@ -312,6 +312,9 @@ export component FullDashboard inherits Rectangle {
 
     // Quick Actions Props & Callbacks
     in-out property <bool> fan_boost: false;
+    in-out property <bool> has_fan_boost: true;
+    in-out property <bool> is_bld_fan_lock: false;
+    in-out property <int> bld_fan_rpm: 5800;
     in-out property <bool> auto_min_hz: true;
     in-out property <int> refresh_rate: 240;
     in-out property <string> monitor_name: "京东方";
@@ -321,6 +324,8 @@ export component FullDashboard inherits Rectangle {
     in-out property <string> primary_monitor_name: "内置主屏";
     in-out property <string> secondary_monitor_name: "外接副屏";
     callback toggle_fan_boost();
+    callback toggle_bld_fan_lock(int);
+    callback change_bld_fan_rpm(int);
     callback toggle_auto_min_hz();
     callback switch_hz(int);
     callback select_monitor(string);
@@ -641,8 +646,13 @@ export component FullDashboard inherits Rectangle {
                 }
 
                 fan_boost: root.fan_boost;
+                has_fan_boost: root.has_fan_boost;
+                is_bld_fan_lock: root.is_bld_fan_lock;
+                bld_fan_rpm <=> root.bld_fan_rpm;
                 auto_min_hz: root.auto_min_hz;
                 toggle_fan_boost => { root.toggle_fan_boost(); }
+                toggle_bld_fan_lock(rpm) => { root.toggle_bld_fan_lock(rpm); }
+                change_bld_fan_rpm(rpm) => { root.change_bld_fan_rpm(rpm); }
                 toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
                 osd_config: root.osd_config;
                 change_osd_theme(t) => { root.change_osd_theme(t); }

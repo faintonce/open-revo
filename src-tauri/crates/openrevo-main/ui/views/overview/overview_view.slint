@@ -39,6 +39,9 @@ export component DashboardOverviewView inherits Rectangle {
 
     // Quick Actions Props & Callbacks
     in-out property <bool> fan_boost: false;
+    in-out property <bool> has_fan_boost: true;
+    in-out property <bool> is_bld_fan_lock: false;
+    in-out property <int> bld_fan_rpm: 5800;
     in-out property <bool> auto_min_hz: true;
     in-out property <OsdConfigData> osd_config: {
         enabled: true,
@@ -47,6 +50,8 @@ export component DashboardOverviewView inherits Rectangle {
         position: "top-left"
     };
     callback toggle_fan_boost();
+    callback toggle_bld_fan_lock(int);
+    callback change_bld_fan_rpm(int);
     callback toggle_auto_min_hz();
     callback change_osd_theme(string);
     callback change_osd_scale(string);
@@ -118,9 +123,14 @@ export component DashboardOverviewView inherits Rectangle {
         // 3. Quick Actions (Height: 74px)
         DashboardQuickActions {
             fan_boost: root.fan_boost;
+            has_fan_boost: root.has_fan_boost;
+            is_bld_fan_lock: root.is_bld_fan_lock;
+            bld_fan_rpm <=> root.bld_fan_rpm;
             auto_min_hz: root.auto_min_hz;
             osd_config: root.osd_config;
             toggle_fan_boost => { root.toggle_fan_boost(); }
+            toggle_bld_fan_lock(rpm) => { root.toggle_bld_fan_lock(rpm); }
+            change_bld_fan_rpm(rpm) => { root.change_bld_fan_rpm(rpm); }
             toggle_auto_min_hz => { root.toggle_auto_min_hz(); }
             change_osd_theme(t) => { root.change_osd_theme(t); }
             change_osd_scale(s) => { root.change_osd_scale(s); }
