@@ -200,19 +200,24 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
 
         HorizontalLayout {
             padding: 8px;
+            spacing: 8px;
             alignment: space-between;
             VerticalLayout {
+                horizontal-stretch: 1;
+                min-width: 0px;
                 spacing: 2px;
                 Text {
                     text: "高级 BIOS 超频菜单";
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
+                    wrap: word-wrap;
                 }
                 Text {
                     text: root.bios_oc_desc;
                     font-size: 9px;
                     color: AppTheme.text_muted;
+                    wrap: word-wrap;
                 }
             }
 

@@ -48,8 +48,10 @@ export component GpuTuningCol inherits Rectangle {
 
         // 1. Header
         HorizontalLayout {
+            spacing: 8px;
             alignment: space-between;
             HorizontalLayout {
+                horizontal-stretch: 0;
                 spacing: 6px;
                 Image {
                     source: @image-url("../../assets/icons/flame.svg");
@@ -68,9 +70,12 @@ export component GpuTuningCol inherits Rectangle {
             }
 
             Text {
+                horizontal-stretch: 1;
+                min-width: 0px;
                 text: root.gpu_name;
                 font-size: 9.5px;
                 color: AppTheme.text_muted;
+                horizontal-alignment: right;
                 vertical-alignment: center;
                 overflow: elide;
             }
@@ -78,6 +83,7 @@ export component GpuTuningCol inherits Rectangle {
 
         // 2. Super Perf Card
         Rectangle {
+            vertical-stretch: 0;
             background: root.effective_super_perf ? #10b98118 : AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -127,6 +133,7 @@ export component GpuTuningCol inherits Rectangle {
 
         // 3. Core Clock Offset
         Rectangle {
+            vertical-stretch: 0;
             background: AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -210,6 +217,7 @@ export component GpuTuningCol inherits Rectangle {
 
         // 4. Memory Clock Offset
         Rectangle {
+            vertical-stretch: 0;
             background: AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -293,6 +301,7 @@ export component GpuTuningCol inherits Rectangle {
 
         // 4.5. Mode-Locked OEM Notice (模具功耗联动：原厂模式锁定)
         if root.is_mode_locked: Rectangle {
+            vertical-stretch: 0;
             background: AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -330,6 +339,7 @@ export component GpuTuningCol inherits Rectangle {
 
         // 4.6. Wide cTGP Base TGP Slider (宽 TGP 动态调节滑块)
         if root.supports_ctgp: Rectangle {
+            vertical-stretch: 0;
             background: AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -428,6 +438,7 @@ export component GpuTuningCol inherits Rectangle {
 
         // 5. Dynamic Boost Card
         if !root.is_mode_locked: Rectangle {
+            vertical-stretch: 0;
             background: AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -559,6 +570,7 @@ export component GpuTuningCol inherits Rectangle {
 
         // 6. Comprehensive Release Big Badge (综合释放大徽章)
         Rectangle {
+            vertical-stretch: 0;
             background: #0284c718;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
@@ -587,16 +599,22 @@ export component GpuTuningCol inherits Rectangle {
             }
         }
 
-        // 7. Factory Preset Reference Card (模具原厂建议功耗参考)
         Rectangle {
+            vertical-stretch: 1;
+        }
+
+        // 7. Factory Preset Reference Card (模具原厂建议功耗参考，贴底并与实时监测同高)
+        Rectangle {
+            height: 88px;
+            vertical-stretch: 0;
             background: AppTheme.surface_sunken;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
 
             VerticalLayout {
-                padding: 8px;
-                spacing: 5px;
+                padding: 9px;
+                alignment: space-between;
 
                 HorizontalLayout {
                     alignment: space-between;
@@ -621,12 +639,14 @@ export component GpuTuningCol inherits Rectangle {
                     text: "• CPU 原厂预设: 办公 45W / 平衡 75W / 狂暴 205W";
                     font-size: 9px;
                     color: AppTheme.text_secondary;
+                    wrap: word-wrap;
                 }
 
                 Text {
                     text: "• GPU 原厂预设: 基础 150W + DB 25W (原厂最大 175W)";
                     font-size: 9px;
                     color: AppTheme.text_secondary;
+                    wrap: word-wrap;
                 }
             }
         }

@@ -27,6 +27,7 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             true
         }
         "slint_ready" => {
+            crate::system::telemetry::set_main_window_visible(true);
             if let Some(hwnd) = val.get("hwnd").and_then(|v| v.as_i64()) {
                 if hwnd != 0 {
                     RECORDED_SLINT_HWND.store(hwnd as isize, std::sync::atomic::Ordering::SeqCst);
@@ -91,6 +92,10 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
                 cfg.last_window_expanded = is_exp;
                 let _ = crate::system::config::save_config(&cfg);
             }
+            true
+        }
+        "slint_window_shown" => {
+            crate::system::telemetry::set_main_window_visible(true);
             true
         }
         "slint_window_hidden" => {

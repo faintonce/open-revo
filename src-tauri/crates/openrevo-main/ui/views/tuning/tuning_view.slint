@@ -79,6 +79,8 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <int> gpu_temp: 54;
     in-out property <int> gpu_rpm: 2123;
     in-out property <string> gpu_watts: "20.4 W";
+    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_watts: "--";
 
     // Presets
     in-out property <string> active_preset_name: "均衡电竞";
@@ -398,14 +400,19 @@ export component DashboardCustomTuningView inherits Rectangle {
             padding-bottom: 10px;
             spacing: 8px;
 
-        // 2. Main Three Columns (CPU, GPU, Fan)
-        HorizontalLayout {
-            spacing: 12px;
+        // 2. Main Three Columns (CPU, GPU, Fan) — strict equal 1/3 width & full height
+        Rectangle {
             vertical-stretch: 1;
+            min-height: 0px;
+
+            property <length> col_w: Math.max(0px, (self.width - 24px) / 3);
 
             // Col 1: CPU
             CpuTuningCol {
-                horizontal-stretch: 1;
+                x: 0px;
+                y: 0px;
+                width: parent.col_w;
+                height: parent.height;
                 cpu_vendor <=> root.cpu_vendor;
                 cpu_tuning_type <=> root.cpu_tuning_type;
                 cpu_supports_fppt <=> root.cpu_supports_fppt;
@@ -439,6 +446,8 @@ export component DashboardCustomTuningView inherits Rectangle {
                 gpu_temp <=> root.gpu_temp;
                 gpu_rpm <=> root.gpu_rpm;
                 gpu_watts <=> root.gpu_watts;
+                telemetry_total_label: root.telemetry_total_label;
+                telemetry_total_watts: root.telemetry_total_watts;
 
                 toggle_temp_wall => { root.toggle_temp_wall(); }
                 change_temp_wall(t) => { root.change_temp_wall(t); }
@@ -454,7 +463,10 @@ export component DashboardCustomTuningView inherits Rectangle {
 
             // Col 2: GPU
             GpuTuningCol {
-                horizontal-stretch: 1;
+                x: parent.col_w + 12px;
+                y: 0px;
+                width: parent.col_w;
+                height: parent.height;
                 gpu_name <=> root.gpu_name;
                 super_perf <=> root.super_perf;
                 core_offset <=> root.core_offset;
@@ -483,7 +495,10 @@ export component DashboardCustomTuningView inherits Rectangle {
 
             // Col 3: Fan
             FanTuningCol {
-                horizontal-stretch: 1;
+                x: (parent.col_w + 12px) * 2;
+                y: 0px;
+                width: parent.col_w;
+                height: parent.height;
                 is_bld <=> root.is_bld;
                 fan_custom_curve <=> root.fan_custom_curve;
                 fan_boost_mode <=> root.fan_boost_mode;

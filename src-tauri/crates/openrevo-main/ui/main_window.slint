@@ -78,6 +78,8 @@ export component MainWindow inherits Window {
 
     in-out property <int> cpu_rpm: 2746;
     in-out property <int> gpu_rpm: 2635;
+    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_watts: "--";
 
     in-out property <string> vram_text: "1.7 / 16.0 GB";
     in-out property <int> vram_mhz: 810;
@@ -753,6 +755,8 @@ export component MainWindow inherits Window {
 
         cpu_rpm: root.cpu_rpm;
         gpu_rpm: root.gpu_rpm;
+        telemetry_total_label: root.telemetry_total_label;
+        telemetry_total_watts: root.telemetry_total_watts;
 
         vram_text: root.vram_text;
         vram_mhz: root.vram_mhz;

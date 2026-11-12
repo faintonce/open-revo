@@ -10,8 +10,50 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "- / -".to_string()
     };
 
-    let cpu_watts_text = format!("{:.1} W", state.cpu_power_w);
-    let gpu_watts_text = format!("{:.1} W", state.gpu_power_w);
+    let discrete_gpu = crate::hal::declarative::load_matched_manifest()
+        .map(|m| m.capabilities.discrete_gpu)
+        .unwrap_or_else(crate::commands::power_cmd::check_dgpu_present);
+
+    let cpu_watts_text = if state.cpu_power_w > 0.0 {
+        if state.cpu_power_w >= 100.0 {
+            format!("{:.0} W", state.cpu_power_w)
+        } else {
+            format!("{:.1} W", state.cpu_power_w)
+        }
+    } else {
+        "-- W".to_string()
+    };
+    let gpu_watts_text = if state.gpu_power_w > 0.0 {
+        if state.gpu_power_w >= 100.0 {
+            format!("{:.0} W", state.gpu_power_w)
+        } else {
+            format!("{:.1} W", state.gpu_power_w)
+        }
+    } else if !discrete_gpu {
+        "APU 共享".to_string()
+    } else {
+        "-- W".to_string()
+    };
+    let (telemetry_total_label, telemetry_total_watts) = if !discrete_gpu {
+        (
+            "APU 封装功耗:",
+            if state.cpu_power_w > 0.0 {
+                format!("{:.1} W", state.cpu_power_w)
+            } else {
+                "--".to_string()
+            },
+        )
+    } else {
+        let total_w = state.cpu_power_w.max(0.0) + state.gpu_power_w.max(0.0);
+        (
+            "双烤合计:",
+            if total_w > 0.0 {
+                format!("{:.0} W", total_w)
+            } else {
+                "--".to_string()
+            },
+        )
+    };
 
     let sel_idx = SELECTED_MONITOR_INDEX.load(std::sync::atomic::Ordering::Relaxed);
     let (monitor_name, curr_hz, supported_rates) = if !state.monitors.is_empty() {
@@ -51,6 +93,8 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "gpu_name": state.gpu_name,
         "cpu_rpm": state.cpu_fan_rpm,
         "gpu_rpm": state.gpu_fan_rpm,
+        "telemetry_total_label": telemetry_total_label,
+        "telemetry_total_watts": telemetry_total_watts,
         "vram_text": vram_text,
         "vram_mhz": state.gpu_mem_freq,
         "vram_usage": if state.gpu_vram_mb > 0 { ((state.gpu_vram_used_mb as f64 / state.gpu_vram_mb as f64) * 100.0) as u32 } else { 0 },

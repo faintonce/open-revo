@@ -7,15 +7,19 @@ export component CpuTelemetryFooter inherits Rectangle {
     in-out property <int> gpu_temp: 54;
     in-out property <int> gpu_rpm: 2123;
     in-out property <string> gpu_watts: "20.4 W";
+    in-out property <string> total_label: "双烤合计:";
+    in-out property <string> total_watts: "--";
 
+    height: 88px;
+    vertical-stretch: 0;
     background: AppTheme.surface_sunken;
     border-radius: AppTheme.radius_sm;
     border-width: 1px;
     border-color: AppTheme.border_subtle;
 
     VerticalLayout {
-        padding: 8px;
-        spacing: 6px;
+        padding: 9px;
+        alignment: space-between;
 
         HorizontalLayout {
             alignment: space-between;
@@ -36,7 +40,7 @@ export component CpuTelemetryFooter inherits Rectangle {
                 }
             }
             Text {
-                text: "双烤合计: 40 W";
+                text: root.total_label + " " + root.total_watts;
                 font-size: 10px;
                 font-weight: 700;
                 color: AppTheme.text_secondary;
@@ -63,13 +67,13 @@ export component CpuTelemetryFooter inherits Rectangle {
                     }
                 }
                 Text {
-                    text: root.cpu_temp + "°C";
+                    text: root.cpu_temp > 0 ? (root.cpu_temp + "°C") : "--";
                     font-size: 10.5px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
                     vertical-alignment: center;
                 }
-                Text {
+                if root.cpu_rpm > 0: Text {
                     text: "Fan " + root.cpu_rpm + " RPM";
                     font-size: 9.5px;
                     color: AppTheme.text_muted;
@@ -105,13 +109,13 @@ export component CpuTelemetryFooter inherits Rectangle {
                     }
                 }
                 Text {
-                    text: root.gpu_temp + "°C";
+                    text: root.gpu_temp > 0 ? (root.gpu_temp + "°C") : "--";
                     font-size: 10.5px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
                     vertical-alignment: center;
                 }
-                Text {
+                if root.gpu_rpm > 0: Text {
                     text: "Fan " + root.gpu_rpm + " RPM";
                     font-size: 9.5px;
                     color: AppTheme.text_muted;

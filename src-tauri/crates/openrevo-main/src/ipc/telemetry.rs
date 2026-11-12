@@ -1,3 +1,4 @@
+use slint::ComponentHandle;
 use crate::MainWindow;
 
 pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
@@ -42,6 +43,12 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     }
     if let Some(gr) = val.get("gpu_rpm").and_then(|v| v.as_i64()) {
         ui.set_gpu_rpm(gr as i32);
+    }
+    if let Some(lbl) = val.get("telemetry_total_label").and_then(|v| v.as_str()) {
+        ui.set_telemetry_total_label(lbl.into());
+    }
+    if let Some(tw) = val.get("telemetry_total_watts").and_then(|v| v.as_str()) {
+        ui.set_telemetry_total_watts(tw.into());
     }
 
     if let Some(vt) = val.get("vram_text").and_then(|v| v.as_str()) {
@@ -109,6 +116,11 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     }
     if let Some(orun) = val.get("oem_running").and_then(|v| v.as_bool()) {
         ui.set_oem_running(orun);
+    }
+
+    if ui.window().is_visible() {
+        ui.set_redraw_tick(ui.get_redraw_tick().wrapping_add(1));
+        ui.window().request_redraw();
     }
 
     true

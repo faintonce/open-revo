@@ -53,6 +53,8 @@ export component CpuTuningCol inherits Rectangle {
     in-out property <int> gpu_temp: 54;
     in-out property <int> gpu_rpm: 2123;
     in-out property <string> gpu_watts: "20.4 W";
+    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_watts: "--";
 
     // Callbacks
     callback toggle_temp_wall();
@@ -163,7 +165,11 @@ export component CpuTuningCol inherits Rectangle {
             toggle_bios_oc => { root.toggle_bios_oc(); }
         }
 
-        // 6. Real-Time Hardware Telemetry Monitor (底部实时硬件监测)
+        Rectangle {
+            vertical-stretch: 1;
+        }
+
+        // 6. Real-Time Hardware Telemetry Monitor (底部实时硬件监测，贴底对齐)
         CpuTelemetryFooter {
             cpu_temp: root.cpu_temp;
             cpu_rpm: root.cpu_rpm;
@@ -171,6 +177,8 @@ export component CpuTuningCol inherits Rectangle {
             gpu_temp: root.gpu_temp;
             gpu_rpm: root.gpu_rpm;
             gpu_watts: root.gpu_watts;
+            total_label: root.telemetry_total_label;
+            total_watts: root.telemetry_total_watts;
         }
     }
 }

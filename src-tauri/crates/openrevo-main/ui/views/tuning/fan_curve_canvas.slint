@@ -306,16 +306,19 @@ export component FanCurveCanvas inherits VerticalLayout {
     }
 
     // 3. 8-Point Step Buttons Panel (+, Value, -, Temp)
-    HorizontalLayout {
-        spacing: 4px;
+    Rectangle {
+        height: 76px;
+        property <length> step_w: Math.max(0px, (self.width - 28px) / 8);
 
         for node[idx] in root.active_curve: Rectangle {
+            x: idx * (parent.step_w + 4px);
+            y: 0px;
+            width: parent.step_w;
+            height: parent.height;
             background: AppTheme.surface_pill;
             border-radius: 4px;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
-            horizontal-stretch: 1;
-            min-width: 0;
 
             VerticalLayout {
                 padding: 3px;
@@ -372,6 +375,7 @@ export component FanCurveCanvas inherits VerticalLayout {
 
                 // Temperature Label
                 Text {
+                    width: 100%;
                     text: idx == 0 ? "40°" :
                           (idx == 1 ? "50°" :
                           (idx == 2 ? "60°" :

@@ -274,6 +274,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                     let _ = SetForegroundWindow(hwnd);
                     crate::window::trigger_full_redraw(hwnd);
                 }
+                crate::ipc::send_action_to_host("slint_window_shown", serde_json::json!({}));
             }
             true
         }
@@ -319,6 +320,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                         let _ = ShowWindow(hwnd, SW_SHOW);
                         let _ = SetForegroundWindow(hwnd);
                         crate::window::trigger_full_redraw(hwnd);
+                        crate::ipc::send_action_to_host("slint_window_shown", serde_json::json!({}));
                     }
                 }
             }

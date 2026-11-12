@@ -119,20 +119,25 @@ export component FanTuningCol inherits Rectangle {
 
                 HorizontalLayout {
                     padding: 8px;
+                    spacing: 8px;
                     alignment: space-between;
 
                     VerticalLayout {
+                        horizontal-stretch: 1;
+                        min-width: 0px;
                         spacing: 2px;
                         Text {
                             text: "双风扇强制狂暴加速";
                             font-size: 11px;
                             font-weight: 700;
                             color: root.bld_boost ? #38bdf8 : AppTheme.text_primary;
+                            wrap: word-wrap;
                         }
                         Text {
                             text: "无视温度曲线强制全速拉满 5800 RPM (BM5235 直接总线写入)";
                             font-size: 9px;
                             color: AppTheme.text_muted;
+                            wrap: word-wrap;
                         }
                     }
 

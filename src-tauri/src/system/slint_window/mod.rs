@@ -225,6 +225,7 @@ pub fn send_slint_ipc_message(payload: serde_json::Value) {
 }
 
 pub fn show_slint_window() {
+    crate::system::telemetry::set_main_window_visible(true);
     let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
     ensure_slint_main_process(app_opt.as_ref());
     let cfg = crate::system::config::load_config();

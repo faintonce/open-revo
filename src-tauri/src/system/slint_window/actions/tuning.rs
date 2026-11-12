@@ -7,6 +7,7 @@ use super::super::sync::{sync_slint_display_state, sync_slint_tuning_state};
 pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
         "open_custom_tuning" => {
+            crate::system::telemetry::set_main_window_visible(true);
             crate::log_info!("SLINT_MAIN", "User requested custom tuning sub-panel");
             let cfg = crate::system::config::load_config();
             sync_slint_tuning_state();

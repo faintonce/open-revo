@@ -24,13 +24,14 @@ export component DashboardTelemetryCards inherits Rectangle {
     in-out property <int> vram_usage: 10;
 
 
-    HorizontalLayout {
-        spacing: 12px;
+    property <length> card_w: Math.max(0px, (self.width - 36px) / 4);
 
-        // 1. CPU 处理器状态 (Strict 25% Equal Width)
-        card_cpu := Rectangle {
-            min-width: 0px;
-            horizontal-stretch: 1;
+    // 1. CPU 处理器状态 (Strict 25% Equal Width)
+    card_cpu := Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.card_w;
+        height: root.height;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -166,8 +167,10 @@ export component DashboardTelemetryCards inherits Rectangle {
 
         // 2. GPU 独立显卡 (Strict 25% Equal Width)
         card_gpu := Rectangle {
-            min-width: 0px;
-            horizontal-stretch: 1;
+            x: root.card_w + 12px;
+            y: 0px;
+            width: root.card_w;
+            height: root.height;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -303,8 +306,10 @@ export component DashboardTelemetryCards inherits Rectangle {
 
         // 3. 散热系统状态 (Strict 25% Equal Width)
         card_fan := Rectangle {
-            min-width: 0px;
-            horizontal-stretch: 1;
+            x: (root.card_w + 12px) * 2;
+            y: 0px;
+            width: root.card_w;
+            height: root.height;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -392,8 +397,10 @@ export component DashboardTelemetryCards inherits Rectangle {
 
         // 4. VRAM 显存容量 (Strict 25% Equal Width)
         card_vram := Rectangle {
-            min-width: 0px;
-            horizontal-stretch: 1;
+            x: (root.card_w + 12px) * 3;
+            y: 0px;
+            width: root.card_w;
+            height: root.height;
             background: AppTheme.surface_card;
             border-radius: 8px;
             border-width: 1px;
@@ -480,5 +487,4 @@ export component DashboardTelemetryCards inherits Rectangle {
                 }
             }
         }
-    }
 }
