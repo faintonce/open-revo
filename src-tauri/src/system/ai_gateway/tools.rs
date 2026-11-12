@@ -163,7 +163,7 @@ pub fn execute_hardware_tool(name: &str, args: &serde_json::Value) -> Result<ser
                 return Err("模式参数越界，仅支持 1 (办公), 2 (均衡), 3 (狂暴), 4 (自定义)".to_string());
             }
 
-            crate::system::power_mode::apply_full_power_mode(mode);
+            crate::system::power_mode::apply_full_power_mode(mode)?;
 
             let mode_name = match mode {
                 1 => "办公模式 (Office / 静音省电)",

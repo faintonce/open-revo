@@ -49,6 +49,7 @@ pub struct HardwareState {
     pub model_name: String,
     pub power_presets: FactoryPowerPresets,
     pub is_dc_online: bool,
+    pub high_power_modes_available: bool,
     #[serde(default)]
     pub battery_level: u8,
     #[serde(default)]
@@ -155,6 +156,7 @@ pub fn collect_hardware_state(
 
     let cfg = crate::system::config::load_config();
 
+    let is_dc_online = is_dc_round_plugged_in();
     HardwareState {
         power_mode,
         fan_boost,
@@ -191,7 +193,11 @@ pub fn collect_hardware_state(
         gpu_name,
         model_name: get_machine_model(),
         power_presets: get_factory_power_presets(has_gpu),
-        is_dc_online: is_dc_round_plugged_in(),
+        is_dc_online,
+        high_power_modes_available: openrevo_core::hal::power_policy::validate_power_mode(
+            3, super::power_cmd::is_thin_and_light_or_pure_igpu(),
+            is_dc_online, cfg.unlock_battery_power_limit,
+        ).is_ok(),
         battery_level,
         is_charging,
         is_ac_online,
@@ -274,20 +280,28 @@ pub fn restart_app(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_unlock_battery_power_limit(
     enable: bool,
     app: AppHandle,
     ec_state: State<'_, SharedEcBridge>,
 ) -> Result<bool, String> {
-    let mut cfg = crate::system::config::load_config();
-    cfg.unlock_battery_power_limit = enable;
-    crate::system::config::save_config(&cfg);
-    crate::log_info!("POWER", "Battery power limit unlock state changed to: {}", enable);
+    set_unlock_battery_power_limit_internal(enable, Some(&app), ec_state.inner())
+}
 
-    // If disabled while running on battery/Type-C and currently in Beast (3) or Custom (4),
-    // safely downgrade to Balance to protect hardware immediately.
-    if !enable && !is_dc_round_plugged_in() && (cfg.power_mode == 3 || cfg.power_mode == 4) {
+pub(crate) fn set_unlock_battery_power_limit_internal(
+    enable: bool,
+    app: Option<&AppHandle>,
+    ec_state: &SharedEcBridge,
+) -> Result<bool, String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+    let mut cfg = crate::system::config::load_config();
+    crate::system::config::ensure_config_writable()?;
+    cfg.unlock_battery_power_limit = enable;
+    crate::log_info!("POWER", "Battery power limit unlock state changed to: {}", enable);
+    if !enable && !super::power_cmd::is_thin_and_light_or_pure_igpu()
+        && !is_dc_round_plugged_in() && cfg.power_mode >= 3
+    {
         let target_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
         crate::log_warn!(
             "POWER",
@@ -296,17 +310,16 @@ pub fn set_unlock_battery_power_limit(
             target_mode
         );
         cfg.power_mode = target_mode;
-        crate::system::config::save_config(&cfg);
-        ec_state.lock().set_power_mode(target_mode);
-        crate::update_tray_power_mode(target_mode);
-        crate::system::slint_window::sync_slint_switches_state();
+        ec_state.lock().set_power_mode_with_config(&cfg)?;
+        super::power_cmd::publish_power_mode(app, target_mode);
         crate::system::slint_window::sync_slint_power_targets(target_mode);
-        let _ = app.emit("physical-mode-switched", target_mode);
-        let _ = app.emit_to("main", "physical-mode-switched", target_mode);
-        let _ = app.emit_to("osd", "physical-mode-switched", target_mode);
+    } else {
+        crate::system::config::try_save_config(&cfg)?;
+        crate::system::slint_window::sync_slint_switches_state();
     }
-
-    let _ = app.emit("unlock-battery-power-limit-changed", enable);
+    if let Some(app) = app {
+        let _ = app.emit("unlock-battery-power-limit-changed", enable);
+    }
     Ok(enable)
 }
 
@@ -355,10 +368,11 @@ pub fn toggle_oem_service(
             lighting.restore_all();
         });
 
-        let cfg_clone = cfg.clone();
         let ec_clone = Arc::clone(&ec_state.inner());
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(700));
+            let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+            let cfg_clone = crate::system::config::load_config();
             if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AP_OEM_BYTE) {
                 if (val & 0x01) == 0 {
                     let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_AP_OEM_BYTE, val | 0x01);
@@ -377,7 +391,10 @@ pub fn toggle_oem_service(
             };
             {
                 let ec = ec_clone.lock();
-                ec.set_power_mode(effective_mode);
+                if let Err(error) = ec.set_power_mode(effective_mode) {
+                    crate::log_warn!("TAKEOVER", "Performance mode restore failed: {}", error);
+                    return;
+                }
                 ec.set_battery_limit(cfg_clone.battery_limit);
             }
             if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY) {
@@ -399,7 +416,10 @@ pub fn toggle_oem_service(
                 crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, new_v);
             }
             if cfg_clone.high_perf_scheme {
-                crate::system::power_mode::apply_windows_power_overlay(cfg_clone.power_mode);
+                if let Err(error) = crate::system::power_mode::apply_windows_power_overlay(cfg_clone.power_mode) {
+                    crate::log_warn!("TAKEOVER", "Windows mode restore failed: {}", error);
+                    return;
+                }
             }
             crate::log_info!("TAKEOVER", "Successfully synchronized power mode and battery limit after takeover");
         });

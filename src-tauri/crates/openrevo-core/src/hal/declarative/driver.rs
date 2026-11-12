@@ -76,6 +76,7 @@ impl DeclarativeHardwareDriver {
 
 impl MechrevoHardwareHAL for DeclarativeHardwareDriver {
     fn set_performance_mode(&self, mode: HardwarePowerMode) -> Result<(), HalError> {
+        crate::system::power::ensure_power_mode_allowed(mode as u8).map_err(HalError::InvalidParameter)?;
         let mode_key = match mode {
             HardwarePowerMode::Office => "office",
             HardwarePowerMode::Balance => "balance",

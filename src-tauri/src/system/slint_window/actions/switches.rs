@@ -243,23 +243,18 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             true
         }
         "set_unlock_battery_limit" => {
-            if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
-                let mut cfg = crate::system::config::load_config();
-                cfg.unlock_battery_power_limit = en;
-                let _ = crate::system::config::save_config(&cfg);
-                if let Some(app) = app {
-                    let ec_bridge = app.state::<crate::driver::ec_bridge::SharedEcBridge>();
-                    let _ = crate::commands::system_cmd::set_unlock_battery_power_limit(en, app.clone(), ec_bridge);
-                } else {
-                    let ec = crate::driver::ec_bridge::get_global_ec();
-                    let cur_mode = cfg.power_mode;
-                    if !en && (cur_mode == 3 || cur_mode == 4) && !crate::commands::power_cmd::is_dc_round_plugged_in() && !crate::commands::power_cmd::is_thin_and_light_or_pure_igpu() {
-                        ec.lock().set_power_mode(2);
-                        cfg.power_mode = 2;
-                        let _ = crate::system::config::save_config(&cfg);
-                        crate::update_tray_power_mode(2);
-                        crate::system::osd_window::show_power_mode(2);
-                    }
+            if let Some(enable) = val.get("enabled").and_then(|v| v.as_bool()) {
+                let ec = if let Some(app) = app {
+                app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
+            } else {
+                crate::driver::ec_bridge::get_global_ec()
+            };
+                if let Err(error) = crate::commands::system_cmd::set_unlock_battery_power_limit_internal(enable, app, &ec) {
+                    crate::log_warn!("SLINT", "Power limit setting failed: {}", error);
+                    let current = ec.lock().get_power_mode();
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state", "power_mode": current
+                    }));
                 }
                 super::super::sync::sync_slint_switches_state();
                 let fresh_cfg = crate::system::config::load_config();

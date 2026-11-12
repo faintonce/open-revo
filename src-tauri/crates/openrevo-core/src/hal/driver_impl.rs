@@ -15,9 +15,10 @@ impl MechrevoHALImpl {
 
 impl MechrevoHardwareHAL for MechrevoHALImpl {
     fn set_performance_mode(&self, mode: HardwarePowerMode) -> Result<(), HalError> {
+        crate::system::power::ensure_power_mode_allowed(mode as u8)
+            .map_err(HalError::InvalidParameter)?;
         let mode_u8 = mode as u8;
-        crate::system::power_mode::apply_full_power_mode(mode_u8);
-        Ok(())
+        crate::system::power_mode::apply_ec_hardware_mode(mode_u8).map_err(HalError::RegisterAccessFailed)
     }
 
     fn set_battery_health(&self, mode: BatteryHealthMode) -> Result<(), HalError> {

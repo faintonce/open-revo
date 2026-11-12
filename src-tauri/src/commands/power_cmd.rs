@@ -242,110 +242,39 @@ pub fn set_power_mode_internal(
     app: Option<&AppHandle>,
     ec_state: &SharedEcBridge,
 ) -> Result<(), String> {
-    set_power_mode_internal_impl(mode, app, ec_state, false)
+    set_power_mode_internal_with(mode, app, ec_state, |_| {})
 }
 
-/// Shared implementation. `blocking` only chooses whether the EC apply runs
-/// inline (used by the single-intent turbo profile path) or on a worker thread.
-fn set_power_mode_internal_impl(
+/// Shared mode entry point. `prepare` adjusts the pending settings before the
+/// hardware apply; none of them is saved unless the hardware confirms the mode.
+fn set_power_mode_internal_with(
     mode: u8,
     app: Option<&AppHandle>,
     ec_state: &SharedEcBridge,
-    blocking: bool,
+    prepare: impl FnOnce(&mut crate::system::config::AppConfig),
 ) -> Result<(), String> {
-    let is_thin_and_light = is_thin_and_light_or_pure_igpu();
-    let is_dc = is_dc_round_plugged_in();
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     let mut cfg = crate::system::config::load_config();
-    // Gaming laptops must not run Beast (3) or Custom (4) on battery/Type-C to avoid PD overcurrent trips.
-    // Thin & light laptops rely on onboard EC power envelopes (e.g. 28W/30W/35W) and are fully exempt.
-    if !is_thin_and_light && (mode == 3 || mode == 4) && !is_dc && !cfg.unlock_battery_power_limit {
-        let msg = if check_dgpu_present() {
-            "在电池或 Type-C 供电下，狂暴模式与自定义模式不可用。请连接 DC 圆口电源适配器，或在【系统】设置中开启“解除离电限制”。"
-        } else {
-            "在电池供电下，狂暴模式与自定义模式不可用。请连接电源适配器，或在【系统】设置中开启“解除离电限制”。"
-        };
-        return Err(msg.to_string());
-    }
-    let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
-    let is_tongfang_acpi_channel = crate::driver::wmi_ec::is_acpi_driver_available()
-        || crate::hal::declarative::load_matched_manifest()
-            .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
-            .unwrap_or(false);
-
-    if is_tongfang_acpi_channel {
-        // Tongfang ODM models (both Gaming laptops and Thin & Lights like Wujie 14X/15X):
-        // Must invoke apply_full_power_mode to commit physical MODE_INDEX, TRIGGER_BYTE, and PL targets!
-        if blocking {
-            apply_power_mode_blocking(ec_state, mode);
-        } else {
-            ec_state.lock().set_power_mode(mode);
-        }
-    } else if is_thin_and_light || is_declarative {
-        let hal = crate::hal::get_hardware_driver();
-        let hw_mode = match mode {
-            1 => crate::hal::HardwarePowerMode::Office,
-            2 => crate::hal::HardwarePowerMode::Balance,
-            3 => crate::hal::HardwarePowerMode::Turbo,
-            4 => crate::hal::HardwarePowerMode::Custom,
-            _ => crate::hal::HardwarePowerMode::Balance,
-        };
-        if let Err(e) = hal.set_performance_mode(hw_mode) {
-            crate::log_warn!("POWER_CMD", "Direct HAL set_performance_mode failed: {}", e);
-        } else {
-            crate::log_info!("POWER_CMD", "Direct HAL applied performance mode {:?}", hw_mode);
-        }
-        ec_state.lock().set_power_mode_from_hardware(mode);
-        if mode == 4 {
-            if cfg.custom_profile.fan_isolated_output || cfg.custom_profile.fan_curve_enabled {
-                crate::driver::bld_driver_mgr::set_bld_fan_curve(
-                    cfg.custom_profile.cpu_fan_curve.clone(),
-                    cfg.custom_profile.gpu_fan_curve.clone(),
-                    cfg.custom_profile.fan_ramp_rate,
-                    cfg.custom_profile.fan_ramp_speed_ms,
-                );
-            } else if !cfg.fan_boost {
-                crate::driver::bld_driver_mgr::restore_bld_fan_auto();
-            }
-        } else if !cfg.fan_boost {
-            crate::driver::bld_driver_mgr::restore_bld_fan_auto();
-        }
-    } else {
-        if blocking {
-            apply_power_mode_blocking(ec_state, mode);
-        } else {
-            ec_state.lock().set_power_mode(mode);
-        }
-    }
+    crate::system::config::ensure_config_writable()?;
     cfg.power_mode = mode;
-    if is_dc {
+    if is_dc_round_plugged_in() {
         cfg.power_mode_ac = mode;
     } else {
         cfg.power_mode_battery = mode;
     }
-    crate::system::config::save_config(&cfg);
-    crate::update_tray_power_mode(mode);
-    crate::system::osd_window::show_power_mode(mode);
-    if let Some(app) = app {
-        crate::system::osd_window::wake_osd_if_enabled(app);
-        let _ = app.emit("physical-mode-switched", mode);
-        let _ = app.emit_to("main", "physical-mode-switched", mode);
-        let _ = app.emit_to("osd", "physical-mode-switched", mode);
+    prepare(&mut cfg);
+    let previous = ec_state.lock().get_power_mode();
+    let applied = ec_state.lock().set_power_mode_with_config(&cfg);
+    // `apply_power_mode` commits the cached mode only after the EC confirmed it, so a switch that
+    // failed past the commit point still has to reach the tray / OSD / UI even though the caller
+    // gets an error back. A failure that left the cache on the previous mode must not publish.
+    if applied.is_ok() || (previous != mode && ec_state.lock().get_power_mode() == mode) {
+        publish_power_mode(app, mode);
     }
-    crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
-    crate::system::slint_window::sync::sync_slint_switches_state();
-    Ok(())
+    applied
 }
 
-/// Update the cache under the EC lock, then apply the mode inline after releasing it.
-///
-/// Used by the single-intent turbo profile path so the sub-mode write can never
-/// race with the asynchronous mode-3 replay.
-fn apply_power_mode_blocking(ec_state: &SharedEcBridge, mode: u8) {
-    ec_state.lock().mark_power_mode(mode);
-    crate::system::power_mode::apply_full_power_mode(mode);
-}
-
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_power_mode(mode: u8, app: AppHandle, ec_state: State<'_, SharedEcBridge>) -> Result<(), String> {
     set_power_mode_internal(mode, Some(&app), &ec_state)
 }
@@ -1074,22 +1003,30 @@ pub fn get_turbo_submode_state() -> TurboSubmodeState {
     TurboSubmodeState { supported, silent }
 }
 
-/// Apply the requested sub-mode and persist it only after the hardware confirms.
+/// Apply the requested sub-mode, emit the confirmed state, and persist it only
+/// after the hardware confirms.
 fn apply_turbo_submode_and_persist(silent: bool) -> Result<TurboSubmodeState, String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     crate::system::power::turbo_submode::apply_silent(silent)?;
     // `apply_silent` already verified the EC readback against `silent`, so the
-    // confirmed state is known here; only the preference write is left. Skip the
-    // write (and its config I/O) when the preference already matches.
-    let mut cfg = crate::system::config::load_config();
-    if cfg.turbo_silent != silent {
-        cfg.turbo_silent = silent;
-        crate::system::config::save_config(&cfg);
-    }
-    Ok(TurboSubmodeState {
+    // confirmed state is known here; broadcast it before attempting config I/O
+    // so surfaces stay truthful to hardware even if saving settings fails.
+    let state = TurboSubmodeState {
         // `apply_silent` only returns Ok when `is_supported()` was true.
         supported: true,
         silent,
-    })
+    };
+    emit_confirmed_turbo_submode(&state);
+    let mut cfg = crate::system::config::load_config();
+    if cfg.turbo_silent != silent {
+        cfg.turbo_silent = silent;
+        crate::system::config::try_save_config(&cfg).map_err(|error| {
+            format!(
+                "Turbo sub-mode control was acknowledged, but saving settings failed: {error}"
+            )
+        })?;
+    }
+    Ok(state)
 }
 
 /// Publish a state the EC already confirmed via `apply_silent`'s readback.
@@ -1101,19 +1038,22 @@ fn emit_confirmed_turbo_submode(state: &TurboSubmodeState) {
     crate::system::turbo_events::publish_turbo_submode_changed(state.supported, state.silent);
 }
 
-#[tauri::command]
+/// Runs off the main thread: it waits for the global mode lock, which an in-flight switch
+/// can hold for the whole EC + OEM-sync sequence.
+#[tauri::command(async)]
 pub fn set_turbo_submode(silent: bool) -> Result<TurboSubmodeState, String> {
-    let state = apply_turbo_submode_and_persist(silent)?;
-    emit_confirmed_turbo_submode(&state);
-    Ok(state)
+    apply_turbo_submode_and_persist(silent)
 }
 
 /// Single UI intent for 狂暴 mode: ensure mode 3, then apply the sub-mode.
 ///
-/// The target `cfg.turbo_silent` is persisted before mode 3 is applied so the
-/// replay inside `ec_mode` can never overwrite it with the previous value.
-/// The event is emitted only after the hardware apply/readback succeeded.
-#[tauri::command]
+/// Entering mode 3 applies `turbo_silent` inside the same confirmed hardware
+/// sequence (`ec_mode` replays it after the fan table), so the target is handed
+/// to that sequence and saved together with the mode only after the hardware
+/// acknowledges it. A rejected or failed switch leaves the stored preference
+/// untouched. The event is emitted only after the hardware apply/readback
+/// succeeded.
+#[tauri::command(async)]
 pub fn apply_turbo_profile(
     silent: bool,
     app: AppHandle,
@@ -1123,31 +1063,38 @@ pub fn apply_turbo_profile(
         return Err("当前硬件平台不支持狂暴子模式".to_string());
     }
 
+    // Keep the mode check and the sub-mode write in one mode decision so a
+    // concurrent mode change cannot slip in between them.
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     let current_mode = ec_state.lock().get_power_mode();
 
     if current_mode != 3 {
-        // Persist the target first: entering mode 3 replays cfg.turbo_silent.
-        let mut cfg = crate::system::config::load_config();
-        let previous = cfg.turbo_silent;
-        if previous != silent {
+        // The bridge publishes the confirmed sub-mode for every mode-3 entry,
+        // so no second event is sent here.
+        set_power_mode_internal_with(3, Some(&app), &ec_state, |cfg| {
             cfg.turbo_silent = silent;
-            crate::system::config::save_config(&cfg);
-        }
-        if let Err(err) = set_power_mode_internal_impl(3, Some(&app), &ec_state, true) {
-            // The guard rejected the mode switch before touching hardware, so the
-            // remembered sub-mode must not be left pointing at the new target.
-            if previous != silent {
-                let mut cfg = crate::system::config::load_config();
-                cfg.turbo_silent = previous;
-                crate::system::config::save_config(&cfg);
-            }
-            return Err(err);
-        }
+        })?;
+        return Ok(TurboSubmodeState {
+            supported: true,
+            silent,
+        });
     }
 
-    // A failure here emits nothing; the target stays persisted as the user's
-    // preference for the next mode-3 entry.
-    let state = apply_turbo_submode_and_persist(silent)?;
-    emit_confirmed_turbo_submode(&state);
-    Ok(state)
+    // A failure before hardware confirmation emits nothing and keeps the previous preference.
+    apply_turbo_submode_and_persist(silent)
+}
+
+
+
+pub(crate) fn publish_power_mode(app: Option<&AppHandle>, mode: u8) {
+    crate::update_tray_power_mode(mode);
+    crate::system::osd_window::show_power_mode(mode);
+    if let Some(app) = app {
+        crate::system::osd_window::wake_osd_if_enabled(app);
+        let _ = app.emit("physical-mode-switched", mode);
+        let _ = app.emit_to("main", "physical-mode-switched", mode);
+        let _ = app.emit_to("osd", "physical-mode-switched", mode);
+    }
+    crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
+    crate::system::slint_window::sync::sync_slint_switches_state();
 }

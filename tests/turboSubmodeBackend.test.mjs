@@ -95,9 +95,11 @@ test('a failed sub-mode register read never broadcasts silent=false', () => {
   assert.doesNotMatch(bridge, /current_silent\(\)\.unwrap_or\(false\)/);
   assert.doesNotMatch(turbo, /current_silent\(\)[\s\S]{0,80}unwrap_or/);
 
-  const body = fnBody(bridge, 'set_power_mode');
+  const body = fnBody(bridge, 'apply_power_mode');
+  const confirmedAt = body.indexOf('if confirmed');
   const publishAt = body.indexOf('publish_turbo_submode_changed');
   const warnAt = body.indexOf('"turbo-submode-changed skipped');
+  assert.ok(confirmedAt >= 0 && publishAt > confirmedAt, 'physical path must wait for hardware confirmation');
   assert.ok(publishAt >= 0 && warnAt > publishAt, 'physical path must skip the event on read failure');
   assert.match(body, /match crate::system::power::turbo_submode::current_silent\(\)/);
 });

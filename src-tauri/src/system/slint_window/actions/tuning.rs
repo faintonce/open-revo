@@ -333,7 +333,15 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 Ok(target) => {
                     crate::log_info!("TUNING_RESET", "Successfully reset preset {} to factory baseline", active_id);
                     let target_profile = target.profile;
-                    if target_profile.fan_isolated_output || target_profile.fan_curve_enabled {
+                    // Reset no longer switches modes. Only push the curve when the EC is already in
+                    // custom mode; apply_fan_curve_live_internal would otherwise flip the EC into
+                    // custom mode while the reported mode stays on the previous one.
+                    let in_custom_mode = if let Some(app) = app {
+                        app.state::<crate::driver::ec_bridge::SharedEcBridge>().lock().get_power_mode() == 4
+                    } else {
+                        crate::driver::ec_bridge::get_global_ec().lock().get_power_mode() == 4
+                    };
+                    if in_custom_mode && (target_profile.fan_isolated_output || target_profile.fan_curve_enabled) {
                         let app_clone = app.cloned();
                         let c_clone = target_profile.cpu_fan_curve;
                         let g_clone = target_profile.gpu_fan_curve;
@@ -495,24 +503,15 @@ fn apply_pl_limit_update(app: Option<&tauri::AppHandle>, action: &str, val: &ser
 }
 
 fn activate_preset_profile(app: Option<&tauri::AppHandle>, id: &str) {
-    if let Some(app) = app {
-        let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
-        let _ = crate::commands::tuning_cmd::set_active_profile_id(id.to_string(), ec_state);
-        return;
-    }
-    let mut cfg = crate::system::config::load_config();
-    cfg.active_profile_id = id.to_string();
-    let profiles = crate::system::config::list_profiles();
-    if let Some(target) = profiles.into_iter().find(|p| p.id == id) {
-        cfg.custom_profile = target.profile.clone();
-        let _ = crate::system::config::save_config(&cfg);
-        if crate::hal::declarative::load_matched_manifest().is_some() {
-            crate::commands::tuning_cmd::sync_custom_profile_to_declarative_hardware(&target.profile);
-        } else {
-            crate::driver::ec_bridge::get_global_ec().lock().set_power_mode(4);
-        }
+    // Same confirmed entry point with or without a Tauri window: a preset is not recorded as
+    // active unless the hardware apply and the config save both succeed.
+    let ec = if let Some(app) = app {
+        app.state::<crate::driver::ec_bridge::SharedEcBridge>().inner().clone()
     } else {
-        let _ = crate::system::config::save_config(&cfg);
+        crate::driver::ec_bridge::get_global_ec()
+    };
+    if let Err(error) = crate::commands::tuning_cmd::set_active_profile_id_internal(id.to_string(), &ec) {
+        crate::log_warn!("TUNING", "Preset selection failed for {}: {}", id, error);
     }
 }
 

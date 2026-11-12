@@ -304,16 +304,11 @@ pub fn raw_driver_batch_write_ec(entries: &[(u16, u8)]) -> bool {
 /// Write multiple bytes to EC RAM in a single batch.
 pub fn wmi_write_ec_batch(entries: &[(u16, u8)]) -> bool {
     let _guard = ACPI_MUTEX.lock();
-    if raw_driver_batch_write_ec(entries) {
-        return true;
-    }
-    let mut ok = true;
-    for &(addr, val) in entries {
-        if !wmi_write_ec(addr, val) {
-            ok = false;
-        }
-    }
-    ok
+    openrevo_core::driver::wmi_ec::write_batch_with_fallback(
+        entries,
+        raw_driver_batch_write_ec,
+        raw_driver_write_ec,
+    )
 }
 
 /// Global ACPI conflict protection lock.
@@ -375,6 +370,37 @@ pub fn wmi_modify_ec<F: FnOnce(u8) -> u8>(addr: u16, f: F) -> Option<u8> {
     }
 }
 
+/// Like [`wmi_modify_ec`], but always issues the write, even when the computed value is
+/// identical to the current one.
+///
+/// Latch/command registers act on the write itself (e.g. `ADDR_TRIGGER_BYTE` re-arms the
+/// EC/SMM state machine), so skipping an unchanged write would silently keep the previous
+/// limits. The read-compute-write still runs inside one `ACPI_MUTEX` critical section, so a
+/// concurrent bitfield update cannot be lost.
+pub fn wmi_modify_ec_always<F: FnOnce(u8) -> u8>(addr: u16, f: F) -> Option<u8> {
+    let _guard = ACPI_MUTEX.lock();
+    let old_val = raw_driver_read_ec(addr)?;
+    let new_val = f(old_val);
+    if raw_driver_write_ec(addr, new_val) {
+        crate::log_debug!(
+            "EC_DRIVER",
+            "wmi_modify_ec_always({:#X}) 0x{:02X} -> 0x{:02X}",
+            addr,
+            old_val,
+            new_val
+        );
+        Some(new_val)
+    } else {
+        crate::log_error!(
+            "EC_DRIVER",
+            "wmi_modify_ec_always({:#X}) failed to write 0x{:02X}",
+            addr,
+            new_val
+        );
+        None
+    }
+}
+
 /// Helper to atomically set or clear a bitmask on an EC register.
 pub fn wmi_modify_ec_mask(addr: u16, mask: u8, enable: bool) -> Option<u8> {
     wmi_modify_ec(addr, |val| {
@@ -386,8 +412,10 @@ pub fn wmi_modify_ec_mask(addr: u16, mask: u8, enable: bool) -> Option<u8> {
     })
 }
 
+/// Sets `mask` on the trigger byte. Written unconditionally: this register latches on the write
+/// itself, so a repeated trigger with an unchanged byte must still be issued.
 pub fn trigger_ec_action(mask: u8) -> bool {
-    wmi_modify_ec(ADDR_TRIGGER_BYTE, |cur| cur | mask).is_some()
+    wmi_modify_ec_always(ADDR_TRIGGER_BYTE, |cur| cur | mask).is_some()
 }
 
 pub fn is_fan_boost_active() -> bool {
@@ -1090,13 +1118,15 @@ pub fn heal_gpu_power_contract(super_perf_enable: bool, target_db_watts: Option<
 }
 
 /// Heals and restores MyFan2 fan speed table if it was previously corrupted by modern DB writes (e.g. 0xFF in L3 PWM)
-pub fn heal_legacy_fan_table_if_needed() {
+pub fn heal_legacy_fan_table_if_needed() -> bool {
     if !crate::hal::platform_probe::is_legacy_pascal_turing_tongfang() {
-        return;
+        return true;
     }
 
     // Check if L3 PWM (ADDR_MYFAN2_L3_PWM / ADDR_DB_FLAG1) was corrupted to 0xFF (255)
-    let cur_l3 = wmi_read_ec(ADDR_MYFAN2_L3_PWM).unwrap_or(0);
+    let Some(cur_l3) = wmi_read_ec(ADDR_MYFAN2_L3_PWM) else {
+        return false;
+    };
     if cur_l3 == 0xFF {
         crate::log_warn!(
             "FAN_HEAL",
@@ -1124,13 +1154,19 @@ pub fn heal_legacy_fan_table_if_needed() {
             (ADDR_MYFAN2_L4_PWM, p4),
             (ADDR_MYFAN2_L5_PWM, p5),
         ];
-        let _ = wmi_write_ec_batch(&heal_entries);
+        let restored = wmi_write_ec_batch(&heal_entries);
         crate::log_info!(
             "FAN_HEAL",
-            "MyFan2 fan speed table successfully restored: L1={}, L2={}, L3={}, L4={}, L5={}",
-            p1, p2, p3, p4, p5
+            "MyFan2 fan table recovery attempted: L1={}, L2={}, L3={}, L4={}, L5={}",
+            p1,
+            p2,
+            p3,
+            p4,
+            p5
         );
+        return restored;
     }
+    true
 }
 
 /// Heal CPU hardware power & thermal wall contract (Safe Unlock & Recovery)
@@ -1187,9 +1223,9 @@ pub fn heal_cpu_power_contract(
 /// - Release: returns control back to default BIOS ROM curves
 pub fn latch_fan_table_ec(commit: bool) -> bool {
     if commit {
-        let _ = wmi_write_ec(ADDR_FAN_TABLE_LATCH, FAN_TABLE_LATCH_BIT);
-        let _ = wmi_write_ec(ADDR_FAN_TABLE_LATCH, 0x00);
-        true
+        crate::hal::power_control::pulse_fan_latch(|value| {
+            wmi_write_ec(ADDR_FAN_TABLE_LATCH, value)
+        })
     } else {
         let ok = wmi_write_ec(ADDR_FAN_TABLE_LATCH, 0x00);
         crate::log_info!("EC_FAN", "Fan table hardware latch released: ok={}", ok);
@@ -1266,5 +1302,3 @@ mod tests {
         assert_eq!(target, 92);
     }
 }
-
-

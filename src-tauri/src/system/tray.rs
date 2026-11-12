@@ -62,10 +62,13 @@ pub fn update_tray_window_mode(is_expanded: bool) {
 /// Updates the tray power mode radio checkmarks.
 pub fn update_tray_power_mode(mode: u8) {
     if let Some(ctrl) = TRAY_MENU_CONTROLS.get() {
-        let _ = ctrl.office.set_checked(mode == 1);
-        let _ = ctrl.balance.set_checked(mode == 2);
-        let _ = ctrl.beast.set_checked(mode == 3);
-        let _ = ctrl.custom.set_checked(mode == 4);
+        // Mode recovery may hold the EC lock; queue menu changes without waiting for the UI.
+        let _ = ctrl.office.app_handle().run_on_main_thread(move || {
+            let _ = ctrl.office.set_checked(mode == 1);
+            let _ = ctrl.balance.set_checked(mode == 2);
+            let _ = ctrl.beast.set_checked(mode == 3);
+            let _ = ctrl.custom.set_checked(mode == 4);
+        });
     }
 }
 
@@ -187,87 +190,16 @@ pub fn handle_tray_menu_event(
             crate::log_info!("TRAY", "Menu 'turn_off_screen' (关闭屏幕) clicked");
             let _ = crate::system::switches::turn_off_screen();
         }
-        "mode_office" => {
-            ec_clone.lock().set_power_mode(1);
-            let mut cfg = crate::system::config::load_config();
-            let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
-            cfg.power_mode = 1;
-            if is_dc {
-                cfg.power_mode_ac = 1;
-            } else {
-                cfg.power_mode_battery = 1;
-            }
-            crate::system::config::save_config(&cfg);
-            update_tray_power_mode(1);
-            crate::system::osd_window::wake_osd_if_enabled(&app_handle);
-            let _ = app_handle.emit("physical-mode-switched", 1);
-            let _ = app_handle.emit_to("main", "physical-mode-switched", 1);
-            let _ = app_handle.emit_to("osd", "physical-mode-switched", 1);
-            crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(1));
-        }
-        "mode_balance" => {
-            ec_clone.lock().set_power_mode(2);
-            let mut cfg = crate::system::config::load_config();
-            let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
-            cfg.power_mode = 2;
-            if is_dc {
-                cfg.power_mode_ac = 2;
-            } else {
-                cfg.power_mode_battery = 2;
-            }
-            crate::system::config::save_config(&cfg);
-            update_tray_power_mode(2);
-            crate::system::osd_window::wake_osd_if_enabled(&app_handle);
-            let _ = app_handle.emit("physical-mode-switched", 2);
-            let _ = app_handle.emit_to("main", "physical-mode-switched", 2);
-            let _ = app_handle.emit_to("osd", "physical-mode-switched", 2);
-            crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(2));
-        }
-        "mode_beast" => {
-            let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
-            let mut cfg = crate::system::config::load_config();
-            if !is_dc && !cfg.unlock_battery_power_limit {
-                crate::log_warn!("TRAY", "Blocked Turbo mode from tray: AC/DC power is not connected!");
-                update_tray_power_mode(ec_clone.lock().get_power_mode());
-            } else {
-                ec_clone.lock().set_power_mode(3);
-                cfg.power_mode = 3;
-                if is_dc {
-                    cfg.power_mode_ac = 3;
-                } else {
-                    cfg.power_mode_battery = 3;
+        "mode_office" | "mode_balance" | "mode_beast" | "mode_custom" => {
+            let mode = match event_id { "mode_office" => 1, "mode_balance" => 2, "mode_beast" => 3, _ => 4 };
+            let app = app_handle.clone();
+            let ec = ec_clone.clone();
+            std::thread::spawn(move || {
+                if let Err(error) = crate::commands::power_cmd::set_power_mode_internal(mode, Some(&app), &ec) {
+                    crate::log_warn!("TRAY", "Performance mode change failed: {}", error);
+                    update_tray_power_mode(ec.lock().get_power_mode());
                 }
-                crate::system::config::save_config(&cfg);
-                update_tray_power_mode(3);
-                crate::system::osd_window::wake_osd_if_enabled(&app_handle);
-                let _ = app_handle.emit("physical-mode-switched", 3);
-                let _ = app_handle.emit_to("main", "physical-mode-switched", 3);
-                let _ = app_handle.emit_to("osd", "physical-mode-switched", 3);
-                crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(3));
-            }
-        }
-        "mode_custom" => {
-            let is_dc = crate::commands::hardware_cmd::is_dc_round_plugged_in();
-            let mut cfg = crate::system::config::load_config();
-            if !is_dc && !cfg.unlock_battery_power_limit {
-                crate::log_warn!("TRAY", "Blocked Custom mode from tray: AC/DC power is not connected!");
-                update_tray_power_mode(ec_clone.lock().get_power_mode());
-            } else {
-                ec_clone.lock().set_power_mode(4);
-                cfg.power_mode = 4;
-                if is_dc {
-                    cfg.power_mode_ac = 4;
-                } else {
-                    cfg.power_mode_battery = 4;
-                }
-                crate::system::config::save_config(&cfg);
-                update_tray_power_mode(4);
-                crate::system::osd_window::wake_osd_if_enabled(&app_handle);
-                let _ = app_handle.emit("physical-mode-switched", 4);
-                let _ = app_handle.emit_to("main", "physical-mode-switched", 4);
-                let _ = app_handle.emit_to("osd", "physical-mode-switched", 4);
-                crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(4));
-            }
+            });
         }
         "toggle_fan" => {
             let ec = ec_clone.lock();
@@ -386,4 +318,71 @@ pub fn build_tray(
 
     let _ = GLOBAL_TRAY.set(tray.clone());
     Ok(tray)
+}
+
+
+#[cfg(test)]
+mod mode_tests {
+    #[test]
+    #[ignore = "Run separately: owns a native Windows event loop without windows or hardware"]
+    fn regression_tray_mode_update_returns_while_ui_queries_locked_ec() {
+        use super::*;
+        use std::sync::{atomic::{AtomicBool, Ordering}, mpsc};
+        use std::time::Duration;
+
+        let mut context = tauri::generate_context!();
+        context.config_mut().app.windows.clear();
+        let app = tauri::Builder::default().any_thread().build(context).unwrap();
+        let item = CheckMenuItem::with_id(&app, "test-fan", "Fan", true, false, None::<&str>).unwrap();
+        assert!(TRAY_MENU_CONTROLS.set(TrayMenuControls {
+            full_panel: item.clone(), mini_drawer: item.clone(), office: item.clone(),
+            balance: item.clone(), beast: item.clone(), custom: item.clone(), fan_boost: item.clone(),
+        }).is_ok());
+
+        let ec = Arc::new(Mutex::new(EcBridge::dummy()));
+        let worker_ec = ec.clone();
+        let (held_tx, held_rx) = mpsc::channel();
+        let (query_tx, query_rx) = mpsc::channel();
+        let queried = Arc::new(AtomicBool::new(false));
+        let query_result = queried.clone();
+        let rendered = Arc::new(AtomicBool::new(false));
+        let render_result = rendered.clone();
+        let worker_app = app.handle().clone();
+        let worker = std::thread::spawn(move || {
+            let guard = worker_ec.lock();
+            held_tx.send(()).unwrap();
+            query_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            update_tray_power_mode(4);
+            drop(guard);
+            let exit_app = worker_app.clone();
+            worker_app.run_on_main_thread(move || {
+                render_result.store(item.is_checked().unwrap_or(false), Ordering::SeqCst);
+                exit_app.exit(0);
+            }).unwrap();
+        });
+        held_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+
+        let (finished_tx, finished_rx) = mpsc::channel();
+        let watchdog_app = app.handle().clone();
+        let watchdog = std::thread::spawn(move || {
+            if finished_rx.recv_timeout(Duration::from_secs(10)).is_err() {
+                watchdog_app.exit(1);
+            }
+        });
+        let mut query_tx = Some(query_tx);
+        let exit_code = app.run_return(move |_, event| {
+            if matches!(event, tauri::RunEvent::Ready) {
+                query_tx.take().unwrap().send(()).unwrap();
+                // A timeout lets the old blocking implementation fail instead of hanging the test.
+                let guard = ec.try_lock_for(Duration::from_secs(2));
+                query_result.store(guard.is_some(), Ordering::SeqCst);
+            }
+        });
+        finished_tx.send(()).unwrap();
+        watchdog.join().unwrap();
+        worker.join().unwrap();
+        assert_eq!(exit_code, 0);
+        assert!(queried.load(Ordering::SeqCst), "Tray update waited for the UI while holding EC");
+        assert!(rendered.load(Ordering::SeqCst), "Queued tray state was not applied");
+    }
 }

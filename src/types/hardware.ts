@@ -46,6 +46,7 @@ export interface HardwareState {
   battery_level?: number;    // Real-time battery charge percentage (0-100)
   is_charging?: boolean;     // true if battery is currently charging
   is_ac_online?: boolean;    // true if external AC power connected
+  high_power_modes_available?: boolean;    // true if connected to round-socket DC adapter (required for Turbo & Custom)
   cpu_power_w?: number;      // CPU package real-time power (W)
   gpu_power_w?: number;      // GPU real-time power draw (W)
   gpu_tuning_caps?: GpuTuningCapabilities; // Multi-generation GPU tuning & DB/cTGP capabilities
@@ -263,5 +264,3 @@ export interface CpuFreqInfo {
   cpu_brand: string;
   cpu_tjmax?: number;
 }
-
-

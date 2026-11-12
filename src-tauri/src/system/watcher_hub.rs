@@ -574,7 +574,9 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
     match act {
         WatcherAction::SetPowerMode { mode } => {
             crate::log_info!("WATCHER_ACT", "[{}] Setting power mode to {}", watcher_name, mode);
-            crate::system::power_mode::apply_full_power_mode(*mode);
+            if let Err(error) = crate::system::power_mode::apply_full_power_mode(*mode) {
+                crate::log_warn!("WATCHER_ACT", "[{}] Performance mode failed: {}", watcher_name, error);
+            }
         }
         WatcherAction::SetFanBoost { enable } => {
             crate::log_info!("WATCHER_ACT", "[{}] Setting fan boost to {}", watcher_name, enable);

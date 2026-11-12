@@ -267,11 +267,12 @@ pub fn reset_custom_profile_to_defaults() -> crate::system::config::CustomProfil
     model_default
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn apply_custom_profile(
     profile: crate::system::config::CustomProfileConfig,
     ec_state: State<'_, SharedEcBridge>,
 ) -> Result<(), String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     crate::log_info!(
         "CUSTOM_TRACE",
         "IPC 'apply_custom_profile' received: PL1={}W, PL2={}W, PL4={}W, TempEn={}, Temp={}°C, cTGP_En={}, cTGP_Watts={}W, DB_En={}, DB_Watts={}W, SuperPerf={}",
@@ -282,7 +283,8 @@ pub fn apply_custom_profile(
     );
 
     let mut cfg = crate::system::config::load_config();
-    if !is_dc_round_plugged_in() && !cfg.unlock_battery_power_limit {
+    crate::system::config::ensure_config_writable()?;
+    if !crate::commands::power_cmd::is_thin_and_light_or_pure_igpu() && !is_dc_round_plugged_in() && !cfg.unlock_battery_power_limit {
         crate::log_warn!(
             "CUSTOM_TRACE",
             "apply_custom_profile rejected: Machine is NOT on full-power AC/DC adapter!"
@@ -303,28 +305,28 @@ pub fn apply_custom_profile(
     } else {
         cfg.power_mode_battery = 4;
     }
-    crate::system::config::save_config(&cfg);
 
     // Declarative hardware dispatch on custom profile apply
-    sync_custom_profile_to_declarative_hardware(&profile);
+    sync_custom_profile_to_declarative_hardware(&profile)?;
 
-    ec_state.lock().set_power_mode(4);
+    ec_state.lock().set_power_mode_with_config(&cfg)?;
 
     Ok(())
 }
 
 /// Dispatches custom profile SPL/sPPT/Temp parameters to declarative hardware (e.g. Baolongda MRID6/BM5235)
-pub fn sync_custom_profile_to_declarative_hardware(profile: &crate::system::config::CustomProfileConfig) {
+pub fn sync_custom_profile_to_declarative_hardware(
+    profile: &crate::system::config::CustomProfileConfig,
+) -> Result<(), String> {
     if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
         if manifest.id.contains("bld") {
-            let p1 = (profile.cpu_pl1_watts as u8).clamp(25, 120);
-            let p2 = (profile.cpu_pl2_watts as u8).clamp(25, 140);
-            let temp = (profile.cpu_temp_target as u8).clamp(70, 100);
-            let _ = crate::hal::declarative::invoke_raw_mailbox(&[0, 251, 0, 23, 2, p1]);
-            let _ = crate::hal::declarative::invoke_raw_mailbox(&[0, 251, 0, 23, 3, p2]);
-            if profile.cpu_temp_target_enabled {
-                let _ = crate::hal::declarative::invoke_raw_mailbox(&[0, 251, 0, 23, 4, temp]);
-            }
+            crate::hal::power_control::bld_cpu_profile(
+                profile.cpu_pl1_watts,
+                profile.cpu_pl2_watts,
+                profile.cpu_temp_target,
+                profile.cpu_temp_target_enabled,
+                crate::hal::declarative::invoke_raw_mailbox,
+            )?;
             if profile.fan_isolated_output || profile.fan_curve_enabled {
                 crate::driver::bld_driver_mgr::set_bld_fan_curve(
                     profile.cpu_fan_curve.clone(),
@@ -332,11 +334,10 @@ pub fn sync_custom_profile_to_declarative_hardware(profile: &crate::system::conf
                     profile.fan_ramp_rate,
                     profile.fan_ramp_speed_ms,
                 );
-                crate::log_info!("EC_TUNING", "BLD synced custom fan curve to 1Hz heartbeat arbiter");
             }
-            crate::log_info!("EC_TUNING", "BLD synced custom profile: SPL={}W, sPPT={}W, Temp={}°C", p1, p2, temp);
         }
     }
+    Ok(())
 }
 
 pub fn apply_fan_curve_live_internal(
@@ -377,7 +378,7 @@ pub fn apply_fan_curve_live_internal(
     crate::driver::wmi_ec::set_fan_isolated_output(true);
 
     let table = crate::system::power_mode::build_custom_fan_table(&cpu_curve, &gpu_curve);
-    crate::system::power_mode::apply_fan_table_to_ec(&table);
+    crate::system::power_mode::apply_fan_table_to_ec(&table)?;
 
     Ok(())
 }
@@ -446,9 +447,9 @@ pub fn toggle_fan_isolated_output_internal(
         let c_curve = cpu_curve.unwrap_or_else(|| cfg.custom_profile.cpu_fan_curve.clone());
         let g_curve = gpu_curve.unwrap_or_else(|| cfg.custom_profile.gpu_fan_curve.clone());
         let table = crate::system::power_mode::build_custom_fan_table(&c_curve, &g_curve);
-        crate::system::power_mode::apply_fan_table_to_ec(&table);
+        crate::system::power_mode::apply_fan_table_to_ec(&table)?;
     } else {
-        crate::system::power_mode::apply_mode_fan_table(3);
+        crate::system::power_mode::apply_mode_fan_table(3)?;
     }
     crate::log_info!("EC_TUNING", "toggle_fan_isolated_output: enable={} -> ok={}", enable, ok);
     Ok(ok)
@@ -504,16 +505,17 @@ pub fn get_active_profile_id() -> Result<String, String> {
     Ok(crate::system::config::load_config().active_profile_id)
 }
 
-#[tauri::command]
-pub fn set_active_profile_id(
+pub fn set_active_profile_id_internal(
     id: String,
-    ec_state: State<'_, SharedEcBridge>,
+    ec_state: &SharedEcBridge,
 ) -> Result<crate::system::config::CustomProfilePreset, String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
     let profiles = crate::system::config::list_profiles();
     let target = profiles.into_iter().find(|p| p.id == id)
         .ok_or_else(|| format!("未找到指定的方案 ID: {}", id))?;
 
     let mut cfg = crate::system::config::load_config();
+    crate::system::config::ensure_config_writable()?;
     cfg.active_profile_id = id.clone();
     cfg.custom_profile = target.profile.clone();
     let is_dc = is_dc_round_plugged_in();
@@ -522,21 +524,22 @@ pub fn set_active_profile_id(
     } else {
         cfg.power_mode_battery = 4;
     }
-    crate::system::config::save_config(&cfg);
-    if is_dc || cfg.unlock_battery_power_limit {
+    if crate::commands::power_cmd::is_thin_and_light_or_pure_igpu() || is_dc || cfg.unlock_battery_power_limit {
         cfg.power_mode = 4;
-        let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
-        if is_declarative {
-            let hal = crate::hal::get_hardware_driver();
-            let _ = hal.set_performance_mode(crate::hal::HardwarePowerMode::Custom);
-            sync_custom_profile_to_declarative_hardware(&target.profile);
-            ec_state.lock().set_power_mode_from_hardware(4);
-        } else {
-            ec_state.lock().set_power_mode(4);
-        }
-        let _ = crate::system::config::save_config(&cfg);
+        sync_custom_profile_to_declarative_hardware(&target.profile)?;
+        ec_state.lock().set_power_mode_with_config(&cfg)?;
+    } else {
+        crate::system::config::try_save_config(&cfg)?;
     }
     Ok(target)
+}
+
+#[tauri::command(async)]
+pub fn set_active_profile_id(
+    id: String,
+    ec_state: State<'_, SharedEcBridge>,
+) -> Result<crate::system::config::CustomProfilePreset, String> {
+    set_active_profile_id_internal(id, &ec_state)
 }
 
 #[tauri::command]
@@ -551,9 +554,9 @@ pub fn save_profile_preset(
         cfg.custom_profile = preset.profile.clone();
         cfg.power_mode = 4;
         crate::system::config::save_config(&cfg);
-        sync_custom_profile_to_declarative_hardware(&preset.profile);
+        sync_custom_profile_to_declarative_hardware(&preset.profile)?;
     }
-    crate::system::power_mode::sync_oem_mode4_profile(&preset.profile);
+    crate::system::power_mode::sync_oem_mode4_profile(&preset.profile)?;
     Ok(())
 }
 
@@ -613,7 +616,7 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
 
     let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
     if is_declarative {
-        sync_custom_profile_to_declarative_hardware(&target.profile);
+        sync_custom_profile_to_declarative_hardware(&target.profile)?;
     } else {
         // Heal GPU hardware contract baseline immediately upon reset
         crate::driver::wmi_ec::heal_gpu_power_contract(
@@ -648,7 +651,7 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
         cfg.cpu_pl2_max = Some(p2_max.clamp(15, 255) as u16);
         cfg.cpu_pl4_max = Some(p4_max.clamp(15, 255) as u16);
         crate::system::config::save_config(&cfg);
-        crate::system::power_mode::sync_oem_mode4_profile(&target.profile);
+        crate::system::power_mode::sync_oem_mode4_profile(&target.profile)?;
     }
 
     Ok(target)

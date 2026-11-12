@@ -6,6 +6,7 @@ import { HardwareState, PowerMode } from './types/hardware';
 import { MiniDrawer } from './components/MiniDrawer';
 import { FullDashboard } from './components/FullDashboard';
 import { ModelCapabilities } from './plugins/plugin_manifest';
+import { configIsAuthoritative } from './lib/powerModeAuthority';
 
 const BLD_PREVIEW_STATE: HardwareState = {
   power_mode: 2,
@@ -214,6 +215,7 @@ export default function App() {
   };
 
   // Instant ref lock: bypasses React state batching & closure lag completely
+  const modeSnapshotRevision = useRef(0);
   const overrideLockRef = useRef<{
     fan_boost?: { val: boolean; expiry: number };
     battery_limit?: { val: number; expiry: number };
@@ -296,6 +298,7 @@ export default function App() {
     if (isBldPreview) return;
     try {
       const state = await invoke<HardwareState>('get_hardware_status');
+      modeSnapshotRevision.current += 1;
       const now = Date.now();
       const lock = overrideLockRef.current;
       setHardwareState((_prev) => {
@@ -323,13 +326,27 @@ export default function App() {
     // Initial sync from persistent config on boot
     const bootSync = async () => {
       try {
+        // Capture before the await: a snapshot or a user selection that lands while the
+        // config request is in flight is newer than this answer and must win.
+        const revision = modeSnapshotRevision.current;
         const cfg = await invoke<any>('get_app_config');
         if (cfg) {
+          const now = Date.now();
+          const lock = overrideLockRef.current;
+          const currentRevision = modeSnapshotRevision.current;
           setHardwareState((prev) => ({
             ...prev,
-            power_mode: cfg.power_mode,
-            fan_boost: cfg.fan_boost,
-            battery_limit: cfg.battery_limit,
+            power_mode: configIsAuthoritative(revision, currentRevision, lock.power_mode, now)
+              ? cfg.power_mode
+              : prev.power_mode,
+            // These two are also reported by telemetry and changed by the user, so they follow
+            // the same rule instead of being overwritten by a stale file.
+            fan_boost: configIsAuthoritative(revision, currentRevision, lock.fan_boost, now)
+              ? cfg.fan_boost
+              : prev.fan_boost,
+            battery_limit: configIsAuthoritative(revision, currentRevision, lock.battery_limit, now)
+              ? cfg.battery_limit
+              : prev.battery_limit,
             win_key_locked: cfg.win_key_locked,
             refresh_rate: cfg.refresh_rate,
             autostart: cfg.autostart,
@@ -392,6 +409,7 @@ export default function App() {
     let unlistenTelemetry: (() => void) | undefined;
     listen<HardwareState>('hardware-state-updated', (event) => {
       const state = event.payload;
+      modeSnapshotRevision.current += 1;
       const now = Date.now();
       const lock = overrideLockRef.current;
       setHardwareState((_prev) => {
@@ -572,15 +590,25 @@ export default function App() {
   }, [fetchStatus]);
 
   // Power mode
+  const powerModeBusy = useRef(false);
   const handleSetPowerMode = async (mode: PowerMode) => {
-    overrideLockRef.current.power_mode = { val: mode, expiry: Date.now() + 5000 };
-    setHardwareState((prev) => ({ ...prev, power_mode: mode }));
-    if (isTauriEnv) {
-      try {
+    if (powerModeBusy.current) return;
+    powerModeBusy.current = true;
+    const initialLock = overrideLockRef.current.power_mode;
+    const revision = modeSnapshotRevision.current;
+    try {
+      if (isTauriEnv || '__TAURI_INTERNALS__' in window) {
         await invoke('set_power_mode', { mode });
-      } catch (e) {
-        console.error('Failed to set power mode:', e);
       }
+      if (overrideLockRef.current.power_mode !== initialLock || modeSnapshotRevision.current !== revision) return;
+      overrideLockRef.current.power_mode = { val: mode, expiry: Date.now() + 5000 };
+      setHardwareState((prev) => ({ ...prev, power_mode: mode }));
+    } catch (error) {
+      // The backend message already states whether the mode was applied ("已切换，但…") or not,
+      // so a generic "switch failed" prefix here would contradict it.
+      alert(String(error));
+    } finally {
+      powerModeBusy.current = false;
     }
   };
 

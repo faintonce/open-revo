@@ -42,7 +42,10 @@ fn main() {
                         _ => val.parse().unwrap_or(2),
                     };
                     println!("[>] Setting Power Mode to: {} (raw: {})", val, mode_num);
-                    ec.set_power_mode(mode_num);
+                    if let Err(error) = ec.set_power_mode(mode_num) {
+                        eprintln!("Performance mode failed: {}", error);
+                        std::process::exit(1);
+                    }
                     println!("[✓] Power mode set successfully.");
                 }
             }
@@ -125,4 +128,3 @@ fn main() {
 
     println!("============================================================");
 }
-

@@ -1,14 +1,69 @@
 use super::fan_table::{apply_fan_table_to_ec, apply_mode_fan_table, build_custom_fan_table};
 
 /// Set Physical Motherboard EC Hardware Registers
-pub fn apply_ec_hardware_mode(ui_mode: u8) {
+pub fn apply_ec_hardware_mode(ui_mode: u8) -> Result<(), String> {
+    let _operation = crate::hal::power_control::MODE_OPERATION.lock();
+    crate::system::power::ensure_power_mode_allowed(ui_mode)?;
+    let cfg = crate::system::config::load_config();
+    apply_ec_hardware_mode_with_config(ui_mode, &cfg).map_err(|error| error.message)
+}
+
+/// Applies the mode and reports whether the EC itself already accepted it.
+///
+/// `committed` flips once every write that decides the mode was acknowledged: `ADDR_MODE_INDEX`,
+/// `ADDR_TRIGGER_BYTE` and, for Custom, `ADDR_CUSTOM_MODE` — all of them land before the latch.
+/// From that point the machine is in the new mode, so a later failure (silent-status flag, power
+/// limits, fan table, OEM follow-up, self-healing) is reported as "switched, but …" rather than
+/// "the switch failed": that is what made the UI show the previous mode while the hardware had
+/// already switched. `ADDR_TURBO_TRIGGER` stays after the commit point on purpose — it is a
+/// status flag the EC uses for its silent power/fan policy, it does not select the mode, and
+/// moving it before the latch would turn a status-write failure into a mode rollback.
+pub(super) fn apply_ec_hardware_mode_with_config(
+    ui_mode: u8,
+    config: &crate::system::config::AppConfig,
+) -> Result<(), crate::hal::power_control::ModeApplyError> {
+    let committed = std::cell::Cell::new(false);
+    apply_ec_hardware_mode_inner(ui_mode, config, &committed).map_err(|message| {
+        let confirmed = committed.get();
+        crate::hal::power_control::ModeApplyError {
+            // Post-commit failures keep the context that the mode is already in effect, so
+            // callers never surface them as "the switch failed".
+            message: if confirmed {
+                format!("性能模式已切换，但后续步骤失败：{message}")
+            } else {
+                message
+            },
+            hardware_confirmed: confirmed,
+        }
+    })
+}
+
+fn apply_ec_hardware_mode_inner(
+    ui_mode: u8,
+    config: &crate::system::config::AppConfig,
+    committed: &std::cell::Cell<bool>,
+) -> Result<(), String> {
+    use crate::hal::power_control::acknowledged;
+    use crate::hal::vault::{fan, power};
+    if !(1..=4).contains(&ui_mode) {
+        return Err("Invalid power mode".into());
+    }
+    // Fan Boost may change while this mode request waits for the EC lock.
+    let fan_boost_active = crate::system::config::load_config().fan_boost;
     // 0. If current driver is Declarative and DOES NOT use Tongfang ACPI kernel driver channel,
     // route performance mode application via HAL and avoid poking legacy registers.
     // If Tongfang ACPI hardware channel is available (both gaming laptops and Tongfang ultrabooks like Wujie 14X/15X),
     // we MUST proceed with writing native Tongfang EC registers (APExist, MODE_INDEX, TRIGGER_BYTE, etc.)!
     let is_tongfang_hardware = crate::driver::wmi_ec::is_acpi_driver_available()
         || crate::hal::declarative::load_matched_manifest()
-            .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
+            .map(|m| {
+                m.channels.values().any(|c| {
+                    matches!(
+                        c,
+                        crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. }
+                    )
+                })
+            })
             .unwrap_or(false);
 
     if !is_tongfang_hardware {
@@ -20,67 +75,76 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             _ => crate::hal::HardwarePowerMode::Balance,
         };
         let hal = crate::hal::get_hardware_driver();
-        if let Err(e) = hal.set_performance_mode(hw_mode) {
-            crate::log_warn!("POWER_MODE", "HAL set_performance_mode failed: {}", e);
-        } else {
-            crate::log_info!("POWER_MODE", "Successfully applied power mode via HAL ({:?})", hal.kind());
+        if hal.kind() == crate::hal::DriverKind::Mock || !hal.is_hardware_supported() {
+            return Err("Performance mode is not supported on this platform".into());
         }
-        return;
+        if hal.kind() == crate::hal::DriverKind::TongfangAcpi {
+            return Err("The Tongfang ACPI driver is unavailable".into());
+        }
+        hal.set_performance_mode(hw_mode)
+            .map_err(|error| error.to_string())?;
+        // The HAL accepted the mode: fan curve / sub-mode follow-ups below are best effort.
+        committed.set(true);
+        if crate::hal::declarative::load_matched_manifest()
+            .is_some_and(|manifest| manifest.id.contains("bld"))
+        {
+            if ui_mode == 4 {
+                let profile = &config.custom_profile;
+                if profile.fan_isolated_output || profile.fan_curve_enabled {
+                    crate::driver::bld_driver_mgr::set_bld_fan_curve(
+                        profile.cpu_fan_curve.clone(),
+                        profile.gpu_fan_curve.clone(),
+                        profile.fan_ramp_rate,
+                        profile.fan_ramp_speed_ms,
+                    );
+                } else if !fan_boost_active {
+                    crate::driver::bld_driver_mgr::restore_bld_fan_auto();
+                }
+            } else if !fan_boost_active {
+                crate::driver::bld_driver_mgr::restore_bld_fan_auto();
+            }
+        }
+        if ui_mode == 3 && crate::system::power::turbo_submode::is_supported() {
+            crate::system::power::turbo_submode::apply_silent(config.turbo_silent)?;
+        }
+        return Ok(());
     }
 
     use crate::driver::wmi_ec;
 
-    crate::log_info!("POWER_MODE", "Writing EC hardware registers for UI mode {}...", ui_mode);
+    crate::log_info!(
+        "POWER_MODE",
+        "Writing EC hardware registers for UI mode {}...",
+        ui_mode
+    );
 
-    // A. Assert APExist so motherboard grants control to userland
-    if let Some(val) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AP_OEM_BYTE) {
-        if (val & 0x01) == 0 {
-            let ok = wmi_ec::wmi_write_ec(wmi_ec::ADDR_AP_OEM_BYTE, val | 0x01);
-            crate::log_info!("POWER_MODE", "Assert APExist result: {}", ok);
-        }
-    }
-
-    let _is_amd = crate::system::cpu_monitor::is_amd_cpu();
-    let _factory_tcc = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TURBO_TCC).unwrap_or(0);
-
-    let cfg = crate::system::config::load_config();
-    let fan_boost_active = cfg.fan_boost;
+    modify_ec(wmi_ec::ADDR_AP_OEM_BYTE, |current| {
+        current | power::AP_EXIST_BIT
+    })?;
+    let cfg = config;
 
     // Sanitize and align Fan Boost hardware state:
     // If user has NOT explicitly activated Fan Boost, ensure ADDR_FAN_BOOST_CLAMP is cleared
     // so the fan returns to automatic EC curve control.
     if !fan_boost_active {
         if wmi_ec::is_legacy_dual_mode_ec() {
-            let cur_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
+            let cur_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP)
+                .ok_or("Cannot read the legacy fan clamp")?;
             if (cur_clamp & wmi_ec::FAN_BOOST_CLAMP_BIT) != 0 {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, 0x10);
+                write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, fan::LEGACY_BOOST_OFF)?;
             }
         } else {
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP) {
-                if (v & wmi_ec::FAN_BOOST_CLAMP_BIT) != 0 {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, v & !wmi_ec::FAN_BOOST_CLAMP_BIT);
-                }
-            }
+            modify_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, |current| {
+                current & !wmi_ec::FAN_BOOST_CLAMP_BIT
+            })?;
         }
     }
 
-    // Helper to read hardware factory presets with graceful fallback
-    let _read_preset = |addr: u16, fallback: u8| -> u8 {
-        match wmi_ec::wmi_read_ec(addr) {
-            Some(val) if val > 0 && val < 255 => val,
-            _ => fallback,
-        }
-    };
-
-    // Helper to safely write EC ADDR_MODE_INDEX without corrupting Logo brightness (bits [7:5]) or Logo hardware support (bit 0)
     let set_ec_mode_index = |target_mode_code: u8| {
-        let cur_mode = wmi_ec::wmi_read_ec(wmi_ec::ADDR_MODE_INDEX).unwrap_or(0);
-        let br_bits = cur_mode & 0xE0;
-        let is_ec_logo = crate::driver::ite_lighting::IteLightingManager::is_ec_logo_supported();
-        let support_bit = if is_ec_logo { 0x01 } else { cur_mode & 0x01 };
-        let mode_bits = target_mode_code & 0x1E;
-        let new_mode = br_bits | mode_bits | support_bit;
-        wmi_ec::wmi_write_ec(wmi_ec::ADDR_MODE_INDEX, new_mode);
+        let logo = crate::driver::ite_lighting::IteLightingManager::is_ec_logo_supported();
+        modify_ec(wmi_ec::ADDR_MODE_INDEX, |current| {
+            crate::hal::power_control::mode_index(current, target_mode_code, logo)
+        })
     };
 
     let active_profile = crate::system::model_engine::get_active_profile();
@@ -89,30 +153,49 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
     match ui_mode {
         1 => {
             // --- Office / Silent Mode (Green LED) ---
-            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
-            }
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
-            }
+            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera).
+            // Q-Key LED cosmetics must never abort a mode switch.
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+                current & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+                current & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
+            });
 
             // Physical Mode & Chassis Q-Key LED: Green (0xA0 on 40/50-series, 0x10/0x50 on legacy)
             if wmi_ec::is_legacy_dual_mode_ec() {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, if fan_boost_active { 0x50 } else { 0x10 });
+                write_ec(
+                    wmi_ec::ADDR_FAN_BOOST_CLAMP,
+                    if fan_boost_active {
+                        fan::LEGACY_BOOST_ON
+                    } else {
+                        fan::LEGACY_BOOST_OFF
+                    },
+                )?;
             } else {
-                let base_clamp = 0xA0;
-                let val_clamp = if fan_boost_active { base_clamp | wmi_ec::FAN_BOOST_CLAMP_BIT } else { base_clamp };
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, val_clamp);
+                let base_clamp = power::OFFICE_CLAMP;
+                let val_clamp = if fan_boost_active {
+                    base_clamp | wmi_ec::FAN_BOOST_CLAMP_BIT
+                } else {
+                    base_clamp
+                };
+                write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, val_clamp)?;
             }
 
             // 1. EC Mode Index: 0x00 (Office Mode, preserves Logo brightness & support bit 0)
-            set_ec_mode_index(0x00);
-            // 2. Trigger Silent Mode via ADDR_TRIGGER_BYTE (preserve Bit 4 USB Charging)
-            let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x28);
+            set_ec_mode_index(power::MODE_BALANCED)?;
+            // Leave Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (64) is the only write
+            // that distinguishes Turbo from Custom, so it has to land before the commit point.
+            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
+            // 2. Trigger Silent Mode via ADDR_TRIGGER_BYTE (preserve Bit 4 USB Charging).
+            // The trigger byte is a latch: it is written even when the value is unchanged,
+            // otherwise the EC never re-applies the limits of a repeated switch.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+                crate::hal::power_control::trigger(current, true)
+            })?;
+            committed.set(true);
             // 3. Mark silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 1);
+            write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 1)?;
 
             // 4. Dynamic/Configured CPU Power Limits:
             // GROUND TRUTH RULE: If user has NOT set custom user_presets, DO NOT write power limit registers!
@@ -122,11 +205,20 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 let pl2 = p.office.pl2;
                 let pl4 = p.office.pl4;
                 let tcc = p.office.temp_offset;
-                wmi_ec::set_custom_pl_limits(pl1, pl2, pl4);
-                wmi_ec::apply_preset_tcc_adaptive(tcc);
+                acknowledged(
+                    wmi_ec::set_custom_pl_limits(pl1, pl2, pl4),
+                    "set_custom_pl_limits",
+                )?;
+                acknowledged(
+                    wmi_ec::apply_preset_tcc_adaptive(tcc),
+                    "apply_preset_tcc_adaptive",
+                )?;
                 crate::log_info!("POWER_MODE", "Office Mode: User presets applied -> PL1={}W, PL2={}W, PL4={}W, TccOffset={}°C", pl1, pl2, pl4, tcc);
             } else {
-                wmi_ec::set_cpu_temp_target(false, 95);
+                acknowledged(
+                    wmi_ec::set_cpu_temp_target(false, 95),
+                    "set_cpu_temp_target",
+                )?;
                 crate::log_info!("POWER_MODE", "Office Mode: Yielding PL1/PL2/PL4 directly to EC native factory table. Zero manual override.");
             }
 
@@ -146,49 +238,69 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                     let floor = gpu_caps.ctgp_floor_watts as u8;
                     let max_base = gpu_caps.base_tgp_max_watts as u8;
                     let max_offset = max_base.saturating_sub(floor);
-                    let _ = actuator.apply_gpu_state(
+                    actuator.apply_gpu_state(
                         Some(false),
                         Some(false),
                         Some(0),
                         Some(max_offset),
                         "Office Mode Eco Baseline",
-                    );
+                    )?;
                 }
             }
 
             // 6. Fan Transition Speed (0x83 = enable smoothing filter at 300ms/0.5%)
-            wmi_ec::set_custom_mode_ec(false);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x83);
-            wmi_ec::set_fan_isolated_output(false);
+            write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, power::STANDARD_FAN_RAMP)?;
+            acknowledged(
+                wmi_ec::set_fan_isolated_output(false),
+                "set_fan_isolated_output",
+            )?;
             // 7. Apply Silent Fan Table
-            apply_mode_fan_table(1);
+            apply_mode_fan_table(1)?;
         }
         2 => {
             // --- Balance / Gaming Mode (Blue LED) ---
-            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
-            }
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
-            }
+            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera).
+            // Q-Key LED cosmetics must never abort a mode switch.
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+                current & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+                current & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
+            });
 
             // Physical Mode & Chassis Q-Key LED: Blue (0x00 on 40/50-series, 0x10/0x50 on legacy)
             if wmi_ec::is_legacy_dual_mode_ec() {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, if fan_boost_active { 0x50 } else { 0x10 });
+                write_ec(
+                    wmi_ec::ADDR_FAN_BOOST_CLAMP,
+                    if fan_boost_active {
+                        fan::LEGACY_BOOST_ON
+                    } else {
+                        fan::LEGACY_BOOST_OFF
+                    },
+                )?;
             } else {
-                let base_clamp = 0x00;
-                let val_clamp = if fan_boost_active { base_clamp | wmi_ec::FAN_BOOST_CLAMP_BIT } else { base_clamp };
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, val_clamp);
+                let base_clamp = power::MODE_BALANCED;
+                let val_clamp = if fan_boost_active {
+                    base_clamp | wmi_ec::FAN_BOOST_CLAMP_BIT
+                } else {
+                    base_clamp
+                };
+                write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, val_clamp)?;
             }
 
             // 1. EC Mode Index: 0x00 (Balance Mode, preserves Logo brightness & support bit 0)
-            set_ec_mode_index(0x00);
-            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging)
-            let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x20);
+            set_ec_mode_index(power::MODE_BALANCED)?;
+            // Leave Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (64) is the only write
+            // that distinguishes Turbo from Custom, so it has to land before the commit point.
+            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
+            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging).
+            // Latch semantics: written even when unchanged so a repeated switch re-applies.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+                crate::hal::power_control::trigger(current, false)
+            })?;
+            committed.set(true);
             // 3. Clear silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0);
+            write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0)?;
 
             // 4. Dynamic/Configured CPU Power Limits:
             // GROUND TRUTH RULE: If user has NOT set custom user_presets, DO NOT write power limit registers!
@@ -198,11 +310,20 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 let pl2 = p.balanced.pl2;
                 let pl4 = p.balanced.pl4;
                 let tcc = p.balanced.temp_offset;
-                wmi_ec::set_custom_pl_limits(pl1, pl2, pl4);
-                wmi_ec::apply_preset_tcc_adaptive(tcc);
+                acknowledged(
+                    wmi_ec::set_custom_pl_limits(pl1, pl2, pl4),
+                    "set_custom_pl_limits",
+                )?;
+                acknowledged(
+                    wmi_ec::apply_preset_tcc_adaptive(tcc),
+                    "apply_preset_tcc_adaptive",
+                )?;
                 crate::log_info!("POWER_MODE", "Balanced Mode: User presets applied -> PL1={}W, PL2={}W, PL4={}W, TccOffset={}°C", pl1, pl2, pl4, tcc);
             } else {
-                wmi_ec::set_cpu_temp_target(false, 95);
+                acknowledged(
+                    wmi_ec::set_cpu_temp_target(false, 95),
+                    "set_cpu_temp_target",
+                )?;
                 crate::log_info!("POWER_MODE", "Balanced Mode: Yielding PL1/PL2/PL4 directly to EC native factory table. Zero manual override.");
             }
 
@@ -219,61 +340,73 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
                 if gpu_caps.supports_gpu_tuning {
                     let actuator = crate::system::actuator::UnifiedPowerActuator::global();
+                    let enable_db = cfg.balanced_gpu_dynamic_boost;
+                    let db = if enable_db { gpu_caps.max_db_watts.clamp(5, 35) as u8 } else { 0 };
                     let floor = gpu_caps.ctgp_floor_watts as u8;
                     let max_base = gpu_caps.base_tgp_max_watts as u8;
                     let max_offset = max_base.saturating_sub(floor);
-                    let enable_db = cfg.balanced_gpu_dynamic_boost;
-                    let db = if enable_db {
-                        gpu_caps.max_db_watts.clamp(5, 35) as u8
-                    } else {
-                        0
-                    };
-                    let _ = actuator.apply_gpu_state(
+                    actuator.apply_gpu_state(
                         Some(false),
                         Some(enable_db),
                         Some(db),
                         Some(max_offset),
-                        if enable_db {
-                            "Balanced Mode Factory Baseline (DB on)"
-                        } else {
-                            "Balanced Mode Base TGP (DB off)"
-                        },
-                    );
+                        if enable_db { "Balanced Mode Factory Baseline (DB on)" } else { "Balanced Mode Base TGP (DB off)" },
+                    )?;
                 }
             }
 
             // 6. Fan Transition Speed (0x83 = enable smoothing filter at 300ms/0.5%)
-            wmi_ec::set_custom_mode_ec(false);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x83);
-            wmi_ec::set_fan_isolated_output(false);
+            write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, power::STANDARD_FAN_RAMP)?;
+            acknowledged(
+                wmi_ec::set_fan_isolated_output(false),
+                "set_fan_isolated_output",
+            )?;
             // 7. Apply Balanced Gaming Fan Table
-            apply_mode_fan_table(2);
+            apply_mode_fan_table(2)?;
         }
         3 => {
             // --- Beast / Turbo Mode (Red LED) ---
-            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera)
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
-            }
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
-            }
+            // Clear Custom White LED override (preserve Bit 3 AC Recovery and Camera).
+            // Q-Key LED cosmetics must never abort a mode switch.
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+                current & !wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+                current & !wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
+            });
 
             // Physical Mode & Chassis Q-Key LED: Red (0x10 on 40/50-series, 0x10/0x50 on legacy)
             if wmi_ec::is_legacy_dual_mode_ec() {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, if fan_boost_active { 0x50 } else { 0x10 });
+                write_ec(
+                    wmi_ec::ADDR_FAN_BOOST_CLAMP,
+                    if fan_boost_active {
+                        fan::LEGACY_BOOST_ON
+                    } else {
+                        fan::LEGACY_BOOST_OFF
+                    },
+                )?;
             } else {
-                let val_clamp = if fan_boost_active { 0x10 | wmi_ec::FAN_BOOST_CLAMP_BIT } else { 0x10 };
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, val_clamp);
+                let val_clamp = if fan_boost_active {
+                    power::MODE_TURBO | wmi_ec::FAN_BOOST_CLAMP_BIT
+                } else {
+                    power::MODE_TURBO
+                };
+                write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, val_clamp)?;
             }
 
             // 1. EC Mode Index: 0x10 (Turbo Mode, preserves Logo brightness & support bit 0)
-            set_ec_mode_index(0x10);
-            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging)
-            let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x20);
+            set_ec_mode_index(power::MODE_TURBO)?;
+            // Leave Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (64) is the only write
+            // that distinguishes Turbo from Custom, so it has to land before the commit point.
+            acknowledged(wmi_ec::set_custom_mode_ec(false), "set_custom_mode_ec")?;
+            // 2. Clear Trigger Byte (preserve Bit 4 USB Charging).
+            // Latch semantics: written even when unchanged so a repeated switch re-applies.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+                crate::hal::power_control::trigger(current, false)
+            })?;
+            committed.set(true);
             // 3. Clear silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0);
+            write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0)?;
 
             // 4. Dynamic/Configured CPU Power Limits:
             // GROUND TRUTH RULE: If user has NOT set custom user_presets, DO NOT write power limit registers!
@@ -283,11 +416,27 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 let pl2 = p.turbo.pl2;
                 let pl4 = p.turbo.pl4;
                 let tcc = p.turbo.temp_offset;
-                wmi_ec::set_custom_pl_limits(pl1, pl2, pl4);
-                wmi_ec::apply_preset_tcc_adaptive(tcc);
-                crate::log_info!("POWER_MODE", "Turbo Mode: User presets applied -> PL1={}W, PL2={}W, PL4={}W, TccOffset={}°C", pl1, pl2, pl4, tcc);
+                acknowledged(
+                    wmi_ec::set_custom_pl_limits(pl1, pl2, pl4),
+                    "set_custom_pl_limits",
+                )?;
+                acknowledged(
+                    wmi_ec::apply_preset_tcc_adaptive(tcc),
+                    "apply_preset_tcc_adaptive",
+                )?;
+                crate::log_info!(
+                    "POWER_MODE",
+                    "Turbo Mode: User presets applied -> PL1={}W, PL2={}W, PL4={}W, TccOffset={}°C",
+                    pl1,
+                    pl2,
+                    pl4,
+                    tcc
+                );
             } else {
-                wmi_ec::set_cpu_temp_target(false, 95);
+                acknowledged(
+                    wmi_ec::set_cpu_temp_target(false, 95),
+                    "set_cpu_temp_target",
+                )?;
                 crate::log_info!("POWER_MODE", "Turbo Mode: Yielding PL1/PL2/PL4 directly to EC native factory table. Zero manual override.");
             }
 
@@ -308,28 +457,27 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                     let floor = gpu_caps.ctgp_floor_watts as u8;
                     let max_base = gpu_caps.base_tgp_max_watts as u8;
                     let max_offset = max_base.saturating_sub(floor);
-                    let _ = actuator.apply_gpu_state(
+                    actuator.apply_gpu_state(
                         Some(true),
                         Some(true),
                         Some(db),
                         Some(max_offset),
                         "Turbo Mode Full Assertion",
-                    );
+                    )?;
                 }
             }
 
             // 6. Fan Transition Speed: 0x00 (Zero latency instantaneous turbo fan response)
-            wmi_ec::set_custom_mode_ec(false);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x00);
-            wmi_ec::set_fan_isolated_output(false);
+            write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x00)?;
+            acknowledged(
+                wmi_ec::set_fan_isolated_output(false),
+                "set_fan_isolated_output",
+            )?;
             // 7. Apply Turbo Fan Table
-            apply_mode_fan_table(3);
-
-            // 8. Apply Turbo Submode if supported
+            apply_mode_fan_table(3)?;
+            // Apply the upstream Turbo submode after the fan table.
             if crate::system::power::turbo_submode::is_supported() {
-                if let Err(e) = crate::system::power::turbo_submode::apply_silent(cfg.turbo_silent) {
-                    crate::log_warn!("POWER_MODE", "turbo submode apply failed: {}", e);
-                }
+                crate::system::power::turbo_submode::apply_silent(cfg.turbo_silent)?;
             }
         }
         4 => {
@@ -354,9 +502,18 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                  Mode=0x{:02X}, Trigger=0x{:02X}, Boost=0x{:02X}, Silent={}\n\
                  PL1={}W, PL2={}W, PL4={}W, Tcc=0x{:02X}\n\
                  DB_Ctrl=0x{:02X}, cTGP={}, DB_Watts={}W, PowerStatus=0x{:02X}",
-                pre_pwr_mode, pre_trigger_byte, pre_fan_clamp, pre_turbo_flag,
-                pre_pl1, pre_pl2, pre_pl4, pre_tcc,
-                pre_db_ctrl, pre_tgp_offset, pre_db_watts, pre_power_status
+                pre_pwr_mode,
+                pre_trigger_byte,
+                pre_fan_clamp,
+                pre_turbo_flag,
+                pre_pl1,
+                pre_pl2,
+                pre_pl4,
+                pre_tcc,
+                pre_db_ctrl,
+                pre_tgp_offset,
+                pre_db_watts,
+                pre_power_status
             );
 
             // B. Power Gating Check: DC Round Socket or valid AC
@@ -371,21 +528,17 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
 
             // Physical Q-Key LED: Custom Mode (preserve Bit 3 AC Recovery) - Gaming laptops only
             if !crate::hal::platform_probe::is_ultrabook() {
-                if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
-                } else {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
-                }
-                if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
-                } else {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
-                }
+                best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+                    current | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
+                });
+                best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+                    current | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
+                });
             }
-            
+
             // Read saved user custom profile
-            let cfg = crate::system::config::load_config();
-            let profile = cfg.custom_profile;
+            let cfg = config;
+            let profile = cfg.custom_profile.clone();
 
             crate::log_info!(
                 "CUSTOM_TRACE",
@@ -403,19 +556,26 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             //   When enabled, unlocks GPU hardware overclocking via NVAPI.
             //   When disabled, resets GPU clock offsets to 0 and allows strict Dynamic Boost power budgeting.
             //   In 10/20-series (Pascal/Turing), Super Performance is unsupported -> bypass bit 4.
-            let cur_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
+
             let super_bit = if gpu_caps.supports_gpu_tuning && profile.gpu_super_perf {
                 wmi_ec::SUPER_PERF_BIT
             } else {
                 0
             };
-            let boost_bit = if fan_boost_active { wmi_ec::FAN_BOOST_CLAMP_BIT } else { 0 };
-            let new_clamp = (cur_clamp & !(wmi_ec::FAN_BOOST_CLAMP_BIT | wmi_ec::SUPER_PERF_BIT)) | super_bit | boost_bit;
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, new_clamp);
-            set_ec_mode_index(0x10);
+            let boost_bit = if fan_boost_active {
+                wmi_ec::FAN_BOOST_CLAMP_BIT
+            } else {
+                0
+            };
+            modify_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, |current| {
+                (current & !(wmi_ec::FAN_BOOST_CLAMP_BIT | wmi_ec::SUPER_PERF_BIT))
+                    | super_bit
+                    | boost_bit
+            })?;
+            set_ec_mode_index(power::MODE_TURBO)?;
 
             // Clear silent mode status
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0);
+            write_ec(wmi_ec::ADDR_TURBO_TRIGGER, 0)?;
 
             // Apply or reset GPU Clock Offsets via native NVAPI
             if gpu_caps.supports_gpu_tuning {
@@ -442,11 +602,27 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 .unwrap_or(false);
 
             if is_cpu_tuning_disabled {
-                wmi_ec::set_cpu_temp_target(false, 95);
+                acknowledged(
+                    wmi_ec::set_cpu_temp_target(false, 95),
+                    "set_cpu_temp_target",
+                )?;
                 crate::log_info!("POWER_MODE", "Custom Mode: Ultrabook CPU tuning disabled in manifest. Yielding PL limits to EC native factory table (e.g. 65W).");
             } else {
-                wmi_ec::set_custom_pl_limits(profile.cpu_pl1_watts, profile.cpu_pl2_watts, profile.cpu_pl4_watts);
-                wmi_ec::set_cpu_temp_target(profile.cpu_temp_target_enabled, profile.cpu_temp_target);
+                acknowledged(
+                    wmi_ec::set_custom_pl_limits(
+                        profile.cpu_pl1_watts,
+                        profile.cpu_pl2_watts,
+                        profile.cpu_pl4_watts,
+                    ),
+                    "set_custom_pl_limits",
+                )?;
+                acknowledged(
+                    wmi_ec::set_cpu_temp_target(
+                        profile.cpu_temp_target_enabled,
+                        profile.cpu_temp_target,
+                    ),
+                    "set_cpu_temp_target",
+                )?;
             }
 
             // 2. GPU Power State: Atomically assert Base TGP, Dynamic Boost and cTGP via Unified Power Actuator
@@ -468,29 +644,42 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 let target_offset = if profile.gpu_super_perf {
                     max_base.saturating_sub(floor)
                 } else if profile.gpu_ctgp_enabled && profile.gpu_ctgp_watts > 0 {
-                    profile.gpu_ctgp_watts.clamp(floor, max_base).saturating_sub(floor)
+                    profile
+                        .gpu_ctgp_watts
+                        .clamp(floor, max_base)
+                        .saturating_sub(floor)
                 } else {
                     max_base.saturating_sub(floor)
                 };
 
-                let _ = actuator.apply_gpu_state(
+                actuator.apply_gpu_state(
                     Some(profile.gpu_super_perf),
                     Some(target_db_en),
                     Some(target_db_watts),
                     Some(target_offset),
                     "Custom Mode Profile Truth",
-                );
+                )?;
             }
 
-            // 3. Hardware Trigger Latch: Assert Trigger Byte (preserve Bit 4 USB Charging)
-            // Latch all CPU & GPU power/thermal configurations into EC/SMM state machine
-            let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x20);
+            // Enter Custom mode *before* the latch: `ADDR_CUSTOM_MODE` (65) is part of the mode
+            // identity, so it has to land before the commit point — and a failed write here
+            // must leave the reported mode untouched (the EC is still Turbo at that point).
+            acknowledged(wmi_ec::set_custom_mode_ec(true), "set_custom_mode_ec")?;
 
-            // 4. Custom Mode Hardware Switch & Fan strategies / Sensitivity
-            wmi_ec::set_custom_mode_ec(true);
-            wmi_ec::set_fan_ramp_rate(profile.fan_ramp_rate, profile.fan_ramp_speed_ms);
-            
+            // 3. Hardware Trigger Latch: Assert Trigger Byte (preserve Bit 4 USB Charging)
+            // Latch all CPU & GPU power/thermal configurations into EC/SMM state machine.
+            // Written unconditionally: this register latches on the write itself.
+            write_trigger(wmi_ec::ADDR_TRIGGER_BYTE, |current| {
+                crate::hal::power_control::trigger(current, false)
+            })?;
+            committed.set(true);
+
+            // 4. Custom Mode fan strategies / sensitivity
+            acknowledged(
+                wmi_ec::set_fan_ramp_rate(profile.fan_ramp_rate, profile.fan_ramp_speed_ms),
+                "set_fan_ramp_rate",
+            )?;
+
             // If custom fan isolated output / curve is enabled in profile, build and apply user curve; otherwise default to turbo fan table
             // If Fan Boost is active, do not latch curve into EC RAM to preserve full speed!
             if !fan_boost_active {
@@ -499,10 +688,14 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                         crate::log_warn!("POWER_MODE", "Legacy Dual-Mode chassis does not support RamFan1p5 RAM curve injection, bypassing to protect fan FSM");
                     } else {
                         // Assert ADDR_FAN_ISOLATED Bit 7 (Fan Independent Output / Custom Fan Table Active)
-                        wmi_ec::set_fan_isolated_output(true);
+                        acknowledged(
+                            wmi_ec::set_fan_isolated_output(true),
+                            "set_fan_isolated_output",
+                        )?;
 
-                        let custom_table = build_custom_fan_table(&profile.cpu_fan_curve, &profile.gpu_fan_curve);
-                        apply_fan_table_to_ec(&custom_table);
+                        let custom_table =
+                            build_custom_fan_table(&profile.cpu_fan_curve, &profile.gpu_fan_curve);
+                        apply_fan_table_to_ec(&custom_table)?;
 
                         crate::log_info!(
                             "POWER_MODE",
@@ -511,33 +704,43 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                     }
                 } else {
                     if !wmi_ec::is_legacy_dual_mode_ec() {
-                        wmi_ec::set_fan_isolated_output(false);
-                        apply_mode_fan_table(3);
+                        acknowledged(
+                            wmi_ec::set_fan_isolated_output(false),
+                            "set_fan_isolated_output",
+                        )?;
+                        apply_mode_fan_table(3)?;
                     }
                 }
             } else {
                 crate::log_info!("POWER_MODE", "Custom Mode: Fan Boost is active, skipping fan curve latch to preserve full fan boost speed");
             }
 
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_BACKLIGHT_WHITE) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_BACKLIGHT_WHITE, v & !0x10);
-            }
+            best_effort_modify_ec(wmi_ec::ADDR_BACKLIGHT_WHITE, |current| {
+                current & !power::CUSTOM_BACKLIGHT_CLEAR_BIT
+            });
 
             // Re-confirm White Q-Key LED post-latch to guarantee hardware latch permanence
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AC_RECOVERY) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_AC_RECOVERY, v | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY);
-            }
-            if let Some(v) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_CAMERA_CUTOFF) {
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_CAMERA_CUTOFF, v | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF);
-            }
+            best_effort_modify_ec(wmi_ec::ADDR_AC_RECOVERY, |current| {
+                current | wmi_ec::MASK_QKEY_WHITE_AC_RECOVERY
+            });
+            best_effort_modify_ec(wmi_ec::ADDR_CAMERA_CUTOFF, |current| {
+                current | wmi_ec::MASK_QKEY_WHITE_CAMERA_CUTOFF
+            });
 
             crate::log_info!("POWER_MODE", "Custom Mode (Mode 4) successfully asserted with White Q-Key LED, 0x10 Turbo base & Trigger");
         }
         _ => {}
     }
 
-    // Self-healing: if on legacy Pascal/Turing machine, verify and restore fan table
-    wmi_ec::heal_legacy_fan_table_if_needed();
+    // Self-healing: if on legacy Pascal/Turing machine, verify and restore fan table.
+    // This runs after the mode is committed and is best effort: a failed recovery must not
+    // turn an already applied mode into a reported failure.
+    if !wmi_ec::heal_legacy_fan_table_if_needed() {
+        crate::log_warn!(
+            "POWER_MODE",
+            "Legacy fan table recovery was not acknowledged; the mode itself is applied"
+        );
+    }
 
     // Hardware readback verification & Deep Telemetry
     let raw_mode_index = wmi_ec::wmi_read_ec(wmi_ec::ADDR_MODE_INDEX).unwrap_or(0);
@@ -558,7 +761,10 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
     crate::log_info!(
         "POWER_MODE",
         "Hardware readback: ModeIndex=0x{:02X}, Trigger=0x{:02X}, PL1={}, TGP={}",
-        raw_mode_index, raw_trigger_byte, raw_pl1, raw_tgp_offset
+        raw_mode_index,
+        raw_trigger_byte,
+        raw_pl1,
+        raw_tgp_offset
     );
 
     if ui_mode == 4 {
@@ -569,21 +775,32 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
              PL1={}W, PL2={}W, PL4={}W, Tcc=0x{:02X}\n\
              DB_Ctrl1=0x{:02X}, cTGP={}, DB_Watts1={}W, DB_Ctrl2=0x{:02X}, DB_Watts2={}W\n\
              PowerStatus=0x{:02X} (DC_Online={})",
-            raw_mode_index, raw_trigger_byte, raw_fan_clamp, raw_turbo_flag,
-            raw_pl1, raw_pl2, raw_pl4, raw_tcc,
-            raw_db_ctrl1, raw_tgp_offset, raw_db_watts1, raw_db_ctrl2, raw_db_watts2,
-            raw_power_status, (raw_power_status & wmi_ec::POWER_STATUS_DC_JACK) != 0
+            raw_mode_index,
+            raw_trigger_byte,
+            raw_fan_clamp,
+            raw_turbo_flag,
+            raw_pl1,
+            raw_pl2,
+            raw_pl4,
+            raw_tcc,
+            raw_db_ctrl1,
+            raw_tgp_offset,
+            raw_db_watts1,
+            raw_db_ctrl2,
+            raw_db_watts2,
+            raw_power_status,
+            (raw_power_status & wmi_ec::POWER_STATUS_DC_JACK) != 0
         );
 
         // Sanity check checks
-        if raw_pl4 > 0 && raw_pl2 > 0 && raw_pl4 < (raw_pl2 + 20) {
+        if raw_pl4 > 0 && raw_pl2 > 0 && u16::from(raw_pl4) < u16::from(raw_pl2) + 20 {
             crate::log_warn!(
                 "CUSTOM_TRACE",
                 "[CRITICAL ANOMALY] PL4 ({}W) has less than 20W buffer above PL2 ({}W)! CPU VRM will trip emergency clamp (locking CPU to 0.6GHz) under transient burst!",
                 raw_pl4, raw_pl2
             );
         }
-        let cfg = crate::system::config::load_config();
+        let cfg = config;
         if cfg.custom_profile.gpu_super_perf && (raw_fan_clamp & wmi_ec::SUPER_PERF_BIT) == 0 {
             crate::log_warn!(
                 "CUSTOM_TRACE",
@@ -597,5 +814,43 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 raw_turbo_flag
             );
         }
+    }
+    Ok(())
+}
+
+fn write_ec(address: u16, value: u8) -> Result<(), String> {
+    crate::hal::power_control::acknowledged(
+        crate::driver::wmi_ec::wmi_write_ec(address, value),
+        &format!("EC write {address:#X}"),
+    )
+}
+
+fn modify_ec(address: u16, update: impl FnOnce(u8) -> u8) -> Result<(), String> {
+    crate::driver::wmi_ec::wmi_modify_ec(address, update)
+        .map(|_| ())
+        .ok_or_else(|| format!("EC update {address:#X} was not acknowledged"))
+}
+
+/// Writes a latch register unconditionally.
+///
+/// `modify_ec` skips the write when the computed byte equals the current one, which is
+/// wrong for registers whose *write* is the event: `ADDR_TRIGGER_BYTE` re-latches PL/TGP
+/// and fan settings into the EC/SMM state machine, so a repeated switch with an unchanged
+/// byte would silently keep the previous limits.
+fn write_trigger(address: u16, update: impl FnOnce(u8) -> u8) -> Result<(), String> {
+    crate::driver::wmi_ec::wmi_modify_ec_always(address, update)
+        .map(|_| ())
+        .ok_or_else(|| format!("EC trigger update {address:#X} was not acknowledged"))
+}
+
+/// Cosmetic EC updates (Q-Key LED, backlight) that must never abort a mode switch.
+fn best_effort_modify_ec(address: u16, update: impl FnOnce(u8) -> u8) {
+    if let Err(error) = modify_ec(address, update) {
+        crate::log_warn!(
+            "POWER_MODE",
+            "Best-effort EC update {:#X} failed: {}",
+            address,
+            error
+        );
     }
 }

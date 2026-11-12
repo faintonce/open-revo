@@ -306,7 +306,9 @@ pub fn restore_official_power_plan() -> Result<String, String> {
         crate::log_info!("POWER_PPM", "Starting official power plan restoration...");
 
         // 1. Disengage any active Performance Overlay Scheme back to Balanced (GUID_NULL)
-        crate::system::power_mode::apply_windows_power_overlay(2);
+        if let Err(error) = crate::system::power_mode::apply_windows_power_overlay(2) {
+            crate::log_warn!("POWER_MODE", "Windows mode synchronization failed: {}", error);
+        }
 
         // 2. powercfg -restoredefaultschemes
         let _ = std::process::Command::new("powercfg")
