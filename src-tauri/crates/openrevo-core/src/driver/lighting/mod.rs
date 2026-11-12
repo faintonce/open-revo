@@ -1467,7 +1467,9 @@ impl IteLightingManager {
 
         let (kb_engine, kb_active, kb_fps) = match contract.keyboard_type.as_str() {
             "PerKey" => {
-                if cfg.lighting.kb_engine == "streamer" {
+                // "custom" runs on the same ITE streamer engine, so report the real
+                // runtime state (and real FPS) instead of a bogus "hardware" label.
+                if matches!(cfg.lighting.kb_engine.as_str(), "streamer" | "custom") {
                     let active = !is_sleep && streamer_running && streamer_params.enabled && streamer_params.brightness_pct > 0;
                     ("streamer".to_string(), active, if streamer_running { streamer_params.fps } else { 0 })
                 } else {

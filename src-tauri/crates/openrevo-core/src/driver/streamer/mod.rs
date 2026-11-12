@@ -249,6 +249,63 @@ impl IteStreamerController {
         }
     }
 
+    /// Re-compiles `<config_dir>/custom_effects/<id>.{brfx,revo-fx,rhai}` into the
+    /// custom FX engine. The compiled Rhai AST is memory-only, so a cold boot starts
+    /// with an empty engine; without this the streamer falls back to the built-in
+    /// approximation used for effects >= 200 and the user's script settings are
+    /// silently dropped.
+    fn restore_custom_script(script_id: &str) {
+        let id = script_id.trim();
+        if id.is_empty() {
+            return;
+        }
+        let dir = crate::system::config::get_config_dir().join("custom_effects");
+        let mut path = None;
+        for ext in ["brfx", "revo-fx", "rhai"] {
+            let candidate = dir.join(format!("{}.{}", id, ext));
+            if candidate.is_file() {
+                path = Some(candidate);
+                break;
+            }
+        }
+        let path = match path {
+            Some(p) => p,
+            None => {
+                crate::log_warn!(
+                    "KEYBOARD",
+                    "init_from_saved_config: custom script '{}' not found in {}",
+                    id,
+                    dir.display()
+                );
+                return;
+            }
+        };
+        match std::fs::read_to_string(&path) {
+            Ok(content) => {
+                match crate::driver::custom_fx_engine::get_custom_fx_engine().load_script(id, &content) {
+                    Ok(()) => crate::log_info!(
+                        "KEYBOARD",
+                        "init_from_saved_config: restored custom BRFX script '{}' from {}",
+                        id,
+                        path.display()
+                    ),
+                    Err(err) => crate::log_warn!(
+                        "KEYBOARD",
+                        "init_from_saved_config: failed to compile custom script '{}': {}",
+                        id,
+                        err
+                    ),
+                }
+            }
+            Err(err) => crate::log_warn!(
+                "KEYBOARD",
+                "init_from_saved_config: failed to read custom script '{}': {}",
+                id,
+                err
+            ),
+        }
+    }
+
     pub fn init_from_saved_config() {
         if !Self::probe_exists() {
             crate::log_info!("KEYBOARD", "init_from_saved_config: No ITE 8291 RGB keyboard device detected, skipping streamer/mcu initialization");
@@ -274,6 +331,12 @@ impl IteStreamerController {
             );
         } else {
             crate::log_info!("KEYBOARD", "init_from_saved_config: activating BetterRGB Streamer Engine (effect={})", cfg.lighting.streamer_effect);
+            // BRFX scripts are compiled to an in-memory Rhai AST, so they must be
+            // re-loaded on every cold boot. Without this the streamer keeps running
+            // but renders the built-in fallback instead of the user's saved script.
+            if cfg.lighting.kb_engine == "custom" {
+                Self::restore_custom_script(&cfg.lighting.custom_script_id);
+            }
             let brightness_pct = match cfg.lighting.kb_brightness {
                 0 => 0,
                 1 => 20,
