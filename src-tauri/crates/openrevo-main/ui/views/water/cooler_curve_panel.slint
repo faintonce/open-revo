@@ -11,6 +11,9 @@ export component CoolerCurvePanel inherits Rectangle {
     in-out property <string> strategy: "smart";
     in-out property <string> curve_template: "standard"; // "standard", "quiet", "aggressive", "linear"
 
+    opacity: root.strategy == "smart" ? 1.0 : 0.45;
+    animate opacity { duration: 150ms; }
+
     // 6 Points: temperatures (30..100) and fan duties (0..100)
     in-out property <[int]> curve_temps: [45, 55, 65, 80, 90, 95];
     in-out property <[int]> curve_duties: [0, 35, 50, 60, 75, 100];
@@ -160,5 +163,10 @@ export component CoolerCurvePanel inherits Rectangle {
             curve_template: root.curve_template;
             apply_template(tpl) => { root.apply_template(tpl); }
         }
+    }
+
+    // Block all pointer/drag interactions when strategy is not "smart"
+    if root.strategy != "smart": TouchArea {
+        mouse-cursor: not-allowed;
     }
 }
