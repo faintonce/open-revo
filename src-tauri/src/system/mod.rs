@@ -39,3 +39,4 @@ pub mod broadcast;
 pub mod ai_gateway;
 
 pub use openrevo_core::system::config_io;
+pub use openrevo_core::system::{data_dir,path_safety};

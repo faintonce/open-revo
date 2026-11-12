@@ -543,7 +543,7 @@ fn default_cooler_mac() -> String {
     String::new()
 }
 
-static RESOLVED_CONFIG_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+static RESOLVED_CONFIG_DIR: LazyLock<RwLock<Option<PathBuf>>> = LazyLock::new(|| RwLock::new(None));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -578,15 +578,22 @@ pub fn get_data_dir_mode() -> DataDirMode {
 /// 3. Windows Registry: HKCU\Software\OpenRevo -> DataPath
 /// 4. Standard Default: %APPDATA%\OpenRevo (100% backward compatible for thousands of existing users)
 pub fn get_config_dir() -> PathBuf {
-    RESOLVED_CONFIG_DIR
-        .get_or_init(|| {
-            let dir = resolve_config_dir();
-            let _ = fs::create_dir_all(&dir);
-            #[cfg(target_os = "windows")]
-            sync_registry_data_path(&dir);
-            dir
-        })
-        .clone()
+    if let Some(dir) = RESOLVED_CONFIG_DIR.read().as_ref() { return dir.clone(); }
+    let mut resolved = RESOLVED_CONFIG_DIR.write();
+    resolved.get_or_insert_with(|| {
+        let dir = resolve_config_dir();
+        let _ = fs::create_dir_all(&dir);
+        if crate::system::data_dir::is_standard_directory(&dir) {
+            let _ = crate::system::data_dir::mark_owned_directory(&dir);
+        }
+        #[cfg(target_os = "windows")]
+        sync_registry_data_path(&dir);
+        dir
+    }).clone()
+}
+
+pub fn adopt_data_dir(dir: PathBuf) {
+    *RESOLVED_CONFIG_DIR.write() = Some(dir);
 }
 
 fn resolve_config_dir() -> PathBuf {
@@ -641,6 +648,7 @@ fn resolve_config_dir() -> PathBuf {
 
 /// Safely migrates existing configuration, profiles, and plugins to a new target directory
 pub fn migrate_data_dir(target_dir: &std::path::Path) -> Result<(), String> {
+    let _io = crate::system::config_io::DATA_IO.lock();
     if !target_dir.is_absolute() {
         return Err("目标路径必须是绝对路径".to_string());
     }
@@ -655,23 +663,33 @@ pub fn migrate_data_dir(target_dir: &std::path::Path) -> Result<(), String> {
 
     fs::create_dir_all(target_dir).map_err(|e| format!("创建目标目录失败: {}", e))?;
 
-    // Copy entries from current_dir to target_dir recursively
-    if current_dir.exists() {
-        copy_dir_recursive(&current_dir, target_dir)?;
+    let canonical_current = current_dir.canonicalize().map_err(|e| e.to_string())?;
+    let canonical_target = target_dir.canonicalize().map_err(|e| e.to_string())?;
+    if canonical_current == canonical_target {
+        return Ok(());
     }
+    crate::system::path_safety::validate_migration_dirs(&canonical_current, &canonical_target)?;
+    crate::system::data_dir::prepare_migration_destination(&canonical_target)?;
+    let _ = load_config();
+    ensure_config_writable()?;
+    copy_dir_recursive(&canonical_current, &canonical_target)?;
+    crate::system::data_dir::mark_owned_directory(&canonical_target)?;
+    // The pointer, registry and live path all keep the plain form of the resolved target.
+    let stored_target = crate::system::path_safety::without_verbatim_prefix(&canonical_target);
 
     // Write pointer file in default %APPDATA%\OpenRevo\data_dir.ptr
     if let Ok(app_data) = std::env::var("APPDATA") {
         let default_dir = PathBuf::from(app_data).join("OpenRevo");
-        let _ = fs::create_dir_all(&default_dir);
+        fs::create_dir_all(&default_dir).map_err(|e| e.to_string())?;
         let ptr_file = default_dir.join("data_dir.ptr");
-        let _ = fs::write(&ptr_file, target_dir.to_string_lossy().as_bytes());
+        crate::system::config_io::atomic_write(&ptr_file, stored_target.to_string_lossy().as_bytes())?;
     }
 
     // Sync registry
     #[cfg(target_os = "windows")]
-    sync_registry_data_path(target_dir);
+    sync_registry_data_path(&stored_target);
 
+    adopt_data_dir(stored_target);
     Ok(())
 }
 
@@ -680,20 +698,25 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<()
         return Ok(());
     }
     let entries = fs::read_dir(src).map_err(|e| e.to_string())?;
-    for entry in entries.flatten() {
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
         let entry_path = entry.path();
         let file_name = entry.file_name();
-        let target_path = dst.join(&file_name);
+        let target_path = crate::system::path_safety::resolve_within(dst, &file_name.to_string_lossy())?;
 
-        if file_name == "data_dir.ptr" {
+        if file_name == "data_dir.ptr" || file_name == ".openrevo-data" {
             continue;
         }
 
-        if entry_path.is_dir() {
+        let kind = entry.file_type().map_err(|e| e.to_string())?;
+        if kind.is_symlink() {
+            return Err(format!("Refusing to migrate linked path: {}", entry_path.display()));
+        }
+        if kind.is_dir() {
             fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
             copy_dir_recursive(&entry_path, &target_path)?;
         } else {
-            let _ = fs::copy(&entry_path, &target_path);
+            fs::copy(&entry_path, &target_path).map_err(|e| e.to_string())?;
         }
     }
     Ok(())
@@ -1144,17 +1167,18 @@ pub fn list_profiles() -> Vec<CustomProfilePreset> {
 }
 
 pub fn save_profile_file(preset: &CustomProfilePreset) -> Result<(), String> {
-    let dir = get_profiles_dir();
+    let _io = crate::system::config_io::DATA_IO.lock();
     let safe_file_name = if preset.file_name.ends_with(".json") {
         preset.file_name.clone()
     } else {
         format!("{}.json", preset.file_name)
     };
-    let path = dir.join(&safe_file_name);
+    crate::system::path_safety::validate_file_name(&safe_file_name)?;
+    let dir = get_profiles_dir();
+    let path = crate::system::path_safety::resolve_within(&dir, &safe_file_name)?;
     let json = serde_json::to_string_pretty(preset)
         .map_err(|e| format!("序列化配置方案失败: {}", e))?;
-    fs::write(&path, json)
-        .map_err(|e| format!("写入配置文件失败: {}", e))?;
+    crate::system::config_io::atomic_write(&path, json.as_bytes())?;
     Ok(())
 }
 
@@ -1445,6 +1469,23 @@ pub fn is_module_enabled(id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn regression_migration_reports_copy_failures() {
+        let dir = std::env::temp_dir().join(format!("openrevo-copy-test-{}", std::process::id()));
+        let source = dir.join("source");
+        let destination = dir.join("destination");
+        fs::create_dir_all(&source).unwrap();
+        fs::create_dir_all(destination.join("profile.json")).unwrap();
+        fs::write(source.join("profile.json"), "original").unwrap();
+        assert!(copy_dir_recursive(&source, &destination).is_err());
+        assert_eq!(fs::read_to_string(source.join("profile.json")).unwrap(), "original");
+        fs::remove_file(source.join("profile.json")).unwrap();
+        fs::remove_dir(destination.join("profile.json")).unwrap();
+        fs::remove_dir(source).unwrap();
+        fs::remove_dir(destination).unwrap();
+        fs::remove_dir(dir).unwrap();
+    }
 
     #[test]
     fn test_purge_legacy_hardware_snapshot() {
