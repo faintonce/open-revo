@@ -225,7 +225,7 @@ export component KeyboardLightingView inherits Rectangle {
                         Text { text: "全域键盘亮度"; font-size: 12px; font-weight: 600; color: AppTheme.text_secondary; vertical-alignment: center; }
                     }
                     Text {
-                        text: root.kb_brightness == 0 ? "关闭 (0)" : (root.kb_brightness + " 档");
+                        text: Math.max(1, root.kb_brightness) + " 档";
                         font-size: 12px;
                         font-weight: 700;
                         color: #818cf8;
@@ -243,14 +243,14 @@ export component KeyboardLightingView inherits Rectangle {
                         border-radius: 2px;
                         Rectangle {
                             x: 0; y: 0;
-                            width: Math.max(0px, (root.kb_brightness / 4.0) * parent.width);
+                            width: Math.max(0px, (Math.clamp(root.kb_brightness - 1, 0, 3) / 3.0) * parent.width);
                             height: parent.height;
                             background: #818cf8;
                             border-radius: 2px;
                         }
                     }
                     Rectangle {
-                        x: Math.max(0px, Math.min(parent.width - self.width, (root.kb_brightness / 4.0) * parent.width - self.width / 2));
+                        x: Math.max(0px, Math.min(parent.width - self.width, (Math.clamp(root.kb_brightness - 1, 0, 3) / 3.0) * parent.width - self.width / 2));
                         y: (parent.height - self.height) / 2;
                         width: 14px; height: 14px; border-radius: 7px; background: #ffffff;
                     }
@@ -259,8 +259,8 @@ export component KeyboardLightingView inherits Rectangle {
                         pointer-event(event) => {
                             if event.kind == PointerEventKind.down || (event.kind == PointerEventKind.move && self.pressed) {
                                 let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
-                                let next_b = Math.round(ratio * 4.0);
-                                if (next_b != root.kb_brightness) {
+                                let next_b = Math.round(1.0 + ratio * 3.0);
+                                if (next_b != root.kb_brightness || !root.kb_enabled) {
                                     root.kb_brightness = next_b;
                                     root.change_brightness(next_b);
                                 }

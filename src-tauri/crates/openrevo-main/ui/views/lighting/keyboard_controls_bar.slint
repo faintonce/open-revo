@@ -151,7 +151,7 @@ export component KeyboardControlsBar inherits Rectangle {
                     }
                 }
                 Text {
-                    text: root.kb_brightness == 0 ? "关闭 (0)" : (root.is_single_color ? (root.kb_brightness == 1 ? "1档 (弱光)" : "2档 (强光)") : (root.kb_brightness + " 档"));
+                    text: root.is_single_color ? (Math.max(1, root.kb_brightness) == 1 ? "1档 (弱光)" : "2档 (强光)") : (Math.max(1, root.kb_brightness) + " 档");
                     font-size: 10px;
                     font-weight: 700;
                     color: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #34d399 : (root.is_four_zone ? #22d3ee : #818cf8));
@@ -175,7 +175,7 @@ export component KeyboardControlsBar inherits Rectangle {
                     Rectangle {
                         x: 0;
                         y: 0;
-                        width: Math.max(0px, (root.kb_brightness / (root.is_single_color ? 2.0 : 4.0)) * parent.width);
+                        width: Math.max(0px, (Math.clamp(root.kb_brightness - 1, 0, root.is_single_color ? 1 : 3) / (root.is_single_color ? 1.0 : 3.0)) * parent.width);
                         height: parent.height;
                         background: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #10b981 : (root.is_four_zone ? #06b6d4 : #818cf8));
                         border-radius: 2px;
@@ -184,7 +184,7 @@ export component KeyboardControlsBar inherits Rectangle {
 
                 // Knob
                 Rectangle {
-                    x: Math.max(0px, Math.min(parent.width - self.width, (root.kb_brightness / (root.is_single_color ? 2.0 : 4.0)) * parent.width - self.width / 2));
+                    x: Math.max(0px, Math.min(parent.width - self.width, (Math.clamp(root.kb_brightness - 1, 0, root.is_single_color ? 1 : 3) / (root.is_single_color ? 1.0 : 3.0)) * parent.width - self.width / 2));
                     y: (parent.height - self.height) / 2;
                     width: 12px;
                     height: 12px;
@@ -195,18 +195,18 @@ export component KeyboardControlsBar inherits Rectangle {
                 TouchArea {
                     mouse-cursor: pointer;
                     pointer-event(event) => {
-                        let max_steps = root.is_single_color ? 2.0 : 4.0;
+                        let span = root.is_single_color ? 1.0 : 3.0;
                         if event.kind == PointerEventKind.down {
                             let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
-                            let val = Math.round(ratio * max_steps);
+                            let val = Math.round(1.0 + ratio * span);
                             root.kb_brightness = val;
                             root.change_brightness(val);
                         }
                     }
                     moved => {
-                        let max_steps = root.is_single_color ? 2.0 : 4.0;
+                        let span = root.is_single_color ? 1.0 : 3.0;
                         let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
-                        let val = Math.round(ratio * max_steps);
+                        let val = Math.round(1.0 + ratio * span);
                         if val != root.kb_brightness {
                             root.kb_brightness = val;
                             root.change_brightness(val);
