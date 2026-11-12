@@ -8,7 +8,6 @@ export component OsdWindow inherits Window {
 
     in-out property <bool> is_active: false;
     in-out property <string> mode_title: "狂暴模式";
-    in-out property <string> mode_subtitle: "BEAST MODE · 极致性能与功耗全开";
     in-out property <color> accent_color: #ef4444;
     in-out property <color> accent_bg: #ef444425;
     in-out property <string> icon_symbol: "⚡";
@@ -22,7 +21,7 @@ export component OsdWindow inherits Window {
     property <bool> is_pill: !is_cinema && !is_fade;
 
     card := Rectangle {
-        width: (is_cinema ? 380px : (is_fade ? 410px : 430px)) * osd_scale;
+        width: (is_cinema ? 280px : (is_fade ? 320px : 300px)) * osd_scale;
         height: (is_cinema ? 68px : (is_fade ? 74px : 76px)) * osd_scale;
         x: (osd_position == "top-left" || osd_position == "left" || osd_position == "bottom-left") ? 0px
             : ((osd_position == "top-right" || osd_position == "right") ? (parent.width - self.width)
@@ -79,25 +78,14 @@ export component OsdWindow inherits Window {
                 }
             }
 
-            // 标题与副标题描述垂直居中
-            VerticalLayout {
-                alignment: center;
-                spacing: 3px * osd_scale;
-
-                Text {
-                    text: mode_title;
-                    font-size: (is_cinema ? 18px : 16px) * osd_scale;
-                    font-weight: 800;
-                    color: #ffffff;
-                }
-
-                Text {
-                    text: mode_subtitle;
-                    font-size: 11.5px * osd_scale;
-                    font-weight: 500;
-                    color: #94a3b8;
-                    overflow: elide;
-                }
+            // 标题垂直居中
+            Text {
+                text: mode_title;
+                font-size: (is_cinema ? 18px : 17px) * osd_scale;
+                font-weight: 800;
+                color: #ffffff;
+                vertical-alignment: center;
+                overflow: elide;
             }
         }
     }
