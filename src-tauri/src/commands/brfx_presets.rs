@@ -451,9 +451,9 @@ fn render_key(kx, ky, ctx) {
     let offset_x = kx - 19.0 + ctx.t * speed;
     let hit = sample_text(text, offset_x, ky);
 
-    let mut r = 0.0;
-    let mut g = 0.0;
-    let mut b = 0.0;
+    let r = 0.0;
+    let g = 0.0;
+    let b = 0.0;
 
     // 深邃宇宙幽蓝夜光背景 (保证整张键盘在暗光下轮廓清晰可用)
     r += 3.0;

@@ -789,6 +789,7 @@ pub fn get_custom_brfx_list() -> Result<Vec<CustomBrfxFileInfo>, String> {
                 || existing.contains("寮曞姏") 
                 || existing.contains("鏂囧瓧")
                 || existing.contains('\u{FFFD}')
+                || existing.contains("let mut ")
                 || (!existing.contains("@name: 龟派气功") 
                     && !existing.contains("@name: 赛博青莲") 
                     && !existing.contains("@name: 引力黑洞") 

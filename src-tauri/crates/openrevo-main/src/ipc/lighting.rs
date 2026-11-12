@@ -106,7 +106,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
                 ui.set_custom_reactive(rx);
             }
             if let Some(txt) = val.get("custom_marquee_text").and_then(|v| v.as_str()) {
-                ui.set_custom_marquee_text(txt.into());
+                if ui.get_custom_marquee_text().as_str() != txt {
+                    ui.set_custom_marquee_text(txt.into());
+                }
             }
 
             // Lightbar

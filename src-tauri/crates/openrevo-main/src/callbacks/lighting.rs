@@ -216,9 +216,11 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     let ui_cb = ui_weak.clone();
     window.on_set_kb_brightness(move |b| {
         if let Some(ui) = ui_cb.upgrade() {
+            let next_enabled = b > 0;
             ui.set_kb_brightness(b);
+            ui.set_kb_enabled(next_enabled);
             ipc::send_action_to_host("apply_keyboard_lighting_patch", serde_json::json!({
-                "enabled": ui.get_kb_enabled(),
+                "enabled": next_enabled,
                 "engine": kb_engine_str(&ui),
                 "fps": ui.get_kb_fps(),
                 "effect": ui.get_kb_effect(),
