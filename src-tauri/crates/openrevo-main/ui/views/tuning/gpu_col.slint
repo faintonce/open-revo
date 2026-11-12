@@ -9,8 +9,11 @@ export component GpuTuningCol inherits Rectangle {
     // GPU Props
     in-out property <string> gpu_name: "NVIDIA GeForce RTX 4090 Laptop GPU";
     in-out property <bool> super_perf: true;
-    in-out property <int> core_offset: 0;        // -200 .. +250 MHz
-    in-out property <int> mem_offset: 0;         // -500 .. +1000 MHz
+    in-out property <int> core_offset: 0;        // 0 .. +gpu_core_offset_max MHz
+    in-out property <int> mem_offset: 0;         // -gpu_mem_offset_max .. +gpu_mem_offset_max MHz
+    in-out property <int> gpu_offset_step: 5;
+    in-out property <int> gpu_core_offset_max: 250;
+    in-out property <int> gpu_mem_offset_max: 1000;
     in-out property <bool> db_enabled: true;
     in-out property <int> db_watts: 25;          // 5 .. 25 W
     in-out property <int> base_tgp: 150;         // Base TGP (e.g. 150W)
@@ -30,11 +33,14 @@ export component GpuTuningCol inherits Rectangle {
     callback change_db_watts(int);
     callback change_ctgp_watts(int);
 
-    property <int> effective_base_watts: root.super_perf ?
+    property <bool> effective_super_perf: root.is_mode_locked ? true : root.super_perf;
+    property <int> effective_core_offset: root.effective_super_perf ? root.core_offset : 0;
+    property <int> effective_mem_offset: root.effective_super_perf ? root.mem_offset : 0;
+    property <int> effective_base_watts: root.effective_super_perf ?
         (root.supports_ctgp ? root.ctgp_max_watts : root.base_tgp) :
         (root.supports_ctgp ? root.ctgp_watts : root.base_tgp);
-    property <int> effective_db_watts: (root.super_perf || root.db_enabled) ?
-        (root.super_perf ? root.max_db_watts : root.db_watts) : 0;
+    property <int> effective_db_watts: (root.effective_super_perf || root.db_enabled) ?
+        (root.effective_super_perf ? root.max_db_watts : root.db_watts) : 0;
 
     VerticalLayout {
         padding: 10px;
@@ -72,10 +78,10 @@ export component GpuTuningCol inherits Rectangle {
 
         // 2. Super Perf Card
         Rectangle {
-            background: root.super_perf ? #10b98118 : AppTheme.surface_pill;
+            background: root.effective_super_perf ? #10b98118 : AppTheme.surface_pill;
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
-            border-color: root.super_perf ? #10b98170 : AppTheme.border_subtle;
+            border-color: root.effective_super_perf ? #10b98170 : AppTheme.border_subtle;
 
             HorizontalLayout {
                 padding: 10px;
@@ -85,7 +91,7 @@ export component GpuTuningCol inherits Rectangle {
                     text: "超性能 (Super Perf)";
                     font-size: 12px;
                     font-weight: 700;
-                    color: root.super_perf ? #10b981 : AppTheme.text_primary;
+                    color: root.effective_super_perf ? #10b981 : AppTheme.text_primary;
                     vertical-alignment: center;
                 }
 
@@ -94,19 +100,21 @@ export component GpuTuningCol inherits Rectangle {
                     width: 36px;
                     height: 20px;
                     border-radius: 10px;
-                    background: root.super_perf ? #10b981 : AppTheme.surface_card;
+                    background: root.effective_super_perf ? #10b981 : AppTheme.surface_card;
                     border-width: 1px;
-                    border-color: root.super_perf ? #10b981 : AppTheme.border_medium;
+                    border-color: root.effective_super_perf ? #10b981 : AppTheme.border_medium;
 
                     TouchArea {
-                        mouse-cursor: pointer;
+                        mouse-cursor: root.is_mode_locked ? not-allowed : pointer;
                         clicked => {
-                            root.toggle_super_perf();
+                            if !root.is_mode_locked {
+                                root.toggle_super_perf();
+                            }
                         }
                     }
 
                     Rectangle {
-                        x: root.super_perf ? 18px : 2px;
+                        x: root.effective_super_perf ? 18px : 2px;
                         y: 2px;
                         width: 14px;
                         height: 14px;
@@ -123,6 +131,7 @@ export component GpuTuningCol inherits Rectangle {
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
+            opacity: root.effective_super_perf ? 1.0 : 0.45;
 
             VerticalLayout {
                 padding: 8px;
@@ -136,10 +145,10 @@ export component GpuTuningCol inherits Rectangle {
                         color: AppTheme.text_secondary;
                     }
                     Text {
-                        text: (root.core_offset > 0 ? "+" : "") + root.core_offset + " MHz";
+                        text: (root.effective_core_offset > 0 ? "+" : "") + root.effective_core_offset + " MHz";
                         font-size: 11px;
                         font-weight: 700;
-                        color: root.core_offset != 0 ? #38bdf8 : AppTheme.text_primary;
+                        color: root.effective_core_offset != 0 ? #38bdf8 : AppTheme.text_primary;
                     }
                 }
 
@@ -159,7 +168,7 @@ export component GpuTuningCol inherits Rectangle {
 
                         // Thumb
                         Rectangle {
-                            x: (parent.width - self.width) * Math.clamp((root.core_offset + 200) / 450, 0, 1);
+                            x: (parent.width - self.width) * Math.clamp(root.effective_core_offset / Math.max(1, root.gpu_core_offset_max), 0, 1);
                             y: (parent.height - self.height) / 2;
                             width: 14px;
                             height: 14px;
@@ -173,19 +182,23 @@ export component GpuTuningCol inherits Rectangle {
                     TouchArea {
                         width: 100%;
                         height: 100%;
-                        mouse-cursor: pointer;
+                        mouse-cursor: root.effective_super_perf ? pointer : not-allowed;
                         pointer-event(event) => {
-                            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            if root.effective_super_perf && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                                let val = Math.clamp(-200 + Math.round(ratio * 450), -200, 250);
+                                let step = Math.max(1, root.gpu_offset_step);
+                                let raw = Math.round(ratio * root.gpu_core_offset_max);
+                                let val = Math.clamp(Math.round(raw / step) * step, 0, root.gpu_core_offset_max);
                                 root.core_offset = val;
                                 root.change_core_offset(val);
                             }
                         }
                         moved => {
-                            if self.pressed {
+                            if root.effective_super_perf && self.pressed {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                                let val = Math.clamp(-200 + Math.round(ratio * 450), -200, 250);
+                                let step = Math.max(1, root.gpu_offset_step);
+                                let raw = Math.round(ratio * root.gpu_core_offset_max);
+                                let val = Math.clamp(Math.round(raw / step) * step, 0, root.gpu_core_offset_max);
                                 root.core_offset = val;
                                 root.change_core_offset(val);
                             }
@@ -201,6 +214,7 @@ export component GpuTuningCol inherits Rectangle {
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
+            opacity: root.effective_super_perf ? 1.0 : 0.45;
 
             VerticalLayout {
                 padding: 8px;
@@ -214,10 +228,10 @@ export component GpuTuningCol inherits Rectangle {
                         color: AppTheme.text_secondary;
                     }
                     Text {
-                        text: (root.mem_offset > 0 ? "+" : "") + root.mem_offset + " MHz";
+                        text: (root.effective_mem_offset > 0 ? "+" : "") + root.effective_mem_offset + " MHz";
                         font-size: 11px;
                         font-weight: 700;
-                        color: root.mem_offset != 0 ? #818cf8 : AppTheme.text_primary;
+                        color: root.effective_mem_offset != 0 ? #818cf8 : AppTheme.text_primary;
                     }
                 }
 
@@ -237,7 +251,7 @@ export component GpuTuningCol inherits Rectangle {
 
                         // Thumb
                         Rectangle {
-                            x: (parent.width - self.width) * Math.clamp((root.mem_offset + 500) / 1500, 0, 1);
+                            x: (parent.width - self.width) * Math.clamp((root.effective_mem_offset + root.gpu_mem_offset_max) / Math.max(1, root.gpu_mem_offset_max * 2), 0, 1);
                             y: (parent.height - self.height) / 2;
                             width: 14px;
                             height: 14px;
@@ -251,19 +265,23 @@ export component GpuTuningCol inherits Rectangle {
                     TouchArea {
                         width: 100%;
                         height: 100%;
-                        mouse-cursor: pointer;
+                        mouse-cursor: root.effective_super_perf ? pointer : not-allowed;
                         pointer-event(event) => {
-                            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            if root.effective_super_perf && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                                let val = Math.clamp(-500 + Math.round(ratio * 1500), -500, 1000);
+                                let step = Math.max(1, root.gpu_offset_step);
+                                let raw = -root.gpu_mem_offset_max + Math.round(ratio * (root.gpu_mem_offset_max * 2));
+                                let val = Math.clamp(Math.round(raw / step) * step, -root.gpu_mem_offset_max, root.gpu_mem_offset_max);
                                 root.mem_offset = val;
                                 root.change_mem_offset(val);
                             }
                         }
                         moved => {
-                            if self.pressed {
+                            if root.effective_super_perf && self.pressed {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                                let val = Math.clamp(-500 + Math.round(ratio * 1500), -500, 1000);
+                                let step = Math.max(1, root.gpu_offset_step);
+                                let raw = -root.gpu_mem_offset_max + Math.round(ratio * (root.gpu_mem_offset_max * 2));
+                                let val = Math.clamp(Math.round(raw / step) * step, -root.gpu_mem_offset_max, root.gpu_mem_offset_max);
                                 root.mem_offset = val;
                                 root.change_mem_offset(val);
                             }
@@ -316,7 +334,7 @@ export component GpuTuningCol inherits Rectangle {
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
-            opacity: root.super_perf ? 0.45 : 1.0;
+            opacity: root.effective_super_perf ? 0.45 : 1.0;
 
             VerticalLayout {
                 padding: 8px;
@@ -330,10 +348,10 @@ export component GpuTuningCol inherits Rectangle {
                         color: AppTheme.text_secondary;
                     }
                     Text {
-                        text: (root.super_perf ? root.ctgp_max_watts : root.ctgp_watts) + " W";
+                        text: (root.effective_super_perf ? root.ctgp_max_watts : root.ctgp_watts) + " W";
                         font-size: 11px;
                         font-weight: 700;
-                        color: root.super_perf ? AppTheme.text_muted : #38bdf8;
+                        color: root.effective_super_perf ? AppTheme.text_muted : #38bdf8;
                     }
                 }
 
@@ -354,7 +372,7 @@ export component GpuTuningCol inherits Rectangle {
                         // Thumb
                         Rectangle {
                             x: (parent.width - self.width) * Math.clamp(
-                                (root.super_perf ? (root.ctgp_max_watts - root.ctgp_floor_watts) : (root.ctgp_watts - root.ctgp_floor_watts)) / Math.max(1, root.ctgp_max_watts - root.ctgp_floor_watts),
+                                (root.effective_super_perf ? (root.ctgp_max_watts - root.ctgp_floor_watts) : (root.ctgp_watts - root.ctgp_floor_watts)) / Math.max(1, root.ctgp_max_watts - root.ctgp_floor_watts),
                                 0, 1
                             );
                             y: (parent.height - self.height) / 2;
@@ -370,9 +388,9 @@ export component GpuTuningCol inherits Rectangle {
                     TouchArea {
                         width: 100%;
                         height: 100%;
-                        mouse-cursor: root.super_perf ? not-allowed : pointer;
+                        mouse-cursor: root.effective_super_perf ? not-allowed : pointer;
                         pointer-event(event) => {
-                            if !root.super_perf && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            if !root.effective_super_perf && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
                                 let span = Math.max(1, root.ctgp_max_watts - root.ctgp_floor_watts);
                                 let val = Math.clamp(root.ctgp_floor_watts + Math.round(ratio * span), root.ctgp_floor_watts, root.ctgp_max_watts);
@@ -381,7 +399,7 @@ export component GpuTuningCol inherits Rectangle {
                             }
                         }
                         moved => {
-                            if !root.super_perf && self.pressed {
+                            if !root.effective_super_perf && self.pressed {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
                                 let span = Math.max(1, root.ctgp_max_watts - root.ctgp_floor_watts);
                                 let val = Math.clamp(root.ctgp_floor_watts + Math.round(ratio * span), root.ctgp_floor_watts, root.ctgp_max_watts);
@@ -414,7 +432,7 @@ export component GpuTuningCol inherits Rectangle {
             border-radius: AppTheme.radius_sm;
             border-width: 1px;
             border-color: AppTheme.border_subtle;
-            opacity: root.super_perf ? 0.45 : 1.0;
+            opacity: root.effective_super_perf ? 0.45 : 1.0;
 
             VerticalLayout {
                 padding: 8px;
@@ -432,7 +450,7 @@ export component GpuTuningCol inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         Text {
-                            text: "+" + (root.super_perf ? root.max_db_watts : (root.db_enabled ? root.db_watts : 0)) + " W";
+                            text: (root.effective_super_perf || root.db_enabled) ? ("+" + root.effective_db_watts + " W") : "关闭";
                             font-size: 11px;
                             font-weight: 700;
                             color: #10b981;
@@ -443,21 +461,21 @@ export component GpuTuningCol inherits Rectangle {
                             width: 36px;
                             height: 20px;
                             border-radius: 10px;
-                            background: (root.super_perf || root.db_enabled) ? #10b981 : AppTheme.surface_card;
+                            background: (root.effective_super_perf || root.db_enabled) ? #10b981 : AppTheme.surface_card;
                             border-width: 1px;
-                            border-color: (root.super_perf || root.db_enabled) ? #10b981 : AppTheme.border_medium;
+                            border-color: (root.effective_super_perf || root.db_enabled) ? #10b981 : AppTheme.border_medium;
 
                             TouchArea {
-                                mouse-cursor: root.super_perf ? not-allowed : pointer;
+                                mouse-cursor: root.effective_super_perf ? not-allowed : pointer;
                                 clicked => {
-                                    if !root.super_perf {
+                                    if !root.effective_super_perf {
                                         root.toggle_db();
                                     }
                                 }
                             }
 
                             Rectangle {
-                                x: (root.super_perf || root.db_enabled) ? 18px : 2px;
+                                x: (root.effective_super_perf || root.db_enabled) ? 18px : 2px;
                                 y: 2px;
                                 width: 14px;
                                 height: 14px;
@@ -485,7 +503,7 @@ export component GpuTuningCol inherits Rectangle {
                         // Thumb
                         Rectangle {
                             x: (parent.width - self.width) * Math.clamp(
-                                (root.super_perf ? (root.max_db_watts - 5) : (root.db_watts - 5)) / Math.max(1, root.max_db_watts - 5),
+                                (root.effective_super_perf ? (root.max_db_watts - 5) : (root.db_watts - 5)) / Math.max(1, root.max_db_watts - 5),
                                 0, 1
                             );
                             y: (parent.height - self.height) / 2;
@@ -501,9 +519,9 @@ export component GpuTuningCol inherits Rectangle {
                     TouchArea {
                         width: 100%;
                         height: 100%;
-                        mouse-cursor: (root.super_perf || !root.db_enabled) ? not-allowed : pointer;
+                        mouse-cursor: (root.effective_super_perf || !root.db_enabled) ? not-allowed : pointer;
                         pointer-event(event) => {
-                            if !root.super_perf && root.db_enabled && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            if !root.effective_super_perf && root.db_enabled && event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
                                 let span = Math.max(1, root.max_db_watts - 5);
                                 let val = Math.clamp(5 + Math.round(ratio * span), 5, root.max_db_watts);
@@ -512,7 +530,7 @@ export component GpuTuningCol inherits Rectangle {
                             }
                         }
                         moved => {
-                            if !root.super_perf && root.db_enabled && self.pressed {
+                            if !root.effective_super_perf && root.db_enabled && self.pressed {
                                 let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
                                 let span = Math.max(1, root.max_db_watts - 5);
                                 let val = Math.clamp(5 + Math.round(ratio * span), 5, root.max_db_watts);

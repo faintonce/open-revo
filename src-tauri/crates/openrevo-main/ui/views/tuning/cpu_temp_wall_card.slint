@@ -4,7 +4,9 @@ export component CpuTempWallCard inherits Rectangle {
     in-out property <bool> is_amd: false;
     in-out property <int> temp_wall: 95;
     in-out property <bool> temp_wall_enabled: true;
+    in-out property <int> temp_wall_min: 85;
     in-out property <int> temp_wall_max: 95;
+    in-out property <int> max_temp_wall: 100;
 
     callback toggle_temp_wall();
     callback change_temp_wall(int);
@@ -31,10 +33,10 @@ export component CpuTempWallCard inherits Rectangle {
             HorizontalLayout {
                 spacing: 8px;
                 Text {
-                    text: root.temp_wall + "°C";
+                    text: root.temp_wall_enabled ? (root.temp_wall + "°C") : (root.temp_wall_max + "°C (不限)");
                     font-size: 12px;
                     font-weight: 700;
-                    color: root.temp_wall >= 96 ? AppTheme.mode_beast : #38bdf8;
+                    color: !root.temp_wall_enabled ? AppTheme.text_muted : (root.temp_wall >= 96 ? AppTheme.mode_beast : #38bdf8);
                     vertical-alignment: center;
                 }
 
@@ -67,7 +69,7 @@ export component CpuTempWallCard inherits Rectangle {
         }
 
         // Slider & Tcc
-        HorizontalLayout {
+        if root.temp_wall_enabled: HorizontalLayout {
             spacing: 8px;
 
             // Slider container (height: 20px, 宽敞舒适的点击与拖拽手感)
@@ -87,7 +89,7 @@ export component CpuTempWallCard inherits Rectangle {
                     // Fill
                     Rectangle {
                         x: 0;
-                        width: parent.width * Math.clamp((root.temp_wall - 85) / Math.max(1, root.temp_wall_max - 85), 0, 1);
+                        width: parent.width * Math.clamp((root.temp_wall - root.temp_wall_min) / Math.max(1, root.temp_wall_max - root.temp_wall_min), 0, 1);
                         height: 100%;
                         border-radius: 3px;
                         background: root.temp_wall >= 96 ? AppTheme.mode_beast : #38bdf8;
@@ -95,7 +97,7 @@ export component CpuTempWallCard inherits Rectangle {
 
                     // Thumb
                     Rectangle {
-                        x: (parent.width - self.width) * Math.clamp((root.temp_wall - 85) / Math.max(1, root.temp_wall_max - 85), 0, 1);
+                        x: (parent.width - self.width) * Math.clamp((root.temp_wall - root.temp_wall_min) / Math.max(1, root.temp_wall_max - root.temp_wall_min), 0, 1);
                         y: (parent.height - self.height) / 2;
                         width: 14px;
                         height: 14px;
@@ -113,7 +115,7 @@ export component CpuTempWallCard inherits Rectangle {
                     pointer-event(event) => {
                         if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                             let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                            let val = Math.clamp(85 + Math.round(ratio * (root.temp_wall_max - 85)), 85, root.temp_wall_max);
+                            let val = Math.clamp(root.temp_wall_min + Math.round(ratio * (root.temp_wall_max - root.temp_wall_min)), root.temp_wall_min, root.temp_wall_max);
                             root.temp_wall = val;
                             root.change_temp_wall(val);
                         }
@@ -121,7 +123,7 @@ export component CpuTempWallCard inherits Rectangle {
                     moved => {
                         if self.pressed {
                             let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                            let val = Math.clamp(85 + Math.round(ratio * (root.temp_wall_max - 85)), 85, root.temp_wall_max);
+                            let val = Math.clamp(root.temp_wall_min + Math.round(ratio * (root.temp_wall_max - root.temp_wall_min)), root.temp_wall_min, root.temp_wall_max);
                             root.temp_wall = val;
                             root.change_temp_wall(val);
                         }
@@ -140,10 +142,10 @@ export component CpuTempWallCard inherits Rectangle {
         }
 
         // Range hints & -/+
-        HorizontalLayout {
+        if root.temp_wall_enabled: HorizontalLayout {
             alignment: space-between;
             Text {
-                text: "85°C";
+                text: root.temp_wall_min + "°C";
                 font-size: 9px;
                 color: AppTheme.text_muted;
             }
@@ -166,7 +168,7 @@ export component CpuTempWallCard inherits Rectangle {
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
-                            root.temp_wall_max = Math.clamp(root.temp_wall_max - 1, 85, 105);
+                            root.temp_wall_max = Math.clamp(root.temp_wall_max - 1, root.temp_wall_min, root.max_temp_wall);
                             root.adjust_temp_wall_max(-1);
                         }
                     }
@@ -189,7 +191,7 @@ export component CpuTempWallCard inherits Rectangle {
                     TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
-                            root.temp_wall_max = Math.clamp(root.temp_wall_max + 1, 85, 105);
+                            root.temp_wall_max = Math.clamp(root.temp_wall_max + 1, root.temp_wall_min, root.max_temp_wall);
                             root.adjust_temp_wall_max(1);
                         }
                     }

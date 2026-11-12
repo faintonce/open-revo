@@ -4,8 +4,11 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
     in-out property <bool> is_amd: false;
     in-out property <bool> cpu_supports_fppt: true;
 
+    in-out property <int> min_pl4: 35;
     in-out property <int> pl4: 126;
     in-out property <int> pl4_max: 275;
+    in-out property <int> min_max_pl4: 155;
+    in-out property <int> max_max_pl4: 280;
 
     in-out property <bool> bios_oc_enabled: true;
     in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
@@ -81,7 +84,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                     // Fill
                     Rectangle {
                         x: 0;
-                        width: parent.width * Math.clamp((root.pl4 - 35) / Math.max(1, root.pl4_max - 35), 0, 1);
+                        width: parent.width * Math.clamp((root.pl4 - root.min_pl4) / Math.max(1, root.pl4_max - root.min_pl4), 0, 1);
                         height: 100%;
                         border-radius: 3px;
                         background: #f43f5e;
@@ -89,7 +92,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
 
                     // Thumb
                     Rectangle {
-                        x: (parent.width - self.width) * Math.clamp((root.pl4 - 35) / Math.max(1, root.pl4_max - 35), 0, 1);
+                        x: (parent.width - self.width) * Math.clamp((root.pl4 - root.min_pl4) / Math.max(1, root.pl4_max - root.min_pl4), 0, 1);
                         y: (parent.height - self.height) / 2;
                         width: 14px;
                         height: 14px;
@@ -107,7 +110,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                     pointer-event(event) => {
                         if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                             let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                            let val = Math.clamp(35 + Math.round(ratio * (root.pl4_max - 35)), 35, root.pl4_max);
+                            let val = Math.clamp(root.min_pl4 + Math.round(ratio * (root.pl4_max - root.min_pl4)), root.min_pl4, root.pl4_max);
                             root.pl4 = val;
                             root.change_pl4(val);
                         }
@@ -115,7 +118,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                     moved => {
                         if self.pressed {
                             let ratio = Math.clamp(self.mouse-x / self.width, 0, 1);
-                            let val = Math.clamp(35 + Math.round(ratio * (root.pl4_max - 35)), 35, root.pl4_max);
+                            let val = Math.clamp(root.min_pl4 + Math.round(ratio * (root.pl4_max - root.min_pl4)), root.min_pl4, root.pl4_max);
                             root.pl4 = val;
                             root.change_pl4(val);
                         }
@@ -127,7 +130,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: "35W";
+                    text: root.min_pl4 + "W";
                     font-size: 9px;
                     color: AppTheme.text_muted;
                 }
@@ -149,7 +152,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                         TouchArea {
                             mouse-cursor: pointer;
                             clicked => {
-                                root.pl4_max = Math.clamp(root.pl4_max - 5, 50, 350);
+                                root.pl4_max = Math.clamp(root.pl4_max - 5, root.min_max_pl4, root.max_max_pl4);
                                 root.adjust_pl4_max(-5);
                             }
                         }
@@ -171,7 +174,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                         TouchArea {
                             mouse-cursor: pointer;
                             clicked => {
-                                root.pl4_max = Math.clamp(root.pl4_max + 5, 50, 350);
+                                root.pl4_max = Math.clamp(root.pl4_max + 5, root.min_max_pl4, root.max_max_pl4);
                                 root.adjust_pl4_max(5);
                             }
                         }

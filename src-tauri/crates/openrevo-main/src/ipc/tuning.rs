@@ -1,9 +1,12 @@
+use slint::ComponentHandle;
 use crate::MainWindow;
 
 pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     match action {
         "open_tuning_view" => {
             ui.set_is_in_tuning_view(true);
+            ui.set_redraw_tick(ui.get_redraw_tick().wrapping_add(1));
+            ui.window().request_redraw();
             true
         }
         "sync_tuning_state" => {
@@ -40,8 +43,20 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(twe) = val.get("temp_wall_enabled").and_then(|v| v.as_bool()) {
                 ui.set_temp_wall_enabled(twe);
             }
+            if let Some(twmin) = val.get("temp_wall_min").and_then(|v| v.as_i64()) {
+                ui.set_temp_wall_min(twmin as i32);
+            }
             if let Some(twm) = val.get("temp_wall_max").and_then(|v| v.as_i64()) {
                 ui.set_temp_wall_max(twm as i32);
+            }
+            if let Some(mtw) = val.get("max_temp_wall").and_then(|v| v.as_i64()) {
+                ui.set_max_temp_wall(mtw as i32);
+            }
+            if let Some(mpl) = val.get("min_pl").and_then(|v| v.as_i64()) {
+                ui.set_min_pl(mpl as i32);
+            }
+            if let Some(margin) = val.get("pl4_margin").and_then(|v| v.as_i64()) {
+                ui.set_pl4_margin(margin as i32);
             }
             if let Some(p1) = val.get("pl1").and_then(|v| v.as_i64()) {
                 ui.set_pl1(p1 as i32);
@@ -49,17 +64,35 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(p1m) = val.get("pl1_max").and_then(|v| v.as_i64()) {
                 ui.set_pl1_max(p1m as i32);
             }
+            if let Some(v) = val.get("min_max_pl1").and_then(|v| v.as_i64()) {
+                ui.set_min_max_pl1(v as i32);
+            }
+            if let Some(v) = val.get("max_max_pl1").and_then(|v| v.as_i64()) {
+                ui.set_max_max_pl1(v as i32);
+            }
             if let Some(p2) = val.get("pl2").and_then(|v| v.as_i64()) {
                 ui.set_pl2(p2 as i32);
             }
             if let Some(p2m) = val.get("pl2_max").and_then(|v| v.as_i64()) {
                 ui.set_pl2_max(p2m as i32);
             }
+            if let Some(v) = val.get("min_max_pl2").and_then(|v| v.as_i64()) {
+                ui.set_min_max_pl2(v as i32);
+            }
+            if let Some(v) = val.get("max_max_pl2").and_then(|v| v.as_i64()) {
+                ui.set_max_max_pl2(v as i32);
+            }
             if let Some(p4) = val.get("pl4").and_then(|v| v.as_i64()) {
                 ui.set_pl4(p4 as i32);
             }
             if let Some(p4m) = val.get("pl4_max").and_then(|v| v.as_i64()) {
                 ui.set_pl4_max(p4m as i32);
+            }
+            if let Some(v) = val.get("min_max_pl4").and_then(|v| v.as_i64()) {
+                ui.set_min_max_pl4(v as i32);
+            }
+            if let Some(v) = val.get("max_max_pl4").and_then(|v| v.as_i64()) {
+                ui.set_max_max_pl4(v as i32);
             }
             if let Some(boc) = val.get("bios_oc_enabled").and_then(|v| v.as_bool()) {
                 ui.set_bios_oc_enabled(boc);
@@ -85,6 +118,15 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             if let Some(mo) = val.get("mem_offset").and_then(|v| v.as_i64()) {
                 ui.set_mem_offset(mo as i32);
+            }
+            if let Some(step) = val.get("gpu_offset_step").and_then(|v| v.as_i64()) {
+                ui.set_gpu_offset_step((step as i32).max(1));
+            }
+            if let Some(cmax) = val.get("gpu_core_offset_max").and_then(|v| v.as_i64()) {
+                ui.set_gpu_core_offset_max((cmax as i32).max(50));
+            }
+            if let Some(mmax) = val.get("gpu_mem_offset_max").and_then(|v| v.as_i64()) {
+                ui.set_gpu_mem_offset_max((mmax as i32).max(100));
             }
             if let Some(dbe) = val.get("db_enabled").and_then(|v| v.as_bool()) {
                 ui.set_db_enabled(dbe);
@@ -160,6 +202,8 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(bld_b) = val.get("bld_boost").and_then(|v| v.as_bool()) {
                 ui.set_bld_boost(bld_b);
             }
+            ui.set_redraw_tick(ui.get_redraw_tick().wrapping_add(1));
+            ui.window().request_redraw();
             true
         }
         _ => false,

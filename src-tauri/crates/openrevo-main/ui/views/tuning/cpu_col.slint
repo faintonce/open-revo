@@ -18,16 +18,27 @@ export component CpuTuningCol inherits Rectangle {
     // Tuning values
     in-out property <int> temp_wall: 95;
     in-out property <bool> temp_wall_enabled: true;
+    in-out property <int> temp_wall_min: 85;
     in-out property <int> temp_wall_max: 95;
+    in-out property <int> max_temp_wall: 100;
+
+    in-out property <int> min_pl: 15;
+    in-out property <int> pl4_margin: 20;
 
     in-out property <int> pl1: 75;
     in-out property <int> pl1_max: 230;
+    in-out property <int> min_max_pl1: 90;
+    in-out property <int> max_max_pl1: 255;
 
     in-out property <int> pl2: 75;
     in-out property <int> pl2_max: 230;
+    in-out property <int> min_max_pl2: 105;
+    in-out property <int> max_max_pl2: 255;
 
     in-out property <int> pl4: 126;
     in-out property <int> pl4_max: 275;
+    in-out property <int> min_max_pl4: 155;
+    in-out property <int> max_max_pl4: 280;
 
     in-out property <bool> bios_oc_enabled: true;
     in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
@@ -107,7 +118,9 @@ export component CpuTuningCol inherits Rectangle {
             is_amd: root.is_amd;
             temp_wall <=> root.temp_wall;
             temp_wall_enabled <=> root.temp_wall_enabled;
+            temp_wall_min: root.temp_wall_min;
             temp_wall_max <=> root.temp_wall_max;
+            max_temp_wall: root.max_temp_wall;
             toggle_temp_wall => { root.toggle_temp_wall(); }
             change_temp_wall(w) => { root.change_temp_wall(w); }
             adjust_temp_wall_max(d) => { root.adjust_temp_wall_max(d); }
@@ -116,10 +129,15 @@ export component CpuTuningCol inherits Rectangle {
         // 4. PL1 & PL2 Power Limits Card
         CpuPowerLimitsCard {
             is_amd: root.is_amd;
+            min_pl: root.min_pl;
             pl1 <=> root.pl1;
             pl1_max <=> root.pl1_max;
+            min_max_pl1: root.min_max_pl1;
+            max_max_pl1: root.max_max_pl1;
             pl2 <=> root.pl2;
             pl2_max <=> root.pl2_max;
+            min_max_pl2: root.min_max_pl2;
+            max_max_pl2: root.max_max_pl2;
             change_pl1(w) => { root.change_pl1(w); }
             adjust_pl1_max(d) => { root.adjust_pl1_max(d); }
             change_pl2(w) => { root.change_pl2(w); }
@@ -130,8 +148,11 @@ export component CpuTuningCol inherits Rectangle {
         CpuExtraLimitsCard {
             is_amd: root.is_amd;
             cpu_supports_fppt: root.cpu_supports_fppt;
+            min_pl4: root.min_pl + root.pl4_margin;
             pl4 <=> root.pl4;
             pl4_max <=> root.pl4_max;
+            min_max_pl4: root.min_max_pl4;
+            max_max_pl4: root.max_max_pl4;
             bios_oc_enabled <=> root.bios_oc_enabled;
             bios_oc_desc <=> root.bios_oc_desc;
             bios_oc_btn_text <=> root.bios_oc_btn_text;

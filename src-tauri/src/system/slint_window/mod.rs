@@ -193,11 +193,7 @@ where
     F: FnOnce(&mut crate::system::config::CustomProfileConfig),
 {
     let mut cfg = crate::system::config::load_config();
-    let active_id = if !cfg.active_profile_id.is_empty() {
-        cfg.active_profile_id.clone()
-    } else {
-        "preset_balance".to_string()
-    };
+    let active_id = sync::active_profile_id_or_default(&cfg);
     f(&mut cfg.custom_profile);
 
     // 同步到当前的预设文件

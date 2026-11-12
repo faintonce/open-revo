@@ -90,21 +90,24 @@ pub fn sync_slint_tuning_state() {
     };
     let cpu_supports_fppt = manifest.as_ref().and_then(|m| m.capabilities.cpu_supports_fppt).unwrap_or(!is_bld);
 
-    let active_id = {
-        let cfg = crate::system::config::load_config();
-        if !cfg.active_profile_id.is_empty() {
-            cfg.active_profile_id
-        } else {
-            "preset_balance".to_string()
-        }
-    };
+    let bounds = ensure_and_compute_tuning_bounds(&cfg);
+    let active_id = active_profile_id_or_default(&cfg);
     let presets = crate::commands::tuning_cmd::get_profiles_list().unwrap_or_default();
     let current_preset = presets.iter().find(|p| p.id == active_id).cloned().or_else(|| presets.first().cloned());
     let profile = current_preset.as_ref().map(|p| &p.profile).unwrap_or(&cfg.custom_profile);
-    let preset_name = current_preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "均衡电竞".to_string());
+    let preset_name = current_preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "静音狂暴".to_string());
 
-    let cpu_curve: Vec<i32> = profile.cpu_fan_curve.iter().map(|p| p.duty as i32).collect();
-    let gpu_curve: Vec<i32> = profile.gpu_fan_curve.iter().map(|p| p.duty as i32).collect();
+    let fan_boost_mode_cap = manifest.as_ref().and_then(|m| m.capabilities.fan_boost_mode.clone()).unwrap_or_else(|| "none".to_string());
+    let min_duty_floor: u8 = if fan_boost_mode_cap == "direct_rpm_clamp" { 22 } else { 0 };
+    let cpu_curve = normalize_fan_curve_8(&profile.cpu_fan_curve, min_duty_floor);
+    let gpu_curve = normalize_fan_curve_8(&profile.gpu_fan_curve, min_duty_floor);
+    let effective_temp_wall_max = bounds
+        .temp_wall_max
+        .max((profile.cpu_temp_target as i32).min(bounds.max_temp_wall));
+    let clamped_temp_wall = (profile.cpu_temp_target as i32).clamp(bounds.temp_wall_min, effective_temp_wall_max);
+    let clamped_pl1 = (profile.cpu_pl1_watts as i32).clamp(bounds.min_pl, bounds.pl1_max);
+    let clamped_pl2 = (profile.cpu_pl2_watts as i32).clamp(bounds.min_pl, bounds.pl2_max);
+    let clamped_pl4 = (profile.cpu_pl4_watts as i32).clamp(bounds.min_pl + bounds.pl4_margin, bounds.pl4_max);
 
     let base_tgp = crate::system::power_mode::get_cached_factory_power_presets().map(|fp| fp.base_tgp).unwrap_or(150);
     let is_clamped = crate::driver::bld_driver_mgr::is_bld_fan_clamped();
@@ -164,23 +167,36 @@ pub fn sync_slint_tuning_state() {
         "active_preset_name": preset_name,
         "preset_ids": preset_ids,
         "preset_names": preset_names,
-        "temp_wall": profile.cpu_temp_target,
+        "temp_wall": clamped_temp_wall,
         "temp_wall_enabled": profile.cpu_temp_target_enabled,
-        "temp_wall_max": 95,
-        "pl1": profile.cpu_pl1_watts,
-        "pl1_max": 230,
-        "pl2": profile.cpu_pl2_watts,
-        "pl2_max": 230,
-        "pl4": profile.cpu_pl4_watts,
-        "pl4_max": 275,
+        "temp_wall_min": bounds.temp_wall_min,
+        "temp_wall_max": effective_temp_wall_max,
+        "max_temp_wall": bounds.max_temp_wall,
+        "min_pl": bounds.min_pl,
+        "pl4_margin": bounds.pl4_margin,
+        "pl1": clamped_pl1,
+        "pl1_max": bounds.pl1_max,
+        "min_max_pl1": bounds.min_max_pl1,
+        "max_max_pl1": bounds.max_max_pl1,
+        "pl2": clamped_pl2,
+        "pl2_max": bounds.pl2_max,
+        "min_max_pl2": bounds.min_max_pl2,
+        "max_max_pl2": bounds.max_max_pl2,
+        "pl4": clamped_pl4,
+        "pl4_max": bounds.pl4_max,
+        "min_max_pl4": bounds.min_max_pl4,
+        "max_max_pl4": bounds.max_max_pl4,
         "bios_oc_enabled": bios_status.enabled,
         "bios_oc_desc": bios_oc_desc,
         "bios_oc_btn_text": bios_oc_btn_text,
         "bios_oc_status": bios_oc_status,
         "bios_oc_disabled": bios_oc_disabled,
         "super_perf": profile.gpu_super_perf,
-        "core_offset": profile.gpu_core_offset_mhz,
-        "mem_offset": profile.gpu_mem_offset_mhz,
+        "core_offset": profile.gpu_core_offset_mhz.clamp(0, bounds.gpu_core_offset_max),
+        "mem_offset": profile.gpu_mem_offset_mhz.clamp(-bounds.gpu_mem_offset_max, bounds.gpu_mem_offset_max),
+        "gpu_offset_step": bounds.gpu_offset_step,
+        "gpu_core_offset_max": bounds.gpu_core_offset_max,
+        "gpu_mem_offset_max": bounds.gpu_mem_offset_max,
         "db_enabled": profile.gpu_db_enabled,
         "db_watts": profile.gpu_db_watts,
         "base_tgp": base_tgp,
@@ -673,16 +689,141 @@ pub fn compute_power_targets(
     (pl1, tgp, text)
 }
 
+pub(crate) struct TuningBounds {
+    pub min_pl: i32,
+    pub pl4_margin: i32,
+    pub temp_wall_min: i32,
+    pub max_temp_wall: i32,
+    pub temp_wall_max: i32,
+    pub default_max_pl1: i32,
+    pub min_max_pl1: i32,
+    pub max_max_pl1: i32,
+    pub pl1_max: i32,
+    pub default_max_pl2: i32,
+    pub min_max_pl2: i32,
+    pub max_max_pl2: i32,
+    pub pl2_max: i32,
+    pub default_max_pl4: i32,
+    pub min_max_pl4: i32,
+    pub max_max_pl4: i32,
+    pub pl4_max: i32,
+    pub gpu_offset_step: i32,
+    pub gpu_core_offset_max: i32,
+    pub gpu_mem_offset_max: i32,
+}
+
+pub(crate) fn active_profile_id_or_default(cfg: &crate::system::config::AppConfig) -> String {
+    if !cfg.active_profile_id.trim().is_empty() {
+        cfg.active_profile_id.clone()
+    } else {
+        "preset_silent_beast".to_string()
+    }
+}
+
+pub(crate) fn compute_tuning_bounds(cfg: &crate::system::config::AppConfig) -> TuningBounds {
+    let tj = crate::system::cpu_monitor::get_cpu_native_tjmax() as i32;
+    let native_tjmax = if tj > 0 { tj } else { 100 };
+    let temp_wall_min = (cfg.cpu_temp_target_min as i32).clamp(60, 100);
+    let max_temp_wall = native_tjmax.max(native_tjmax + cfg.cpu_temp_offset as i32);
+    let raw_tw = if cfg.cpu_temp_target_max > 0 {
+        cfg.cpu_temp_target_max as i32
+    } else {
+        95i32.min(native_tjmax) + cfg.cpu_temp_offset as i32
+    };
+    let temp_wall_max = raw_tw.clamp(temp_wall_min, max_temp_wall);
+
+    let fp_opt = crate::system::power_mode::get_cached_factory_power_presets();
+    let pl4_margin = (cfg.cpu_pl4_margin as i32).max(1);
+    let min_pl = (fp_opt.as_ref().map(|f| f.office_pl1).filter(|&v| v > 0).unwrap_or(35) as i32).min(15);
+    let turbo_pl1 = fp_opt.as_ref().map(|f| f.turbo_pl1).filter(|&v| v > 0).unwrap_or(90) as i32;
+    let turbo_pl2 = fp_opt.as_ref().map(|f| f.turbo_pl2).filter(|&v| v > 0).unwrap_or(turbo_pl1 as u16) as i32;
+    let turbo_pl4 = fp_opt.as_ref().map(|f| f.turbo_pl4).filter(|&v| v > 0).unwrap_or((turbo_pl1 + 65) as u16) as i32;
+
+    let default_max_pl1 = turbo_pl1 + 25 + cfg.cpu_pl1_offset as i32;
+    let min_max_pl1 = turbo_pl1 + cfg.cpu_pl1_offset as i32;
+    let max_max_pl1 = turbo_pl1 + 50 + cfg.cpu_pl1_offset as i32;
+
+    let default_max_pl2 = turbo_pl2 + 25 + cfg.cpu_pl2_offset as i32;
+    let min_max_pl2 = turbo_pl2 + cfg.cpu_pl2_offset as i32;
+    let max_max_pl2 = turbo_pl2 + 50 + cfg.cpu_pl2_offset as i32;
+
+    let default_max_pl4 = turbo_pl4 + 50 + cfg.cpu_pl4_offset as i32;
+    let min_max_pl4 = (default_max_pl4 - 30).max(turbo_pl2 + cfg.cpu_pl2_offset as i32 + pl4_margin);
+    let max_max_pl4 = default_max_pl4 + 30;
+
+    let pl1_max = cfg.cpu_pl1_max.map(|v| (v as i32).clamp(min_max_pl1, max_max_pl1)).unwrap_or(default_max_pl1);
+    let pl2_max = cfg.cpu_pl2_max.map(|v| (v as i32).clamp(min_max_pl2, max_max_pl2)).unwrap_or(default_max_pl2);
+    let pl4_max = cfg.cpu_pl4_max.map(|v| (v as i32).clamp(min_max_pl4, max_max_pl4)).unwrap_or(default_max_pl4);
+
+    let gpu_offset_step = (cfg.gpu_offset_step as i32).max(1);
+    let gpu_core_offset_max = if cfg.gpu_core_offset_max > 0 { cfg.gpu_core_offset_max } else { 250 };
+    let gpu_mem_offset_max = if cfg.gpu_mem_offset_max > 0 { cfg.gpu_mem_offset_max } else { 1000 };
+
+    TuningBounds {
+        min_pl,
+        pl4_margin,
+        temp_wall_min,
+        max_temp_wall,
+        temp_wall_max,
+        default_max_pl1,
+        min_max_pl1,
+        max_max_pl1,
+        pl1_max,
+        default_max_pl2,
+        min_max_pl2,
+        max_max_pl2,
+        pl2_max,
+        default_max_pl4,
+        min_max_pl4,
+        max_max_pl4,
+        pl4_max,
+        gpu_offset_step,
+        gpu_core_offset_max,
+        gpu_mem_offset_max,
+    }
+}
+
+pub(crate) fn ensure_and_compute_tuning_bounds(cfg: &crate::system::config::AppConfig) -> TuningBounds {
+    let bounds = compute_tuning_bounds(cfg);
+    if cfg.cpu_pl1_max.is_none() || cfg.cpu_pl2_max.is_none() || cfg.cpu_pl4_max.is_none() || cfg.cpu_temp_target_max == 0 {
+        let mut next_cfg = cfg.clone();
+        if next_cfg.cpu_pl1_max.is_none() {
+            next_cfg.cpu_pl1_max = Some(bounds.default_max_pl1.clamp(15, 255) as u16);
+        }
+        if next_cfg.cpu_pl2_max.is_none() {
+            next_cfg.cpu_pl2_max = Some(bounds.default_max_pl2.clamp(15, 255) as u16);
+        }
+        if next_cfg.cpu_pl4_max.is_none() {
+            next_cfg.cpu_pl4_max = Some(bounds.default_max_pl4.clamp(15, 255) as u16);
+        }
+        if next_cfg.cpu_temp_target_max == 0 {
+            next_cfg.cpu_temp_target_max = bounds.temp_wall_max.clamp(60, 120) as u8;
+        }
+        let _ = crate::system::config::save_config(&next_cfg);
+    }
+    bounds
+}
+
+pub(crate) fn normalize_fan_curve_8(points: &[crate::system::config::FanCurvePoint], min_duty: u8) -> Vec<i32> {
+    let mut duties: Vec<i32> = points.iter().take(8).map(|p| p.duty.clamp(min_duty, 100) as i32).collect();
+    if duties.len() < 8 {
+        let defaults = crate::system::config::default_fan_curve();
+        for pt in defaults.iter().skip(duties.len()).take(8 - duties.len()) {
+            duties.push(pt.duty.clamp(min_duty, 100) as i32);
+        }
+        while duties.len() < 8 {
+            duties.push(100);
+        }
+    }
+    duties
+}
+
 pub fn get_current_power_targets(power_mode: u8) -> (i32, i32, String) {
     let cfg = crate::system::config::load_config();
     let is_pure_igpu = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu()
         || !crate::driver::gpu_bridge::is_nvidia_dgpu_available();
     let presets = crate::system::power_mode::get_factory_power_presets(!is_pure_igpu);
-    let active_id = if !cfg.active_profile_id.is_empty() {
-        cfg.active_profile_id.clone()
-    } else {
-        "preset_balance".to_string()
-    };
+    let active_id = active_profile_id_or_default(&cfg);
     let profiles = crate::commands::tuning_cmd::get_profiles_list().unwrap_or_default();
     let matched = profiles.iter().find(|p| p.id == active_id).or_else(|| profiles.first());
     let custom_profile = matched.map(|p| &p.profile).unwrap_or(&cfg.custom_profile);
