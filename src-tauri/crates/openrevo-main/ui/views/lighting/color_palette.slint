@@ -7,6 +7,81 @@ export component ColorPaletteRow inherits Rectangle {
 
     callback color_selected(string, color);
 
+    // Internal HSV state for the custom color picker popup
+    property <float> picker_hue: 239.0;
+    property <float> picker_sat: 0.74;
+    property <float> picker_val: 0.95;
+    property <string> r_text: "99";
+    property <string> g_text: "102";
+    property <string> b_text: "241";
+
+    pure function nibble_hex(v: int) -> string {
+        if v <= 0 { return "0"; }
+        if v == 1 { return "1"; }
+        if v == 2 { return "2"; }
+        if v == 3 { return "3"; }
+        if v == 4 { return "4"; }
+        if v == 5 { return "5"; }
+        if v == 6 { return "6"; }
+        if v == 7 { return "7"; }
+        if v == 8 { return "8"; }
+        if v == 9 { return "9"; }
+        if v == 10 { return "A"; }
+        if v == 11 { return "B"; }
+        if v == 12 { return "C"; }
+        if v == 13 { return "D"; }
+        if v == 14 { return "E"; }
+        return "F";
+    }
+
+    pure function byte_to_hex(n: int) -> string {
+        let clamped = Math.clamp(n, 0, 255);
+        let lo = Math.round(Math.mod(clamped, 16));
+        let hi = Math.round((clamped - lo) / 16);
+        return nibble_hex(hi) + nibble_hex(lo);
+    }
+
+    pure function color_to_hex(c: color) -> string {
+        return "#" + byte_to_hex(c.red) + byte_to_hex(c.green) + byte_to_hex(c.blue);
+    }
+
+    function sync_picker_from_active() {
+        let hsv = root.active_color.to-hsv();
+        root.picker_hue = hsv.hue;
+        root.picker_sat = hsv.saturation;
+        root.picker_val = hsv.value;
+        root.r_text = root.active_color.red;
+        root.g_text = root.active_color.green;
+        root.b_text = root.active_color.blue;
+    }
+
+    function apply_picker_hsv() {
+        let c = Colors.hsv(root.picker_hue, root.picker_sat, root.picker_val);
+        root.active_color = c;
+        root.active_color_hex = color_to_hex(c);
+        root.r_text = c.red;
+        root.g_text = c.green;
+        root.b_text = c.blue;
+        root.color_selected(root.active_color_hex, c);
+    }
+
+    function apply_picker_rgb() {
+        let r = Math.clamp(Math.round(root.r_text.to-float()), 0, 255);
+        let g = Math.clamp(Math.round(root.g_text.to-float()), 0, 255);
+        let b = Math.clamp(Math.round(root.b_text.to-float()), 0, 255);
+        let c = Colors.rgb(r, g, b);
+        let hsv = c.to-hsv();
+        root.picker_hue = hsv.hue;
+        root.picker_sat = hsv.saturation;
+        root.picker_val = hsv.value;
+        root.r_text = r;
+        root.g_text = g;
+        root.b_text = b;
+        root.active_color = c;
+        root.active_color_hex = color_to_hex(c);
+        root.color_selected(root.active_color_hex, c);
+    }
+
     height: 48px;
     background: AppTheme.surface_sunken;
     border-radius: AppTheme.radius_md;
@@ -224,32 +299,311 @@ export component ColorPaletteRow inherits Rectangle {
             }
         }
 
-        // Right: Active Color Chip & HEX (Vertically Centered)
+        // Right: Active Color Chip & HEX Button + Native HSV Color Picker Popup
         VerticalLayout {
             alignment: center;
 
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: end;
+            chip_btn := Rectangle {
+                height: 28px;
+                border-radius: AppTheme.radius_sm;
+                background: chip_ta.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                border-width: 1px;
+                border-color: chip_ta.has-hover ? AppTheme.border_highlight : AppTheme.border_subtle;
 
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 4px;
-                        background: root.active_color;
-                        border-width: 1px;
-                        border-color: #ffffff50;
+                chip_ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.sync_picker_from_active();
+                        color_pop.show();
                     }
                 }
 
-                Text {
-                    text: root.active_color_hex;
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: AppTheme.text_muted;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    alignment: center;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 16px;
+                            height: 16px;
+                            border-radius: 4px;
+                            background: root.active_color;
+                            border-width: 1px;
+                            border-color: #ffffff50;
+                        }
+                    }
+
+                    Text {
+                        text: root.active_color_hex;
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppTheme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                }
+
+                color_pop := PopupWindow {
+                    x: parent.width - 244px;
+                    y: -278px;
+                    width: 244px;
+                    height: 270px;
+                    close-policy: PopupClosePolicy.close-on-click-outside;
+
+                    Rectangle {
+                        width: 100%;
+                        height: 100%;
+                        background: AppTheme.surface_elevated;
+                        border-radius: AppTheme.radius_md;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+
+                        VerticalLayout {
+                            padding: 10px;
+                            spacing: 10px;
+
+                            // 1. 2D Saturation / Value Canvas
+                            sv_box := Rectangle {
+                                height: 146px;
+                                border-radius: AppTheme.radius_sm;
+                                clip: true;
+                                border-width: 1px;
+                                border-color: AppTheme.border_subtle;
+                                background: @linear-gradient(90deg, #ffffff 0%, Colors.hsv(root.picker_hue, 1.0, 1.0) 100%);
+
+                                Rectangle {
+                                    width: 100%;
+                                    height: 100%;
+                                    background: @linear-gradient(180deg, #00000000 0%, #000000ff 100%);
+                                }
+
+                                // Picker Cursor Ring
+                                Rectangle {
+                                    width: 14px;
+                                    height: 14px;
+                                    border-radius: 7px;
+                                    border-width: 2px;
+                                    border-color: #ffffff;
+                                    background: transparent;
+                                    x: Math.clamp(root.picker_sat, 0.0, 1.0) * parent.width - 7px;
+                                    y: (1.0 - Math.clamp(root.picker_val, 0.0, 1.0)) * parent.height - 7px;
+
+                                    Rectangle {
+                                        width: 10px;
+                                        height: 10px;
+                                        x: 2px;
+                                        y: 2px;
+                                        border-radius: 5px;
+                                        border-width: 1px;
+                                        border-color: #00000080;
+                                    }
+                                }
+
+                                sv_ta := TouchArea {
+                                    mouse-cursor: crosshair;
+                                    pointer-event(ev) => {
+                                        if (ev.kind == PointerEventKind.down && ev.button == PointerEventButton.left) {
+                                            root.picker_sat = Math.clamp(self.mouse-x / self.width, 0.0, 1.0);
+                                            root.picker_val = Math.clamp(1.0 - self.mouse-y / self.height, 0.0, 1.0);
+                                            root.apply_picker_hsv();
+                                        }
+                                    }
+                                    moved => {
+                                        if self.pressed {
+                                            root.picker_sat = Math.clamp(self.mouse-x / self.width, 0.0, 1.0);
+                                            root.picker_val = Math.clamp(1.0 - self.mouse-y / self.height, 0.0, 1.0);
+                                            root.apply_picker_hsv();
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 2. Preview Swatch + 1D Rainbow Hue Slider
+                            HorizontalLayout {
+                                spacing: 10px;
+                                height: 24px;
+                                alignment: stretch;
+
+                                Rectangle {
+                                    width: 24px;
+                                    height: 24px;
+                                    border-radius: 12px;
+                                    background: root.active_color;
+                                    border-width: 1px;
+                                    border-color: AppTheme.border_highlight;
+                                }
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    horizontal-stretch: 1;
+
+                                    hue_bar := Rectangle {
+                                        height: 12px;
+                                        border-radius: 6px;
+                                        border-width: 1px;
+                                        border-color: AppTheme.border_subtle;
+                                        background: @linear-gradient(90deg, #ff0000 0%, #ffff00 16.66%, #00ff00 33.33%, #00ffff 50%, #0000ff 66.66%, #ff00ff 83.33%, #ff0000 100%);
+
+                                        Rectangle {
+                                            width: 16px;
+                                            height: 16px;
+                                            border-radius: 8px;
+                                            background: Colors.hsv(root.picker_hue, 1.0, 1.0);
+                                            border-width: 2px;
+                                            border-color: #ffffff;
+                                            x: Math.clamp(root.picker_hue / 360.0, 0.0, 1.0) * (parent.width - 16px);
+                                            y: (parent.height - self.height) / 2;
+                                        }
+
+                                        hue_ta := TouchArea {
+                                            mouse-cursor: pointer;
+                                            pointer-event(ev) => {
+                                                if (ev.kind == PointerEventKind.down && ev.button == PointerEventButton.left) {
+                                                    root.picker_hue = Math.clamp(self.mouse-x / self.width, 0.0, 0.9999) * 360.0;
+                                                    root.apply_picker_hsv();
+                                                }
+                                            }
+                                            moved => {
+                                                if self.pressed {
+                                                    root.picker_hue = Math.clamp(self.mouse-x / self.width, 0.0, 0.9999) * 360.0;
+                                                    root.apply_picker_hsv();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 3. R / G / B Numeric Inputs + HEX Readout
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: stretch;
+
+                                // R
+                                VerticalLayout {
+                                    spacing: 3px;
+                                    horizontal-stretch: 1;
+                                    Rectangle {
+                                        height: 26px;
+                                        border-radius: AppTheme.radius_xs;
+                                        background: AppTheme.surface_sunken;
+                                        border-width: 1px;
+                                        border-color: r_inp.has-focus ? AppTheme.accent_brand : AppTheme.border_medium;
+                                        r_inp := TextInput {
+                                            text <=> root.r_text;
+                                            font-size: 11px;
+                                            color: AppTheme.text_primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            single-line: true;
+                                            input-type: number;
+                                            accepted => { root.apply_picker_rgb(); }
+                                            edited => { root.apply_picker_rgb(); }
+                                        }
+                                    }
+                                    Text {
+                                        text: "R";
+                                        font-size: 9px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_muted;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+
+                                // G
+                                VerticalLayout {
+                                    spacing: 3px;
+                                    horizontal-stretch: 1;
+                                    Rectangle {
+                                        height: 26px;
+                                        border-radius: AppTheme.radius_xs;
+                                        background: AppTheme.surface_sunken;
+                                        border-width: 1px;
+                                        border-color: g_inp.has-focus ? AppTheme.accent_brand : AppTheme.border_medium;
+                                        g_inp := TextInput {
+                                            text <=> root.g_text;
+                                            font-size: 11px;
+                                            color: AppTheme.text_primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            single-line: true;
+                                            input-type: number;
+                                            accepted => { root.apply_picker_rgb(); }
+                                            edited => { root.apply_picker_rgb(); }
+                                        }
+                                    }
+                                    Text {
+                                        text: "G";
+                                        font-size: 9px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_muted;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+
+                                // B
+                                VerticalLayout {
+                                    spacing: 3px;
+                                    horizontal-stretch: 1;
+                                    Rectangle {
+                                        height: 26px;
+                                        border-radius: AppTheme.radius_xs;
+                                        background: AppTheme.surface_sunken;
+                                        border-width: 1px;
+                                        border-color: b_inp.has-focus ? AppTheme.accent_brand : AppTheme.border_medium;
+                                        b_inp := TextInput {
+                                            text <=> root.b_text;
+                                            font-size: 11px;
+                                            color: AppTheme.text_primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            single-line: true;
+                                            input-type: number;
+                                            accepted => { root.apply_picker_rgb(); }
+                                            edited => { root.apply_picker_rgb(); }
+                                        }
+                                    }
+                                    Text {
+                                        text: "B";
+                                        font-size: 9px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_muted;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+
+                                // HEX
+                                VerticalLayout {
+                                    spacing: 3px;
+                                    horizontal-stretch: 1.4;
+                                    Rectangle {
+                                        height: 26px;
+                                        border-radius: AppTheme.radius_xs;
+                                        background: AppTheme.surface_sunken;
+                                        border-width: 1px;
+                                        border-color: AppTheme.border_subtle;
+                                        Text {
+                                            text: root.active_color_hex;
+                                            font-size: 10px;
+                                            font-weight: 700;
+                                            color: AppTheme.text_secondary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    Text {
+                                        text: "HEX";
+                                        font-size: 9px;
+                                        font-weight: 700;
+                                        color: AppTheme.text_muted;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

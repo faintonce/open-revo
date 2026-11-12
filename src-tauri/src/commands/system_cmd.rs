@@ -256,7 +256,9 @@ pub fn restart_app(app: AppHandle) -> Result<(), String> {
     crate::log_info!("APP", "Restarting application...");
     crate::system::tray::IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
     if let Ok(exe) = std::env::current_exe() {
-        let _ = std::process::Command::new(exe).spawn();
+        let _ = std::process::Command::new(exe)
+            .arg(format!("--relaunch-wait={}", std::process::id()))
+            .spawn();
     }
     app.exit(0);
     Ok(())
