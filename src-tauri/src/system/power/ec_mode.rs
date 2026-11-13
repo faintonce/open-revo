@@ -52,7 +52,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
     if !fan_boost_active {
         if wmi_ec::is_legacy_dual_mode_ec() {
             let cur_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
-            if (cur_clamp & wmi_ec::FAN_BOOST_CLAMP_BIT) != 0 {
+            if cur_clamp != 0x10 {
                 wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, 0x10);
             }
         } else {
@@ -161,7 +161,9 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x83);
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Silent Fan Table
-            apply_mode_fan_table(1);
+            if !wmi_ec::is_legacy_dual_mode_ec() {
+                apply_mode_fan_table(1);
+            }
         }
         2 => {
             // --- Balance / Gaming Mode (Blue LED) ---
@@ -247,7 +249,9 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x83);
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Balanced Gaming Fan Table
-            apply_mode_fan_table(2);
+            if !wmi_ec::is_legacy_dual_mode_ec() {
+                apply_mode_fan_table(2);
+            }
         }
         3 => {
             // --- Beast / Turbo Mode (Red LED) ---
@@ -323,7 +327,9 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x00);
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Turbo Fan Table
-            apply_mode_fan_table(3);
+            if !wmi_ec::is_legacy_dual_mode_ec() {
+                apply_mode_fan_table(3);
+            }
 
             // 8. Apply Turbo Submode if supported
             if crate::system::power::turbo_submode::is_supported() {
@@ -402,16 +408,20 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             // - Super Performance (HWOC): Follows user preference (profile.gpu_super_perf).
             //   When enabled, unlocks GPU hardware overclocking via NVAPI.
             //   When disabled, resets GPU clock offsets to 0 and allows strict Dynamic Boost power budgeting.
-            //   In 10/20-series (Pascal/Turing), Super Performance is unsupported -> bypass bit 4.
-            let cur_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
-            let super_bit = if gpu_caps.supports_gpu_tuning && profile.gpu_super_perf {
-                wmi_ec::SUPER_PERF_BIT
+            //   In legacy dual-mode (30-series / 20-series / 10-series), fan boost clamp is full-byte 0x50/0x10.
+            if wmi_ec::is_legacy_dual_mode_ec() {
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, if fan_boost_active { 0x50 } else { 0x10 });
             } else {
-                0
-            };
-            let boost_bit = if fan_boost_active { wmi_ec::FAN_BOOST_CLAMP_BIT } else { 0 };
-            let new_clamp = (cur_clamp & !(wmi_ec::FAN_BOOST_CLAMP_BIT | wmi_ec::SUPER_PERF_BIT)) | super_bit | boost_bit;
-            wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, new_clamp);
+                let cur_clamp = wmi_ec::wmi_read_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP).unwrap_or(0);
+                let super_bit = if gpu_caps.supports_gpu_tuning && profile.gpu_super_perf {
+                    wmi_ec::SUPER_PERF_BIT
+                } else {
+                    0
+                };
+                let boost_bit = if fan_boost_active { wmi_ec::FAN_BOOST_CLAMP_BIT } else { 0 };
+                let new_clamp = (cur_clamp & !(wmi_ec::FAN_BOOST_CLAMP_BIT | wmi_ec::SUPER_PERF_BIT)) | super_bit | boost_bit;
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, new_clamp);
+            }
             set_ec_mode_index(0x10);
 
             // Clear silent mode status
