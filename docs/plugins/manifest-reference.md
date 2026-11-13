@@ -52,8 +52,11 @@
 | `target_slot` / `slot` | `string` | 条件必填 | `slot` | 挂载的目标宿主插槽代号（如 `"power.hardware_limit"`） |
 | `slot_height` / `slotHeight` | `string` | 可选 | `slot` | 微插槽高度约束（如 `"36px"` 或 `"54px"`，默认 `"54px"`） |
 | `theme_css` | `string` | `skin`可选 | `skin` | 皮肤样式表入口相对路径（默认 `"theme.css"`） |
+| `tokens` / `slint_tokens` | `object` | 可选 | `skin` | **【Slint 原生全局 Token 字典】**声明通用设计 Token（键值如 `bg_root`, `surface_card`, `accent_brand`, `radius_md`） |
+| `tokens_light` / `tokens_dark` / `tokens_mono` | `object` | 可选 | `skin` | **【三态色调独立声明】**单皮肤包分别声明浅色奶油、深焙暗黑、版画黑白三套独立 Token，随顶栏主题按钮实时切换 |
 | `background_css` | `string` | `background`可选 | `background` | 背景样式表入口相对路径（默认 `"background.css"`，回退 `"theme.css"`） |
-| `image` / `wallpaper` | `string` | 可选 | `background` | **【零代码壁纸】**直接指定图片路径（如 `"bg.png"`），无需编写一行 CSS，宿主自动合成全套适配样式 |
+| `image` / `wallpaper` | `string` | 可选 | `background`/`skin` | **【零代码壁纸】**直接指定图片路径（如 `"bg.png"`），无需编写一行 CSS，宿主自动合成全套适配样式并注入 Slint 与 WebView2 |
+| `bg_image_opacity` / `opacity` | `number` | 可选 | `background`/`skin` | 背景壁纸渲染不透明度（范围 `0.05 ~ 1.0`，默认 `0.15`） |
 | `entry` | `string` | 可选 | `widget`/`tab`/`service` | 默认入口相对路径，如 `index.html` 或 `welcome.rhai` |
 | `tab` | `object` | 可选 | 全类型 | **【控制台专属页签出口】**声明插件在控制台工作区的 Tab 入口（含 `entry`、`type`、`title`、`icon`，支持 WebView2 与 Slint 独立指定） |
 | `widget` | `object` | 可选 | 全类型 | **【桌面独立悬浮视窗出口】**声明插件在桌面的独立挂件（含 `entry`、`type`、`window`，支持 WebView2 与 Slint 独立指定） |
@@ -154,6 +157,48 @@
 
 > 💡 **Tab 插件一键弹出独立视窗 (Detachable Pop-out Tab)**：
 > 无论插件被定义为 `widget` 还是 `tab`，宿主均在主界面选项卡右上角原生提供**【独立视窗运行】**按钮。用户既能在控制中心中内嵌使用，也能随时一键弹出为独立多屏调优窗口，零代码改动即可双模共存！
+
+### `skin` 皮肤设计 Token 与壁纸配置表 (Slint & WebView2 Dual Theming)
+
+对于 `plugin_type: "skin"`，除了通过 `theme.css` 编写标准样式，还可直接在 `manifest.json` 中配置原生 Token 与背景参数，微内核将全量映射至 Slint 原生主窗口、Slint 原生 OSD 悬浮窗及 WebView2 界面：
+
+```json
+{
+  "theme_css": "theme.css",
+  "image": "assets/wallpaper.webp",
+  "bg_image_opacity": 0.18,
+  "tokens_light": {
+    "bg_root": "#F5EEDA",
+    "surface_card": "#FFFCF3",
+    "text_primary": "#35291C",
+    "accent_brand": "#D9772F",
+    "radius_md": 12.0
+  },
+  "tokens_dark": {
+    "bg_root": "#332B24",
+    "surface_card": "#42382E",
+    "text_primary": "#F7F0E5",
+    "accent_brand": "#E79A50",
+    "radius_md": 12.0
+  },
+  "tokens_mono": {
+    "bg_root": "#1F1D1A",
+    "surface_card": "#2E2A27",
+    "text_primary": "#FAF6F0",
+    "accent_brand": "#FAF6F0",
+    "radius_md": 12.0
+  }
+}
+```
+
+| 子属性 | 类型 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `tokens_light` | `object` | 可选 | 浅色基准 Token 字典（随顶栏切换为 Light 浅色态时优先覆写） |
+| `tokens_dark` | `object` | 可选 | 暗色基准 Token 字典（随顶栏切换为 Dark 深色态时优先覆写） |
+| `tokens_mono` | `object` | 可选 | 极简黑白 Token 字典（随顶栏切换为 Mono 版画黑白态时优先覆写） |
+| `tokens` / `slint_tokens` | `object` | 可选 | 通用单态 Token 字典（若未区分多态，将作为全局默认基准） |
+| `image` / `wallpaper` | `string` | 可选 | 皮肤自带的背景贴图相对路径（支持 `.png`, `.jpg`, `.webp`） |
+| `bg_image_opacity` | `number` | `0.15` | 背景贴图不透明度（范围 `0.05 ~ 1.0`） |
 
 ---
 

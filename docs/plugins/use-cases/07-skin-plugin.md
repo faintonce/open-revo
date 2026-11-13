@@ -162,6 +162,90 @@ html[data-skin="mecha-eva01-skin"] .osd-slot-meter-bar.active {
 
 ---
 
+## 6. Slint 原生主窗口与桌面 OSD 双端统一换肤 (Slint Native Unified Theming)
+
+从 OpenRevo v0.9.7 起，主窗口全面拥抱 Slint 原生高性能 GUI 架构。为了避免开发者为 WebView2 与 Slint 分别维护两套不相通的主题，**OpenRevo 实现了微内核级别的双端统一主题引擎（Token-Based Unification Engine）**：
+
+### 1. 核心工作原理
+* **一套资产，双端生效**：皮肤包内的 `theme.css` 或 `manifest.json` 无需任何特殊编译。微内核（`system::slint_theme`）会自动提取所有标准 Design Tokens（颜色、圆角、字体、边框、透明度、壁纸路径），并无损映射注入到 Slint 运行时的全局 `AppTheme` 状态机。
+* **桌面 OSD 联动**：按下全局快捷键弹出的 Slint 原生 OSD 悬浮弹窗（`openrevo-osd`）与主窗口共用同一套 Token 状态。修改主窗口皮肤时，OSD 弹窗的背景、毛玻璃底盘、图标强调色与档位格指示灯将同步换肤。
+* **OSD 精简结构**：Slint 原生 OSD 现已移除冗余副标题小字，整体卡片尺寸收缩至更加灵动的紧凑级（`280px / 320px / 300px`），大幅减少游戏或全屏工作流下的视觉遮挡，仅保留核心大标题、硬件状态呼吸灯点与阶梯档位槽。
+
+### 2. 单文件三态切换实战（奶油纸杯真实样本）
+官方提供了完整的纯 Slint 多态皮肤样例，位于 `plugins_sample/slint/theme-cream-cup/`。
+
+该皮肤支持用户在顶栏点击皮肤按钮时，在三种色调间平滑循环切换：
+
+#### `manifest.json` 声明
+```json
+{
+  "id": "theme-cream-cup",
+  "name": "奶油纸杯 (Slint版)",
+  "version": "1.1.0",
+  "author": "ZTN-Silent",
+  "description": "纸质油画卡通主题：支持单按钮循环切换「浅色奶油米纸」、「深焙奶茶可可」与「复古报纸黑白」三套色调。",
+  "plugin_type": "skin",
+  "theme_css": "theme.css",
+
+  "tokens_light": {
+    "bg_root": "#F5EEDA",
+    "surface_base": "#FCF8EC",
+    "surface_card": "#FFFCF3",
+    "text_primary": "#35291C",
+    "accent_brand": "#D9772F",
+    "radius_md": 12.0
+  },
+
+  "tokens_dark": {
+    "bg_root": "#332B24",
+    "surface_base": "#3E342B",
+    "surface_card": "#42382E",
+    "text_primary": "#F7F0E5",
+    "accent_brand": "#E79A50",
+    "radius_md": 12.0
+  },
+
+  "tokens_mono": {
+    "bg_root": "#1F1D1A",
+    "surface_base": "#282522",
+    "surface_card": "#2E2A27",
+    "text_primary": "#FAF6F0",
+    "accent_brand": "#FAF6F0",
+    "radius_md": 12.0
+  }
+}
+```
+
+#### `theme.css` 选择器作用域编写
+如果你更习惯编写标准 CSS，也可以直接在 `theme.css` 中利用选择器作用域声明三态：
+```css
+/* 1. 浅色态 (Light) */
+:root, [data-theme=light] {
+  --bg-root: #F5EEDA;
+  --surface-card: #FFFCF3;
+  --text-primary: #35291C;
+  --color-brand: #D9772F;
+}
+
+/* 2. 深色态 (Dark/Cyber) */
+[data-theme=cyber], [data-theme=dark] {
+  --bg-root: #332B24;
+  --surface-card: #42382E;
+  --text-primary: #F7F0E5;
+  --color-brand: #E79A50;
+}
+
+/* 3. 报纸版画黑白态 (Mono) */
+[data-theme=mono] {
+  --bg-root: #1F1D1A;
+  --surface-card: #2E2A27;
+  --text-primary: #FAF6F0;
+  --color-brand: #FAF6F0;
+}
+```
+
+---
+
 ## 相关页面
 
 - 上一页：[用例 6：进阶机甲桌宠工程规范 —— 边缘吸附灵动小球、动态换肤与跨插件事件总线 (Advanced Widget)](06-advanced-widget.md)

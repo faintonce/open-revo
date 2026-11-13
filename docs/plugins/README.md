@@ -46,7 +46,7 @@
 
 - **写第一个桌面挂件**：[用例 1](use-cases/01-desktop-widget.md) 与 [用例 2](use-cases/02-cooling-toggle-widget.md)；对照示例 [eva01-core](../../plugins_sample/webview2/eva01-core/README.md)
 - **写原生 Slint 挂件**：示例 [slint-demo](../../plugins_sample/slint/slint-demo/) 与 [hybrid-battery](../../plugins_sample/slint/hybrid-battery/)，混搭规则见 [2.1 正交混搭渲染架构](architecture.md#21-正交混搭渲染架构-orthogonal-hybrid-architecture-webview2--slint)
-- **做皮肤或背景壁纸**：[用例 7](use-cases/07-skin-plugin.md) 与 [用例 8](use-cases/08-background-wallpaper.md)；示例 [theme-cyber-mecha](../../plugins_sample/webview2/theme-cyber-mecha/README.md)
+- **做皮肤或背景壁纸**：[用例 7](use-cases/07-skin-plugin.md) 与 [用例 8](use-cases/08-background-wallpaper.md)；WebView2 示例 [theme-cyber-mecha](../../plugins_sample/webview2/theme-cyber-mecha/README.md)，Slint 三态原生示例 [theme-cream-cup](../../plugins_sample/slint/theme-cream-cup/README.md)
 - **写无头自动化**：[用例 3](use-cases/03-headless-boot-lighting.md)、[用例 11](use-cases/11-universal-shortcuts.md) 与 [用例 12](use-cases/12-watcher-automation.md)；示例 [shortcut-fan-boost](../../plugins_sample/webview2/shortcut-fan-boost/README.md)
 - **对接插件市场**：[用例 10](use-cases/10-plugin-market.md)
 - **查清单字段**：[插件清单权威规范](manifest-reference.md)
@@ -54,7 +54,7 @@
 ## 示例与相关文档
 
 - [插件示例源码索引](../../plugins_sample/README.md)：12 个随仓库分发的示例与清单入口
-- 已有本地说明的示例：[cpu-guardian](../../plugins_sample/webview2/cpu-guardian/README.md)、[eva01-core](../../plugins_sample/webview2/eva01-core/README.md)、[shortcut-fan-boost](../../plugins_sample/webview2/shortcut-fan-boost/README.md)、[shortcut-workshop](../../plugins_sample/webview2/shortcut-workshop/README.md)、[theme-cyber-mecha](../../plugins_sample/webview2/theme-cyber-mecha/README.md)
+- 已有本地说明的示例：[cpu-guardian](../../plugins_sample/webview2/cpu-guardian/README.md)、[eva01-core](../../plugins_sample/webview2/eva01-core/README.md)、[shortcut-fan-boost](../../plugins_sample/webview2/shortcut-fan-boost/README.md)、[shortcut-workshop](../../plugins_sample/webview2/shortcut-workshop/README.md)、[theme-cyber-mecha](../../plugins_sample/webview2/theme-cyber-mecha/README.md)、[theme-cream-cup](../../plugins_sample/slint/theme-cream-cup/README.md)
 - 插件开发 Skill（AI 工具入口）：[skill.md](../skill.md)
 - 机型功耗、风扇曲线与 `models.json`：[机型配置与功耗预设定制指南](../core/models-customization.md)
 

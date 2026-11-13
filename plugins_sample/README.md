@@ -14,6 +14,7 @@
 | [gpu-curve-tuner](webview2/gpu-curve-tuner/) | WebView2 | 根 `entry`: `index.html` | 缺失，暂无本地 README |
 | [tongfang-cloud-icc](webview2/tongfang-cloud-icc/) | WebView2 | 根 `entry`: `index.html` | 缺失，暂无本地 README |
 | [slint-demo](slint/slint-demo/) | Slint | 根 `entry` 与 `tab.entry`: `main.slint` | 缺失，暂无本地 README |
+| [theme-cream-cup](slint/theme-cream-cup/) | Slint 原生三态（`skin`） | `theme_css`: `theme.css`，`tokens_light` / `dark` / `mono` | [本地 README](slint/theme-cream-cup/README.md) |
 | [hybrid-battery](slint/hybrid-battery/) | WebView2 + Slint 混搭 | `tab.entry`: `dist/index.html`（当前缺失），`widget.entry`: `widget.slint` | 缺失，暂无本地 README |
 | [revo-llm-hub](webview2/revo-llm-hub/) | WebView2 | 根 `entry`: `index.html`（AI LLM 工具中枢与硬件直调） | [本地 SKILL.md](webview2/revo-llm-hub/SKILL.md) |
 | [revo-pet-companion](webview2/revo-pet-companion/) | WebView2 | 根 `entry`: `index.html`（透明桌面桌宠与状态互动） | [本地 SKILL.md](webview2/revo-pet-companion/SKILL.md) |
