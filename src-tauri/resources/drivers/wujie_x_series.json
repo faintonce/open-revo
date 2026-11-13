@@ -36,7 +36,7 @@
     "supported_gpu_modes": [],
     "water_cooling": false,
     "fan_custom_curve": true,
-    "fan_independent_channels": true,
+    "fan_independent_channels": false,
     "fan_ramp_rate": true,
     "fan_control_mode": "discrete_table_16",
     "fan_boost_mode": "hardware_toggle",
