@@ -9,12 +9,13 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "set_gpu_mode" => {
             if let Some(gm) = val.get("gpu_mode").and_then(|m| m.as_str()) {
                 let mode = gm.to_string();
+                let restart = val.get("restart").and_then(|r| r.as_bool());
                 if let Some(app) = app {
                     let gpu_state: tauri::State<crate::driver::gpu_bridge::SharedGpuBridge> = app.state();
-                    let _ = crate::commands::hardware_cmd::set_gpu_mode(app.clone(), mode, None, gpu_state);
+                    let _ = crate::commands::hardware_cmd::set_gpu_mode(app.clone(), mode, restart, gpu_state);
                 } else {
                     let gpu_state = crate::driver::gpu_bridge::get_global_gpu();
-                    let _ = crate::commands::tuning_cmd::set_gpu_mode_internal(mode, None, &gpu_state);
+                    let _ = crate::commands::tuning_cmd::set_gpu_mode_internal(mode, restart, &gpu_state);
                 }
                 sync_slint_display_state();
             }

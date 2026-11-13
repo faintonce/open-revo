@@ -4,8 +4,11 @@ use crate::MainWindow;
 pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     // GPU mode
     let ui_cb = ui_weak.clone();
-    window.on_gpu_mode_clicked(move |mode| {
-        ipc::send_action_to_host("set_gpu_mode", serde_json::json!({ "gpu_mode": mode.as_str() }));
+    window.on_gpu_mode_clicked(move |mode, restart| {
+        ipc::send_action_to_host("set_gpu_mode", serde_json::json!({
+            "gpu_mode": mode.as_str(),
+            "restart": restart,
+        }));
         if let Some(ui) = ui_cb.upgrade() {
             ui.set_gpu_mode(mode);
         }

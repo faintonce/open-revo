@@ -153,7 +153,7 @@ export component FullDashboard inherits Rectangle {
     in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
     in-out property <string> gpu_mode: "dgpu";
     in-out property <int> brightness: 76;
-    callback gpu_mode_clicked(string);
+    callback gpu_mode_clicked(string, bool);
     callback brightness_changed(int);
     callback set_tuning_enabled(bool);
     callback toggle_tuning_enabled();
@@ -941,7 +941,7 @@ export component FullDashboard inherits Rectangle {
 
                 set_gpu_mode(mode, restart) => {
                     root.gpu_mode = mode;
-                    root.gpu_mode_clicked(mode);
+                    root.gpu_mode_clicked(mode, restart);
                 }
                 change_brightness(b) => {
                     root.brightness = b;

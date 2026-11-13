@@ -244,7 +244,7 @@ export component MainWindow inherits Window {
 
     // --- Callbacks to Rust host ---
     callback power_mode_clicked(int);
-    callback gpu_mode_clicked(string);
+    callback gpu_mode_clicked(string, bool);
     callback refresh_rate_switched(int);
     callback auto_min_hz_toggled();
     callback brightness_changed(int);
@@ -625,7 +625,7 @@ export component MainWindow inherits Window {
         custom_status_text: root.custom_status_text;
 
         power_mode_clicked(m) => { root.power_mode_clicked(m); }
-        gpu_mode_clicked(m) => { root.gpu_mode_clicked(m); }
+        gpu_mode_clicked(m, r) => { root.gpu_mode_clicked(m, r); }
         refresh_rate_switched(hz) => { root.refresh_rate_switched(hz); }
         auto_min_hz_toggled => { root.auto_min_hz_toggled(); }
         select_monitor_index(idx) => { root.select_monitor_index(idx); }
@@ -717,7 +717,7 @@ export component MainWindow inherits Window {
         gpu_name: root.gpu_name;
         gpu_mode <=> root.gpu_mode;
         brightness <=> root.brightness;
-        gpu_mode_clicked(m) => { root.gpu_mode_clicked(m); }
+        gpu_mode_clicked(m, r) => { root.gpu_mode_clicked(m, r); }
         brightness_changed(b) => { root.brightness_changed(b); }
 
         tuning_enabled <=> root.tuning_enabled;

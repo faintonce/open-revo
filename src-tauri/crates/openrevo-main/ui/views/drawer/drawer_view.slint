@@ -70,7 +70,7 @@ export component DrawerView inherits Rectangle {
 
     // --- Callbacks ---
     callback power_mode_clicked(int);
-    callback gpu_mode_clicked(string);
+    callback gpu_mode_clicked(string, bool);
     callback refresh_rate_switched(int);
     callback auto_min_hz_toggled();
     callback select_monitor_index(int);
@@ -128,7 +128,7 @@ export component DrawerView inherits Rectangle {
             gpu_temp: root.gpu_temp;
             gpu_rpm: root.gpu_rpm;
             is_thin_and_light: root.is_thin_and_light;
-            set_gpu_mode(mode) => { root.gpu_mode_clicked(mode); }
+            set_gpu_mode(mode) => { root.gpu_mode_clicked(mode, false); }
         }
 
         // 4. Display Refresh Rate Card
