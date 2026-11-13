@@ -227,9 +227,8 @@ fn parse_css_font(raw: &str) -> Option<String> {
     Some(first.to_string())
 }
 
-fn extract_css_variables(css: &str) -> HashMap<String, String> {
+fn extract_css_variables_scoped(css: &str, theme_mode: u8) -> HashMap<String, String> {
     let mut vars = HashMap::new();
-    // Strip block comments /* ... */
     let mut cleaned = String::with_capacity(css.len());
     let mut chars = css.chars().peekable();
     while let Some(c) = chars.next() {
@@ -246,21 +245,50 @@ fn extract_css_variables(css: &str) -> HashMap<String, String> {
         }
     }
 
-    for stmt in cleaned.split(';') {
-        if let Some(idx) = stmt.find("--") {
-            let decl = &stmt[idx..];
-            if let Some(colon) = decl.find(':') {
-                let key = decl[..colon].trim().to_ascii_lowercase();
-                let mut val = decl[colon + 1..].trim();
-                if let Some(imp) = val.find("!important") {
-                    val = val[..imp].trim();
-                }
-                if !key.is_empty() && !val.is_empty() {
-                    vars.insert(key, val.to_string());
+    // Split into CSS rules: selector { declarations }
+    let mut remaining = cleaned.as_str();
+    while let Some(brace_open) = remaining.find('{') {
+        let selector = remaining[..brace_open].trim();
+        let after_open = &remaining[brace_open + 1..];
+        let brace_close = match after_open.find('}') {
+            Some(i) => i,
+            None => break,
+        };
+        let body = &after_open[..brace_close];
+        remaining = &after_open[brace_close + 1..];
+
+        let actual_selector = selector.rsplit('}').next().unwrap_or(selector).trim();
+        let sel_lower = actual_selector.to_ascii_lowercase();
+        let is_cyber = sel_lower.contains("cyber") || sel_lower.contains("dark");
+        let is_mono = sel_lower.contains("mono");
+        let is_light = sel_lower.contains("light");
+
+        let matches = match theme_mode {
+            0 => is_cyber,
+            1 => is_light || (!is_cyber && !is_mono && (sel_lower.contains(":root") || sel_lower.contains("[data-skin]"))),
+            2 => is_mono,
+            _ => true,
+        };
+
+        if matches {
+            for stmt in body.split(';') {
+                if let Some(idx) = stmt.find("--") {
+                    let decl = &stmt[idx..];
+                    if let Some(colon) = decl.find(':') {
+                        let key = decl[..colon].trim().to_ascii_lowercase();
+                        let mut val = decl[colon + 1..].trim();
+                        if let Some(imp) = val.find("!important") {
+                            val = val[..imp].trim();
+                        }
+                        if !key.is_empty() && !val.is_empty() {
+                            vars.insert(key, val.to_string());
+                        }
+                    }
                 }
             }
         }
     }
+
     vars
 }
 
@@ -406,7 +434,7 @@ fn discover_plugin_image(plugin_dir: &Path, explicit_rel: Option<&str>) -> Optio
     None
 }
 
-fn apply_skin_plugin(tokens: &mut SlintThemeTokens, plugin_id: &str) {
+fn apply_skin_plugin(tokens: &mut SlintThemeTokens, plugin_id: &str, theme_mode: u8) {
     let plugin_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
     if !plugin_dir.exists() {
         return;
@@ -422,11 +450,11 @@ fn apply_skin_plugin(tokens: &mut SlintThemeTokens, plugin_id: &str) {
         .and_then(|m| m.get("theme_css").and_then(|v| v.as_str()))
         .unwrap_or("theme.css");
 
-    // 1. Parse theme.css CSS custom properties if present
+    // 1. Parse theme.css scoped to theme_mode (Dark: cyber/:root, Light: :root, Mono: mono/:root)
     let css_path = plugin_dir.join(theme_css_name);
     if css_path.exists() {
         if let Ok(raw_css) = std::fs::read_to_string(&css_path) {
-            let vars = extract_css_variables(&raw_css);
+            let vars = extract_css_variables_scoped(&raw_css, theme_mode);
             for (k, v) in &vars {
                 let resolved = resolve_var_value(&vars, v, 0);
                 apply_token_map(tokens, k, resolved);
@@ -434,36 +462,62 @@ fn apply_skin_plugin(tokens: &mut SlintThemeTokens, plugin_id: &str) {
         }
     }
 
-    // 2. Apply explicit JSON tokens if present (slint_tokens.json / tokens.json / manifest.slint_tokens)
+    // 2. Apply multi-mode or generic JSON tokens
+    let mode_key = match theme_mode {
+        1 => "tokens_light",
+        2 => "tokens_mono",
+        _ => "tokens_dark",
+    };
+
+    let apply_json_obj = |toks: &mut SlintThemeTokens, obj: &serde_json::Map<String, serde_json::Value>| {
+        // Mode-specific overrides (tokens_light / tokens_dark / tokens_mono) takes highest precedence
+        if let Some(mode_obj) = obj.get(mode_key).and_then(|v| v.as_object()) {
+            for (k, v) in mode_obj {
+                if let Some(s) = v.as_str() {
+                    apply_token_map(toks, k, s);
+                } else if let Some(n) = v.as_f64() {
+                    apply_token_map(toks, k, &n.to_string());
+                }
+            }
+        } else if let Some(gen_obj) = obj.get("tokens").or_else(|| obj.get("slint_tokens")).and_then(|v| v.as_object()) {
+            // Generic tokens
+            for (k, v) in gen_obj {
+                if let Some(s) = v.as_str() {
+                    apply_token_map(toks, k, s);
+                } else if let Some(n) = v.as_f64() {
+                    apply_token_map(toks, k, &n.to_string());
+                }
+            }
+        } else if !obj.contains_key("tokens")
+            && !obj.contains_key("slint_tokens")
+            && !obj.contains_key("tokens_light")
+            && !obj.contains_key("tokens_dark")
+            && !obj.contains_key("tokens_mono")
+        {
+            // Raw flat token map (only for standalone token json files that have no mode keys)
+            for (k, v) in obj {
+                if let Some(s) = v.as_str() {
+                    apply_token_map(toks, k, s);
+                } else if let Some(n) = v.as_f64() {
+                    apply_token_map(toks, k, &n.to_string());
+                }
+            }
+        }
+    };
+
     for json_name in ["slint_tokens.json", "tokens.json"] {
         let p = plugin_dir.join(json_name);
         if p.exists() {
             if let Ok(content) = std::fs::read_to_string(&p) {
                 if let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(&content) {
-                    for (k, v) in map {
-                        if let Some(s) = v.as_str() {
-                            apply_token_map(tokens, &k, s);
-                        } else if let Some(n) = v.as_f64() {
-                            apply_token_map(tokens, &k, &n.to_string());
-                        }
-                    }
+                    apply_json_obj(tokens, &map);
                 }
             }
         }
     }
 
-    if let Some(obj) = manifest_val
-        .as_ref()
-        .and_then(|m| m.get("slint_tokens").or_else(|| m.get("tokens")))
-        .and_then(|v| v.as_object())
-    {
-        for (k, v) in obj {
-            if let Some(s) = v.as_str() {
-                apply_token_map(tokens, k, s);
-            } else if let Some(n) = v.as_f64() {
-                apply_token_map(tokens, k, &n.to_string());
-            }
-        }
+    if let Some(obj) = manifest_val.as_ref().and_then(|m| m.as_object()) {
+        apply_json_obj(tokens, obj);
     }
 
     // 3. Optional background image declared in skin manifest
@@ -497,7 +551,7 @@ pub fn resolve_slint_theme(cfg: &crate::system::config::AppConfig) -> SlintTheme
     }
 
     if let Some(skin_id) = active_skin_id {
-        apply_skin_plugin(&mut tokens, &skin_id);
+        apply_skin_plugin(&mut tokens, &skin_id, cfg.theme_mode);
     }
 
     // 2. Apply active background plugin (overrides wallpaper image if enabled)
@@ -532,13 +586,29 @@ mod tests {
     fn test_cream_cup_theme_resolution() {
         let mut cfg = crate::system::config::AppConfig::default();
         cfg.active_skin = Some("theme-cream-cup".into());
-        let tokens = resolve_slint_theme(&cfg);
 
-        assert_eq!(tokens.bg_root, "#f5eeda");
-        assert_eq!(tokens.surface_card, "#fffcf3");
-        assert_eq!(tokens.text_primary, "#35291c");
-        assert_eq!(tokens.accent_brand, "#d9772f");
-        assert_eq!(tokens.radius_md, 12.0);
+        // 1. Light mode (theme_mode = 1) -> 浅色奶油
+        cfg.theme_mode = 1;
+        let tokens_light = resolve_slint_theme(&cfg);
+        assert_eq!(tokens_light.bg_root, "#f5eeda");
+        assert_eq!(tokens_light.surface_card, "#fffcf3");
+        assert_eq!(tokens_light.text_primary, "#35291c");
+        assert_eq!(tokens_light.accent_brand, "#d9772f");
+
+        // 2. Dark mode (theme_mode = 0) -> 深焙奶茶
+        cfg.theme_mode = 0;
+        let tokens_dark = resolve_slint_theme(&cfg);
+        assert_eq!(tokens_dark.bg_root, "#332b24");
+        assert_eq!(tokens_dark.surface_card, "#42382e");
+        assert_eq!(tokens_dark.text_primary, "#f7f0e5");
+        assert_eq!(tokens_dark.accent_brand, "#e79a50");
+
+        // 3. Mono mode (theme_mode = 2) -> 复古版画黑白
+        cfg.theme_mode = 2;
+        let tokens_mono = resolve_slint_theme(&cfg);
+        assert_eq!(tokens_mono.bg_root, "#1f1d1a");
+        assert_eq!(tokens_mono.surface_card, "#2e2a27");
+        assert_eq!(tokens_mono.accent_brand, "#faf6f0");
     }
 }
 
