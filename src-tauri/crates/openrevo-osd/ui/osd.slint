@@ -5,6 +5,7 @@ export component OsdWindow inherits Window {
     no-frame: true;
     background: transparent;
     always-on-top: true;
+    default-font-family: font_family;
 
     in-out property <bool> is_active: false;
     in-out property <string> mode_title: "狂暴模式";
@@ -14,6 +15,14 @@ export component OsdWindow inherits Window {
     in-out property <string> osd_theme: "pill"; // "cinema" | "fade" | "pill"
     in-out property <float> osd_scale: 1.0;     // 0.8 | 1.0 | 1.2 | 1.4
     in-out property <string> osd_position: "top-left";
+
+    // Unified theme token overrides
+    in-out property <string> font_family: "";
+    in-out property <color> card_bg_color: #0d121cf2;
+    in-out property <color> cinema_bg_color: #000000c8;
+    in-out property <color> text_primary_color: #ffffff;
+    in-out property <length> custom_radius_sm: 4px;
+    in-out property <length> custom_radius_md: 6px;
 
     // Theme detection
     property <bool> is_cinema: osd_theme == "cinema" || osd_theme == "subtitle";
@@ -29,8 +38,8 @@ export component OsdWindow inherits Window {
         y: is_active ? ((parent.height - self.height) / 2) : -100px;
         opacity: is_active ? 1.0 : 0.0;
 
-        border-radius: is_pill ? (38px * osd_scale) : (is_fade ? (4px * osd_scale) : (6px * osd_scale));
-        background: is_cinema ? #000000c8 : (is_fade ? @linear-gradient(90deg, #0d121cf2 0%, #0d121c70 68%, #00000000 100%) : #0d121cf2);
+        border-radius: is_pill ? (38px * osd_scale) : (is_fade ? (custom_radius_sm * osd_scale) : (custom_radius_md * osd_scale));
+        background: is_cinema ? cinema_bg_color : (is_fade ? @linear-gradient(90deg, card_bg_color 0%, #0d121c70 68%, #00000000 100%) : card_bg_color);
         border-width: is_pill ? (1.5px * osd_scale) : 0px;
         border-color: accent_color;
         clip: true;
@@ -83,7 +92,7 @@ export component OsdWindow inherits Window {
                 text: mode_title;
                 font-size: (is_cinema ? 18px : 17px) * osd_scale;
                 font-weight: 800;
-                color: #ffffff;
+                color: text_primary_color;
                 vertical-alignment: center;
                 overflow: elide;
             }

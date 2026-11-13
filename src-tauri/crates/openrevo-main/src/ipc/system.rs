@@ -1,4 +1,89 @@
-use crate::{MainWindow, UpdateResultData};
+use crate::{AppTheme, MainWindow, UpdateResultData};
+use slint::ComponentHandle;
+
+fn parse_hex_color(hex: &str) -> Option<slint::Color> {
+    let s = hex.trim().strip_prefix('#')?;
+    if s.len() == 6 {
+        let r = u8::from_str_radix(&s[0..2], 16).ok()?;
+        let g = u8::from_str_radix(&s[2..4], 16).ok()?;
+        let b = u8::from_str_radix(&s[4..6], 16).ok()?;
+        Some(slint::Color::from_rgb_u8(r, g, b))
+    } else if s.len() == 8 {
+        let r = u8::from_str_radix(&s[0..2], 16).ok()?;
+        let g = u8::from_str_radix(&s[2..4], 16).ok()?;
+        let b = u8::from_str_radix(&s[4..6], 16).ok()?;
+        let a = u8::from_str_radix(&s[6..8], 16).ok()?;
+        Some(slint::Color::from_argb_u8(a, r, g, b))
+    } else {
+        None
+    }
+}
+
+fn apply_theme_tokens(ui: &MainWindow, tokens: &serde_json::Value) {
+    let theme = ui.global::<AppTheme>();
+    macro_rules! set_color {
+        ($key:expr, $setter:ident) => {
+            if let Some(c) = tokens.get($key).and_then(|v| v.as_str()).and_then(parse_hex_color) {
+                theme.$setter(c);
+            }
+        };
+    }
+
+    set_color!("bg_root", set_bg_root);
+    set_color!("surface_base", set_surface_base);
+    set_color!("surface_card", set_surface_card);
+    set_color!("surface_card_hover", set_surface_card_hover);
+    set_color!("surface_pill", set_surface_pill);
+    set_color!("surface_elevated", set_surface_elevated);
+    set_color!("surface_sunken", set_surface_sunken);
+    set_color!("border_subtle", set_border_subtle);
+    set_color!("border_medium", set_border_medium);
+    set_color!("border_highlight", set_border_highlight);
+    set_color!("text_primary", set_text_primary);
+    set_color!("text_secondary", set_text_secondary);
+    set_color!("text_muted", set_text_muted);
+    set_color!("accent_brand", set_accent_brand);
+    set_color!("mode_office", set_mode_office);
+    set_color!("mode_balance", set_mode_balance);
+    set_color!("mode_beast", set_mode_beast);
+    set_color!("accent_fan", set_accent_fan);
+    set_color!("accent_gold", set_accent_gold);
+    set_color!("accent_active", set_accent_active);
+    set_color!("accent_active_bg", set_accent_active_bg);
+    set_color!("accent_active_border", set_accent_active_border);
+    set_color!("accent_heart", set_accent_heart);
+    set_color!("accent_heart_bg", set_accent_heart_bg);
+    set_color!("accent_heart_border", set_accent_heart_border);
+    set_color!("tag_brand_text", set_tag_brand_text);
+
+    if let Some(ff) = tokens.get("font_family").and_then(|v| v.as_str()) {
+        theme.set_font_family(ff.into());
+    }
+    if let Some(r) = tokens.get("radius_xs").and_then(|v| v.as_f64()) {
+        theme.set_radius_xs(r as f32);
+    }
+    if let Some(r) = tokens.get("radius_sm").and_then(|v| v.as_f64()) {
+        theme.set_radius_sm(r as f32);
+    }
+    if let Some(r) = tokens.get("radius_md").and_then(|v| v.as_f64()) {
+        theme.set_radius_md(r as f32);
+    }
+    if let Some(r) = tokens.get("radius_lg").and_then(|v| v.as_f64()) {
+        theme.set_radius_lg(r as f32);
+    }
+    if let Some(op) = tokens.get("bg_image_opacity").and_then(|v| v.as_f64()) {
+        theme.set_bg_image_opacity(op as f32);
+    }
+    if let Some(path_str) = tokens.get("bg_image_path").and_then(|v| v.as_str()) {
+        if path_str.is_empty() {
+            theme.set_bg_image(slint::Image::default());
+        } else if let Ok(img) = slint::Image::load_from_path(std::path::Path::new(path_str)) {
+            theme.set_bg_image(img);
+        } else {
+            theme.set_bg_image(slint::Image::default());
+        }
+    }
+}
 
 pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     match action {
@@ -204,6 +289,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(tm) = val.get("theme_mode").and_then(|v| v.as_i64()) {
                 ui.set_theme_mode(tm as i32);
             }
+            if let Some(tokens) = val.get("theme_tokens") {
+                apply_theme_tokens(ui, tokens);
+            }
             if let Some(exp) = val.get("is_expanded").and_then(|v| v.as_bool()) {
                 ui.set_is_expanded(exp);
                 if let Some(h) = *crate::window::HWND_HOLDER.lock().unwrap() {
@@ -247,6 +335,15 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             if let Some(hpid) = val.get("host_pid").and_then(|v| v.as_u64()) {
                 crate::window::set_host_pid(hpid as u32);
+            }
+            true
+        }
+        "sync_theme" => {
+            if let Some(tm) = val.get("theme_mode").and_then(|v| v.as_i64()) {
+                ui.set_theme_mode(tm as i32);
+            }
+            if let Some(tokens) = val.get("tokens") {
+                apply_theme_tokens(ui, tokens);
             }
             true
         }

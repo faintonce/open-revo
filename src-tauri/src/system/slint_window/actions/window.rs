@@ -75,6 +75,7 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
                 let mut cfg = crate::system::config::load_config();
                 cfg.theme_mode = mode as u8;
                 let _ = crate::system::config::save_config(&cfg);
+                super::super::sync::sync_slint_theme_tokens();
             }
             true
         }

@@ -1,4 +1,5 @@
 import { AppTheme } from "theme.slint";
+export { AppTheme }
 import { DrawerView } from "views/drawer/drawer_view.slint";
 import { FullDashboard } from "shell/full_dashboard.slint";
 import { WaterCoolerDeviceItem } from "views/water/cooler_types.slint";
@@ -11,6 +12,7 @@ export component MainWindow inherits Window {
     title: "OpenRevo";
     no-frame: true;
     background: transparent;
+    default-font-family: AppTheme.font_family;
 
     // Invalidate/Redraw tick counter to force software renderer dirty region repaint
     in-out property <int> redraw_tick: 0;

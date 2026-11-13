@@ -1,0 +1,46 @@
+/* ==========================================================================
+   OpenRevo Slint 皮肤 · 奶油纸杯 (Paper & Oil Cartoon)
+   基于 ZTN-Silent 浅色纸质油画卡通配色 (米黄纸面 + 暖棕墨色 + 琥珀橙强调)
+   ========================================================================== */
+
+:root {
+  --bg-root: #F5EEDA;
+  --surface-base: #FCF8EC;
+  --surface-card: #FFFCF3;
+  --surface-card-hover: #FFF7E4;
+  --surface-pill: #EBDDC4;
+  --surface-elevated: #FFFDF6;
+  --surface-sunken: #E8DEC6;
+
+  --border-subtle: #DECDB5;
+  --border-medium: #BAA78E;
+  --border-highlight: #7E6E58;
+
+  --text-primary: #35291C;
+  --text-secondary: #57493A;
+  --text-muted: #7E6E58;
+  --font-family: "Microsoft YaHei";
+
+  --color-brand: #D9772F;
+  --color-office: #4E8B3F;
+  --color-balance: #3D74A8;
+  --color-beast: #B8433A;
+  --color-fan: #2E8FA8;
+  --color-gold: #C8850F;
+
+  --accent-active: #D9772F;
+  --accent-active-bg: rgba(217, 119, 47, 0.14);
+  --accent-active-border: rgba(217, 119, 47, 0.40);
+
+  --accent-heart: #B8433A;
+  --accent-heart-bg: rgba(184, 67, 58, 0.14);
+  --accent-heart-border: rgba(184, 67, 58, 0.40);
+
+  --tag-brand-text: #FFFDF6;
+
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius-md: 12px;
+  --radius-lg: 15px;
+}
+

@@ -255,6 +255,39 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                         if let Ok(manifest) = serde_json::from_str::<crate::commands::system_cmd::RawPluginManifest>(&content) {
                             let p_type = manifest.plugin_type.as_deref().unwrap_or_default();
+
+                            // Single-select enforcement for skin & background plugins
+                            if p_type.eq_ignore_ascii_case("skin") {
+                                let mut cfg = crate::system::config::load_config();
+                                if enabled {
+                                    if let Ok(all_plugins) = crate::commands::system_cmd::get_custom_plugins() {
+                                        for other in all_plugins {
+                                            if other.id != id && other.plugin_type.eq_ignore_ascii_case("skin") {
+                                                cfg.custom_plugin_toggles.insert(other.id, false);
+                                            }
+                                        }
+                                    }
+                                    cfg.active_skin = Some(id.to_string());
+                                } else if cfg.active_skin.as_deref() == Some(id) {
+                                    cfg.active_skin = None;
+                                }
+                                crate::system::config::save_config(&cfg);
+                                super::super::sync::sync_slint_theme_tokens();
+                            } else if p_type.eq_ignore_ascii_case("background") {
+                                if enabled {
+                                    let mut cfg = crate::system::config::load_config();
+                                    if let Ok(all_plugins) = crate::commands::system_cmd::get_custom_plugins() {
+                                        for other in all_plugins {
+                                            if other.id != id && other.plugin_type.eq_ignore_ascii_case("background") {
+                                                cfg.custom_plugin_toggles.insert(other.id, false);
+                                            }
+                                        }
+                                    }
+                                    crate::system::config::save_config(&cfg);
+                                }
+                                super::super::sync::sync_slint_theme_tokens();
+                            }
+
                             let has_widget = manifest.widget.is_some()
                                 || p_dir.join("widget.slint").exists()
                                 || p_type.eq_ignore_ascii_case("widget");

@@ -43,6 +43,12 @@ pub fn ensure_companion_process() {
                         "position": cfg.osd_position,
                     }));
                     let _ = stdin.write_all(line.as_bytes());
+                    let tokens = crate::system::slint_theme::resolve_slint_theme(&cfg);
+                    let tokens_line = format!("{}\n", serde_json::json!({
+                        "action": "theme_tokens",
+                        "tokens": tokens,
+                    }));
+                    let _ = stdin.write_all(tokens_line.as_bytes());
                     let _ = stdin.flush();
                     *lock = Some(stdin);
                     crate::log_info!("OSD", "Native OSD companion stdin pipe established & initial config synced: theme={}, scale={}, pos={}", cfg.osd_theme, cfg.osd_scale, cfg.osd_position);
@@ -74,6 +80,13 @@ pub fn ensure_companion_process() {
 static LAST_MESSAGE: Mutex<Option<(String, std::time::Instant)>> = Mutex::new(None);
 
 /// Send a JSON instruction directly to the companion child process via anonymous stdin pipe
+pub fn send_osd_theme_tokens(tokens: &crate::system::slint_theme::SlintThemeTokens) {
+    send_osd_ipc_message(serde_json::json!({
+        "action": "theme_tokens",
+        "tokens": tokens,
+    }));
+}
+
 pub fn send_osd_ipc_message(payload: serde_json::Value) {
     let cfg = crate::system::config::load_config();
     if !cfg.osd_enabled || cfg.use_classic_webview {

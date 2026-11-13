@@ -1512,14 +1512,16 @@ pub fn find_plugin_dir(plugin_id: &str) -> std::path::PathBuf {
         }
     }
 
-    // Fallback: check repository sample directories
-    let sample_slint = std::path::Path::new("plugins_sample").join("slint").join(plugin_id);
-    if sample_slint.exists() {
-        return sample_slint;
-    }
-    let sample_web = std::path::Path::new("plugins_sample").join("webview2").join(plugin_id);
-    if sample_web.exists() {
-        return sample_web;
+    // Fallback: check repository sample directories (relative to current_dir or parent if running from src-tauri)
+    for base_cand in [std::path::PathBuf::from("."), std::path::PathBuf::from("..")] {
+        let sample_slint = base_cand.join("plugins_sample").join("slint").join(plugin_id);
+        if sample_slint.exists() {
+            return sample_slint;
+        }
+        let sample_web = base_cand.join("plugins_sample").join("webview2").join(plugin_id);
+        if sample_web.exists() {
+            return sample_web;
+        }
     }
 
     direct

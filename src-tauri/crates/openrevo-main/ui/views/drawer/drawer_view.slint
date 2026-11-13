@@ -16,6 +16,14 @@ export component DrawerView inherits Rectangle {
     border-color: AppTheme.border_subtle;
     clip: true;
 
+    if AppTheme.bg_image.width > 0: Image {
+        source: AppTheme.bg_image;
+        width: 100%;
+        height: 100%;
+        image-fit: cover;
+        opacity: AppTheme.bg_image_opacity;
+    }
+
     // --- State properties ---
     in-out property <string> app_version: "v0.9.7";
     in-out property <int> power_mode: 4;

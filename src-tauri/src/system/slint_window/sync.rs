@@ -432,6 +432,7 @@ pub fn sync_slint_switches_state() {
         "is_thin_and_light": crate::commands::power_cmd::is_thin_and_light_or_pure_igpu(),
         "unlock_battery_limit": cfg.unlock_battery_power_limit,
         "theme_mode": cfg.theme_mode,
+        "theme_tokens": serde_json::to_value(crate::system::slint_theme::resolve_slint_theme(&cfg)).unwrap_or_default(),
         "model_name": &model_alias,
         "custom_status_text": &model_alias,
         "oem_installed": crate::system::process::is_oem_installed(),
@@ -658,6 +659,17 @@ pub fn sync_slint_plugins_state() {
             "plugins": list,
         }));
     }
+}
+
+pub fn sync_slint_theme_tokens() {
+    let cfg = crate::system::config::load_config();
+    let tokens = crate::system::slint_theme::resolve_slint_theme(&cfg);
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_theme",
+        "theme_mode": cfg.theme_mode,
+        "tokens": tokens,
+    }));
+    crate::system::osd_window::send_osd_theme_tokens(&tokens);
 }
 
 pub fn sync_slint_power_schemes(restore_msg: Option<&str>) {

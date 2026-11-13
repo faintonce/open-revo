@@ -15,6 +15,7 @@ pub mod logger;
 pub mod hardware_probe;
 pub mod model_engine;
 pub mod osd_window;
+pub mod slint_theme;
 pub mod slint_window;
 pub mod display_tuning;
 pub mod color_calibration;
