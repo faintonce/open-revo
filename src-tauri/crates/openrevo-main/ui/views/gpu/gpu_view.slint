@@ -117,7 +117,13 @@ export component DashboardGpuView inherits Rectangle {
     callback change_oc_core(int);
     callback change_oc_mem(int);
 
-    VerticalLayout {
+    flick := Flickable {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+
+        VerticalLayout {
         padding-left: 18px;
         padding-right: 18px;
         padding-top: 14px;
@@ -209,6 +215,17 @@ export component DashboardGpuView inherits Rectangle {
             change_oc_core(val) => { root.change_oc_core(val); }
             change_oc_mem(val) => { root.change_oc_mem(val); }
         }
+    }
+    }
+
+    // Scrollbar indicator
+    if flick.content-height > flick.height: Rectangle {
+        x: parent.width - 5px;
+        y: -flick.content-y * (flick.height - self.height) / (flick.content-height - flick.height);
+        width: 3px;
+        height: max(32px, flick.height * flick.height / flick.content-height);
+        border-radius: 1.5px;
+        background: AppTheme.accent_active.transparentize(50%);
     }
 
     // 7. Switch Confirmation Modal
