@@ -12,7 +12,8 @@ html[data-skin],
   --surface-card: #FFFCF3;
   --surface-card-hover: #FFF7E4;
   --surface-pill: #EBDDC4;
-  --surface-elevated: #FFFDF6;
+  --surface-elevated: #3E342B;
+  --surface-overlay: #3E342B;
   --surface-sunken: #E8DEC6;
 
   --border-subtle: #DECDB5;
