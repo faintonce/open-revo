@@ -260,6 +260,7 @@ impl CpuMonitor {
                         collect(q);
 
                         // A. Thermal zone
+                        let mut got_temp = false;
                         if let Some(c) = pdh_tz_counter {
                             let mut buf_size = 0u32;
                             let mut item_count = 0u32;
@@ -285,6 +286,22 @@ impl CpuMonitor {
                                     }
                                     if let Some(c) = max_celsius {
                                         monitor_clone.cpu_temp.store(c, Ordering::SeqCst);
+                                        got_temp = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Fallback: If PDH Thermal Zone counter is unavailable (e.g. Baolongda / AMD laptops lacking ACPI thermal zone),
+                        // query declarative HAL driver action (read_cpu_temp via WMI Mailbox).
+                        if !got_temp {
+                            if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
+                                if manifest.actions.contains_key("read_cpu_temp") {
+                                    let hal = crate::hal::get_hardware_driver();
+                                    if let Ok(t) = hal.read_cpu_temp() {
+                                        if t > 0 && t < 125 {
+                                            monitor_clone.cpu_temp.store(t as i32, Ordering::SeqCst);
+                                        }
                                     }
                                 }
                             }
@@ -364,6 +381,12 @@ impl CpuMonitor {
 
     pub fn get_temp(&self) -> i32 {
         self.cpu_temp.load(Ordering::SeqCst)
+    }
+
+    pub fn set_temp(&self, temp: i32) {
+        if temp > 0 && temp < 125 {
+            self.cpu_temp.store(temp, Ordering::SeqCst);
+        }
     }
 
     pub fn get_current_mhz(&self) -> u32 {

@@ -146,7 +146,27 @@ pub fn collect_hardware_state(
     };
 
     let cpu = get_cpu_monitor();
-    let cpu_temp = cpu.get_temp();
+    let cpu_temp = {
+        let manifest_has_temp = crate::hal::declarative::load_matched_manifest()
+            .map(|m| m.actions.contains_key("read_cpu_temp"))
+            .unwrap_or(false);
+
+        if manifest_has_temp {
+            let hal = crate::hal::get_hardware_driver();
+            if let Ok(t) = hal.read_cpu_temp() {
+                if t > 0 && t < 125 {
+                    cpu.set_temp(t as i32);
+                    t as i32
+                } else {
+                    cpu.get_temp()
+                }
+            } else {
+                cpu.get_temp()
+            }
+        } else {
+            cpu.get_temp()
+        }
+    };
     let oem_running = process::is_oem_service_running();
     let oem_installed = process::is_oem_installed();
     let is_intel_13_14_gen = cpu.is_intel_13_14_gen();

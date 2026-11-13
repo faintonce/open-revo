@@ -59,6 +59,13 @@
         "gpu_rpm": { "offset": 6, "type": "u16_le" }
       }
     },
+    "read_cpu_temp": {
+      "channel": "wmi_mailbox",
+      "input": [0, 250, 0, 22, 0],
+      "parse": {
+        "cpu_temp": { "offset": 4, "type": "u8" }
+      }
+    },
     "get_power_mode": {
       "channel": "wmi_mailbox",
       "input": [0, 250, 0, 8, 0],
