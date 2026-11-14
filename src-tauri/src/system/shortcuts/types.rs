@@ -17,6 +17,7 @@ pub enum ShortcutAction {
     ToggleRefreshRate,
     ToggleTouchpad,
     ToggleWifi,
+    ToggleScreenFlip,
     ToggleWinLock,
     ToggleFnLock,
     CycleKeyboardBrightness,

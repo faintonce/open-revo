@@ -8,6 +8,7 @@ use windows::Win32::Graphics::Gdi::{
     ChangeDisplaySettingsA, ChangeDisplaySettingsExA, EnumDisplayDevicesA, EnumDisplaySettingsA,
     EnumDisplaySettingsExA, CDS_RESET, CDS_TYPE, CDS_UPDATEREGISTRY, DEVMODEA, DISPLAY_DEVICEA,
     DISPLAY_DEVICE_ATTACHED_TO_DESKTOP, DISPLAY_DEVICE_PRIMARY_DEVICE, DM_DISPLAYFREQUENCY,
+    DM_DISPLAYORIENTATION, DMDO_DEFAULT, DMDO_180,
     EDS_ROTATEDMODE, ENUM_CURRENT_SETTINGS, ENUM_DISPLAY_SETTINGS_MODE, ENUM_REGISTRY_SETTINGS,
 };
 
@@ -308,6 +309,76 @@ pub fn set_monitor_refresh_rate(device_name: &str, hz: u32) -> Result<(), String
             "EnumDisplaySettings failed on display device {}",
             device_name
         ))
+    }
+}
+
+/// Toggle the primary/internal screen orientation between normal (0°) and 180° flip (inverted).
+/// Returns Ok(true) if flipped to 180°, Ok(false) if restored to 0° normal.
+pub fn toggle_primary_display_orientation() -> Result<bool, String> {
+    unsafe {
+        let monitors = get_all_monitors();
+        let target_dev = monitors
+            .iter()
+            .find(|m| m.is_internal)
+            .or_else(|| monitors.iter().find(|m| m.is_primary))
+            .or_else(|| monitors.first())
+            .map(|m| m.device_name.clone());
+
+        let dev_cstr = match target_dev.as_ref() {
+            Some(name) => CString::new(name.as_str()).ok(),
+            None => None,
+        };
+
+        let mut dm: DEVMODEA = std::mem::zeroed();
+        dm.dmSize = std::mem::size_of::<DEVMODEA>() as u16;
+
+        let got_settings = if let Some(ref cstr) = dev_cstr {
+            let pc = PCSTR(cstr.as_ptr() as *const u8);
+            EnumDisplaySettingsExA(pc, ENUM_CURRENT_SETTINGS, &mut dm, EDS_ROTATEDMODE).as_bool()
+                || EnumDisplaySettingsA(pc, ENUM_CURRENT_SETTINGS, &mut dm).as_bool()
+        } else {
+            EnumDisplaySettingsExA(None, ENUM_CURRENT_SETTINGS, &mut dm, EDS_ROTATEDMODE).as_bool()
+                || EnumDisplaySettingsA(None, ENUM_CURRENT_SETTINGS, &mut dm).as_bool()
+        };
+
+        if !got_settings {
+            return Err("Failed to retrieve display settings for primary monitor".to_string());
+        }
+
+        let cur_orientation = dm.Anonymous1.Anonymous2.dmDisplayOrientation;
+        let (new_orientation, is_flipped) = if cur_orientation == DMDO_DEFAULT {
+            (DMDO_180, true)
+        } else {
+            (DMDO_DEFAULT, false)
+        };
+
+        dm.Anonymous1.Anonymous2.dmDisplayOrientation = new_orientation;
+        dm.dmFields |= DM_DISPLAYORIENTATION;
+
+        let apply = |mode: &DEVMODEA, flags: windows::Win32::Graphics::Gdi::CDS_TYPE| -> windows::Win32::Graphics::Gdi::DISP_CHANGE {
+            if let Some(ref cstr) = dev_cstr {
+                let pc = PCSTR(cstr.as_ptr() as *const u8);
+                ChangeDisplaySettingsExA(pc, Some(mode), None, flags, None)
+            } else {
+                ChangeDisplaySettingsExA(None, Some(mode), None, flags, None)
+            }
+        };
+
+        let mut res = apply(&dm, CDS_UPDATEREGISTRY | CDS_RESET);
+        if res.0 != 0 {
+            res = apply(&dm, CDS_RESET);
+        }
+        if res.0 != 0 {
+            res = apply(&dm, CDS_TYPE(0));
+        }
+
+        if res.0 == 0 {
+            let _ = ChangeDisplaySettingsExA(None, None, None, CDS_TYPE(0), None);
+            invalidate_display_mode_cache();
+            Ok(is_flipped)
+        } else {
+            Err(format!("ChangeDisplaySettingsEx failed with code: {}", res.0))
+        }
     }
 }
 

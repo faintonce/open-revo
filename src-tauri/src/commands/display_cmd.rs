@@ -17,6 +17,17 @@ pub fn switch_refresh_rate(hz: u32) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn toggle_screen_flip(app: AppHandle) -> Result<bool, String> {
+    let is_flipped = display::toggle_primary_display_orientation()?;
+    crate::system::osd_window::show_device_switch("screen_flip", is_flipped);
+    crate::system::osd_window::wake_osd_if_enabled(&app);
+    let _ = app.emit("screen-flip-changed", is_flipped);
+    let _ = app.emit_to("main", "screen-flip-changed", is_flipped);
+    let _ = app.emit_to("osd", "screen-flip-changed", is_flipped);
+    Ok(is_flipped)
+}
+
+#[tauri::command]
 pub fn get_display_monitors() -> Result<Vec<display::DisplayMonitor>, String> {
     Ok(display::get_all_monitors())
 }

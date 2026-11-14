@@ -659,6 +659,13 @@ fn show_device_switch_internal(ui: &OsdWindow, name: &str, enabled: bool) {
                 ("始终保持唤醒 关闭", "💤", pal.neutral)
             }
         }
+        "screen_flip" => {
+            if enabled {
+                ("屏幕已翻转 (180°)", "🔄", pal.fan)
+            } else {
+                ("屏幕方向已恢复", "🖥️", pal.enabled)
+            }
+        }
         _ => {
             if enabled {
                 ("功能已开启", "✅", pal.enabled)

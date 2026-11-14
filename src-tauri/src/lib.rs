@@ -563,6 +563,7 @@ pub fn run_tauri_runtime() {
             commands::hardware_cmd::set_fan_boost,
             commands::hardware_cmd::set_battery_limit,
             commands::hardware_cmd::switch_refresh_rate,
+            commands::hardware_cmd::toggle_screen_flip,
             commands::hardware_cmd::get_display_monitors,
             commands::hardware_cmd::set_display_monitor_refresh_rate,
             commands::hardware_cmd::set_auto_min_refresh_on_battery,
