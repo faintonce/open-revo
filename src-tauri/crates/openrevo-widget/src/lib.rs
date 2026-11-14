@@ -15,7 +15,7 @@ use windows::Win32::Graphics::Dwm::DWMWA_USE_IMMERSIVE_DARK_MODE;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumThreadWindows, GetWindowLongW, IsWindow, SetParent, SetWindowLongW, SetWindowPos, ShowWindow,
+    EnumChildWindows, EnumThreadWindows, GetWindowLongW, IsWindow, SetParent, SetWindowLongW, SetWindowPos, ShowWindow,
     GWL_EXSTYLE, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_SHOW,
     WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_APPWINDOW, WS_EX_CONTROLPARENT,
     WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
@@ -31,19 +31,49 @@ pub fn get_latest_telemetry() -> &'static Mutex<Option<serde_json::Value>> {
 }
 
 #[cfg(target_os = "windows")]
+unsafe extern "system" fn enum_child_set_transparent(child: HWND, lparam: windows::Win32::Foundation::LPARAM) -> windows::Win32::Foundation::BOOL {
+    let enable = lparam.0 != 0;
+    let ex = GetWindowLongW(child, GWL_EXSTYLE) as u32;
+    let new_ex = if enable {
+        ex | WS_EX_TRANSPARENT.0
+    } else {
+        ex & !WS_EX_TRANSPARENT.0
+    };
+    if new_ex != ex {
+        let _ = SetWindowLongW(child, GWL_EXSTYLE, new_ex as i32);
+    }
+    windows::Win32::Foundation::BOOL(1)
+}
+
+#[cfg(target_os = "windows")]
+pub unsafe fn apply_click_through_recursive(top_hwnd: HWND, enable: bool) {
+    if !IsWindow(top_hwnd).as_bool() {
+        return;
+    }
+    let ex = GetWindowLongW(top_hwnd, GWL_EXSTYLE) as u32;
+    let new_ex = if enable {
+        ex | WS_EX_TRANSPARENT.0
+    } else {
+        ex & !WS_EX_TRANSPARENT.0
+    };
+    if new_ex != ex {
+        let _ = SetWindowLongW(top_hwnd, GWL_EXSTYLE, new_ex as i32);
+    }
+    let _ = EnumChildWindows(
+        top_hwnd,
+        Some(enum_child_set_transparent),
+        windows::Win32::Foundation::LPARAM(if enable { 1 } else { 0 }),
+    );
+}
+
+#[cfg(target_os = "windows")]
 pub fn set_click_through_internal(enable: bool) {
     IS_CLICK_THROUGH_LOCKED.store(enable, Ordering::SeqCst);
     let hwnd_raw = RECORDED_HWND.lock().unwrap().or_else(|| find_thread_hwnd().map(|h| h.0 as isize));
     if let Some(raw) = hwnd_raw {
         unsafe {
             let hwnd = HWND(raw as *mut _);
-            let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
-            let new_ex = if enable {
-                ex | WS_EX_TRANSPARENT.0
-            } else {
-                ex & !WS_EX_TRANSPARENT.0
-            };
-            let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex as i32);
+            apply_click_through_recursive(hwnd, enable);
         }
     }
 }
@@ -99,27 +129,13 @@ fn handle_widget_ipc_message(line: &str, weak_instance: &slint::Weak<slint_inter
                 let down = val.get("down").and_then(|v| v.as_bool()).unwrap_or(false);
                 let is_locked = IS_CLICK_THROUGH_LOCKED.load(Ordering::SeqCst);
                 if is_locked {
-                    if down {
-                        CTRL_PREVIEW_TEMP_UNLOCKED.store(true, Ordering::SeqCst);
-                        let hwnd_raw = RECORDED_HWND.lock().unwrap().or_else(|| find_thread_hwnd().map(|h| h.0 as isize));
-                        if let Some(raw) = hwnd_raw {
-                            #[cfg(target_os = "windows")]
-                            unsafe {
-                                let hwnd = HWND(raw as *mut _);
-                                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
-                                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, (ex & !WS_EX_TRANSPARENT.0) as i32);
-                            }
-                        }
-                    } else {
-                        CTRL_PREVIEW_TEMP_UNLOCKED.store(false, Ordering::SeqCst);
-                        let hwnd_raw = RECORDED_HWND.lock().unwrap().or_else(|| find_thread_hwnd().map(|h| h.0 as isize));
-                        if let Some(raw) = hwnd_raw {
-                            #[cfg(target_os = "windows")]
-                            unsafe {
-                                let hwnd = HWND(raw as *mut _);
-                                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
-                                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, (ex | WS_EX_TRANSPARENT.0) as i32);
-                            }
+                    CTRL_PREVIEW_TEMP_UNLOCKED.store(down, Ordering::SeqCst);
+                    let hwnd_raw = RECORDED_HWND.lock().unwrap().or_else(|| find_thread_hwnd().map(|h| h.0 as isize));
+                    if let Some(raw) = hwnd_raw {
+                        #[cfg(target_os = "windows")]
+                        unsafe {
+                            let hwnd = HWND(raw as *mut _);
+                            apply_click_through_recursive(hwnd, !down);
                         }
                     }
                     let weak = weak_instance.clone();

@@ -64,6 +64,75 @@ pub enum NativeWryMessage {
 
 pub struct HwndWrapper(pub isize);
 
+#[cfg(target_os = "windows")]
+pub mod click_through {
+    use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumChildWindows, GetWindowLongW, SetWindowLongW, IsWindow, GWL_EXSTYLE, WS_EX_TRANSPARENT,
+    };
+
+    unsafe extern "system" fn enum_child_proc(child: HWND, lparam: LPARAM) -> BOOL {
+        let enable = lparam.0 != 0;
+        let ex = GetWindowLongW(child, GWL_EXSTYLE) as u32;
+        let new_ex = if enable {
+            ex | WS_EX_TRANSPARENT.0
+        } else {
+            ex & !WS_EX_TRANSPARENT.0
+        };
+        if new_ex != ex {
+            let _ = SetWindowLongW(child, GWL_EXSTYLE, new_ex as i32);
+        }
+        BOOL(1)
+    }
+
+    /// Recursively apply or remove WS_EX_TRANSPARENT across the top-level window
+    /// AND all its nested child windows (including Chromium's Chrome_WidgetWin_0
+    /// and Chrome_RenderWidgetHostHWND render surface).
+    pub unsafe fn set_window_tree_click_through(top_hwnd: HWND, enable: bool) {
+        if !IsWindow(top_hwnd).as_bool() {
+            return;
+        }
+        let ex = GetWindowLongW(top_hwnd, GWL_EXSTYLE) as u32;
+        let new_ex = if enable {
+            ex | WS_EX_TRANSPARENT.0
+        } else {
+            ex & !WS_EX_TRANSPARENT.0
+        };
+        if new_ex != ex {
+            let _ = SetWindowLongW(top_hwnd, GWL_EXSTYLE, new_ex as i32);
+        }
+        let _ = EnumChildWindows(
+            top_hwnd,
+            Some(enum_child_proc),
+            LPARAM(if enable { 1 } else { 0 }),
+        );
+    }
+
+    /// Launch background watchdog passes to ensure asynchronously created
+    /// child windows (e.g. WebView2 render surface) also get WS_EX_TRANSPARENT applied.
+    pub fn spawn_watchdog_passes(raw_hwnd: isize, enable: bool) {
+        if !enable || raw_hwnd == 0 {
+            return;
+        }
+        std::thread::Builder::new()
+            .name("click-through-watchdog".into())
+            .spawn(move || {
+                for delay in [30, 80, 180, 350, 700, 1500] {
+                    std::thread::sleep(std::time::Duration::from_millis(delay));
+                    unsafe {
+                        let hwnd = HWND(raw_hwnd as *mut _);
+                        if IsWindow(hwnd).as_bool() {
+                            set_window_tree_click_through(hwnd, true);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            })
+            .ok();
+    }
+}
+
 impl raw_window_handle::HasWindowHandle for HwndWrapper {
     fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
         let non_zero = std::num::NonZeroIsize::new(self.0)
@@ -667,19 +736,13 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     popout_click_through.insert(plugin_id.clone(), enable);
                     if let Some((win, view)) = popouts.get(&plugin_id) {
                         #[cfg(target_os = "windows")]
-                        {
+                        unsafe {
                             use tao::platform::windows::WindowExtWindows;
                             use windows::Win32::Foundation::HWND;
-                            use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WS_EX_TRANSPARENT};
-                            unsafe {
-                                let hwnd = HWND(win.hwnd() as *mut _);
-                                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
-                                let new_ex = if enable {
-                                    ex | WS_EX_TRANSPARENT.0
-                                } else {
-                                    ex & !WS_EX_TRANSPARENT.0
-                                };
-                                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex as i32);
+                            let hwnd = HWND(win.hwnd() as *mut _);
+                            click_through::set_window_tree_click_through(hwnd, enable);
+                            if enable {
+                                click_through::spawn_watchdog_passes(win.hwnd() as isize, true);
                             }
                         }
                         let script = format!(
@@ -694,20 +757,12 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     for (pid, (win, view)) in popouts.iter() {
                         if popout_click_through.get(pid).copied().unwrap_or(false) {
                             #[cfg(target_os = "windows")]
-                            {
+                            unsafe {
                                 use tao::platform::windows::WindowExtWindows;
                                 use windows::Win32::Foundation::HWND;
-                                use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WS_EX_TRANSPARENT};
-                                unsafe {
-                                    let hwnd = HWND(win.hwnd() as *mut _);
-                                    let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
-                                    let new_ex = if down {
-                                        ex & !WS_EX_TRANSPARENT.0
-                                    } else {
-                                        ex | WS_EX_TRANSPARENT.0
-                                    };
-                                    let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex as i32);
-                                }
+                                let hwnd = HWND(win.hwnd() as *mut _);
+                                let target_enable = !down;
+                                click_through::set_window_tree_click_through(hwnd, target_enable);
                             }
                             let script = format!(
                                 "window.dispatchEvent(new CustomEvent('openrevo-ctrl-modifier', {{ detail: {{ down: {} }} }}));",
@@ -961,11 +1016,9 @@ fn spawn_popout_window(
         }
         if is_locked {
             use windows::Win32::Foundation::HWND;
-            use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WS_EX_TRANSPARENT};
             unsafe {
                 let hwnd = HWND(window.hwnd() as *mut _);
-                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
-                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, (ex | WS_EX_TRANSPARENT.0) as i32);
+                click_through::set_window_tree_click_through(hwnd, true);
             }
         }
     }
@@ -993,6 +1046,14 @@ fn spawn_popout_window(
         })
         .build(&window)
         .map_err(|e| format!("Failed to build wry WebView: {:?}", e))?;
+
+    if is_locked {
+        #[cfg(target_os = "windows")]
+        {
+            use tao::platform::windows::WindowExtWindows;
+            click_through::spawn_watchdog_passes(window.hwnd() as isize, true);
+        }
+    }
 
     if !is_widget {
         window.set_focus();
