@@ -127,14 +127,16 @@ export component DashboardGpuView inherits Rectangle {
         y: 0;
         width: parent.width;
         height: parent.height;
+        content-width: parent.width;
 
         VerticalLayout {
-        padding-left: 18px;
-        padding-right: 18px;
-        padding-top: 14px;
-        padding-bottom: 14px;
-        spacing: 10px;
-        alignment: start;
+            width: parent.width;
+            padding-left: 18px;
+            padding-right: 18px;
+            padding-top: 14px;
+            padding-bottom: 14px;
+            spacing: 10px;
+            alignment: start;
 
         // 1. MUX Switch Top Header & Mode Cards
         MuxSwitchCard {
