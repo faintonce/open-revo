@@ -875,7 +875,8 @@ export component MainWindow inherits Window {
         turn_off_screen => { root.turn_off_screen_clicked(); }
 
         // Tuning Props
-                preset_ids <=> root.preset_ids;
+        active_preset_name <=> root.active_preset_name;
+        preset_ids <=> root.preset_ids;
         preset_names <=> root.preset_names;
         temp_wall <=> root.temp_wall;
         temp_wall_enabled <=> root.temp_wall_enabled;

@@ -692,7 +692,7 @@
         <div class="header-title-box">
           <h1>
             电池硬件限充守护者
-            <span class="header-badge" id="badgeVersion">v2.2.0 Pin-Safe</span>
+            <span class="header-badge" id="badgeVersion">v2.3.0 Pin-Safe</span>
           </h1>
           <div class="header-desc">
             底层硬件级截断充电回路 · 自适应 0x04/0x05 门控 · 持续常驻心跳锁定 · 彻底杜绝电池鼓包与过充
@@ -840,7 +840,8 @@
       <!-- Action Row -->
       <div class="action-row">
         <div class="action-desc" id="actionDescText">
-          <b>运行机制</b>：采用<b>门控持续保持法 (Pin & Keep-Alive)</b>，智能自适应探测开门平台码 (0x04 / 0x05)，写入目标限值并由后台常驻守护。绝不在写入后盲目恢复原厂码（恢复原厂码将导致同方固件立即撤销限值并清零）。
+          <b>运行机制</b>：采用<b>门控持续保持法 (Pin & Keep-Alive)</b>，智能自适应探测开门平台码 (0x04 /
+          0x05)，写入目标限值并由后台常驻守护。绝不在写入后盲目恢复原厂码（恢复原厂码将导致同方固件立即撤销限值并清零）。
         </div>
         <div class="action-buttons">
           <button id="btnCancel" class="btn btn-danger" onclick="triggerCancelLimit()">
@@ -879,7 +880,8 @@
           <div class="lab-field">
             <label class="lab-label" title="门控开门策略">开门策略 (Gate Strategy)</label>
             <div style="display: flex; gap: 6px; min-width: 0;">
-              <select id="paramGateStrategy" class="lab-select" style="flex: 1; min-width: 0;" onchange="onGateSelectChange()">
+              <select id="paramGateStrategy" class="lab-select" style="flex: 1; min-width: 0;"
+                onchange="onGateSelectChange()">
                 <option value="auto" selected>智能自适应 (0x04 / 0x05)</option>
                 <option value="4">强制 0x04 (轻薄/现代机型)</option>
                 <option value="5">强制 0x05 (游戏本/老款)</option>
@@ -891,8 +893,8 @@
           </div>
           <div class="lab-field">
             <label class="lab-label">守护间隔 (Keep-Alive Ms)</label>
-            <input id="paramKeepaliveInterval" class="lab-input" type="number" value="4000" step="500" min="1000" max="15000"
-              onchange="updateLabConfig()" />
+            <input id="paramKeepaliveInterval" class="lab-input" type="number" value="4000" step="500" min="1000"
+              max="15000" onchange="updateLabConfig()" />
           </div>
           <div class="lab-field">
             <label class="lab-label">脉冲保持 (Pulse Hold Ms)</label>
@@ -1375,7 +1377,7 @@
           const isLimitCleared = curLimit !== null && (curLimit & 0x7f) === 0;
 
           if (!isGateActive || isGateTampered || isLimitCleared) {
-            logConsole(`[Keep-Alive 自愈] 发现硬件状态漂移 (Gate=0x${(curGate||0).toString(16)}, Bit2=${isGateActive?1:0}, Limit=${curLimit||0})，正在重新断言锁定...`);
+            logConsole(`[Keep-Alive 自愈] 发现硬件状态漂移 (Gate=0x${(curGate || 0).toString(16)}, Bit2=${isGateActive ? 1 : 0}, Limit=${curLimit || 0})，正在重新断言锁定...`);
             await ecWrite(STATE.gateReg, STATE.activeGateVal);
             await ecWrite(STATE.limitReg, STATE.currentTarget);
           }
@@ -1568,7 +1570,7 @@
         `;
         logConsole(report);
 
-        let diagMsg = `Project ID: 0x${(vPid||0).toString(16).toUpperCase()} | 门控bit2: ${bit2}`;
+        let diagMsg = `Project ID: 0x${(vPid || 0).toString(16).toUpperCase()} | 门控bit2: ${bit2}`;
         if (bit2 === 1) {
           diagMsg += `\n✅ 当前限充回路正在工作中，电池将受限在 ${limVal}%。`;
         } else {
@@ -1646,7 +1648,7 @@
         document.getElementById('statBatteryPct').textContent = pct;
       }
       const isCharging = Boolean(data.is_charging);
-      const isAc = (data.is_ac_online !== undefined) 
+      const isAc = (data.is_ac_online !== undefined)
         ? Boolean(data.is_ac_online)
         : (isCharging || (data.is_dc_online !== false));
 
@@ -1674,13 +1676,13 @@
           applyBatteryNav(battery);
           battery.addEventListener('levelchange', function () { applyBatteryNav(battery); });
           battery.addEventListener('chargingchange', function () { applyBatteryNav(battery); });
-        }).catch(function () {});
+        }).catch(function () { });
       }
 
       // 2. 主动拉取宿主硬件状态
       rpc('get_hardware_status').then(function (res) {
         if (res) updateTelemetry(res);
-      }).catch(function () {});
+      }).catch(function () { });
     }
 
     function applyBatteryNav(battery) {
