@@ -527,14 +527,10 @@ pub fn is_nextgen_oem_magic_ec() -> bool {
     })
 }
 
-/// Hardware Fan Boost using direct zero-latency hardware clamp (30/40/50-Series):
-/// - 30-Series:
-///   - Enable : ADDR_FAN_BOOST_CLAMP = 0x50
-///   - Disable: ADDR_FAN_BOOST_CLAMP = 0x10
-/// - 40/50-Series:
-///   - Enable : ADDR_FAN_BOOST_CLAMP |= FAN_BOOST_CLAMP_BIT
-///   - Disable: ADDR_FAN_BOOST_CLAMP &= !FAN_BOOST_CLAMP_BIT
-/// Instant speed-up and instant release with zero delay.
+/// Hardware Fan Boost using direct zero-latency hardware clamp:
+/// Uses bitwise toggle on FAN_BOOST_CLAMP_BIT (Bit 6, 0x40) on ADDR_FAN_BOOST_CLAMP.
+/// This preserves mode base clamp / Q-Key brightness (0xA0 Office, 0x00 Balanced, 0x10 Turbo)
+/// while instantly asserting or clearing the fan boost speed floor.
 pub fn set_fan_boost_hardware(enable: bool) -> bool {
     let is_tongfang_hardware = is_acpi_driver_available()
         || crate::hal::declarative::load_matched_manifest()
@@ -548,31 +544,18 @@ pub fn set_fan_boost_hardware(enable: bool) -> bool {
         return res.is_ok();
     }
 
-    if is_legacy_dual_mode_ec() {
+    if let Some(mut val) = wmi_read_ec(ADDR_FAN_BOOST_CLAMP) {
         if enable {
-            wmi_write_ec(ADDR_FAN_BOOST_CLAMP, 0x50);
+            val |= FAN_BOOST_CLAMP_BIT;
         } else {
-            wmi_write_ec(ADDR_FAN_BOOST_CLAMP, 0x10);
+            val &= !FAN_BOOST_CLAMP_BIT;
         }
+        wmi_write_ec(ADDR_FAN_BOOST_CLAMP, val);
         crate::log_info!(
             "EC_FAN",
-            "Hardware FanBoost set to {} (Legacy Dual-Mode): fan_boost_clamp={}",
+            "Hardware FanBoost set to {}: fan_boost_clamp=0x{:02X} (Bit 6 0x40 toggled)",
             enable,
-            if enable { "0x50" } else { "0x10" }
-        );
-    } else {
-        if let Some(mut val) = wmi_read_ec(ADDR_FAN_BOOST_CLAMP) {
-            if enable {
-                val |= FAN_BOOST_CLAMP_BIT;
-            } else {
-                val &= !FAN_BOOST_CLAMP_BIT;
-            }
-            wmi_write_ec(ADDR_FAN_BOOST_CLAMP, val);
-        }
-        crate::log_info!(
-            "EC_FAN",
-            "Hardware FanBoost set to {} (40/50-series mode): fan_boost_clamp Bit 6 (0x40)",
-            enable
+            val
         );
     }
     true
