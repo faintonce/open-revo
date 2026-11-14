@@ -38,6 +38,7 @@ export component FanTuningCol inherits Rectangle {
     // Callbacks
     callback toggle_smooth();
     callback toggle_isolated();
+    callback change_smooth_time(string);
     callback toggle_link();
     callback select_fan_tab(int);
     callback adjust_point(int, int); // index, delta (+1 or -1)
@@ -171,10 +172,11 @@ export component FanTuningCol inherits Rectangle {
 
             FanControlsCard {
                 smooth_transition <=> root.smooth_transition;
-                smooth_time: root.smooth_time;
+                smooth_time <=> root.smooth_time;
                 fan_isolated_output <=> root.fan_isolated_output;
                 toggle_smooth => { root.toggle_smooth(); }
                 toggle_isolated => { root.toggle_isolated(); }
+                change_smooth_time(st) => { root.change_smooth_time(st); }
             }
 
             FanCurveCanvas {

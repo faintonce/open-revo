@@ -226,6 +226,18 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             let _ = crate::commands::tuning_cmd::toggle_fan_ramp_rate(cfg.custom_profile.fan_ramp_rate, Some(cfg.custom_profile.fan_ramp_speed_ms));
             true
         }
+        "tuning_set_smooth_time" => {
+            if let Some(ms) = val.get("speed_ms").and_then(|v| v.as_i64()) {
+                let speed_ms = ms as u16;
+                mutate_active_preset_profile(|p| p.fan_ramp_speed_ms = speed_ms);
+                let cfg = crate::system::config::load_config();
+                let _ = crate::commands::tuning_cmd::toggle_fan_ramp_rate(
+                    cfg.custom_profile.fan_ramp_rate,
+                    Some(speed_ms),
+                );
+            }
+            true
+        }
         "tuning_toggle_isolated" => {
             mutate_active_preset_profile(|p| {
                 let next = !p.fan_isolated_output;

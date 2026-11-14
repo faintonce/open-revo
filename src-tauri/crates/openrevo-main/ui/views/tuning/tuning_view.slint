@@ -122,6 +122,7 @@ export component DashboardCustomTuningView inherits Rectangle {
     // Fan Callbacks
     callback toggle_smooth();
     callback toggle_isolated();
+    callback change_smooth_time(string);
     callback toggle_link();
     callback select_fan_tab(int);
     callback adjust_point(int, int);
@@ -520,6 +521,7 @@ export component DashboardCustomTuningView inherits Rectangle {
 
                 toggle_smooth => { root.toggle_smooth(); }
                 toggle_isolated => { root.toggle_isolated(); }
+                change_smooth_time(st) => { root.change_smooth_time(st); }
                 toggle_link => { root.toggle_link(); }
                 select_fan_tab(tab) => { root.select_fan_tab(tab); }
                 adjust_point(idx, delta) => { root.adjust_point(idx, delta); }

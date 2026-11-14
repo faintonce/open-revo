@@ -7,6 +7,7 @@ export component FanControlsCard inherits VerticalLayout {
 
     callback toggle_smooth();
     callback toggle_isolated();
+    callback change_smooth_time(string);
 
     spacing: 7px;
 
@@ -35,13 +36,22 @@ export component FanControlsCard inherits VerticalLayout {
             HorizontalLayout {
                 spacing: 8px;
 
-                Rectangle {
+                smooth_select_rect := Rectangle {
                     width: 68px;
                     height: 20px;
                     border-radius: 3px;
-                    background: AppTheme.surface_card;
+                    background: root.smooth_transition && t_smooth.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_card;
                     border-width: 1px;
-                    border-color: AppTheme.border_medium;
+                    border-color: root.smooth_transition && t_smooth.has-hover ? #818cf8 : AppTheme.border_medium;
+
+                    t_smooth := TouchArea {
+                        mouse-cursor: root.smooth_transition ? pointer : not-allowed;
+                        clicked => {
+                            if root.smooth_transition {
+                                smooth_popup.show();
+                            }
+                        }
+                    }
 
                     Text {
                         text: root.smooth_time + " ∨";
@@ -50,6 +60,50 @@ export component FanControlsCard inherits VerticalLayout {
                         color: root.smooth_transition ? #818cf8 : AppTheme.text_muted;
                         horizontal-alignment: center;
                         vertical-alignment: center;
+                    }
+
+                    smooth_popup := PopupWindow {
+                        x: 0px;
+                        y: parent.height + 4px;
+                        width: parent.width;
+
+                        Rectangle {
+                            background: AppTheme.surface_elevated;
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: AppTheme.border_medium;
+                            drop-shadow-blur: 10px;
+                            drop-shadow-color: #000000a0;
+                            drop-shadow-offset-y: 4px;
+
+                            VerticalLayout {
+                                padding: 3px;
+                                spacing: 2px;
+
+                                for opt in ["100ms", "300ms", "500ms", "1000ms"]: Rectangle {
+                                    height: 22px;
+                                    border-radius: 2px;
+                                    background: t_opt.has-hover ? AppTheme.surface_pill : (root.smooth_time == opt ? #6366f125 : transparent);
+
+                                    t_opt := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.smooth_time = opt;
+                                            root.change_smooth_time(opt);
+                                        }
+                                    }
+
+                                    Text {
+                                        text: opt;
+                                        font-size: 9.5px;
+                                        font-weight: 600;
+                                        color: root.smooth_time == opt ? #818cf8 : AppTheme.text_primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

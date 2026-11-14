@@ -506,6 +506,7 @@ export component FullDashboard inherits Rectangle {
 
     callback tuning_toggle_smooth();
     callback tuning_toggle_isolated();
+    callback tuning_change_smooth_time(string);
     callback tuning_toggle_link();
     callback tuning_select_fan_tab(int);
     callback tuning_adjust_point(int, int);
@@ -868,6 +869,10 @@ export component FullDashboard inherits Rectangle {
                 toggle_smooth => {
                     root.smooth_transition = !root.smooth_transition;
                     root.tuning_toggle_smooth();
+                }
+                change_smooth_time(st) => {
+                    root.smooth_time = st;
+                    root.tuning_change_smooth_time(st);
                 }
                 toggle_isolated => {
                     root.fan_isolated_output = !root.fan_isolated_output;

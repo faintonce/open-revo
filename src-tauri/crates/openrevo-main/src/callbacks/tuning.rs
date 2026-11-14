@@ -198,6 +198,16 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
             ui.set_smooth_transition(!ui.get_smooth_transition());
         }
     });
+    let ui_smt = ui_weak.clone();
+    window.on_tuning_change_smooth_time(move |st| {
+        let ms_str = st.as_str().trim_end_matches("ms");
+        if let Ok(ms) = ms_str.parse::<i64>() {
+            ipc::send_action_to_host("tuning_set_smooth_time", serde_json::json!({ "speed_ms": ms }));
+        }
+        if let Some(ui) = ui_smt.upgrade() {
+            ui.set_smooth_time(st);
+        }
+    });
     let ui_iso = ui_weak.clone();
     window.on_tuning_toggle_isolated(move || {
         ipc::send_action_to_host("tuning_toggle_isolated", serde_json::json!({}));
