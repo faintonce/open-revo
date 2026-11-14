@@ -82,8 +82,9 @@ path = "src/main.rs"
 
 [profile.release]
 opt-level = "z"
-lto = true
-codegen-units = 1
+lto = "thin"
+codegen-units = 16
+incremental = true
 panic = "abort"
 strip = true
 
