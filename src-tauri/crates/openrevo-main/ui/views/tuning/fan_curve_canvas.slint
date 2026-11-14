@@ -40,7 +40,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                     text: "CPU风扇";
                     font-size: 10px;
                     font-weight: root.active_fan_tab == 0 ? 700 : 500;
-                    color: root.active_fan_tab == 0 ? #ffffff : AppTheme.text_muted;
+                    color: root.active_fan_tab == 0 ? (AppTheme.is_light ? #4338ca : #ffffff) : AppTheme.text_muted;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
@@ -89,7 +89,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                     text: "GPU风扇";
                     font-size: 10px;
                     font-weight: root.active_fan_tab == 1 ? 700 : 500;
-                    color: root.active_fan_tab == 1 ? #ffffff : AppTheme.text_muted;
+                    color: root.active_fan_tab == 1 ? (AppTheme.is_light ? #065f46 : #ffffff) : AppTheme.text_muted;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }

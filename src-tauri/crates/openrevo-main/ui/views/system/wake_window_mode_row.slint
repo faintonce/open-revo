@@ -54,7 +54,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                 Rectangle {
                     height: 24px;
                     border-radius: 4px;
-                    background: root.wake_window_mode == "remember" ? #6366f1 : (t_wm1.has-hover ? AppTheme.surface_card_hover : transparent);
+                    background: root.wake_window_mode == "remember" ? AppTheme.accent_brand : (t_wm1.has-hover ? AppTheme.surface_card_hover : transparent);
                     t_wm1 := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.change_wake_window_mode("remember"); }
@@ -66,7 +66,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                             text: "记忆上次形态";
                             font-size: 10.5px;
                             font-weight: root.wake_window_mode == "remember" ? 700 : 500;
-                            color: root.wake_window_mode == "remember" ? #ffffff : AppTheme.text_secondary;
+                            color: root.wake_window_mode == "remember" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
                             vertical-alignment: center;
                         }
                     }
@@ -76,7 +76,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                 Rectangle {
                     height: 24px;
                     border-radius: 4px;
-                    background: root.wake_window_mode == "mini" ? #6366f1 : (t_wm2.has-hover ? AppTheme.surface_card_hover : transparent);
+                    background: root.wake_window_mode == "mini" ? AppTheme.accent_brand : (t_wm2.has-hover ? AppTheme.surface_card_hover : transparent);
                     t_wm2 := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.change_wake_window_mode("mini"); }
@@ -88,7 +88,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                             text: "始终迷你抽屉";
                             font-size: 10.5px;
                             font-weight: root.wake_window_mode == "mini" ? 700 : 500;
-                            color: root.wake_window_mode == "mini" ? #ffffff : AppTheme.text_secondary;
+                            color: root.wake_window_mode == "mini" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
                             vertical-alignment: center;
                         }
                     }
@@ -98,7 +98,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                 Rectangle {
                     height: 24px;
                     border-radius: 4px;
-                    background: root.wake_window_mode == "full" ? #6366f1 : (t_wm3.has-hover ? AppTheme.surface_card_hover : transparent);
+                    background: root.wake_window_mode == "full" ? AppTheme.accent_brand : (t_wm3.has-hover ? AppTheme.surface_card_hover : transparent);
                     t_wm3 := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.change_wake_window_mode("full"); }
@@ -110,7 +110,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                             text: "始终完整面板";
                             font-size: 10.5px;
                             font-weight: root.wake_window_mode == "full" ? 700 : 500;
-                            color: root.wake_window_mode == "full" ? #ffffff : AppTheme.text_secondary;
+                            color: root.wake_window_mode == "full" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
                             vertical-alignment: center;
                         }
                     }

@@ -170,9 +170,9 @@ export component KeyboardEngineBar inherits Rectangle {
                     width: 28px;
                     height: 22px;
                     border-radius: 4px;
-                    background: root.kb_fps == 15 ? #6366f1 : AppTheme.surface_pill;
+                    background: root.kb_fps == 15 ? AppTheme.accent_brand : AppTheme.surface_pill;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(15); } }
-                    Text { text: "15"; font-size: 10px; font-weight: 600; color: root.kb_fps == 15 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "15"; font-size: 10px; font-weight: 600; color: root.kb_fps == 15 ? AppTheme.tag_brand_text : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 // 30 FPS (Recommended)
@@ -180,9 +180,9 @@ export component KeyboardEngineBar inherits Rectangle {
                     width: 40px;
                     height: 22px;
                     border-radius: 4px;
-                    background: root.kb_fps == 30 ? #6366f1 : AppTheme.surface_pill;
+                    background: root.kb_fps == 30 ? AppTheme.accent_brand : AppTheme.surface_pill;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(30); } }
-                    Text { text: "30 ☆"; font-size: 10px; font-weight: 700; color: root.kb_fps == 30 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "30 ☆"; font-size: 10px; font-weight: 700; color: root.kb_fps == 30 ? AppTheme.tag_brand_text : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 // 45 FPS
@@ -190,9 +190,9 @@ export component KeyboardEngineBar inherits Rectangle {
                     width: 28px;
                     height: 22px;
                     border-radius: 4px;
-                    background: root.kb_fps == 45 ? #6366f1 : AppTheme.surface_pill;
+                    background: root.kb_fps == 45 ? AppTheme.accent_brand : AppTheme.surface_pill;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(45); } }
-                    Text { text: "45"; font-size: 10px; font-weight: 600; color: root.kb_fps == 45 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "45"; font-size: 10px; font-weight: 600; color: root.kb_fps == 45 ? AppTheme.tag_brand_text : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 // 60+ FPS
@@ -200,9 +200,9 @@ export component KeyboardEngineBar inherits Rectangle {
                     width: 34px;
                     height: 22px;
                     border-radius: 4px;
-                    background: root.kb_fps == 60 ? #6366f1 : AppTheme.surface_pill;
+                    background: root.kb_fps == 60 ? AppTheme.accent_brand : AppTheme.surface_pill;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_fps(60); } }
-                    Text { text: "60+"; font-size: 10px; font-weight: 600; color: root.kb_fps == 60 ? #ffffff : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "60+"; font-size: 10px; font-weight: 600; color: root.kb_fps == 60 ? AppTheme.tag_brand_text : AppTheme.text_muted; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
         }

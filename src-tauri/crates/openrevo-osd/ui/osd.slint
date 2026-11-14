@@ -19,6 +19,8 @@ export component OsdWindow inherits Window {
     // Unified theme token overrides
     in-out property <string> font_family: "";
     in-out property <color> card_bg_color: #0d121cf2;
+    in-out property <color> card_bg_mid: #0d121c70;
+    in-out property <color> card_bg_end: #0d121c00;
     in-out property <color> cinema_bg_color: #000000c8;
     in-out property <color> text_primary_color: #ffffff;
     in-out property <length> custom_radius_sm: 4px;
@@ -39,10 +41,13 @@ export component OsdWindow inherits Window {
         opacity: is_active ? 1.0 : 0.0;
 
         border-radius: is_pill ? (38px * osd_scale) : (is_fade ? (custom_radius_sm * osd_scale) : (custom_radius_md * osd_scale));
-        background: is_cinema ? cinema_bg_color : (is_fade ? @linear-gradient(90deg, card_bg_color 0%, #0d121c70 68%, #00000000 100%) : card_bg_color);
+        background: is_cinema ? cinema_bg_color : (is_fade ? @linear-gradient(90deg, card_bg_color 0%, card_bg_mid 68%, card_bg_end 100%) : card_bg_color);
         border-width: is_pill ? (1.5px * osd_scale) : 0px;
         border-color: accent_color;
         clip: true;
+        drop-shadow-blur: 16px * osd_scale;
+        drop-shadow-color: #00000035;
+        drop-shadow-offset-y: 4px * osd_scale;
 
         animate y, opacity {
             duration: 220ms;
@@ -92,7 +97,7 @@ export component OsdWindow inherits Window {
                 text: mode_title;
                 font-size: (is_cinema ? 18px : 17px) * osd_scale;
                 font-weight: 800;
-                color: text_primary_color;
+                color: is_cinema ? #ffffff : text_primary_color;
                 vertical-alignment: center;
                 overflow: elide;
             }

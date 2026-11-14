@@ -36,9 +36,9 @@ export component DrawerFooter inherits Rectangle {
                             width: 15px;
                             height: 15px;
                             border-radius: 3px;
-                            background: autostart ? #38bdf8 : transparent;
+                            background: autostart ? AppTheme.accent_active : transparent;
                             border-width: 1px;
-                            border-color: autostart ? #38bdf8 : AppTheme.border_medium;
+                            border-color: autostart ? AppTheme.accent_active : AppTheme.border_medium;
 
                             Text {
                                 text: autostart ? "✓" : "";
@@ -55,7 +55,7 @@ export component DrawerFooter inherits Rectangle {
                         text: "开机自启";
                         font-size: 10.5px;
                         font-weight: autostart ? 600 : 400;
-                        color: autostart ? #f8fafc : AppTheme.text_muted;
+                        color: autostart ? AppTheme.text_primary : AppTheme.text_muted;
                         vertical-alignment: center;
                     }
                 }

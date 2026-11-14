@@ -497,12 +497,15 @@ pub fn handle_ipc_message(
                         }
                         if let Some(c) = tokens.get("surface_elevated").and_then(|v| v.as_str()).and_then(parse_hex_color) {
                             let rgba = c.to_argb_u8();
-                            ui.set_card_bg_color(Color::from(RgbaColor {
-                                red: rgba.red,
-                                green: rgba.green,
-                                blue: rgba.blue,
-                                alpha: if rgba.alpha == 255 { 242 } else { rgba.alpha },
-                            }));
+                            let r = rgba.red;
+                            let g = rgba.green;
+                            let b = rgba.blue;
+                            let base_alpha = if rgba.alpha == 255 { 242 } else { rgba.alpha };
+                            let mid_alpha = (base_alpha as f32 * 0.45) as u8;
+
+                            ui.set_card_bg_color(Color::from(RgbaColor { red: r, green: g, blue: b, alpha: base_alpha }));
+                            ui.set_card_bg_mid(Color::from(RgbaColor { red: r, green: g, blue: b, alpha: mid_alpha }));
+                            ui.set_card_bg_end(Color::from(RgbaColor { red: r, green: g, blue: b, alpha: 0 }));
                         }
                         if let Some(c) = tokens.get("text_primary").and_then(|v| v.as_str()).and_then(parse_hex_color) {
                             ui.set_text_primary_color(c);

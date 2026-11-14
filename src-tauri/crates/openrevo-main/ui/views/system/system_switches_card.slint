@@ -495,7 +495,7 @@ export component SystemSwitchesCard inherits Rectangle {
                         Rectangle {
                             height: 22px;
                             border-radius: 3px;
-                            background: root.update_channel == "stable" ? #6366f1 : (t_ch1.has-hover ? AppTheme.surface_card_hover : transparent);
+                            background: root.update_channel == "stable" ? AppTheme.accent_brand : (t_ch1.has-hover ? AppTheme.surface_card_hover : transparent);
                             t_ch1 := TouchArea {
                                 mouse-cursor: pointer;
                                 clicked => { root.change_update_channel("stable"); }
@@ -507,7 +507,7 @@ export component SystemSwitchesCard inherits Rectangle {
                                     text: "正式版 (Stable)";
                                     font-size: 10.5px;
                                     font-weight: root.update_channel == "stable" ? 700 : 500;
-                                    color: root.update_channel == "stable" ? #ffffff : AppTheme.text_secondary;
+                                    color: root.update_channel == "stable" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
                                     vertical-alignment: center;
                                 }
                             }
@@ -517,7 +517,7 @@ export component SystemSwitchesCard inherits Rectangle {
                         Rectangle {
                             height: 22px;
                             border-radius: 3px;
-                            background: root.update_channel == "beta" ? #6366f1 : (t_ch2.has-hover ? AppTheme.surface_card_hover : transparent);
+                            background: root.update_channel == "beta" ? AppTheme.accent_brand : (t_ch2.has-hover ? AppTheme.surface_card_hover : transparent);
                             t_ch2 := TouchArea {
                                 mouse-cursor: pointer;
                                 clicked => { root.change_update_channel("beta"); }
@@ -529,7 +529,7 @@ export component SystemSwitchesCard inherits Rectangle {
                                     text: "预览版 (Beta)";
                                     font-size: 10.5px;
                                     font-weight: root.update_channel == "beta" ? 700 : 500;
-                                    color: root.update_channel == "beta" ? #ffffff : AppTheme.text_secondary;
+                                    color: root.update_channel == "beta" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
                                     vertical-alignment: center;
                                 }
                             }
