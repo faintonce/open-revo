@@ -79,6 +79,13 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
       LogicalSize,
       LogicalPosition,
       pluginId: plugin.id,
+      registerWatcher: (watcher: any) =>
+        invoke('register_custom_watcher', {
+          watcher: { ...watcher, plugin_id: plugin.id },
+        }),
+      unregisterWatcher: (watcherId: string) =>
+        invoke('unregister_custom_watcher', { id: watcherId }),
+      getRegisteredWatchers: () => invoke('get_registered_watchers'),
       storage: {
         get: () => invoke('get_plugin_storage', { pluginId: plugin.id }),
         set: (data: any) => invoke('set_plugin_storage', { pluginId: plugin.id, data }),
@@ -112,6 +119,9 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
     listen: b.listen || function() { return Promise.resolve(function() {}); },
     emit: b.emit || function() { return Promise.resolve(); },
     pluginId: "${plugin.id}",
+    registerWatcher: function(w) { return b.registerWatcher ? b.registerWatcher(w) : (b.invoke ? b.invoke('register_custom_watcher', { watcher: Object.assign({}, w, { plugin_id: "${plugin.id}" }) }) : Promise.reject("Bridge unavailable")); },
+    unregisterWatcher: function(id) { return b.unregisterWatcher ? b.unregisterWatcher(id) : (b.invoke ? b.invoke('unregister_custom_watcher', { id: id }) : Promise.reject("Bridge unavailable")); },
+    getRegisteredWatchers: function() { return b.getRegisteredWatchers ? b.getRegisteredWatchers() : (b.invoke ? b.invoke('get_registered_watchers') : Promise.reject("Bridge unavailable")); },
     storage: b.storage || {
       get: function() { return b.invoke('get_plugin_storage', { pluginId: "${plugin.id}" }); },
       set: function(data) { return b.invoke('set_plugin_storage', { pluginId: "${plugin.id}", data: data }); },

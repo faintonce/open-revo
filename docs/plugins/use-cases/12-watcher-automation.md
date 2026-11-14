@@ -59,6 +59,33 @@
         { "action": "set_power_mode", "mode": 3 },
         { "action": "notify_osd", "title": "游戏感知联动", "message": "已自动切换至狂暴模式" }
       ]
+    },
+    {
+      "id": "battery_limit_guard",
+      "name": "适配器重连自动自愈80%充电上限",
+      "enabled": true,
+      "cooldown_ms": 3000,
+      "when": {
+        "type": "power_event",
+        "event": "ac_connected"
+      },
+      "actions": [
+        { "action": "set_battery_limit", "limit": 80 },
+        { "action": "notify_osd", "title": "电池健康守护", "message": "电源已连接，硬件限充已锁定在 80%" }
+      ]
+    },
+    {
+      "id": "ec_gate_interval_keepalive",
+      "name": "底层硬件门控周期性保持心跳",
+      "enabled": true,
+      "cooldown_ms": 0,
+      "when": {
+        "type": "interval",
+        "every_ms": 4000
+      },
+      "actions": [
+        { "action": "raw_ec_write", "address": "0x07C3", "value": 4 }
+      ]
     }
   ]
 }
@@ -68,6 +95,8 @@
 * **`cooldown_ms` 防抖冷却**：规则命中后进入冷却锁，防止温度在临界线抖动时引发高频重复触发与硬件冲突；
 * **地址与掩码语法宽容**：`address` 与 `mask` 既支持字符串十六进制（`"0x0751"`、`"0x10"`），也支持十进制数字（`1873`、`16`）；
 * **宿主生命周期全托管**：在宿主【插件】列表中启用该插件即刻注入微内核总线开始看门狗监控；关闭插件时自动全量卸载，不留任何残留副作用；
+* **微内核后台周期断言 (`interval`) 与电源事件**：支持无需 Webview 的毫秒级原生定时调度与电源插拔事件感知，彻底解决前端 `setInterval` 因切页卸载或后台节流导致的守护失效；
+* **动态注册全自动持久化 (`custom_watchers.json`)**：若插件在前端通过 `window.OpenRevo.registerWatcher(...)` 动态注册或更新规则，微内核会自动持久化存储。控制台重启时由内核自动加载恢复，**完全无需用户手动点进插件即可开机自启动生效**；
 * **版本兼容守护 (`min_host_version`)**：声明 `"min_host_version": "0.9.3"`，若旧版宿主尝试加载，界面将明确亮起警告徽章并安全拦截，引导用户升级。
 
 ---

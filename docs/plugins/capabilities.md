@@ -244,26 +244,30 @@ type ShortcutAction =
 }
 ```
 
-### 3. 支持的 4 大监听条件类型 (`WatcherCondition`)：
-1. **`telemetry` (硬件遥测阈值与状态)**：
+### 3. 支持的 5 大监听条件类型 (`WatcherCondition`)：
+1. **`interval` (微内核后台周期定时断言，0 Webview 依赖)**：
+   * `every_ms`: 周期执行间隔（毫秒，>=500ms），在内核后台持续调度硬件自愈断言与巡检。
+2. **`telemetry` (硬件遥测阈值与状态)**：
    * `power_mode`: 指定特定性能模式（如 `4`）；
    * `power_mode_in`: 指定模式数组（如 `[2, 4]`）；
    * `cpu_temp_gt` / `cpu_temp_gte` / `cpu_temp_lt`: CPU 结温比较阈值；
    * `gpu_temp_gt` / `gpu_temp_gte`: GPU 温度比较阈值；
-   * `battery_level_lt`: 电池电量低于指定百分比；
+   * `battery_level_gt` / `battery_level_gte` / `battery_level_lt` / `battery_level_lte`: 电池电量百分比比较阈值；
    * `is_charging`: 是否处于充电态；
+   * `is_ac_online`: 外部供电适配器是否在线；
    * `fan_boost`: 强冷是否开启。
-2. **`foreground_process` (前台进程与游戏追踪)**：
+3. **`foreground_process` (前台进程与游戏追踪)**：
    * `targets`: 关注的目标进程名列表（如 `["b1.exe", "cyberpunk2077.exe"]`）；
    * `trigger_on`: 触发时机：`"enter"`（切换到前台时）、`"exit"`（切出前台时）或 `"both"`。
-3. **`power_event` (电源与系统边沿事件)**：
+4. **`power_event` (电源与系统边沿事件)**：
    * `event`: `"ac_connected"`（插入充电器）、`"ac_disconnected"`（拔出充电器/走电池）、`"screen_off"`、`"screen_on"`。
-4. **`raw_ec_diff` (受控 EC 寄存器差量监控)**：
+5. **`raw_ec_diff` (受控 EC 寄存器差量监控)**：
    * `address`: 目标物理地址（支持十进制整数或十六进制字符串如 `"0x0740"`）；
    * `mask`: 可选位掩码，仅关注特定位段变化；
    * 仅在数值发生实际跳变时触发。
 
 ### 4. 支持的执行动作类型 (`WatcherAction`)：
+* **`set_battery_limit`**：`{ "action": "set_battery_limit", "limit": 1..100 }`（安全调节底层电池充电上限，微内核底层执行门控锁定与状态对齐）
 * **`set_power_mode`**：`{ "action": "set_power_mode", "mode": 1 | 2 | 3 | 4 }`
 * **`set_fan_boost`**：`{ "action": "set_fan_boost", "enable": boolean }`
 * **`delay_ms`**：`{ "action": "delay_ms", "duration": number }`（毫秒延时）
@@ -277,7 +281,9 @@ type ShortcutAction =
 * **`invoke('register_custom_watcher', { watcher: WatcherDefinition }) -> boolean`**：动态注册监听器；
 * **`invoke('unregister_custom_watcher', { id: string }) -> boolean`**：动态注销指定监听器；
 * **`invoke('trigger_watcher_manual', { id: string }) -> boolean`**：手动模拟触发；
-* **沙盒桥调用**：在微插槽或 Tab 中直接通过 `window.__OPENREVO_BRIDGE__.registerWatcher(...)` 注册，视窗卸载时自动级联清理。
+* **沙盒桥调用与开机自启动持久化**：
+  在 Tab、Slot 或桌面挂件中均可直接通过 `window.OpenRevo.registerWatcher(...)` 或 `window.parent.__OPENREVO_BRIDGE__.registerWatcher(...)` 注册。
+  微内核会自动将动态规则持久化落盘至 `custom_watchers.json`，宿主启动时自动重载入微内核，**无需用户手动进入插件页面即可开机常驻生效**！通过 `unregisterWatcher(id)` 注销时自动从持久化清单移除。
 
 ## 15. 遥测消费动态注册与全域广播 IPC (Telemetry Consumer & Global Broadcast)
 为了支持前端动态根据视图展开收起、弹窗或挂件启停，精准按需调节遥测采样与全域广播：

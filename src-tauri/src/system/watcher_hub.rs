@@ -115,6 +115,48 @@ where
     deserializer.deserialize_any(HexOrDecU8Visitor)
 }
 
+/// Helper deserializer to parse u64 from either an integer or hex/dec string
+pub fn deserialize_hex_or_dec_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct HexOrDecU64Visitor;
+    impl<'de> serde::de::Visitor<'de> for HexOrDecU64Visitor {
+        type Value = u64;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an integer or string representing u64")
+        }
+        fn visit_u64<E>(self, value: u64) -> Result<u64, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(value)
+        }
+        fn visit_i64<E>(self, value: i64) -> Result<u64, E>
+        where
+            E: serde::de::Error,
+        {
+            if value >= 0 {
+                Ok(value as u64)
+            } else {
+                Err(E::custom(format!("u64 cannot be negative: {}", value)))
+            }
+        }
+        fn visit_str<E>(self, value: &str) -> Result<u64, E>
+        where
+            E: serde::de::Error,
+        {
+            let trimmed = value.trim();
+            if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
+                u64::from_str_radix(&trimmed[2..], 16).map_err(E::custom)
+            } else {
+                trimmed.parse::<u64>().map_err(E::custom)
+            }
+        }
+    }
+    deserializer.deserialize_any(HexOrDecU64Visitor)
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ProcessTriggerMode {
@@ -147,6 +189,18 @@ pub enum WatcherCondition {
         is_dc_online: Option<bool>,
         #[serde(default)]
         fan_boost: Option<bool>,
+        #[serde(default)]
+        battery_level_gt: Option<u8>,
+        #[serde(default)]
+        battery_level_gte: Option<u8>,
+        #[serde(default)]
+        battery_level_lt: Option<u8>,
+        #[serde(default)]
+        battery_level_lte: Option<u8>,
+        #[serde(default)]
+        is_charging: Option<bool>,
+        #[serde(default)]
+        is_ac_online: Option<bool>,
     },
 
     /// 2. Active foreground application or game process
@@ -171,6 +225,13 @@ pub enum WatcherCondition {
         #[serde(default, deserialize_with = "deserialize_optional_hex_or_dec_u8")]
         mask: Option<u8>,
     },
+
+    /// 5. Periodic Interval condition (runs every N ms in microkernel background)
+    #[serde(rename = "interval")]
+    Interval {
+        #[serde(deserialize_with = "deserialize_hex_or_dec_u64")]
+        every_ms: u64,
+    },
 }
 
 pub fn deserialize_optional_hex_or_dec_u8<'de, D>(deserializer: D) -> Result<Option<u8>, D::Error>
@@ -191,6 +252,12 @@ pub enum WatcherAction {
 
     #[serde(rename = "set_fan_boost")]
     SetFanBoost { enable: bool },
+
+    #[serde(rename = "set_battery_limit")]
+    SetBatteryLimit {
+        #[serde(deserialize_with = "deserialize_hex_or_dec_u8")]
+        limit: u8,
+    },
 
     #[serde(rename = "delay_ms")]
     DelayMs { duration: u64 },
@@ -276,11 +343,49 @@ fn get_app_handle() -> Option<AppHandle> {
 pub fn init_watcher_hub(app: AppHandle) {
     let cell = GLOBAL_APP.get_or_init(|| Mutex::new(None));
     *cell.lock() = Some(app);
+    load_persistent_custom_watchers();
     start_background_process_watcher();
+}
+
+fn get_custom_watchers_file_path() -> std::path::PathBuf {
+    crate::system::config::get_config_dir().join("custom_watchers.json")
+}
+
+pub fn save_persistent_custom_watchers() {
+    let map = get_watchers_map().lock();
+    let persistent_list: Vec<WatcherDefinition> = map
+        .values()
+        .map(|r| r.definition.clone())
+        .collect();
+
+    let path = get_custom_watchers_file_path();
+    if let Ok(json) = serde_json::to_string_pretty(&persistent_list) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
+pub fn load_persistent_custom_watchers() {
+    let path = get_custom_watchers_file_path();
+    if !path.exists() {
+        return;
+    }
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if let Ok(list) = serde_json::from_str::<Vec<WatcherDefinition>>(&content) {
+            let count = list.len();
+            for def in list {
+                register_watcher_internal(def, false);
+            }
+            crate::log_info!("WATCHER_HUB", "Loaded {} persistent custom watchers from disk", count);
+        }
+    }
 }
 
 /// Register a watcher definition into the Hub
 pub fn register_watcher(def: WatcherDefinition) -> bool {
+    register_watcher_internal(def, true)
+}
+
+fn register_watcher_internal(def: WatcherDefinition, persist: bool) -> bool {
     let mut map = get_watchers_map().lock();
     let id = def.id.clone();
     crate::log_info!("WATCHER_HUB", "Registered watcher '{}' [{}] for plugin '{:?}'", def.name, id, def.plugin_id);
@@ -293,14 +398,21 @@ pub fn register_watcher(def: WatcherDefinition) -> bool {
             last_matched: false,
         },
     );
+    drop(map);
+    if persist {
+        save_persistent_custom_watchers();
+    }
     true
 }
 
 /// Unregister a single watcher by ID
 pub fn unregister_watcher(id: &str) -> bool {
     let mut map = get_watchers_map().lock();
-    if map.remove(id).is_some() {
+    let removed = map.remove(id).is_some();
+    if removed {
         crate::log_info!("WATCHER_HUB", "Unregistered watcher '{}'", id);
+        drop(map);
+        save_persistent_custom_watchers();
         true
     } else {
         false
@@ -315,6 +427,8 @@ pub fn unregister_by_plugin(plugin_id: &str) -> usize {
     let removed = before.saturating_sub(map.len());
     if removed > 0 {
         crate::log_info!("WATCHER_HUB", "Cleaned up {} watchers for unloaded plugin '{}'", removed, plugin_id);
+        drop(map);
+        save_persistent_custom_watchers();
     }
     removed
 }
@@ -341,6 +455,7 @@ pub fn get_all_watchers() -> Vec<WatcherInfo> {
                 WatcherCondition::ForegroundProcess { .. } => "foreground_process",
                 WatcherCondition::PowerEvent { .. } => "power_event",
                 WatcherCondition::RawEcDiff { .. } => "raw_ec_diff",
+                WatcherCondition::Interval { .. } => "interval",
             };
             let secs_ago = r.last_triggered.map(|t| now.duration_since(t).as_secs());
             WatcherInfo {
@@ -402,6 +517,12 @@ pub fn evaluate_telemetry_watchers(state: &HardwareState) {
                 gpu_temp_gte,
                 is_dc_online,
                 fan_boost,
+                battery_level_gt,
+                battery_level_gte,
+                battery_level_lt,
+                battery_level_lte,
+                is_charging,
+                is_ac_online,
             } = &record.definition.condition
             {
                 let mut matched = true;
@@ -448,6 +569,36 @@ pub fn evaluate_telemetry_watchers(state: &HardwareState) {
                 }
                 if let Some(fb) = fan_boost {
                     if state.fan_boost != *fb {
+                        matched = false;
+                    }
+                }
+                if let Some(t) = battery_level_gt {
+                    if state.battery_level <= *t {
+                        matched = false;
+                    }
+                }
+                if let Some(t) = battery_level_gte {
+                    if state.battery_level < *t {
+                        matched = false;
+                    }
+                }
+                if let Some(t) = battery_level_lt {
+                    if state.battery_level >= *t {
+                        matched = false;
+                    }
+                }
+                if let Some(t) = battery_level_lte {
+                    if state.battery_level > *t {
+                        matched = false;
+                    }
+                }
+                if let Some(ch) = is_charging {
+                    if state.is_charging != *ch {
+                        matched = false;
+                    }
+                }
+                if let Some(ac) = is_ac_online {
+                    if state.is_ac_online != *ac {
                         matched = false;
                     }
                 }
@@ -590,6 +741,11 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
                 }
             }
         }
+        WatcherAction::SetBatteryLimit { limit } => {
+            crate::log_info!("WATCHER_ACT", "[{}] Setting battery limit to {}%", watcher_name, limit);
+            let ec = crate::driver::ec_bridge::get_global_ec();
+            ec.lock().set_battery_limit(*limit);
+        }
         WatcherAction::DelayMs { duration } => {
             crate::log_debug!("WATCHER_ACT", "[{}] Delaying for {} ms", watcher_name, duration);
             std::thread::sleep(Duration::from_millis(*duration));
@@ -664,15 +820,16 @@ fn start_background_process_watcher() {
                     continue;
                 }
 
-                // Check if any watchers need process or EC diff scanning
-                let (has_proc_watchers, has_ec_watchers) = {
+                // Check if any watchers need process, EC diff or interval scanning
+                let (has_proc_watchers, has_ec_watchers, has_interval_watchers) = {
                     let map = get_watchers_map().lock();
                     let p = map.values().any(|r| r.definition.enabled && matches!(r.definition.condition, WatcherCondition::ForegroundProcess { .. }));
                     let e = map.values().any(|r| r.definition.enabled && matches!(r.definition.condition, WatcherCondition::RawEcDiff { .. }));
-                    (p, e)
+                    let i = map.values().any(|r| r.definition.enabled && matches!(r.definition.condition, WatcherCondition::Interval { .. }));
+                    (p, e, i)
                 };
 
-                if !has_proc_watchers && !has_ec_watchers {
+                if !has_proc_watchers && !has_ec_watchers && !has_interval_watchers {
                     std::thread::sleep(Duration::from_millis(1500));
                     continue;
                 }
@@ -691,10 +848,49 @@ fn start_background_process_watcher() {
                     evaluate_raw_ec_diffs();
                 }
 
-                std::thread::sleep(Duration::from_millis(800));
+                // 3. Scan Interval Watchers
+                if has_interval_watchers {
+                    evaluate_interval_watchers();
+                }
+
+                let sleep_ms = if has_interval_watchers { 500 } else { 800 };
+                std::thread::sleep(Duration::from_millis(sleep_ms));
             }
         })
         .expect("Failed to spawn process watcher thread");
+}
+
+fn evaluate_interval_watchers() {
+    let mut triggers: Vec<WatcherDefinition> = Vec::new();
+    let now = Instant::now();
+
+    {
+        let mut map = get_watchers_map().lock();
+        for record in map.values_mut() {
+            if !record.definition.enabled {
+                continue;
+            }
+            if let WatcherCondition::Interval { every_ms } = &record.definition.condition {
+                let interval_dur = Duration::from_millis((*every_ms).max(500));
+                let should_fire = match record.last_triggered {
+                    None => true,
+                    Some(last) => now.duration_since(last) >= interval_dur,
+                };
+                if should_fire {
+                    record.last_triggered = Some(now);
+                    triggers.push(record.definition.clone());
+                }
+            }
+        }
+    }
+
+    for def in triggers {
+        dispatch_watcher_trigger(
+            def,
+            "interval",
+            serde_json::json!({ "triggered_by": "interval_timer" }),
+        );
+    }
 }
 
 fn evaluate_foreground_process_change(prev_proc: &str, curr_proc: &str) {

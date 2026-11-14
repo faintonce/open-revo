@@ -1,7 +1,7 @@
 {
   "id": "battery-hardware-limit",
   "name": "电池充电上限守护者",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "author": "OpenRevo Official & Community",
   "description": "官方演示插件：基于微内核硬件网关的多协议底层限充调控中心，支持同方门控持续钉住法(Pin & Keep-Alive)与传统脉冲存储法，自适应0x04/0x05硬件门控探测，自由设定 1~100% 充电阈值。",
   "type": "tab",
@@ -32,7 +32,10 @@
         "protocol": "TongfangDirectEc",
         "limit_reg": 1977,
         "gate_reg": 1987,
-        "probe_order": [4, 5],
+        "probe_order": [
+          4,
+          5
+        ],
         "keepalive_interval_ms": 4000,
         "status_reg": 1858,
         "status_bit": 2

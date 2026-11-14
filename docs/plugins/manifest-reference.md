@@ -201,6 +201,84 @@
 | `image` / `wallpaper` | `string` | 可选 | 皮肤自带的背景贴图相对路径（支持 `.png`, `.jpg`, `.webp`） |
 | `bg_image_opacity` | `number` | `0.15` | 背景贴图不透明度（范围 `0.05 ~ 1.0`） |
 
+### `watchers` 声明式自动化规则子对象详细配置表 (Universal Watcher & Trigger Hub)
+
+> 💡 **0 MB 内存、0 Webview 开销常驻自愈**：
+> 凡是需要开机常驻、切页保活、电源重连自愈或硬件门控断言的逻辑，**严禁在前端 UI 中开 `setInterval` 死循环**。
+> 开发者只需在 `manifest.json` 的 `watchers` 数组中声明规则，微内核启动阶段（`bootstrap_enabled_plugins`）即会自动接管调度！即使控制台重启且用户未点击该插件，微内核也会在后台全自动运转。
+>
+> 💡 **动态注册持久化支持**：
+> 若在前端通过 `window.OpenRevo.registerWatcher(...)` 动态注册规则，宿主微内核会自动将其持久化到 `custom_watchers.json`，重启宿主后由内核自动恢复，彻底解决“重启后必须手动进插件触发”的问题。
+
+```json
+"watchers": [
+  {
+    "id": "battery-limit-ac-reconnect-guard",
+    "name": "微内核电源重连限充断言守护",
+    "enabled": true,
+    "cooldown_ms": 3000,
+    "condition": {
+      "type": "power_event",
+      "event": "ac_connected"
+    },
+    "actions": [
+      {
+        "action": "set_battery_limit",
+        "limit": 80
+      }
+    ]
+  },
+  {
+    "id": "periodic-ec-keepalive",
+    "name": "周期性门控断言",
+    "enabled": true,
+    "cooldown_ms": 0,
+    "condition": {
+      "type": "interval",
+      "every_ms": 4000
+    },
+    "actions": [
+      {
+        "action": "raw_ec_write",
+        "address": "0x07C3",
+        "value": 4
+      }
+    ]
+  }
+]
+```
+
+#### Watcher 基础属性
+| 属性名 | 类型 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `id` | `string` | **必填** | 规则全局唯一标识符（建议带插件前缀） |
+| `name` | `string` | **必填** | 规则的人类可读名称，用于日志追踪与 OSD 提示 |
+| `enabled` | `boolean` | `true` | 是否启用该规则 |
+| `cooldown_ms` | `number` | `5000` | 触发冷却锁定时间（毫秒），防止边界临界值抖动高频触发 |
+| `when` / `condition` | `object` | **必填** | 规则触发条件判定对象（见下方条件类型表） |
+| `actions` | `object[]` | `[]` | 触发后按顺序执行的微内核动作序列（见下方动作类型表） |
+
+#### `condition` 条件判定类型表
+| 类型 (`type`) | 字段参数 | 说明 |
+| :--- | :--- | :--- |
+| `"interval"` | `every_ms: number` | **【微内核周期定时断言】**以固定周期（毫秒，>=500ms）在后台定时触发，用于硬件心跳保活与门控自愈，无需唤醒任何前端视窗 |
+| `"power_event"` | `event: string` | **【电源拓扑事件】**支持 `"ac_connected"`（适配器插入）、`"ac_disconnected"`（拔出供电）、`"screen_on"`、`"screen_off"` |
+| `"telemetry"` | `power_mode`, `power_mode_in`, `cpu_temp_gt/gte/lt`, `gpu_temp_gt/gte`, `is_dc_online`, `fan_boost`, `battery_level_gt/gte/lt/lte`, `is_charging`, `is_ac_online` | **【动态硬件遥测条件】**当微内核硬件遥测采样满足设定阈值时触发 |
+| `"foreground_process"`| `targets: string[]`, `trigger_on: "enter" \| "exit" \| "both"` | **【前台进程感知】**当匹配的游戏或应用程序进程进入或退出前台焦点时触发 |
+| `"raw_ec_diff"` | `address: u16 \| string`, `mask?: u8 \| string` | **【底层寄存器值变动追踪】**监听指定 EC 寄存器指定掩码位发生跳变时触发 |
+
+#### `actions` 执行动作类型表
+| 动作 (`action`) | 参数 | 说明 |
+| :--- | :--- | :--- |
+| `"set_battery_limit"` | `limit: number` | **【硬件限充设置】**安全调整硬件电池充电阈值（`1 ~ 100`），调用微内核原生驱动完成协议对齐与门控锁定 |
+| `"set_power_mode"` | `mode: number` | **【性能模式切换】**`1`-办公, `2`-均衡, `3`-狂暴, `4`-极客自定义 |
+| `"set_fan_boost"` | `enable: boolean` | **【一键强冷】**切换强冷开启/关闭 |
+| `"raw_ec_write"` | `address: u16 \| string`, `value: u8 \| string` | **【EC 安全写入】**写入受微内核防爆盾（Blast Shield）受控保护的指定物理寄存器 |
+| `"raw_ec_modify_mask"`| `address: u16 \| string`, `mask: u8 \| string`, `value: boolean` | **【EC 掩码置位】**原子性修改特定 EC 控制位，保持其他位不变 |
+| `"delay_ms"` | `duration: number` | **【微内核延迟】**执行时在动作序列中插入延时（毫秒） |
+| `"notify_osd"` | `title: string`, `message: string` | **【OSD 悬浮通知】**在屏幕上方弹出原生机甲风格 OSD 提示框 |
+| `"plugin_event"` | `event_name: string`, `payload: object` | **【全局广播事件】**向公频事件总线派发自定义事件，供其他前端或挂件消费 |
+
 ---
 
 ## 相关页面

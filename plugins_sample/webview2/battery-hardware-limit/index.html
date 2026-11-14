@@ -1145,18 +1145,53 @@
       try {
         if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.set === 'function') {
           await window.OpenRevo.storage.set(config);
+          syncWatcherToHost();
           return;
         }
         if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
           await window.parent.__OPENREVO_BRIDGE__.storage.set(config);
+          syncWatcherToHost();
           return;
         }
         window.parent.postMessage({
           action: 'SET_PLUGIN_STORAGE',
           payload: { data: config }
         }, '*');
+        syncWatcherToHost();
       } catch (e) {
         console.warn('[BatteryLimit] Failed to save storage:', e);
+      }
+    }
+
+    async function syncWatcherToHost() {
+      try {
+        const watcherDef = {
+          id: 'battery-limit-ac-reconnect-guard',
+          name: '微内核电源重连限充断言守护',
+          plugin_id: 'battery-hardware-limit',
+          enabled: Boolean(STATE.isLimitActive),
+          cooldown_ms: 3000,
+          condition: {
+            type: 'power_event',
+            event: 'ac_connected'
+          },
+          actions: [
+            {
+              action: 'set_battery_limit',
+              limit: STATE.currentTarget
+            }
+          ]
+        };
+
+        if (window.OpenRevo && typeof window.OpenRevo.registerWatcher === 'function') {
+          await window.OpenRevo.registerWatcher(watcherDef);
+        } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.registerWatcher === 'function') {
+          await window.parent.__OPENREVO_BRIDGE__.registerWatcher(watcherDef);
+        } else {
+          await rpc('register_custom_watcher', { watcher: watcherDef });
+        }
+      } catch (e) {
+        console.warn('[BatteryLimit] 同步 Watcher 到宿主事件中心失败:', e);
       }
     }
 
@@ -1643,7 +1678,7 @@
       }
 
       // 2. 主动拉取宿主硬件状态
-      callRpc('get_hardware_status').then(function (res) {
+      rpc('get_hardware_status').then(function (res) {
         if (res) updateTelemetry(res);
       }).catch(function () {});
     }
