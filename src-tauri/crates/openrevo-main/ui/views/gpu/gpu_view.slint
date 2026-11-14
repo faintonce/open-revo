@@ -16,6 +16,10 @@ export component DashboardGpuView inherits Rectangle {
     in-out property <string> gpu_mode: "dgpu";
     in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
     in-out property <string> cpu_name: "Intel Core i9-14900HX";
+    in-out property <bool> is_tri_mode: true;
+    in-out property <bool> is_safety_locked: false;
+    in-out property <bool> is_intel: true;
+    in-out property <string> igpu_lock_reason: "";
     in-out property <int> gpu_temp: 51;
     in-out property <int> gpu_usage: 15;
     in-out property <string> gpu_watts_text: "22.4 W";
@@ -136,6 +140,10 @@ export component DashboardGpuView inherits Rectangle {
             gpu_mode: root.gpu_mode;
             gpu_name: root.gpu_name;
             cpu_name: root.cpu_name;
+            is_tri_mode: root.is_tri_mode;
+            is_safety_locked: root.is_safety_locked;
+            is_intel: root.is_intel;
+            igpu_lock_reason: root.igpu_lock_reason;
             request_mode_switch(mode, title) => {
                 root.pending_mode = mode;
                 root.pending_title = title;

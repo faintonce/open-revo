@@ -8,6 +8,7 @@ export component DrawerGpuCard inherits Rectangle {
     height: 76px;
 
     in-out property <string> gpu_mode: "dgpu"; // "igpu" | "hybrid" | "dgpu"
+    in-out property <bool> is_tri_mode: true;
     in-out property <int> gpu_temp: 48;
     in-out property <int> gpu_rpm: 2123;
     in-out property <bool> is_thin_and_light: false;
@@ -62,13 +63,18 @@ export component DrawerGpuCard inherits Rectangle {
             // 1. iGPU
             btn_igpu := Rectangle {
                 border-radius: 6px;
-                background: gpu_mode == "igpu" ? #10b98125 : (t_igpu.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                opacity: root.is_tri_mode ? 1.0 : 0.45;
+                background: gpu_mode == "igpu" ? #10b98125 : (root.is_tri_mode && t_igpu.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: gpu_mode == "igpu" ? 1.5px : 1px;
                 border-color: gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle;
 
                 t_igpu := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { set_gpu_mode("igpu"); }
+                    mouse-cursor: root.is_tri_mode ? pointer : not-allowed;
+                    clicked => {
+                        if (root.is_tri_mode) {
+                            set_gpu_mode("igpu");
+                        }
+                    }
                 }
 
                 VerticalLayout {
@@ -77,17 +83,17 @@ export component DrawerGpuCard inherits Rectangle {
                     HorizontalLayout {
                         alignment: center;
                         Image {
-                            source: @image-url("../../assets/icons/cpu.svg");
+                            source: root.is_tri_mode ? @image-url("../../assets/icons/cpu.svg") : @image-url("../../assets/icons/lock.svg");
                             width: 15px;
                             height: 15px;
-                            colorize: gpu_mode == "igpu" ? #10b981 : AppTheme.text_secondary;
+                            colorize: !root.is_tri_mode ? #f59e0b : (gpu_mode == "igpu" ? #10b981 : AppTheme.text_secondary);
                         }
                     }
                     Text {
-                        text: "纯集显";
+                        text: root.is_tri_mode ? "纯集显" : "双模锁定";
                         font-size: 10.5px;
                         font-weight: gpu_mode == "igpu" ? 700 : 500;
-                        color: gpu_mode == "igpu" ? #10b981 : AppTheme.text_primary;
+                        color: !root.is_tri_mode ? AppTheme.text_muted : (gpu_mode == "igpu" ? #10b981 : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                 }

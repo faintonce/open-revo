@@ -31,6 +31,10 @@ export component MainWindow inherits Window {
     in-out property <int> theme_mode <=> AppTheme.theme_mode;
     in-out property <int> power_mode: 2;        // 1: 办公, 2: 均衡, 3: 狂暴, 4: 极客调校
     in-out property <string> gpu_mode: "dgpu";  // "igpu" | "hybrid" | "dgpu"
+    in-out property <bool> is_tri_mode: true;
+    in-out property <bool> is_safety_locked: false;
+    in-out property <bool> is_intel: true;
+    in-out property <string> igpu_lock_reason: "";
     in-out property <int> refresh_rate: 240;    // 60, 144, 240
     in-out property <bool> auto_min_hz: true;
     in-out property <int> brightness: 76;       // 0 - 100
@@ -587,6 +591,7 @@ export component MainWindow inherits Window {
         app_version: root.app_version;
         power_mode: root.power_mode;
         gpu_mode: root.gpu_mode;
+        is_tri_mode: root.is_tri_mode;
         refresh_rate: root.refresh_rate;
         auto_min_hz: root.auto_min_hz;
         monitor_name: root.monitor_name;
@@ -717,6 +722,10 @@ export component MainWindow inherits Window {
         gpu_usage: root.gpu_usage;
         gpu_name: root.gpu_name;
         gpu_mode <=> root.gpu_mode;
+        is_tri_mode: root.is_tri_mode;
+        is_safety_locked: root.is_safety_locked;
+        is_intel: root.is_intel;
+        igpu_lock_reason: root.igpu_lock_reason;
         brightness <=> root.brightness;
         gpu_mode_clicked(m, r) => { root.gpu_mode_clicked(m, r); }
         brightness_changed(b) => { root.brightness_changed(b); }

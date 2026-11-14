@@ -28,6 +28,7 @@ export component DrawerView inherits Rectangle {
     in-out property <string> app_version: "v0.9.7";
     in-out property <int> power_mode: 4;
     in-out property <string> gpu_mode: "dgpu";
+    in-out property <bool> is_tri_mode: true;
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
     in-out property <string> monitor_name: "京东方";
@@ -125,6 +126,7 @@ export component DrawerView inherits Rectangle {
         // 3. GPU Mode Card
         DrawerGpuCard {
             gpu_mode: root.gpu_mode;
+            is_tri_mode: root.is_tri_mode;
             gpu_temp: root.gpu_temp;
             gpu_rpm: root.gpu_rpm;
             is_thin_and_light: root.is_thin_and_light;

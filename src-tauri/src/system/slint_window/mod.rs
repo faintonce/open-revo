@@ -72,6 +72,13 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         _ => cfg.last_window_expanded,
                     };
                     let (init_pl1, init_tgp, init_power_text) = sync::get_current_power_targets(cfg.power_mode);
+                    let gpu_caps = crate::driver::uefi_nvram::probe_gpu_capabilities();
+                    let is_tri_mode = if gpu_caps.is_safety_locked {
+                        gpu_caps.user_unlocked
+                    } else {
+                        gpu_caps.supports_igpu_only
+                    };
+                    let is_intel = gpu_caps.platform != "amd";
                     let line = format!("{}\n", serde_json::json!({
                         "action": "sync_state",
                         "app_version": format!("v{}", env!("CARGO_PKG_VERSION")),
@@ -80,6 +87,10 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "tgp_target": init_tgp,
                         "power_target_text": init_power_text,
                         "gpu_mode": cfg.gpu_mode,
+                        "is_tri_mode": is_tri_mode,
+                        "is_safety_locked": gpu_caps.is_safety_locked,
+                        "is_intel": is_intel,
+                        "igpu_lock_reason": gpu_caps.reason_igpu_unsupported.unwrap_or_default(),
                         "refresh_rate": cfg.refresh_rate,
                         "auto_min_hz": cfg.auto_min_refresh_on_battery,
                         "brightness": crate::system::display::get_brightness().unwrap_or(76),

@@ -3,6 +3,21 @@ use crate::MainWindow;
 pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     match action {
         "sync_display_state" => {
+            if let Some(gm) = val.get("gpu_mode").and_then(|v| v.as_str()) {
+                ui.set_gpu_mode(gm.into());
+            }
+            if let Some(tri) = val.get("is_tri_mode").and_then(|v| v.as_bool()) {
+                ui.set_is_tri_mode(tri);
+            }
+            if let Some(locked) = val.get("is_safety_locked").and_then(|v| v.as_bool()) {
+                ui.set_is_safety_locked(locked);
+            }
+            if let Some(intel) = val.get("is_intel").and_then(|v| v.as_bool()) {
+                ui.set_is_intel(intel);
+            }
+            if let Some(reason) = val.get("igpu_lock_reason").and_then(|v| v.as_str()) {
+                ui.set_igpu_lock_reason(reason.into());
+            }
             if let Some(en) = val.get("tuning_enabled").and_then(|v| v.as_bool()) {
                 ui.set_tuning_enabled(en);
             }

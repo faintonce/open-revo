@@ -299,8 +299,22 @@ pub fn sync_slint_display_state() {
         profiles_ids.push(p.id.clone());
     }
 
+    let caps = crate::driver::uefi_nvram::probe_gpu_capabilities();
+    let is_tri_mode = if caps.is_safety_locked {
+        caps.user_unlocked
+    } else {
+        caps.supports_igpu_only
+    };
+    let is_intel = caps.platform != "amd";
+    let cfg = crate::system::config::load_config();
+
     send_slint_ipc_message(serde_json::json!({
         "action": "sync_display_state",
+        "gpu_mode": cfg.gpu_mode,
+        "is_tri_mode": is_tri_mode,
+        "is_safety_locked": caps.is_safety_locked,
+        "is_intel": is_intel,
+        "igpu_lock_reason": caps.reason_igpu_unsupported.unwrap_or_default(),
         "tuning_enabled": tuning_state.enabled,
         "active_preset_id": tuning_state.active_preset.id,
         "active_preset_name": tuning_state.active_preset.name,

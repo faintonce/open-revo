@@ -4,6 +4,10 @@ export component MuxSwitchCard inherits Rectangle {
     in-out property <string> gpu_mode: "dgpu";
     in-out property <string> gpu_name: "RTX 4090 Laptop GPU";
     in-out property <string> cpu_name: "Intel Core i9-14900HX";
+    in-out property <bool> is_tri_mode: true;
+    in-out property <bool> is_safety_locked: false;
+    in-out property <bool> is_intel: true;
+    in-out property <string> igpu_lock_reason: "";
 
     callback request_mode_switch(string, string); // (mode, title)
 
@@ -36,13 +40,15 @@ export component MuxSwitchCard inherits Rectangle {
                     alignment: center;
                     spacing: 2px;
                     Text {
-                        text: "显卡模式 (双显三模)";
+                        text: root.is_tri_mode ? "显卡模式 (双显三模)" : "显卡模式 (双显双模)";
                         font-size: 13px;
                         font-weight: 800;
                         color: AppTheme.text_primary;
                     }
                     Text {
-                        text: "主板硬件级 MUX 物理切换 · 由 BIOS POST 或高级动态 PCIe 链路与物理开关控制";
+                        text: root.is_tri_mode ?
+                            "主板硬件级 MUX 物理切换 · 由 BIOS POST 或高级动态 PCIe 链路与物理开关控制" :
+                            "当前机型模具为双显双模架构（支持独显直连与混合输出），已启用硬件安全保护锁定以防止黑屏变砖。";
                         font-size: 10px;
                         color: AppTheme.text_muted;
                     }
@@ -94,14 +100,23 @@ export component MuxSwitchCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "主板原生硬件 MUX 切换架构";
+                        text: root.is_tri_mode ? "主板原生硬件 MUX 切换架构" : "主板双显双模安全保护架构";
                         font-size: 10.5px;
                         font-weight: 700;
-                        color: #38bdf8;
+                        color: root.is_tri_mode ? #38bdf8 : #f59e0b;
                         vertical-alignment: center;
                     }
                     Text {
-                        text: "· 物理通道直通信号开关，保证杜绝降频与转接损耗";
+                        text: root.is_intel ? "[Intel 平台架构]" : "[AMD 平台架构]";
+                        font-size: 10px;
+                        font-weight: 700;
+                        color: root.is_intel ? #60a5fa : #fb923c;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: root.is_tri_mode ?
+                            "· 物理通道直通信号开关，保证杜绝降频与转接损耗" :
+                            "· 物理硬件重构：自检过程重配 PCIe 通道与屏幕物理开关，彻底杜绝驱动崩溃、掉帧与卡顿。";
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -307,9 +322,10 @@ export component MuxSwitchCard inherits Rectangle {
                 horizontal-stretch: 1;
                 height: 135px;
                 border-radius: 8px;
+                opacity: root.is_tri_mode ? 1.0 : 0.65;
                 background: root.gpu_mode == "igpu" ? #10b98118 : AppTheme.surface_pill;
                 border-width: 1px;
-                border-color: root.gpu_mode == "igpu" ? #10b981aa : AppTheme.border_subtle;
+                border-color: root.gpu_mode == "igpu" ? #10b981aa : (!root.is_tri_mode ? #f59e0b40 : AppTheme.border_subtle);
 
                 VerticalLayout {
                     padding: 12px;
@@ -321,20 +337,47 @@ export component MuxSwitchCard inherits Rectangle {
                             width: 30px;
                             height: 30px;
                             border-radius: 6px;
-                            background: root.gpu_mode == "igpu" ? #10b98125 : transparent;
+                            background: !root.is_tri_mode ? #f59e0b18 : (root.gpu_mode == "igpu" ? #10b98125 : transparent);
                             border-width: 1px;
-                            border-color: root.gpu_mode == "igpu" ? #10b98160 : AppTheme.border_subtle;
+                            border-color: !root.is_tri_mode ? #f59e0b50 : (root.gpu_mode == "igpu" ? #10b98160 : AppTheme.border_subtle);
                             Image {
-                                source: @image-url("../../assets/icons/zap-off.svg");
+                                source: !root.is_tri_mode ? @image-url("../../assets/icons/lock.svg") : @image-url("../../assets/icons/zap-off.svg");
                                 width: 15px;
                                 height: 15px;
-                                colorize: #34d399;
+                                colorize: !root.is_tri_mode ? #f59e0b : #34d399;
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
                             }
                         }
 
-                        if root.gpu_mode == "igpu": Rectangle {
+                        if !root.is_tri_mode: Rectangle {
+                            height: 20px;
+                            border-radius: 4px;
+                            background: #f59e0b1a;
+                            border-width: 1px;
+                            border-color: #f59e0b50;
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                spacing: 3px;
+                                Image {
+                                    source: @image-url("../../assets/icons/lock.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: #f59e0b;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "双模保护锁定";
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: #f59e0b;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        if root.is_tri_mode && root.gpu_mode == "igpu": Rectangle {
                             height: 20px;
                             border-radius: 4px;
                             background: #10b98125;
@@ -355,7 +398,9 @@ export component MuxSwitchCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "彻底切断独显供电与 PCIe 供电链路开关，消除独显待机功耗，超长离电续航。";
+                        text: root.is_tri_mode ?
+                            "彻底切断独显供电与 PCIe 供电链路开关，消除独显待机功耗，超长离电续航。" :
+                            "当前模具硬件为双模架构，无物理核显直连开关。已锁定保护以彻底防止开机黑屏死锁。";
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                         wrap: word-wrap;
@@ -364,22 +409,22 @@ export component MuxSwitchCard inherits Rectangle {
                     Rectangle {
                         height: 28px;
                         border-radius: 5px;
-                        background: root.gpu_mode == "igpu" ? #10b981 : AppTheme.surface_card;
+                        background: !root.is_tri_mode ? AppTheme.surface_pill : (root.gpu_mode == "igpu" ? #10b981 : AppTheme.surface_card);
                         border-width: 1px;
-                        border-color: root.gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle;
+                        border-color: !root.is_tri_mode ? AppTheme.border_subtle : (root.gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle);
                         TouchArea {
-                            mouse-cursor: pointer;
+                            mouse-cursor: root.is_tri_mode ? pointer : not-allowed;
                             clicked => {
-                                if (root.gpu_mode != "igpu") {
+                                if (root.is_tri_mode && root.gpu_mode != "igpu") {
                                     root.request_mode_switch("igpu", "纯集显模式 (iGPU)");
                                 }
                             }
                         }
                         Text {
-                            text: "核显模式";
+                            text: root.is_tri_mode ? "核显模式" : "核显模式 (双模锁定)";
                             font-size: 11px;
                             font-weight: 700;
-                            color: root.gpu_mode == "igpu" ? #000000 : AppTheme.text_primary;
+                            color: !root.is_tri_mode ? AppTheme.text_muted : (root.gpu_mode == "igpu" ? #000000 : AppTheme.text_primary);
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
