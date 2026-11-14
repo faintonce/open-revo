@@ -8,6 +8,10 @@ pub mod mock;
 pub mod platform_probe;
 pub mod traits;
 pub mod vault;
+pub mod raw_safety;
+#[cfg(test)]
+#[allow(dead_code)]
+mod vault_codegen;
 
 pub use declarative::DeclarativeHardwareDriver;
 pub use driver_impl::MechrevoHALImpl;
