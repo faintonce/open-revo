@@ -72,8 +72,35 @@ fn dispatch_acpi_event(
     last_switch_time: &mut Instant,
     last_brightness_time: &mut Instant,
     last_fan_boost_time: &mut Instant,
+    last_wifi_time: &mut Instant,
 ) {
     match code {
+        164 | 26 | 27 | 14 | 15 => {
+            // OSD_AIRPLANEMODE = 164 (0xA4), OSD_RADIOON = 26, OSD_RADIOOFF = 27, OSD_RFON = 14, OSD_RFOFF = 15
+            // Hardware Radio / Airplane Mode / Wi-Fi toggle on Tongfang chassis (Fn+F4)
+            if last_wifi_time.elapsed() >= Duration::from_millis(400) {
+                *last_wifi_time = Instant::now();
+                let current_wifi = crate::system::switches::radio::get_realtime_wifi_state()
+                    .unwrap_or_else(|| crate::system::config::load_config().wifi_enabled);
+                let next_wifi = match code {
+                    26 | 14 => true,
+                    27 | 15 => false,
+                    _ => !current_wifi,
+                };
+                crate::log_info!(
+                    "WMI_LISTENER",
+                    "Fn+F4 / Radio event {} received! Toggling Wi-Fi: {} -> {}",
+                    code,
+                    current_wifi,
+                    next_wifi
+                );
+                let _ = crate::system::device_switches::set_switch("wifi", next_wifi);
+                crate::event::osd_notify_global("wifi", if next_wifi { "true" } else { "false" });
+                crate::event::emit_global("wifi-state-changed", serde_json::json!(next_wifi));
+            } else {
+                crate::log_debug!("WMI_LISTENER", "Radio hotkey event {} debounced (elapsed < 400ms)", code);
+            }
+        }
         176 | 192 | 201 => {
             // QKEY_MODESWITCH / OSD_FanModeSwitch (176) / SC_SwitchOC (192) / SC_CustomMode (201)
             if last_switch_time.elapsed() >= Duration::from_millis(500) {
@@ -242,6 +269,7 @@ pub fn start_wmi_event_listener(ec_bridge: SharedEcBridge) {
             let mut last_switch_time = Instant::now() - Duration::from_secs(10);
             let mut last_brightness_time = Instant::now() - Duration::from_secs(10);
             let mut last_fan_boost_time = Instant::now() - Duration::from_secs(10);
+            let mut last_wifi_time = Instant::now() - Duration::from_secs(10);
             let mut consecutive_failures = 0u32;
 
             loop {
@@ -329,6 +357,7 @@ pub fn start_wmi_event_listener(ec_bridge: SharedEcBridge) {
                                             &mut last_switch_time,
                                             &mut last_brightness_time,
                                             &mut last_fan_boost_time,
+                                            &mut last_wifi_time,
                                         );
                                     }
                                 }

@@ -215,8 +215,13 @@ impl IteStreamerController {
         }
 
         if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
-            if (val & 0x02) != 0 {
-                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, val & !0x02);
+            let target = if enabled && brightness_idx > 0 {
+                val & !0x02
+            } else {
+                val | 0x02
+            };
+            if target != val {
+                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
             }
         }
 
@@ -569,13 +574,19 @@ impl IteStreamerController {
         self.stop();
         self.set_unsupported(false);
 
+        let cfg = crate::system::config::load_config();
+        let kb_is_on = cfg.lighting.kb_enabled && cfg.lighting.kb_brightness > 0;
+
         if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
-            if (val & 0x02) != 0 {
-                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, val & !0x02);
+            let target = if kb_is_on {
+                val & !0x02
+            } else {
+                val | 0x02
+            };
+            if target != val {
+                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
             }
         }
-
-        let cfg = crate::system::config::load_config();
         if cfg.lighting.kb_engine == "hardware" {
             let hw_effect = if cfg.lighting.kb_effect > 0 && cfg.lighting.kb_effect < 100 {
                 cfg.lighting.kb_effect

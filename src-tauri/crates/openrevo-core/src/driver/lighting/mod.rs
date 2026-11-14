@@ -1127,17 +1127,23 @@ impl IteLightingManager {
 
     /// Restore all lighting zones to their saved preset states
     pub fn restore_all(&self) {
-        // Clear EC ADDR_BACKLIGHT_WHITE Bit 1 so hardware rail is active
+        let st = self.state.lock().clone();
+        // Hardware Rail Power Gate: Only enable hardware rail if keyboard is active & bright;
+        // otherwise assert hardware rail cutoff (Bit 1 = 1) to prevent auto-light upon boot.
         if let Some(cur_bl) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
-            if (cur_bl & 0x02) != 0 {
-                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, cur_bl & !0x02);
+            let target = if st.kb_enabled && st.kb_brightness > 0 {
+                cur_bl & !0x02
+            } else {
+                cur_bl | 0x02
+            };
+            if target != cur_bl {
+                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
+                if let Some(cur_trigger) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
+                    let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, cur_trigger | 0x20);
+                }
             }
         }
-        if let Some(cur_trigger) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
-            let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, cur_trigger | 0x20);
-        }
         self.refresh_devices();
-        let st = self.state.lock().clone();
         if self.has_keyboard_device() {
             if self.has_perkey_keyboard_device() {
                 if st.kb_engine == "hardware" {
@@ -1316,11 +1322,19 @@ impl IteLightingManager {
         let is_single_zone = (raw_kb_support & 0x04) != 0;
         let cur_st = self.state.lock().clone();
         let is_streamer = cur_st.kb_engine == "streamer";
+        let kb_is_on = cur_st.kb_enabled && cur_st.kb_brightness > 0;
 
         std::thread::spawn(move || {
             crate::log_info!("LIGHTING", "Startup Ceremony launched across detected hardware tier");
 
-            if has_perkey {
+            if !kb_is_on {
+                // If keyboard lighting is disabled by user, strictly respect preference and do NOT light up keyboard!
+                crate::log_info!("LIGHTING", "Startup Ceremony: keyboard is disabled in user presets, keeping keyboard dark");
+                if let Some(cur_bl) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
+                    let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, cur_bl | 0x02);
+                }
+                std::thread::sleep(Duration::from_millis(1500));
+            } else if has_perkey {
                 // T1 旗舰全彩逐键：若为推流引擎，注入 60FPS 绚丽星光烟花流光 (Sparkle 111)；若为硬件 MCU，下发全彩波浪 (Wave 3)
                 if is_streamer {
                     let streamer = crate::driver::ite_streamer::get_global_streamer();

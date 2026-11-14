@@ -190,6 +190,40 @@ unsafe extern "system" fn low_level_keyboard_proc(
         if msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN {
             crate::driver::streamer::tracker::push_interactive_key_event(vk as i32);
 
+            // 0.05 Chassis Hardware Radio / Airplane Mode Hotkey (VK_F24 = 135, VK_F21 = 132)
+            if vk == 135 || vk == 132 {
+                static LAST_RADIO_VK: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+                let should_fire = {
+                    let mut last = LAST_RADIO_VK.lock().unwrap();
+                    let ok = match *last {
+                        Some(t) => t.elapsed() >= std::time::Duration::from_millis(400),
+                        None => true,
+                    };
+                    if ok { *last = Some(Instant::now()); }
+                    ok
+                };
+                if should_fire {
+                    let current_wifi = crate::system::switches::radio::get_realtime_wifi_state()
+                        .unwrap_or_else(|| crate::system::config::load_config().wifi_enabled);
+                    let next_wifi = !current_wifi;
+                    crate::log_info!("HOOKS", "Hardware Radio key (VK={}) detected! Toggling Wi-Fi: {} -> {}", vk, current_wifi, next_wifi);
+                    let _ = crate::system::device_switches::set_switch("wifi", next_wifi);
+                    crate::system::osd_window::show_device_switch("wifi", next_wifi);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state",
+                        "wifi_enabled": next_wifi
+                    }));
+                    if let Some(app) = APP_HANDLE.get() {
+                        crate::system::osd_window::wake_osd_if_enabled(app);
+                        let _ = app.emit("wifi-state-changed", next_wifi);
+                        let _ = app.emit_to("main", "wifi-state-changed", next_wifi);
+                        let _ = app.emit_to("osd", "wifi-state-changed", next_wifi);
+                        crate::system::native_wry::broadcast_event("wifi-state-changed", &serde_json::json!(next_wifi));
+                    }
+                    return LRESULT(1);
+                }
+            }
+
             // 0.1 Universal Shortcut Bus (Route 2: Hardware & System Shortcut Dispatch)
             if let Some(app) = APP_HANDLE.get() {
                 let is_alt = (kbd_struct.flags.0 & 0x20) != 0
