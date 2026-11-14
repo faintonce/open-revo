@@ -10,6 +10,8 @@ pub mod wmi_ec;
 pub mod wmi_event_listener;
 pub mod custom_fx_engine;
 pub mod nvapi;
+#[cfg(windows)]
+mod nvml_telemetry;
 pub mod hid_ffi;
 pub mod wmi_mulong;
 pub mod wmi_ip3;
