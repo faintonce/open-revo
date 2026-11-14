@@ -840,6 +840,8 @@ pub struct PluginWindowConfig {
     pub decorations: bool,
     #[serde(default = "default_true", alias = "skipTaskbar")]
     pub skip_taskbar: bool,
+    #[serde(default, alias = "clickThrough", alias = "click_through")]
+    pub click_through: bool,
 }
 
 fn default_widget_width() -> f64 { 240.0 }

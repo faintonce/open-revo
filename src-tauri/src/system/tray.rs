@@ -131,6 +131,7 @@ pub fn build_tray_menu(
 
     let fan_boost_item = CheckMenuItem::with_id(app, "toggle_fan", "一键强冷 (Fan Boost)", true, initial_fan, None::<&str>)?;
     let oem_toggle_item = MenuItem::with_id(app, "takeover_toggle", "🔄 接管/恢复 官方后台服务", true, None::<&str>)?;
+    let widget_lock_item = MenuItem::with_id(app, "toggle_widget_lock", "🧲 挂件穿透锁定 / 解锁拖动 (或按住Ctrl)", true, None::<&str>)?;
 
     let sep3 = PredefinedMenuItem::separator(app)?;
 
@@ -161,6 +162,7 @@ pub fn build_tray_menu(
             &sep2,
             &fan_boost_item,
             &oem_toggle_item,
+            &widget_lock_item,
             &sep3,
             &notice_item,
             &quit_item,
@@ -297,6 +299,26 @@ pub fn handle_tray_menu_event(
             let next_state = !is_running;
             let _ = app_handle.emit("oem-service-status-changed", next_state);
             let _ = app_handle.emit_to("main", "oem-service-status-changed", next_state);
+        }
+        "toggle_widget_lock" => {
+            let mut cfg = crate::system::config::load_config();
+            let any_locked = cfg.widget_click_through.values().any(|&v| v);
+            let next_locked = !any_locked;
+            for val in cfg.widget_click_through.values_mut() {
+                *val = next_locked;
+            }
+            for pid in crate::system::native_wry::get_running_popouts() {
+                cfg.widget_click_through.insert(pid.clone(), next_locked);
+                crate::system::native_wry::set_popout_click_through(&pid, next_locked);
+            }
+            for (pid, &enabled) in cfg.custom_plugin_toggles.iter() {
+                if enabled {
+                    cfg.widget_click_through.insert(pid.clone(), next_locked);
+                    crate::system::slint_window::actions::plugins::send_slint_widget_click_through(pid, next_locked);
+                }
+            }
+            let _ = crate::system::config::save_config(&cfg);
+            crate::log_info!("TRAY", "Toggled all desktop widgets click-through lock state to {}", next_locked);
         }
         "quit" => {
             IS_EXPLICIT_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);

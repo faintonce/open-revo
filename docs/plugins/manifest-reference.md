@@ -92,6 +92,7 @@
 | `transparent` | `boolean` | `true` | 是否启用全透明 Alpha 通道（异形桌宠设为 `true`，复杂实色工具面板设为 `false`） |
 | `always_on_top` | `boolean` | `true` | 是否保持在其他软件窗口上方置顶（大型复杂工具通常设为 `false`） |
 | `skip_taskbar` | `boolean` | `true` | 是否在 Windows 系统任务栏跳过显示（设为 `false` 可在任务栏显示独立图标，支持 `Alt+Tab` 秒切） |
+| `click_through` | `boolean` | `false` | **【鼠标点击穿透】**：设为 `true` 即可让挂件初始具备全穿透特性（游戏与桌面点击直接透过挂件）。挂件运行时支持按住 `Ctrl` 临时唤醒拖拽摆放，或在托盘菜单与界面中随时切换锁定 |
 
 ### `telemetry` 硬件遥测按需声明子对象 (On-Demand Telemetry Contract)
 

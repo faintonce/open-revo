@@ -153,6 +153,7 @@ pub fn start_telemetry_loop(
                         }
                         crate::system::watcher_hub::evaluate_telemetry_watchers(&state);
                         crate::system::slint_window::sync_slint_telemetry(&state);
+                        crate::system::slint_window::actions::plugins::broadcast_telemetry_to_slint_widgets(&state);
                     }
                     std::thread::sleep(Duration::from_millis(1500));
                 } else {

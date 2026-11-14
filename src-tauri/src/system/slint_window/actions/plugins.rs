@@ -1,10 +1,13 @@
 use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Write};
+use std::process::{ChildStdin, Stdio};
 use tauri::AppHandle;
 use super::super::sync::sync_slint_plugins_state;
 use super::super::webview_dock::hide_embedded_webview;
 
 static ACTIVE_SLINT_CHILD: parking_lot::Mutex<Option<std::process::Child>> = parking_lot::Mutex::new(None);
 static ACTIVE_SLINT_WIDGETS: parking_lot::Mutex<Option<HashMap<String, std::process::Child>>> = parking_lot::Mutex::new(None);
+static ACTIVE_SLINT_WIDGET_STDIN: std::sync::LazyLock<parking_lot::Mutex<HashMap<String, ChildStdin>>> = std::sync::LazyLock::new(|| parking_lot::Mutex::new(HashMap::new()));
 
 #[cfg(target_os = "windows")]
 pub fn assign_to_app_job(child: &std::process::Child) {
@@ -67,10 +70,41 @@ pub fn launch_slint_widget(id: &str) -> Result<(), String> {
     let current_exe = std::env::current_exe().unwrap_or_else(|_| "open-revo.exe".into());
     let mut cmd = std::process::Command::new(current_exe);
     cmd.args(&["--slint-widget", id]);
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::piped());
 
     match cmd.spawn() {
-        Ok(child) => {
+        Ok(mut child) => {
             assign_to_app_job(&child);
+
+            if let Some(stdin) = child.stdin.take() {
+                ACTIVE_SLINT_WIDGET_STDIN.lock().insert(id.to_string(), stdin);
+            }
+
+            if let Some(stdout) = child.stdout.take() {
+                let plugin_id = id.to_string();
+                std::thread::Builder::new()
+                    .name(format!("slint-widget-stdout-{}", id))
+                    .spawn(move || {
+                        let reader = BufReader::new(stdout);
+                        for line_res in reader.lines() {
+                            if let Ok(line) = line_res {
+                                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) {
+                                    if val.get("event").and_then(|v| v.as_str()) == Some("click_through_changed") {
+                                        if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
+                                            let mut cfg = crate::system::config::load_config();
+                                            cfg.widget_click_through.insert(plugin_id.clone(), enabled);
+                                            let _ = crate::system::config::save_config(&cfg);
+                                            crate::log_info!("PLUGINS", "Persisted click_through state for Slint widget '{}': {}", plugin_id, enabled);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    .ok();
+            }
+
             with_active_slint_widgets(|widgets| {
                 if let Some(mut old) = widgets.insert(id.to_string(), child) {
                     let _ = old.kill();
@@ -90,6 +124,7 @@ pub fn launch_slint_widget(id: &str) -> Result<(), String> {
 
 pub fn close_slint_widget(id: &str) {
     crate::log_info!("PLUGINS", "close_slint_widget requested for '{}'", id);
+    ACTIVE_SLINT_WIDGET_STDIN.lock().remove(id);
     with_active_slint_widgets(|widgets| {
         if let Some(mut child) = widgets.remove(id) {
             let _ = child.kill();
@@ -100,6 +135,7 @@ pub fn close_slint_widget(id: &str) {
 
 pub fn terminate_all_slint_processes() {
     crate::log_info!("PLUGINS", "Terminating all Slint child processes and widgets...");
+    ACTIVE_SLINT_WIDGET_STDIN.lock().clear();
     hide_slint_embedded();
     with_active_slint_widgets(|widgets| {
         for (id, mut child) in widgets.drain() {
@@ -108,6 +144,58 @@ pub fn terminate_all_slint_processes() {
             crate::log_info!("PLUGINS", "Killed Slint widget process for '{}'", id);
         }
     });
+}
+
+/// Broadcast latest telemetry state to all active Slint widget sub-processes via standard input
+pub fn broadcast_telemetry_to_slint_widgets(state: &crate::commands::system_cmd::HardwareState) {
+    let mut map = ACTIVE_SLINT_WIDGET_STDIN.lock();
+    if map.is_empty() {
+        return;
+    }
+    let payload = serde_json::json!({
+        "action": "telemetry",
+        "data": state,
+    });
+    let line = format!("{}\n", payload);
+    let bytes = line.as_bytes();
+    map.retain(|pid, stdin| {
+        if let Err(e) = stdin.write_all(bytes).and_then(|_| stdin.flush()) {
+            crate::log_warn!("PLUGINS", "Failed to send telemetry to Slint widget '{}': {:?}", pid, e);
+            false
+        } else {
+            true
+        }
+    });
+}
+
+/// Broadcast global Ctrl modifier key state to all active Slint widgets for temporary drag/unlock preview
+pub fn broadcast_ctrl_modifier_to_slint_widgets(down: bool) {
+    let mut map = ACTIVE_SLINT_WIDGET_STDIN.lock();
+    if map.is_empty() {
+        return;
+    }
+    let payload = serde_json::json!({
+        "action": "ctrl_modifier",
+        "down": down,
+    });
+    let line = format!("{}\n", payload);
+    let bytes = line.as_bytes();
+    map.retain(|_pid, stdin| {
+        stdin.write_all(bytes).and_then(|_| stdin.flush()).is_ok()
+    });
+}
+
+/// Send click-through / lock state to a specific Slint widget
+pub fn send_slint_widget_click_through(plugin_id: &str, enable: bool) {
+    let mut map = ACTIVE_SLINT_WIDGET_STDIN.lock();
+    if let Some(stdin) = map.get_mut(plugin_id) {
+        let payload = serde_json::json!({
+            "action": "set_click_through",
+            "enable": enable,
+        });
+        let line = format!("{}\n", payload);
+        let _ = stdin.write_all(line.as_bytes()).and_then(|_| stdin.flush());
+    }
 }
 
 pub fn hide_slint_embedded() {

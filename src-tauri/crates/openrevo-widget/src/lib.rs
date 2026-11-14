@@ -1,6 +1,8 @@
 pub use slint_interpreter;
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use slint::ComponentHandle;
 use slint_interpreter::Compiler;
@@ -16,8 +18,136 @@ use windows::Win32::UI::WindowsAndMessaging::{
     EnumThreadWindows, GetWindowLongW, IsWindow, SetParent, SetWindowLongW, SetWindowPos, ShowWindow,
     GWL_EXSTYLE, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_SHOW,
     WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_EX_APPWINDOW, WS_EX_CONTROLPARENT,
-    WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
+    WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
 };
+
+static LATEST_TELEMETRY: OnceLock<Mutex<Option<serde_json::Value>>> = OnceLock::new();
+static IS_CLICK_THROUGH_LOCKED: AtomicBool = AtomicBool::new(false);
+static CTRL_PREVIEW_TEMP_UNLOCKED: AtomicBool = AtomicBool::new(false);
+static RECORDED_HWND: Mutex<Option<isize>> = Mutex::new(None);
+
+pub fn get_latest_telemetry() -> &'static Mutex<Option<serde_json::Value>> {
+    LATEST_TELEMETRY.get_or_init(|| Mutex::new(None))
+}
+
+#[cfg(target_os = "windows")]
+pub fn set_click_through_internal(enable: bool) {
+    IS_CLICK_THROUGH_LOCKED.store(enable, Ordering::SeqCst);
+    let hwnd_raw = RECORDED_HWND.lock().unwrap().or_else(|| find_thread_hwnd().map(|h| h.0 as isize));
+    if let Some(raw) = hwnd_raw {
+        unsafe {
+            let hwnd = HWND(raw as *mut _);
+            let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+            let new_ex = if enable {
+                ex | WS_EX_TRANSPARENT.0
+            } else {
+                ex & !WS_EX_TRANSPARENT.0
+            };
+            let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex as i32);
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn set_click_through_internal(_enable: bool) {}
+
+fn inject_telemetry_properties(instance: &slint_interpreter::ComponentInstance, data: &serde_json::Value) {
+    if let Some(obj) = data.as_object() {
+        for (k, v) in obj {
+            let val = match v {
+                serde_json::Value::Number(n) => {
+                    if let Some(f) = n.as_f64() {
+                        slint_interpreter::Value::Number(f)
+                    } else {
+                        continue;
+                    }
+                }
+                serde_json::Value::Bool(b) => slint_interpreter::Value::Bool(*b),
+                serde_json::Value::String(s) => slint_interpreter::Value::String(s.as_str().into()),
+                _ => continue,
+            };
+            let dash_key = k.replace('_', "-");
+            let _ = instance.set_property(k.as_str(), val.clone());
+            if dash_key != *k {
+                let _ = instance.set_property(&dash_key, val);
+            }
+        }
+    }
+    let json_str = data.to_string();
+    let _ = instance.set_property("telemetry_json", slint_interpreter::Value::String(json_str.as_str().into()));
+    let _ = instance.set_property("telemetry-json", slint_interpreter::Value::String(json_str.as_str().into()));
+    let _ = instance.invoke("telemetry_updated", &[]);
+}
+
+fn handle_widget_ipc_message(line: &str, weak_instance: &slint::Weak<slint_interpreter::ComponentInstance>) {
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
+        let action = val.get("action").and_then(|v| v.as_str()).unwrap_or_default();
+        match action {
+            "telemetry" => {
+                if let Some(data) = val.get("data") {
+                    *get_latest_telemetry().lock().unwrap() = Some(data.clone());
+                    let data_clone = data.clone();
+                    let weak = weak_instance.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(instance) = weak.upgrade() {
+                            inject_telemetry_properties(&instance, &data_clone);
+                        }
+                    });
+                }
+            }
+            "ctrl_modifier" => {
+                let down = val.get("down").and_then(|v| v.as_bool()).unwrap_or(false);
+                let is_locked = IS_CLICK_THROUGH_LOCKED.load(Ordering::SeqCst);
+                if is_locked {
+                    if down {
+                        CTRL_PREVIEW_TEMP_UNLOCKED.store(true, Ordering::SeqCst);
+                        let hwnd_raw = RECORDED_HWND.lock().unwrap().or_else(|| find_thread_hwnd().map(|h| h.0 as isize));
+                        if let Some(raw) = hwnd_raw {
+                            #[cfg(target_os = "windows")]
+                            unsafe {
+                                let hwnd = HWND(raw as *mut _);
+                                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+                                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, (ex & !WS_EX_TRANSPARENT.0) as i32);
+                            }
+                        }
+                    } else {
+                        CTRL_PREVIEW_TEMP_UNLOCKED.store(false, Ordering::SeqCst);
+                        let hwnd_raw = RECORDED_HWND.lock().unwrap().or_else(|| find_thread_hwnd().map(|h| h.0 as isize));
+                        if let Some(raw) = hwnd_raw {
+                            #[cfg(target_os = "windows")]
+                            unsafe {
+                                let hwnd = HWND(raw as *mut _);
+                                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+                                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, (ex | WS_EX_TRANSPARENT.0) as i32);
+                            }
+                        }
+                    }
+                    let weak = weak_instance.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(instance) = weak.upgrade() {
+                            let _ = instance.set_property("ctrl_preview_unlocked", slint_interpreter::Value::Bool(down));
+                            let _ = instance.set_property("ctrl-preview-unlocked", slint_interpreter::Value::Bool(down));
+                        }
+                    });
+                }
+            }
+            "set_click_through" => {
+                let enable = val.get("enable").and_then(|v| v.as_bool()).unwrap_or(false);
+                set_click_through_internal(enable);
+                let weak = weak_instance.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(instance) = weak.upgrade() {
+                        let _ = instance.set_property("click_through", slint_interpreter::Value::Bool(enable));
+                        let _ = instance.set_property("click-through", slint_interpreter::Value::Bool(enable));
+                        let _ = instance.set_property("is_locked", slint_interpreter::Value::Bool(enable));
+                        let _ = instance.set_property("is-locked", slint_interpreter::Value::Bool(enable));
+                    }
+                });
+            }
+            _ => {}
+        }
+    }
+}
 
 #[cfg(target_os = "windows")]
 unsafe extern "system" fn enum_thread_wnd_proc(hwnd: HWND, lparam: LPARAM) -> windows::Win32::Foundation::BOOL {
@@ -153,22 +283,57 @@ pub fn run_widget_standalone(plugin_id: &str) {
     bind_openrevo_hardware_callbacks(&instance);
 
     // Parse window configuration from manifest.json
-    let (always_on_top, decorations, transparent, skip_taskbar) = if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+    let (always_on_top, decorations, transparent, skip_taskbar, manifest_click_through) = if let Ok(content) = std::fs::read_to_string(&manifest_path) {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
             let win = val.get("widget").and_then(|w| w.get("window")).or_else(|| val.get("window"));
             let aot = win.and_then(|w| w.get("always_on_top")).and_then(|v| v.as_bool()).unwrap_or(true);
             let dec = win.and_then(|w| w.get("decorations")).and_then(|v| v.as_bool()).unwrap_or(false);
             let trans = win.and_then(|w| w.get("transparent")).and_then(|v| v.as_bool()).unwrap_or(true);
             let skip_tb = win.and_then(|w| w.get("skip_taskbar")).and_then(|v| v.as_bool()).unwrap_or(true);
-            (aot, dec, trans, skip_tb)
+            let ct = win.and_then(|w| w.get("click_through")).and_then(|v| v.as_bool())
+                .or_else(|| val.get("click_through").and_then(|v| v.as_bool()))
+                .unwrap_or(false);
+            (aot, dec, trans, skip_tb, ct)
         } else {
-            (true, false, true, true)
+            (true, false, true, true, false)
         }
     } else {
-        (true, false, true, true)
+        (true, false, true, true, false)
     };
 
+    let cfg = openrevo_core::system::config::load_config();
+    let initial_click_through = cfg.widget_click_through.get(plugin_id).copied().unwrap_or(manifest_click_through);
+    IS_CLICK_THROUGH_LOCKED.store(initial_click_through, Ordering::SeqCst);
+
     let _ = instance.show();
+
+    // Start background IPC listener for stdin telemetry & control messages
+    let weak_inst = instance.as_weak();
+    std::thread::Builder::new()
+        .name(format!("slint-widget-stdin-{}", plugin_id))
+        .spawn(move || {
+            let stdin = std::io::stdin();
+            for line_res in stdin.lock().lines() {
+                match line_res {
+                    Ok(line) => {
+                        let line = line.trim();
+                        if !line.is_empty() {
+                            handle_widget_ipc_message(line, &weak_inst);
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+        })
+        .ok();
+
+    // Initial property sync
+    let _ = instance.set_property("click_through", slint_interpreter::Value::Bool(initial_click_through));
+    let _ = instance.set_property("click-through", slint_interpreter::Value::Bool(initial_click_through));
+    let _ = instance.set_property("is_locked", slint_interpreter::Value::Bool(initial_click_through));
+    let _ = instance.set_property("is-locked", slint_interpreter::Value::Bool(initial_click_through));
+    let _ = instance.set_property("ctrl_preview_unlocked", slint_interpreter::Value::Bool(false));
+    let _ = instance.set_property("ctrl-preview-unlocked", slint_interpreter::Value::Bool(false));
 
     #[cfg(target_os = "windows")]
     {
@@ -188,6 +353,8 @@ pub fn run_widget_standalone(plugin_id: &str) {
 
         let apply_standalone_styles = move |hwnd: HWND| {
             unsafe {
+                *RECORDED_HWND.lock().unwrap() = Some(hwnd.0 as isize);
+
                 let dark_mode: i32 = 1;
                 let _ = DwmSetWindowAttribute(
                     hwnd,
@@ -234,6 +401,10 @@ pub fn run_widget_standalone(plugin_id: &str) {
                     0, 0, 0, 0,
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
                 );
+
+                if initial_click_through {
+                    set_click_through_internal(true);
+                }
             }
         };
 
@@ -317,6 +488,26 @@ pub fn run_widget_embedded(plugin_id: &str, parent_hwnd_raw: isize, rect: (i32, 
 
     // Show instance first to trigger Winit window creation
     let _ = instance.show();
+
+    // Start background IPC listener for stdin telemetry & control messages
+    let weak_inst = instance.as_weak();
+    std::thread::Builder::new()
+        .name(format!("slint-embedded-stdin-{}", plugin_id))
+        .spawn(move || {
+            let stdin = std::io::stdin();
+            for line_res in stdin.lock().lines() {
+                match line_res {
+                    Ok(line) => {
+                        let line = line.trim();
+                        if !line.is_empty() {
+                            handle_widget_ipc_message(line, &weak_inst);
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+        })
+        .ok();
 
     // Setup repeated timer to reliably capture child HWND and apply Win32 parent attachment
     let timer = slint::Timer::default();
@@ -494,5 +685,54 @@ pub fn bind_openrevo_hardware_callbacks(instance: &slint_interpreter::ComponentI
         let caps = get_gateway_capabilities();
         let json_str = serde_json::to_string(&caps.available_protocols).unwrap_or_else(|_| "[]".to_string());
         slint_interpreter::Value::String(json_str.into())
+    });
+
+    // 7. get_hardware_status: () -> string (Live telemetry snapshot JSON)
+    let _ = instance.set_callback("get_hardware_status", move |_args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let lock = get_latest_telemetry().lock().unwrap();
+        let json_str = lock.as_ref().map(|v| v.to_string()).unwrap_or_else(|| "{}".to_string());
+        slint_interpreter::Value::String(json_str.into())
+    });
+
+    // 8. get_sensor_value: (sensor_name: string) -> float
+    let _ = instance.set_callback("get_sensor_value", move |args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let sensor = match args.get(0) {
+            Some(slint_interpreter::Value::String(s)) => s.as_str().to_string(),
+            _ => return slint_interpreter::Value::Number(-1.0),
+        };
+        let lock = get_latest_telemetry().lock().unwrap();
+        if let Some(ref data) = *lock {
+            let alt_key = sensor.replace('-', "_");
+            if let Some(v) = data.get(&sensor).or_else(|| data.get(&alt_key)) {
+                if let Some(n) = v.as_f64() {
+                    return slint_interpreter::Value::Number(n);
+                } else if let Some(b) = v.as_bool() {
+                    return slint_interpreter::Value::Number(if b { 1.0 } else { 0.0 });
+                }
+            }
+        }
+        slint_interpreter::Value::Number(-1.0)
+    });
+
+    // 9. set_click_through: (enable: bool) -> bool
+    let _ = instance.set_callback("set_click_through", move |args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let enable = args.get(0).and_then(|v| v.clone().try_into().ok()).unwrap_or(false);
+        set_click_through_internal(enable);
+        println!("{}", serde_json::json!({ "event": "click_through_changed", "enabled": enable }));
+        slint_interpreter::Value::Bool(enable)
+    });
+
+    // 10. get_click_through: () -> bool
+    let _ = instance.set_callback("get_click_through", move |_args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        slint_interpreter::Value::Bool(IS_CLICK_THROUGH_LOCKED.load(Ordering::SeqCst))
+    });
+
+    // 11. toggle_click_through: () -> bool
+    let _ = instance.set_callback("toggle_click_through", move |_args: &[slint_interpreter::Value]| -> slint_interpreter::Value {
+        let cur = IS_CLICK_THROUGH_LOCKED.load(Ordering::SeqCst);
+        let next = !cur;
+        set_click_through_internal(next);
+        println!("{}", serde_json::json!({ "event": "click_through_changed", "enabled": next }));
+        slint_interpreter::Value::Bool(next)
     });
 }

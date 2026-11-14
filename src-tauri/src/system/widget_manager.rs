@@ -78,6 +78,7 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
                 resizable: true,
                 decorations: true,
                 skip_taskbar: false,
+                click_through: false,
             }
         } else {
             crate::commands::system_cmd::PluginWindowConfig {
@@ -88,6 +89,7 @@ pub async fn spawn_widget_window_internal(app: &AppHandle, plugin_id: &str) -> R
                 resizable: false,
                 decorations: false,
                 skip_taskbar: true,
+                click_through: false,
             }
         }
     });

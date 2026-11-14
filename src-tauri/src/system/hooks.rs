@@ -22,6 +22,7 @@ extern "system" {
 
 static WIN_KEY_LOCKED: AtomicBool = AtomicBool::new(false);
 static WIN_PHYSICALLY_DOWN: AtomicBool = AtomicBool::new(false);
+static CTRL_PHYSICALLY_DOWN: AtomicBool = AtomicBool::new(false);
 static HOOK_THREAD_ID: AtomicU32 = AtomicU32::new(0);
 static HOOK_STATE_LOCK: Mutex<()> = Mutex::new(());
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
@@ -143,6 +144,19 @@ unsafe extern "system" fn low_level_keyboard_proc(
         // Bypass dummy mask key (0xE8) from interfering with interactive lighting or lock logic
         if vk == 0xE8 {
             return CallNextHookEx(None, n_code, w_param, l_param);
+        }
+
+        // Global Ctrl modifier key monitor for desktop widgets temporary drag/unlock preview
+        if vk == VK_CONTROL.0 || vk == VK_LCONTROL.0 || vk == VK_RCONTROL.0 {
+            if msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN {
+                if !CTRL_PHYSICALLY_DOWN.swap(true, Ordering::SeqCst) {
+                    notify_ctrl_modifier_state(true);
+                }
+            } else if msg == WM_KEYUP || msg == WM_SYSKEYUP {
+                if CTRL_PHYSICALLY_DOWN.swap(false, Ordering::SeqCst) {
+                    notify_ctrl_modifier_state(false);
+                }
+            }
         }
 
         // 1. Win Key Lock Software Interception
@@ -354,4 +368,9 @@ pub fn set_win_key_locked(locked: bool) {
         WIN_PHYSICALLY_DOWN.store(false, Ordering::SeqCst);
     }
     ensure_hook_running();
+}
+
+fn notify_ctrl_modifier_state(down: bool) {
+    crate::system::native_wry::notify_ctrl_modifier(down);
+    crate::system::slint_window::actions::plugins::broadcast_ctrl_modifier_to_slint_widgets(down);
 }

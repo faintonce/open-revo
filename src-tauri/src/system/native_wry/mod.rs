@@ -48,6 +48,13 @@ pub enum NativeWryMessage {
         rect: (i32, i32, i32, i32),
     },
     HideEmbedded,
+    SetClickThrough {
+        plugin_id: String,
+        enable: bool,
+    },
+    CtrlModifier {
+        down: bool,
+    },
     EvalJs {
         target: ViewTarget,
         script: String,
@@ -197,7 +204,11 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
         hide: function() { return callRpc("close_custom_widget", { pluginId: pluginId }); },
         show: function() {},
         setSize: function(sz) { return callRpc("set_window_size", { pluginId: pluginId, width: sz.width, height: sz.height }); },
-        setFocus: function() {}
+        setFocus: function() {},
+        setIgnoreCursorEvents: function(ignore) { return callRpc("set_click_through", { enable: ignore }); },
+        setClickThrough: function(enable) { return callRpc("set_click_through", { enable: enable }); },
+        getClickThrough: function() { return callRpc("get_click_through", {}); },
+        toggleClickThrough: function() { return callRpc("toggle_click_through", {}); }
       };
     },
     getCurrentWindow: function() {
@@ -227,6 +238,9 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
   };
 
   window.__OPENREVO_BRIDGE__ = bridge;
+  window.setClickThrough = function(enable) { return callRpc("set_click_through", { enable: enable }); };
+  window.getClickThrough = function() { return callRpc("get_click_through", {}); };
+  window.toggleClickThrough = function() { return callRpc("toggle_click_through", {}); };
   window.__TAURI__ = {
     core: {
       invoke: callRpc
@@ -412,6 +426,53 @@ fn handle_ipc_payload(
                 });
                 return;
             }
+            if env.cmd == "set_click_through" {
+                let enable = env.args.get("enable").and_then(|v| v.as_bool()).unwrap_or(false);
+                let _ = proxy.send_event(NativeWryMessage::SetClickThrough {
+                    plugin_id: plugin_id.to_string(),
+                    enable,
+                });
+                let pid = plugin_id.to_string();
+                tauri::async_runtime::spawn(async move {
+                    let mut cfg = crate::system::config::load_config();
+                    cfg.widget_click_through.insert(pid, enable);
+                    let _ = crate::system::config::save_config(&cfg);
+                });
+                if let Some(req_id) = env.req_id {
+                    let script = format!("window.__NATIVE_WRY_RESOLVE__('{}', true, {}, null);", req_id, enable);
+                    let _ = proxy.send_event(NativeWryMessage::EvalJs { target, script });
+                }
+                return;
+            }
+            if env.cmd == "get_click_through" {
+                let pid = plugin_id.to_string();
+                let cfg = crate::system::config::load_config();
+                let current = cfg.widget_click_through.get(&pid).copied().unwrap_or(false);
+                if let Some(req_id) = env.req_id {
+                    let script = format!("window.__NATIVE_WRY_RESOLVE__('{}', true, {}, null);", req_id, current);
+                    let _ = proxy.send_event(NativeWryMessage::EvalJs { target, script });
+                }
+                return;
+            }
+            if env.cmd == "toggle_click_through" {
+                let pid = plugin_id.to_string();
+                let cfg = crate::system::config::load_config();
+                let next = !cfg.widget_click_through.get(&pid).copied().unwrap_or(false);
+                let _ = proxy.send_event(NativeWryMessage::SetClickThrough {
+                    plugin_id: pid.clone(),
+                    enable: next,
+                });
+                tauri::async_runtime::spawn(async move {
+                    let mut cfg = crate::system::config::load_config();
+                    cfg.widget_click_through.insert(pid, next);
+                    let _ = crate::system::config::save_config(&cfg);
+                });
+                if let Some(req_id) = env.req_id {
+                    let script = format!("window.__NATIVE_WRY_RESOLVE__('{}', true, {}, null);", req_id, next);
+                    let _ = proxy.send_event(NativeWryMessage::EvalJs { target, script });
+                }
+                return;
+            }
 
             let pid = plugin_id.to_string();
             let req_id = env.req_id.unwrap_or_default();
@@ -462,6 +523,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
     let mut web_context = WebContext::new(Some(data_dir));
 
     let mut popouts: HashMap<String, (Window, WebView)> = HashMap::new();
+    let mut popout_click_through: HashMap<String, bool> = HashMap::new();
     let mut embedded: Option<(String, WebView, isize)> = None;
 
     event_loop.run(move |event, target, control_flow| {
@@ -478,6 +540,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     if win.id() == window_id {
                         crate::log_info!("NATIVE_WRY", "Destroying popout window for plugin '{}'", pid);
                         get_running_popouts_set().write().remove(pid);
+                        popout_click_through.remove(pid);
                         crate::system::telemetry::unregister_consumer(pid);
                         let mut cfg = crate::system::config::load_config();
                         cfg.custom_plugin_toggles.insert(pid.clone(), false);
@@ -577,10 +640,11 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     }
 
                     match spawn_popout_window(target, &proxy, &plugin_id, &mut web_context) {
-                        Ok((win, view)) => {
+                        Ok((win, view, is_locked)) => {
                             get_running_popouts_set().write().insert(plugin_id.clone());
+                            popout_click_through.insert(plugin_id.clone(), is_locked);
                             popouts.insert(plugin_id.clone(), (win, view));
-                            crate::log_info!("NATIVE_WRY", "Popout window opened successfully for '{}'", plugin_id);
+                            crate::log_info!("NATIVE_WRY", "Popout window opened successfully for '{}' (locked={})", plugin_id, is_locked);
                         }
                         Err(e) => {
                             crate::log_error!("NATIVE_WRY", "Failed to open popout window for '{}': {:?}", plugin_id, e);
@@ -590,11 +654,67 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
 
                 NativeWryMessage::ClosePopout { plugin_id } => {
                     get_running_popouts_set().write().remove(&plugin_id);
+                    popout_click_through.remove(&plugin_id);
                     crate::system::telemetry::unregister_consumer(&plugin_id);
                     if let Some((win, _)) = popouts.remove(&plugin_id) {
                         win.set_visible(false);
                         drop(win);
                         crate::log_info!("NATIVE_WRY", "Popout '{}' closed and destroyed.", plugin_id);
+                    }
+                }
+
+                NativeWryMessage::SetClickThrough { plugin_id, enable } => {
+                    popout_click_through.insert(plugin_id.clone(), enable);
+                    if let Some((win, view)) = popouts.get(&plugin_id) {
+                        #[cfg(target_os = "windows")]
+                        {
+                            use tao::platform::windows::WindowExtWindows;
+                            use windows::Win32::Foundation::HWND;
+                            use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WS_EX_TRANSPARENT};
+                            unsafe {
+                                let hwnd = HWND(win.hwnd() as *mut _);
+                                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+                                let new_ex = if enable {
+                                    ex | WS_EX_TRANSPARENT.0
+                                } else {
+                                    ex & !WS_EX_TRANSPARENT.0
+                                };
+                                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex as i32);
+                            }
+                        }
+                        let script = format!(
+                            "window.dispatchEvent(new CustomEvent('openrevo-click-through', {{ detail: {{ enabled: {} }} }}));",
+                            enable
+                        );
+                        let _ = view.evaluate_script(&script);
+                    }
+                }
+
+                NativeWryMessage::CtrlModifier { down } => {
+                    for (pid, (win, view)) in popouts.iter() {
+                        if popout_click_through.get(pid).copied().unwrap_or(false) {
+                            #[cfg(target_os = "windows")]
+                            {
+                                use tao::platform::windows::WindowExtWindows;
+                                use windows::Win32::Foundation::HWND;
+                                use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WS_EX_TRANSPARENT};
+                                unsafe {
+                                    let hwnd = HWND(win.hwnd() as *mut _);
+                                    let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+                                    let new_ex = if down {
+                                        ex & !WS_EX_TRANSPARENT.0
+                                    } else {
+                                        ex | WS_EX_TRANSPARENT.0
+                                    };
+                                    let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex as i32);
+                                }
+                            }
+                            let script = format!(
+                                "window.dispatchEvent(new CustomEvent('openrevo-ctrl-modifier', {{ detail: {{ down: {} }} }}));",
+                                down
+                            );
+                            let _ = view.evaluate_script(&script);
+                        }
                     }
                 }
 
@@ -636,8 +756,9 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                             // 2. Automatically fallback to independent popout window so the plugin can still run
                             crate::log_info!("NATIVE_WRY", "Falling back to standalone popout window for '{}'...", plugin_id);
                             match spawn_popout_window(target, &proxy, &plugin_id, &mut web_context) {
-                                Ok((win, view)) => {
+                                Ok((win, view, is_locked)) => {
                                     get_running_popouts_set().write().insert(plugin_id.clone());
+                                    popout_click_through.insert(plugin_id.clone(), is_locked);
                                     popouts.insert(plugin_id.clone(), (win, view));
                                     crate::log_info!("NATIVE_WRY", "Fallback popout window opened successfully for '{}'", plugin_id);
                                 }
@@ -715,7 +836,7 @@ fn spawn_popout_window(
     proxy: &EventLoopProxy<NativeWryMessage>,
     plugin_id: &str,
     web_context: &mut WebContext,
-) -> Result<(Window, WebView), String> {
+) -> Result<(Window, WebView, bool), String> {
     let p_dir = crate::commands::system_cmd::find_plugin_dir(plugin_id);
     let manifest_path = p_dir.join("manifest.json");
     let entry_file = if manifest_path.exists() {
@@ -746,6 +867,7 @@ fn spawn_popout_window(
     let mut always_on_top = false;
     let mut skip_taskbar = false;
     let mut is_widget = false;
+    let mut manifest_click_through = false;
     let mut telemetry_config: Option<crate::commands::system_cmd::PluginTelemetryConfig> = None;
     let mut entry_file = "index.html".to_string();
 
@@ -784,12 +906,18 @@ fn spawn_popout_window(
                     always_on_top = win_cfg.always_on_top;
                     decorations = win_cfg.decorations;
                     skip_taskbar = win_cfg.skip_taskbar;
+                    manifest_click_through = win_cfg.click_through;
                 }
             }
         }
     }
 
     let cfg = crate::system::config::load_config();
+    let is_locked = if is_widget {
+        cfg.widget_click_through.get(plugin_id).copied().unwrap_or(manifest_click_through)
+    } else {
+        false
+    };
     let saved_pos = if is_widget {
         cfg.widget_positions.get(plugin_id).copied()
     } else {
@@ -830,6 +958,15 @@ fn spawn_popout_window(
         use tao::platform::windows::WindowExtWindows;
         if !decorations {
             window.set_undecorated_shadow(false);
+        }
+        if is_locked {
+            use windows::Win32::Foundation::HWND;
+            use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WS_EX_TRANSPARENT};
+            unsafe {
+                let hwnd = HWND(window.hwnd() as *mut _);
+                let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+                let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, (ex | WS_EX_TRANSPARENT.0) as i32);
+            }
         }
     }
 
@@ -880,7 +1017,7 @@ fn spawn_popout_window(
         crate::system::telemetry::register_consumer(plugin_id, &sensors);
     }
 
-    Ok((window, webview))
+    Ok((window, webview, is_locked))
 }
 
 fn spawn_embedded_child(
@@ -1049,5 +1186,20 @@ pub fn shutdown_all() {
     IS_SHUTTING_DOWN.store(true, Ordering::SeqCst);
     if let Some(proxy) = PROXY_HOLDER.lock().take() {
         let _ = proxy.send_event(NativeWryMessage::Shutdown);
+    }
+}
+
+pub fn set_popout_click_through(plugin_id: &str, enable: bool) {
+    if let Some(proxy) = get_active_proxy() {
+        let _ = proxy.send_event(NativeWryMessage::SetClickThrough {
+            plugin_id: plugin_id.to_string(),
+            enable,
+        });
+    }
+}
+
+pub fn notify_ctrl_modifier(down: bool) {
+    if let Some(proxy) = get_active_proxy() {
+        let _ = proxy.send_event(NativeWryMessage::CtrlModifier { down });
     }
 }

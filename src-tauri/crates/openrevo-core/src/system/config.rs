@@ -241,6 +241,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub widget_positions: std::collections::HashMap<String, (i32, i32)>,
 
+    // Persisted click-through / lock state for custom desktop widgets: plugin_id -> bool (true = locked/click-through)
+    #[serde(default)]
+    pub widget_click_through: std::collections::HashMap<String, bool>,
+
     // Currently active custom skin plugin ID (if any)
     #[serde(default)]
     pub active_skin: Option<String>,
@@ -520,6 +524,7 @@ impl Default for AppConfig {
             module_toggles: default_module_toggles(),
             custom_plugin_toggles: std::collections::HashMap::new(),
             widget_positions: std::collections::HashMap::new(),
+            widget_click_through: std::collections::HashMap::new(),
             active_skin: None,
             active_background: None,
             theme_mode: 0,
