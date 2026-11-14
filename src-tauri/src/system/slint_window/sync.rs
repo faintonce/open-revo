@@ -406,6 +406,8 @@ pub fn sync_slint_power_state() {
             "sleep_deep_sleep": cfg.sleep_deep_sleep,
             "sleep_hibernate_30m": cfg.sleep_hibernate_30m,
             "sleep_auto_office": cfg.sleep_auto_office,
+            "turbo_submode_supported": crate::system::power::turbo_submode::is_supported(),
+            "turbo_silent": cfg.turbo_silent,
         }));
     }
 }

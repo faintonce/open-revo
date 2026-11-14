@@ -116,6 +116,7 @@ export component DashboardGpuView inherits Rectangle {
     in-out property <int> oc_core_mhz: 105;
     in-out property <int> oc_mem_mhz: 500;
     in-out property <string> oc_save_hint: "";
+    in-out property <bool> turbo_submode_supported: false;
 
     callback toggle_balanced_db(bool);
     callback change_oc_core(int);
@@ -218,6 +219,7 @@ export component DashboardGpuView inherits Rectangle {
             oc_core_mhz <=> root.oc_core_mhz;
             oc_mem_mhz <=> root.oc_mem_mhz;
             save_hint: root.oc_save_hint;
+            turbo_submode_supported: root.turbo_submode_supported;
 
             toggle_balanced_db(en) => { root.toggle_balanced_db(en); }
             change_oc_core(val) => { root.change_oc_core(val); }

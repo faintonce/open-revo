@@ -5,6 +5,7 @@ export component GpuBoostCard inherits Rectangle {
     in-out property <int> oc_core_mhz: 105;
     in-out property <int> oc_mem_mhz: 500;
     in-out property <string> save_hint: "";
+    in-out property <bool> turbo_submode_supported: false;
 
     callback toggle_balanced_db(bool);
     callback change_oc_core(int);
@@ -124,13 +125,13 @@ export component GpuBoostCard inherits Rectangle {
         }
 
         // Divider
-        Rectangle {
+        if root.turbo_submode_supported: Rectangle {
             height: 1px;
             background: AppTheme.border_subtle;
         }
 
         // Row 2: Default Core OC Offset
-        HorizontalLayout {
+        if root.turbo_submode_supported: HorizontalLayout {
             alignment: space-between;
 
             VerticalLayout {
@@ -225,13 +226,13 @@ export component GpuBoostCard inherits Rectangle {
         }
 
         // Divider
-        Rectangle {
+        if root.turbo_submode_supported: Rectangle {
             height: 1px;
             background: AppTheme.border_subtle;
         }
 
         // Row 3: Default Memory OC Offset
-        HorizontalLayout {
+        if root.turbo_submode_supported: HorizontalLayout {
             alignment: space-between;
 
             VerticalLayout {
