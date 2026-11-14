@@ -55,8 +55,10 @@
 | `tokens` / `slint_tokens` | `object` | 可选 | `skin` | **【Slint 原生全局 Token 字典】**声明通用设计 Token（键值如 `bg_root`, `surface_card`, `accent_brand`, `radius_md`） |
 | `tokens_light` / `tokens_dark` / `tokens_mono` | `object` | 可选 | `skin` | **【三态色调独立声明】**单皮肤包分别声明浅色奶油、深焙暗黑、版画黑白三套独立 Token，随顶栏主题按钮实时切换 |
 | `background_css` | `string` | `background`可选 | `background` | 背景样式表入口相对路径（默认 `"background.css"`，回退 `"theme.css"`） |
-| `image` / `wallpaper` | `string` | 可选 | `background`/`skin` | **【零代码壁纸】**直接指定图片路径（如 `"bg.png"`），无需编写一行 CSS，宿主自动合成全套适配样式并注入 Slint 与 WebView2 |
-| `bg_image_opacity` / `opacity` | `number` | 可选 | `background`/`skin` | 背景壁纸渲染不透明度（范围 `0.05 ~ 1.0`，默认 `0.15`） |
+| `image` / `wallpaper` / `main_image` | `string` | 可选 | `background`/`skin` | **【零代码主壁纸】**直接指定主窗口背景图片路径（如 `"bg.png"`），无需编写 CSS。若未指定 `drawer_image`，迷你抽屉将自动共享本图片 |
+| `bg_image_opacity` / `opacity` | `number` | 可选 | `background`/`skin` | 主窗口背景壁纸渲染不透明度（范围 `0.05 ~ 1.0`，默认 `0.15` 或 `0.30`） |
+| `drawer_image` / `drawer_wallpaper` / `drawer_bg` | `string` | 可选 | `background`/`skin` | **【迷你抽屉专属壁纸】**指定迷你抽屉界面专属背景图片（如 `"drawer.png"`）。若留空，则自动 fallback 共享主窗口背景图；若指定，则两窗各自独立呈现 |
+| `drawer_opacity` / `drawer_bg_image_opacity` | `number` | 可选 | `background`/`skin` | 迷你抽屉专属背景壁纸不透明度（范围 `0.05 ~ 1.0`）。若留空，自动 fallback 采用 `bg_image_opacity` |
 | `entry` | `string` | 可选 | `widget`/`tab`/`service` | 默认入口相对路径，如 `index.html` 或 `welcome.rhai` |
 | `tab` | `object` | 可选 | 全类型 | **【控制台专属页签出口】**声明插件在控制台工作区的 Tab 入口（含 `entry`、`type`、`title`、`icon`，支持 WebView2 与 Slint 独立指定） |
 | `widget` | `object` | 可选 | 全类型 | **【桌面独立悬浮视窗出口】**声明插件在桌面的独立挂件（含 `entry`、`type`、`window`，支持 WebView2 与 Slint 独立指定） |

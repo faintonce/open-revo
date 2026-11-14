@@ -51,6 +51,8 @@ pub struct SlintThemeTokens {
     // 7. Background Image
     pub bg_image_path: String,
     pub bg_image_opacity: f32,
+    pub drawer_bg_image_path: String,
+    pub drawer_bg_image_opacity: f32,
 }
 
 impl SlintThemeTokens {
@@ -92,6 +94,8 @@ impl SlintThemeTokens {
                 radius_lg: 12.0,
                 bg_image_path: String::new(),
                 bg_image_opacity: 0.30,
+                drawer_bg_image_path: String::new(),
+                drawer_bg_image_opacity: 0.30,
             },
             // 2: Mono (Geek High-Contrast)
             2 => Self {
@@ -129,6 +133,8 @@ impl SlintThemeTokens {
                 radius_lg: 12.0,
                 bg_image_path: String::new(),
                 bg_image_opacity: 0.25,
+                drawer_bg_image_path: String::new(),
+                drawer_bg_image_opacity: 0.25,
             },
             // 0: Dark (Default)
             _ => Self {
@@ -166,6 +172,8 @@ impl SlintThemeTokens {
                 radius_lg: 12.0,
                 bg_image_path: String::new(),
                 bg_image_opacity: 0.30,
+                drawer_bg_image_path: String::new(),
+                drawer_bg_image_opacity: 0.30,
             },
         }
     }
@@ -409,6 +417,11 @@ fn apply_token_map(tokens: &mut SlintThemeTokens, key: &str, val: &str) {
                 tokens.bg_image_opacity = op.clamp(0.05, 1.0);
             }
         }
+        "drawer_bg_image_opacity" | "drawer_opacity" => {
+            if let Ok(op) = val.trim().parse::<f32>() {
+                tokens.drawer_bg_image_opacity = op.clamp(0.05, 1.0);
+            }
+        }
         _ => {}
     }
 }
@@ -424,6 +437,29 @@ fn discover_plugin_image(plugin_dir: &Path, explicit_rel: Option<&str>) -> Optio
         "background.jpg", "background.jpeg", "background.png", "background.webp",
         "wallpaper.jpg", "wallpaper.jpeg", "wallpaper.png", "wallpaper.webp",
         "bg.jpg", "bg.jpeg", "bg.png", "bg.webp",
+    ];
+    for name in candidates {
+        let p = plugin_dir.join(name);
+        if p.exists() && p.is_file() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn discover_plugin_drawer_image(plugin_dir: &Path, explicit_rel: Option<&str>) -> Option<PathBuf> {
+    if let Some(rel) = explicit_rel {
+        let p = plugin_dir.join(rel.trim_start_matches("./").trim_start_matches('/'));
+        if p.exists() && p.is_file() {
+            return Some(p);
+        }
+    }
+    let candidates = [
+        "drawer.jpg", "drawer.jpeg", "drawer.png", "drawer.webp",
+        "drawer_bg.jpg", "drawer_bg.jpeg", "drawer_bg.png", "drawer_bg.webp",
+        "drawer-bg.jpg", "drawer-bg.jpeg", "drawer-bg.png", "drawer-bg.webp",
+        "drawer_background.jpg", "drawer_background.jpeg", "drawer_background.png", "drawer_background.webp",
+        "drawer_wallpaper.jpg", "drawer_wallpaper.jpeg", "drawer_wallpaper.png", "drawer_wallpaper.webp",
     ];
     for name in candidates {
         let p = plugin_dir.join(name);
@@ -523,9 +559,34 @@ fn apply_skin_plugin(tokens: &mut SlintThemeTokens, plugin_id: &str, theme_mode:
     // 3. Optional background image declared in skin manifest
     let img_rel = manifest_val
         .as_ref()
-        .and_then(|m| m.get("image").or_else(|| m.get("wallpaper")).and_then(|v| v.as_str()));
+        .and_then(|m| m.get("image").or_else(|| m.get("wallpaper")).or_else(|| m.get("main_image")).and_then(|v| v.as_str()));
     if let Some(img_path) = discover_plugin_image(&plugin_dir, img_rel) {
         tokens.bg_image_path = img_path.to_string_lossy().to_string();
+    }
+    if let Some(op) = manifest_val
+        .as_ref()
+        .and_then(|m| m.get("opacity").or_else(|| m.get("bg_image_opacity")).and_then(|v| v.as_f64()))
+    {
+        tokens.bg_image_opacity = (op as f32).clamp(0.05, 1.0);
+    }
+
+    // 4. Optional drawer-specific background image declared in skin manifest
+    let drawer_img_rel = manifest_val
+        .as_ref()
+        .and_then(|m| m.get("drawer_image")
+            .or_else(|| m.get("drawer_wallpaper"))
+            .or_else(|| m.get("drawer_bg"))
+            .and_then(|v| v.as_str()));
+    if let Some(drawer_path) = discover_plugin_drawer_image(&plugin_dir, drawer_img_rel) {
+        tokens.drawer_bg_image_path = drawer_path.to_string_lossy().to_string();
+    }
+    if let Some(op) = manifest_val
+        .as_ref()
+        .and_then(|m| m.get("drawer_opacity")
+            .or_else(|| m.get("drawer_bg_image_opacity"))
+            .and_then(|v| v.as_f64()))
+    {
+        tokens.drawer_bg_image_opacity = (op as f32).clamp(0.05, 1.0);
     }
 }
 
@@ -563,7 +624,7 @@ pub fn resolve_slint_theme(cfg: &crate::system::config::AppConfig) -> SlintTheme
             .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok());
         let img_rel = manifest_val
             .as_ref()
-            .and_then(|m| m.get("image").or_else(|| m.get("wallpaper")).and_then(|v| v.as_str()));
+            .and_then(|m| m.get("image").or_else(|| m.get("wallpaper")).or_else(|| m.get("main_image")).and_then(|v| v.as_str()));
         if let Some(img_path) = discover_plugin_image(&bg_dir, img_rel) {
             tokens.bg_image_path = img_path.to_string_lossy().to_string();
         }
@@ -573,6 +634,30 @@ pub fn resolve_slint_theme(cfg: &crate::system::config::AppConfig) -> SlintTheme
         {
             tokens.bg_image_opacity = (op as f32).clamp(0.05, 1.0);
         }
+
+        let drawer_img_rel = manifest_val
+            .as_ref()
+            .and_then(|m| m.get("drawer_image")
+                .or_else(|| m.get("drawer_wallpaper"))
+                .or_else(|| m.get("drawer_bg"))
+                .and_then(|v| v.as_str()));
+        if let Some(drawer_path) = discover_plugin_drawer_image(&bg_dir, drawer_img_rel) {
+            tokens.drawer_bg_image_path = drawer_path.to_string_lossy().to_string();
+        }
+        if let Some(op) = manifest_val
+            .as_ref()
+            .and_then(|m| m.get("drawer_opacity")
+                .or_else(|| m.get("drawer_bg_image_opacity"))
+                .and_then(|v| v.as_f64()))
+        {
+            tokens.drawer_bg_image_opacity = (op as f32).clamp(0.05, 1.0);
+        }
+    }
+
+    // 3. Fallback: If no dedicated drawer background image was specified, share the main background image
+    if tokens.drawer_bg_image_path.is_empty() && !tokens.bg_image_path.is_empty() {
+        tokens.drawer_bg_image_path = tokens.bg_image_path.clone();
+        tokens.drawer_bg_image_opacity = tokens.bg_image_opacity;
     }
 
     tokens

@@ -74,14 +74,46 @@ fn apply_theme_tokens(ui: &MainWindow, tokens: &serde_json::Value) {
     if let Some(op) = tokens.get("bg_image_opacity").and_then(|v| v.as_f64()) {
         theme.set_bg_image_opacity(op as f32);
     }
+    if let Some(op) = tokens.get("drawer_bg_image_opacity").and_then(|v| v.as_f64()) {
+        theme.set_drawer_bg_image_opacity(op as f32);
+    } else if let Some(op) = tokens.get("bg_image_opacity").and_then(|v| v.as_f64()) {
+        theme.set_drawer_bg_image_opacity(op as f32);
+    }
+
+    let mut main_loaded_img: Option<slint::Image> = None;
     if let Some(path_str) = tokens.get("bg_image_path").and_then(|v| v.as_str()) {
         if path_str.is_empty() {
             theme.set_bg_image(slint::Image::default());
         } else if let Ok(img) = slint::Image::load_from_path(std::path::Path::new(path_str)) {
-            theme.set_bg_image(img);
+            theme.set_bg_image(img.clone());
+            main_loaded_img = Some(img);
         } else {
             theme.set_bg_image(slint::Image::default());
         }
+    }
+
+    if let Some(d_path_str) = tokens.get("drawer_bg_image_path").and_then(|v| v.as_str()) {
+        let is_same_as_main = tokens.get("bg_image_path").and_then(|v| v.as_str()) == Some(d_path_str);
+        if d_path_str.is_empty() {
+            if let Some(ref m_img) = main_loaded_img {
+                theme.set_drawer_bg_image(m_img.clone());
+            } else {
+                theme.set_drawer_bg_image(slint::Image::default());
+            }
+        } else if is_same_as_main && main_loaded_img.is_some() {
+            // Same image path: reuse the already decoded main image directly
+            theme.set_drawer_bg_image(main_loaded_img.as_ref().unwrap().clone());
+        } else if let Ok(img) = slint::Image::load_from_path(std::path::Path::new(d_path_str)) {
+            theme.set_drawer_bg_image(img);
+        } else if let Some(ref m_img) = main_loaded_img {
+            theme.set_drawer_bg_image(m_img.clone());
+        } else {
+            theme.set_drawer_bg_image(slint::Image::default());
+        }
+    } else if let Some(ref m_img) = main_loaded_img {
+        theme.set_drawer_bg_image(m_img.clone());
+    } else {
+        theme.set_drawer_bg_image(slint::Image::default());
     }
 }
 

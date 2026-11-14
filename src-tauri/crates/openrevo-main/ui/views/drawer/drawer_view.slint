@@ -16,12 +16,16 @@ export component DrawerView inherits Rectangle {
     border-color: AppTheme.border_subtle;
     clip: true;
 
-    if AppTheme.bg_image.width > 0: Image {
-        source: AppTheme.bg_image;
+    property <bool> has_drawer_image: AppTheme.drawer_bg_image.width > 0;
+    property <image> effective_drawer_image: has_drawer_image ? AppTheme.drawer_bg_image : AppTheme.bg_image;
+    property <float> effective_drawer_opacity: has_drawer_image ? AppTheme.drawer_bg_image_opacity : AppTheme.bg_image_opacity;
+
+    if effective_drawer_image.width > 0: Image {
+        source: effective_drawer_image;
         width: 100%;
         height: 100%;
         image-fit: cover;
-        opacity: AppTheme.bg_image_opacity;
+        opacity: effective_drawer_opacity;
     }
 
     // --- State properties ---

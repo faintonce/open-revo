@@ -61,6 +61,37 @@
 ```
 * **全自动合成**：OpenRevo 内核若未检测到 `background.css`，会自动寻找 `manifest.image` 或目录下的 `background.png/jpg/webp`、`wallpaper.jpg`、`bg.png`，在 Rust 内存中自动生成全套适配 CSS（满屏铺满、居中不重复）注入宿主！
 
+## 4. 迷你抽屉专属壁纸与双图独立适配（Main & Drawer 双图机制）
+
+OpenRevo 拥有两种形态的界面：**920px 宽屏主控制台** 与 **竖向便携迷你抽屉 (Drawer)**。
+由于抽屉是竖向布局，很多创作者在做图时会为了更贴合专门给抽屉单做一张竖版插画。宿主对此提供了完全解耦的双图机制：
+
+### 规则 A：单图共用（默认零配置）
+如果插件仅提供了一张图（如 `image: "wallpaper.png"` 或根目录下仅有 `wallpaper.png`），主窗口与迷你抽屉将**无缝共享同一张壁纸**，内存中自动复用单次解码对象，极速省流。
+
+### 规则 B：双图独立呈现
+如果创作者为抽屉单独设计了壁纸，只需声明 `drawer_image`（或在目录放置 `drawer.png`），两张壁纸即可分开生效：
+
+```json
+{
+  "id": "bg-nacho-neko",
+  "name": "Nacho Neko 双形态壁纸",
+  "version": "1.1.0",
+  "plugin_type": "background",
+  "image": "assets/main_horizontal.png",
+  "bg_image_opacity": 0.25,
+  "drawer_image": "assets/drawer_vertical.png",
+  "drawer_opacity": 0.35
+}
+```
+
+* **字段别名支持**：
+  - 主图支持：`image` / `wallpaper` / `main_image`；
+  - 抽屉图支持：`drawer_image` / `drawer_wallpaper` / `drawer_bg`；
+  - 抽屉透明度支持：`drawer_opacity` / `drawer_bg_image_opacity`（若未指定，自动 fallback 继承主图透明度）。
+* **自动隐式文件嗅探**：
+  若未在 manifest 中显式声明，宿主会自动在插件目录下探测 `drawer.png`、`drawer.jpg`、`drawer_bg.png`、`drawer-bg.png` 作为抽屉专属图。
+
 ---
 
 ## 相关页面
