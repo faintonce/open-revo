@@ -1,5 +1,35 @@
 use super::fan_table::{apply_fan_table_to_ec, apply_mode_fan_table, build_custom_fan_table};
 
+/// Dispatches custom profile SPL/sPPT/Temp parameters and fan curve to declarative hardware (e.g. Baolongda MRID6/BM5235)
+pub fn sync_custom_profile_to_declarative_hardware(profile: &crate::system::config::CustomProfileConfig) {
+    if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
+        if manifest.id.contains("bld") {
+            let p1 = (profile.cpu_pl1_watts as u8).clamp(25, 120);
+            let p2 = (profile.cpu_pl2_watts as u8).clamp(25, 140);
+            let temp = (profile.cpu_temp_target as u8).clamp(70, 100);
+            let _ = crate::hal::declarative::invoke_raw_mailbox(&[0, 251, 0, 23, 2, p1]);
+            let _ = crate::hal::declarative::invoke_raw_mailbox(&[0, 251, 0, 23, 3, p2]);
+            if profile.cpu_temp_target_enabled {
+                let _ = crate::hal::declarative::invoke_raw_mailbox(&[0, 251, 0, 23, 4, temp]);
+            }
+            let fan_boost_active = crate::system::config::load_config().fan_boost;
+            if profile.fan_isolated_output || profile.fan_curve_enabled {
+                crate::driver::bld_driver_mgr::set_bld_fan_curve(
+                    profile.cpu_fan_curve.clone(),
+                    profile.gpu_fan_curve.clone(),
+                    profile.fan_ramp_rate,
+                    profile.fan_ramp_speed_ms,
+                );
+                crate::log_info!("EC_TUNING", "BLD synced custom fan curve to 1Hz heartbeat arbiter");
+            } else if !fan_boost_active {
+                crate::driver::bld_driver_mgr::restore_bld_fan_auto();
+                crate::log_info!("EC_TUNING", "BLD restored fan auto policy (custom fan curve disabled)");
+            }
+            crate::log_info!("EC_TUNING", "BLD synced custom profile: SPL={}W, sPPT={}W, Temp={}°C", p1, p2, temp);
+        }
+    }
+}
+
 /// Set Physical Motherboard EC Hardware Registers
 pub fn apply_ec_hardware_mode(ui_mode: u8) {
     // 0. If current driver is Declarative and DOES NOT use Tongfang ACPI kernel driver channel,
@@ -24,6 +54,13 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             crate::log_warn!("POWER_MODE", "HAL set_performance_mode failed: {}", e);
         } else {
             crate::log_info!("POWER_MODE", "Successfully applied power mode via HAL ({:?})", hal.kind());
+        }
+
+        let cfg = crate::system::config::load_config();
+        if ui_mode == 4 {
+            sync_custom_profile_to_declarative_hardware(&cfg.custom_profile);
+        } else if !cfg.fan_boost {
+            crate::driver::bld_driver_mgr::restore_bld_fan_auto();
         }
         return;
     }
