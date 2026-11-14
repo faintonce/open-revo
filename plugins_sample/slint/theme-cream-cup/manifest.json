@@ -6,14 +6,13 @@
   "description": "纸质油画卡通主题：支持单按钮循环切换「浅色奶油米纸」、「深焙奶茶可可」与「复古报纸黑白」三套色调。",
   "plugin_type": "skin",
   "theme_css": "theme.css",
-
   "tokens_light": {
     "bg_root": "#F5EEDA",
     "surface_base": "#FCF8EC",
     "surface_card": "#FFFCF3",
     "surface_card_hover": "#FFF7E4",
     "surface_pill": "#EBDDC4",
-    "surface_elevated": "#3E342B",
+    "surface_elevated": "#FFFDF6",
     "surface_sunken": "#E8DEC6",
     "border_subtle": "#DECDB5",
     "border_medium": "#BAA78E",
@@ -40,7 +39,6 @@
     "radius_md": 12.0,
     "radius_lg": 15.0
   },
-
   "tokens_dark": {
     "bg_root": "#332B24",
     "surface_base": "#3E342B",
@@ -74,7 +72,6 @@
     "radius_md": 12.0,
     "radius_lg": 15.0
   },
-
   "tokens_mono": {
     "bg_root": "#1F1D1A",
     "surface_base": "#282522",

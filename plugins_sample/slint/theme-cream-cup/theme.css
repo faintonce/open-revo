@@ -12,8 +12,8 @@ html[data-skin],
   --surface-card: #FFFCF3;
   --surface-card-hover: #FFF7E4;
   --surface-pill: #EBDDC4;
-  --surface-elevated: #3E342B;
-  --surface-overlay: #3E342B;
+  --surface-elevated: #FFFDF6;
+  --surface-overlay: #FFFDF6;
   --surface-sunken: #E8DEC6;
 
   --border-subtle: #DECDB5;
@@ -58,6 +58,7 @@ html[data-theme=cyber],
   --surface-card-hover: #4D4237;
   --surface-pill: #4C3F35;
   --surface-elevated: #473C32;
+  --surface-overlay: #473C32;
   --surface-sunken: #241D17;
 
   --border-subtle: #5A4C3E;
@@ -101,6 +102,7 @@ html[data-theme=mono],
   --surface-card-hover: #3A3632;
   --surface-pill: #383430;
   --surface-elevated: #36322E;
+  --surface-overlay: #36322E;
   --surface-sunken: #141311;
 
   --border-subtle: #47423D;
