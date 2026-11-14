@@ -1266,6 +1266,11 @@ fn load_config_from_disk() -> AppConfig {
                 cfg.power_mode_ac = cfg.saved_power_mode_on_battery.filter(|v| (1..=4).contains(v))
                     .unwrap_or(if (1..=4).contains(&cfg.power_mode) { cfg.power_mode } else { 3 });
             }
+            // Self-healing: If user had active Custom mode (4), ensure AC target is strictly Custom (4)
+            // to prevent legacy defaults (mode 3) from pulling Custom back to Turbo on boot.
+            if cfg.power_mode == 4 && cfg.power_mode_ac != 4 {
+                cfg.power_mode_ac = 4;
+            }
             if cfg.power_mode_battery == 0 { cfg.power_mode_battery = if cfg.power_mode == 1 { 1 } else { 2 }; }
             let profiles = list_profiles();
             if let Some(active) = profiles.iter().find(|p| p.id == cfg.active_profile_id).or_else(|| profiles.first()) {

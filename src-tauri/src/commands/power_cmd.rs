@@ -183,13 +183,17 @@ pub fn is_thin_and_light_or_pure_igpu() -> bool {
         return true;
     }
 
-    // 2. Driver backend check
-    let hal = crate::hal::get_hardware_driver();
-    if hal.kind() != crate::hal::DriverKind::TongfangAcpi {
-        return true;
+    // 2. Declarative model manifest form factor check
+    if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
+        if manifest.identity.form_factor == "thin_light" || manifest.identity.form_factor == "ultrabook" {
+            return true;
+        }
+        if manifest.identity.form_factor == "gaming" {
+            return false;
+        }
     }
 
-    // 3. Physical discrete GPU presence check
+    // 3. Physical discrete GPU presence check: pure iGPU without dGPU is always treated as thin-and-light power topology
     if !check_dgpu_present() {
         return true;
     }
@@ -321,6 +325,9 @@ fn set_power_mode_internal_impl(
         cfg.power_mode_ac = mode;
     } else {
         cfg.power_mode_battery = mode;
+    }
+    if mode == 3 || mode == 4 {
+        cfg.power_mode_ac = mode;
     }
     crate::system::config::save_config(&cfg);
     crate::update_tray_power_mode(mode);

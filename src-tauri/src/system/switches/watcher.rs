@@ -443,6 +443,7 @@ pub fn start_hardware_state_watcher(
                     if !cfg.unlock_battery_power_limit && (cfg.power_mode == 3 || cfg.power_mode == 4) {
                         let target_mode = if cfg.power_mode_battery == 1 { 1 } else { 2 };
                         crate::log_info!("POWER_WATCHER", "Initial loop: on Battery/Type-C, safely adjusting mode {} -> {}", cfg.power_mode, target_mode);
+                        cfg.power_mode_ac = cfg.power_mode;
                         cfg.power_mode = target_mode;
                         crate::system::config::save_config(&cfg);
                         ec_bridge.lock().set_power_mode(target_mode);

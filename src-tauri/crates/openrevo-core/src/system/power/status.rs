@@ -149,15 +149,22 @@ pub fn check_dgpu_present() -> bool {
 
 /// Determines whether the machine is a thin-and-light laptop or pure iGPU laptop
 pub fn is_thin_and_light_or_pure_igpu() -> bool {
+    // 1. Unified ultrabook / thin-and-light platform probe check
     if crate::hal::platform_probe::is_ultrabook() {
         return true;
     }
 
-    let hal = crate::hal::get_hardware_driver();
-    if hal.kind() != crate::hal::DriverKind::TongfangAcpi {
-        return true;
+    // 2. Declarative model manifest form factor check
+    if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
+        if manifest.identity.form_factor == "thin_light" || manifest.identity.form_factor == "ultrabook" {
+            return true;
+        }
+        if manifest.identity.form_factor == "gaming" {
+            return false;
+        }
     }
 
+    // 3. Physical discrete GPU presence check: pure iGPU without dGPU is always treated as thin-and-light power topology
     if !check_dgpu_present() {
         return true;
     }

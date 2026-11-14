@@ -212,9 +212,9 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
         let is_thin_light = is_thin_and_light_or_pure_igpu();
 
         let effective_power_mode = if is_thin_light {
-            // 纯核显轻薄本：完全尊重用户记忆的 power_mode (1..=3)，不执行开机强制切狂暴/强制切平衡
+            // 纯核显轻薄本：完全尊重用户记忆的 power_mode (1..=4)，不执行开机强制切狂暴/强制切平衡
             let mode = match cfg.power_mode {
-                1..=3 => cfg.power_mode,
+                1..=4 => cfg.power_mode,
                 _ => 2, // 默认均衡
             };
             crate::log_info!("MAIN", "Thin & light laptop: restoring user configured power mode {}", mode);

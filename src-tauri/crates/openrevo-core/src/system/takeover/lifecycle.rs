@@ -193,12 +193,27 @@ pub fn resume_oem_services() -> Result<(), String> {
         let mut gcuservice_active = crate::system::process::is_process_running("gcuservice.exe").is_some();
         if !gcuservice_active && gcubridge_active {
             let gcu_wait_start = Instant::now();
-            while gcu_wait_start.elapsed().as_millis() < 6000 {
+            while gcu_wait_start.elapsed().as_millis() < 4000 {
                 if crate::system::process::is_process_running("gcuservice.exe").is_some() {
                     gcuservice_active = true;
                     break;
                 }
                 std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+        }
+
+        // Direct fallback: If GCUService was not spawned by GCUBridge, start it explicitly!
+        if !gcuservice_active {
+            let gcu_key = r"SYSTEM\CurrentControlSet\Services\GCUService";
+            if reg_key_exists(HKEY_LOCAL_MACHINE, gcu_key) {
+                let (sc_code, sc_out, sc_err) = run_cmd_captured("sc.exe", &["start", "GCUService"]);
+                crate::log_info!(
+                    "TAKEOVER",
+                    "Explicitly dispatched sc start GCUService: exit={:?}, out='{}', err='{}'",
+                    sc_code,
+                    sc_out,
+                    sc_err
+                );
             }
         }
 
