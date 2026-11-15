@@ -60,6 +60,8 @@ export component MainWindow inherits Window {
     in-out property <bool> sleep_auto_office: false;
     in-out property <bool> turbo_submode_supported: false;
     in-out property <bool> turbo_silent: false;
+    // 狂暴档右上角 GPU OC 胶囊的实时状态（core/mem 任一非零为开）
+    in-out property <bool> gpu_oc_on: false;
     in-out property <bool> has_fan_boost: true;
     in-out property <bool> is_bld_fan_lock: false;
     in-out property <int> bld_fan_rpm: 5800;
@@ -249,6 +251,8 @@ export component MainWindow inherits Window {
 
     // --- Callbacks to Rust host ---
     callback power_mode_clicked(int);
+    callback apply_turbo_silent(bool);
+    callback toggle_gpu_oc();
     callback gpu_mode_clicked(string, bool);
     callback refresh_rate_switched(int);
     callback auto_min_hz_toggled();
@@ -613,6 +617,7 @@ export component MainWindow inherits Window {
         is_thin_and_light: root.is_thin_and_light;
         turbo_submode_supported: root.turbo_submode_supported;
         turbo_silent: root.turbo_silent;
+        gpu_oc_on: root.gpu_oc_on;
         has_fan_boost: root.has_fan_boost;
 
         cpu_temp: root.cpu_temp;
@@ -631,6 +636,8 @@ export component MainWindow inherits Window {
         custom_status_text: root.custom_status_text;
 
         power_mode_clicked(m) => { root.power_mode_clicked(m); }
+        apply_turbo_silent(silent) => { root.apply_turbo_silent(silent); }
+        toggle_gpu_oc => { root.toggle_gpu_oc(); }
         gpu_mode_clicked(m, r) => { root.gpu_mode_clicked(m, r); }
         refresh_rate_switched(hz) => { root.refresh_rate_switched(hz); }
         auto_min_hz_toggled => { root.auto_min_hz_toggled(); }
@@ -789,6 +796,8 @@ export component MainWindow inherits Window {
         oc_mem_mhz <=> root.oc_mem_mhz;
         oc_save_hint: root.oc_save_hint;
         turbo_submode_supported: root.turbo_submode_supported;
+        turbo_silent: root.turbo_silent;
+        gpu_oc_on: root.gpu_oc_on;
 
         toggle_balanced_db(en) => { root.toggle_balanced_db(en); }
         change_oc_core(val) => { root.change_oc_core(val); }
@@ -810,6 +819,8 @@ export component MainWindow inherits Window {
         power_target_text: root.power_target_text;
         is_power_mode_restricted: root.is_power_mode_restricted;
         set_power_mode(m) => { root.power_mode_clicked(m); }
+        apply_turbo_silent(silent) => { root.apply_turbo_silent(silent); }
+        toggle_gpu_oc => { root.toggle_gpu_oc(); }
         open_custom_tuning => { root.open_custom_tuning(); }
 
         battery_percent: root.battery_percent;
