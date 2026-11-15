@@ -98,8 +98,16 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             Ok(Value::Bool(true))
         }
         "set_gpu_undervolt_curve" => {
-            let max_v = args.get("maxVoltageMv").or_else(|| args.get("max_voltage_mv")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-            let target_f = args.get("targetFreqMhz").or_else(|| args.get("target_freq_mhz")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let max_v = args.get("targetVoltMv")
+                .or_else(|| args.get("target_volt_mv"))
+                .or_else(|| args.get("maxVoltageMv"))
+                .or_else(|| args.get("max_voltage_mv"))
+                .and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let target_f = args.get("maxBoostMhz")
+                .or_else(|| args.get("max_boost_mhz"))
+                .or_else(|| args.get("targetFreqMhz"))
+                .or_else(|| args.get("target_freq_mhz"))
+                .and_then(|v| v.as_i64()).unwrap_or(0) as i32;
             crate::commands::tuning_cmd::set_gpu_undervolt_curve(max_v, target_f)?;
             Ok(Value::Bool(true))
         }

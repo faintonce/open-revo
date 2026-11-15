@@ -225,8 +225,26 @@
     },
     "actions": [
       {
-        "action": "set_battery_limit",
-        "limit": 80
+        "action": "call_command",
+        "command": "set_battery_limit",
+        "args": { "limit": 80 }
+      }
+    ]
+  },
+  {
+    "id": "gpu-undervolt-boot-guard",
+    "name": "微内核开机/重连显卡降压曲线自愈",
+    "enabled": true,
+    "cooldown_ms": 5000,
+    "condition": {
+      "type": "power_event",
+      "event": "ac_connected"
+    },
+    "actions": [
+      {
+        "action": "call_command",
+        "command": "set_gpu_undervolt_curve",
+        "args": { "targetVoltMv": 875, "maxBoostMhz": 2450 }
       }
     ]
   },
@@ -272,7 +290,8 @@
 #### `actions` 执行动作类型表
 | 动作 (`action`) | 参数 | 说明 |
 | :--- | :--- | :--- |
-| `"set_battery_limit"` | `limit: number` | **【硬件限充设置】**安全调整硬件电池充电阈值（`1 ~ 100`），调用微内核原生驱动完成协议对齐与门控锁定 |
+| `"call_command"` / `"invoke_command"` | `command: string`, `args?: object` | **【微内核通用 IPC 命令分发 (强烈推荐)】** 直接调用宿主全量 IPC 命令（如 `"set_battery_limit"`、`"set_gpu_undervolt_curve"`、`"set_gpu_clock_offsets"`、`"set_fan_boost"` 等），插件开发者 0 Rust 修改成本，前端调用什么命令这里就填什么，全自动开机静默调度 |
+| `"set_battery_limit"` | `limit: number` | **【硬件限充设置 (简写快捷动作)】**安全调整硬件电池充电阈值（`1 ~ 100`），调用微内核原生驱动完成协议对齐与门控锁定 |
 | `"set_power_mode"` | `mode: number` | **【性能模式切换】**`1`-办公, `2`-均衡, `3`-狂暴, `4`-极客自定义 |
 | `"set_fan_boost"` | `enable: boolean` | **【一键强冷】**切换强冷开启/关闭 |
 | `"raw_ec_write"` | `address: u16 \| string`, `value: u8 \| string` | **【EC 安全写入】**写入受微内核防爆盾（Blast Shield）受控保护的指定物理寄存器 |

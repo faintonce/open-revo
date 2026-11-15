@@ -247,6 +247,15 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "action")]
 pub enum WatcherAction {
+    /// Universal IPC/RPC command execution. Directly delegates to OpenRevo's plugin IPC router,
+    /// enabling any plugin to trigger any host capability without modifying host Rust code.
+    #[serde(rename = "call_command", alias = "invoke_command")]
+    CallCommand {
+        command: String,
+        #[serde(default)]
+        args: serde_json::Value,
+    },
+
     #[serde(rename = "set_power_mode")]
     SetPowerMode { mode: u8 },
 
@@ -706,11 +715,12 @@ pub fn dispatch_watcher_trigger(def: WatcherDefinition, condition_type: &'static
     if !def.actions.is_empty() {
         let actions = def.actions.clone();
         let watcher_name = def.name.clone();
+        let plugin_id = def.plugin_id.clone();
         std::thread::Builder::new()
             .name(format!("watcher-action-{}", def.id))
             .spawn(move || {
                 for act in actions {
-                    execute_single_action(&act, &watcher_name);
+                    execute_single_action(&act, &watcher_name, plugin_id.as_deref());
                 }
             })
             .ok();
@@ -721,8 +731,20 @@ fn detect_active_raw_protocol() -> crate::system::raw_gateway::RawEcProtocol {
     crate::system::raw_gateway::detect_auto_raw_protocol()
 }
 
-fn execute_single_action(act: &WatcherAction, watcher_name: &str) {
+fn execute_single_action(act: &WatcherAction, watcher_name: &str, plugin_id: Option<&str>) {
     match act {
+        WatcherAction::CallCommand { command, args } => {
+            let pid = plugin_id.unwrap_or("watcher_hub");
+            crate::log_info!("WATCHER_ACT", "[{}] Universal IPC Call: '{}' from plugin '{}' args={:?}", watcher_name, command, pid, args);
+            let cmd_str = command.clone();
+            let args_val = args.clone();
+            let pid_str = pid.to_string();
+            tauri::async_runtime::block_on(async move {
+                if let Err(e) = crate::system::native_wry::ipc::dispatch_plugin_ipc(&pid_str, &cmd_str, args_val).await {
+                    crate::log_warn!("WATCHER_ACT", "[{}] Universal IPC Call '{}' failed: {}", watcher_name, cmd_str, e);
+                }
+            });
+        }
         WatcherAction::SetPowerMode { mode } => {
             crate::log_info!("WATCHER_ACT", "[{}] Setting power mode to {}", watcher_name, mode);
             crate::system::power_mode::apply_full_power_mode(*mode);

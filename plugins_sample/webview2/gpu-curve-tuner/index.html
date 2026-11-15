@@ -409,7 +409,67 @@
       outline: none;
       width: 90px;
     }
-  </style>
+  
+    /* Manual Dragging & Canvas Toolbar */
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .canvas-readout {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.08);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 3px 8px;
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    .canvas-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .canvas-micro-btn {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .canvas-micro-btn:hover:not(:disabled) {
+      background: var(--surface-card-hover);
+      color: var(--text-primary);
+      border-color: var(--border-medium);
+    }
+    .canvas-micro-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #vfCanvas {
+      width: 100%;
+      height: 230px;
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    #vfCanvas.dragging {
+      cursor: ns-resize;
+    }
+
+    </style>
 </head>
 
 <body>
@@ -541,8 +601,19 @@
         </button>
       </div>
 
-      <!-- V/F Curve Visualizer -->
+      <!-- V/F Curve Visualizer & Interactive Tuner -->
       <div class="curve-canvas-wrap">
+        <div class="canvas-toolbar">
+          <div class="canvas-readout" id="readout">
+            <span>🖱️ 拖拽锚点可微调 | 按住 Shift 拖动向右水平削平锁频 | 双击锚点归零</span>
+          </div>
+          <div class="canvas-btn-group">
+            <button class="canvas-micro-btn" id="btnUndo" onclick="undoEdit()" title="撤销上次曲线改动 (快捷键 Ctrl+Z)" disabled>↶ 撤销</button>
+            <button class="canvas-micro-btn" onclick="reloadCurveFromHardware()" title="从显卡驱动重新读回当前实际生效曲线">⟳ 读回显卡</button>
+            <button class="canvas-micro-btn" onclick="saveManualSnapshot()" title="将当前曲线方案独立暂存">💾 保存快照</button>
+            <button class="canvas-micro-btn" id="btnLoadSnapshot" onclick="loadManualSnapshot()" title="从暂存快照读回" disabled>📂 载入快照</button>
+          </div>
+        </div>
         <canvas id="vfCanvas"></canvas>
         <div class="canvas-legend">
           <div class="legend-item">
@@ -551,7 +622,15 @@
           </div>
           <div class="legend-item">
             <span class="legend-color" style="background: #06b6d4;"></span>
-            <span>当前生效 V/F 曲线 (平移降压)</span>
+            <span>规划/生效 V/F 曲线</span>
+          </div>
+          <div class="legend-item" id="legendDriverPreview" style="display: none;">
+            <span class="legend-color" style="background: rgba(251, 146, 60, 0.9); border-bottom: 2px dashed rgba(251, 146, 60, 0.9); height: 0;"></span>
+            <span>驱动单调性实际生效线</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background: #10b981; border-radius: 50%; width: 6px; height: 6px;"></span>
+            <span>锁压/目标锚点</span>
           </div>
         </div>
       </div>
@@ -577,6 +656,9 @@
   <script>
     const PLUGIN_ID = 'gpu-curve-tuner';
     const LOCAL_STORAGE_KEY = 'openrevo_plugin_gpu_curve_tuner_cfg';
+    const DELTA_MIN = -500;
+    const DELTA_MAX = 300; // 与底层 nvapi.rs 严格对齐 (-500 ~ +300 MHz)
+    const HIT_PX = 14;     // 判定半径 (像素)
 
     // --- State Storage ---
     const STATE = {
@@ -590,7 +672,10 @@
       targetVolt: 875,
       targetFreq: 2450,
       activeMode: '出厂默认',
-      hostPowerMode: null
+      hostPowerMode: null,
+      undoStack: [],
+      savedSnapshot: null,
+      hoverIndex: -1
     };
 
     // --- Unified RPC Invoker ---
@@ -614,6 +699,70 @@
       box.scrollTop = box.scrollHeight;
     }
 
+    // --- WatcherHub Background Guard Synchronization ---
+    async function syncWatcherToHost() {
+      try {
+        if (!STATE.isAvailable) return;
+
+        const actions = [];
+        if (STATE.memOffset !== 0 || STATE.coreOffset !== 0) {
+          actions.push({
+            action: 'call_command',
+            command: 'set_gpu_clock_offsets',
+            args: {
+              coreOffsetMhz: STATE.coreOffset,
+              memOffsetMhz: STATE.memOffset
+            }
+          });
+        }
+
+        if (STATE.plannedDeltas && STATE.plannedDeltas.length >= 16) {
+          actions.push({
+            action: 'call_command',
+            command: 'set_gpu_vf_curve_deltas',
+            args: {
+              deltasMhz: STATE.plannedDeltas
+            }
+          });
+        } else if (STATE.targetVolt && STATE.targetFreq) {
+          actions.push({
+            action: 'call_command',
+            command: 'set_gpu_undervolt_curve',
+            args: {
+              targetVoltMv: STATE.targetVolt,
+              maxBoostMhz: STATE.targetFreq
+            }
+          });
+        }
+
+        if (actions.length === 0) return;
+
+        const watcherDef = {
+          id: 'gpu-undervolt-guard',
+          name: '微内核显卡降压超频自愈守护',
+          plugin_id: PLUGIN_ID,
+          enabled: true,
+          cooldown_ms: 5000,
+          condition: {
+            type: 'power_event',
+            event: 'ac_connected'
+          },
+          actions: actions
+        };
+
+        if (window.OpenRevo && typeof window.OpenRevo.registerWatcher === 'function') {
+          await window.OpenRevo.registerWatcher(watcherDef);
+        } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.registerWatcher === 'function') {
+          await window.parent.__OPENREVO_BRIDGE__.registerWatcher(watcherDef);
+        } else {
+          await rpc('register_custom_watcher', { watcher: watcherDef });
+        }
+        document.getElementById('statStorageHint').textContent = '已保存并同步至微内核看门狗 (开机自启生效)';
+      } catch (err) {
+        console.warn('[WatcherSync] 同步 Watcher 到宿主事件中心失败:', err);
+      }
+    }
+
     // --- Plugin Storage Persistence Engine ---
     async function loadPluginStorage() {
       try {
@@ -635,12 +784,21 @@
           if (typeof stored.target_volt === 'number') STATE.targetVolt = stored.target_volt;
           if (typeof stored.target_freq === 'number') STATE.targetFreq = stored.target_freq;
           if (typeof stored.active_mode === 'string') STATE.activeMode = stored.active_mode;
-          if (Array.isArray(stored.planned_deltas)) STATE.plannedDeltas = stored.planned_deltas;
+          
+          const rawDeltas = Array.isArray(stored.planned_deltas) ? stored.planned_deltas : (Array.isArray(stored.deltas) ? stored.deltas : null);
+          if (rawDeltas) STATE.plannedDeltas = rawDeltas.slice();
+
+          if (stored.saved_snapshot && Array.isArray(stored.saved_snapshot.deltas)) {
+            STATE.savedSnapshot = stored.saved_snapshot;
+          } else if (stored.saved_curve && Array.isArray(stored.saved_curve.deltas)) {
+            STATE.savedSnapshot = stored.saved_curve;
+          }
 
           document.getElementById('inputTargetVolt').value = STATE.targetVolt;
           document.getElementById('inputTargetFreq').value = STATE.targetFreq;
           document.getElementById('statModeText').textContent = STATE.activeMode;
           document.getElementById('statStorageHint').textContent = '已恢复 plugin_storage 方案';
+          refreshSnapshotButton();
 
           log(`[*] 成功从 plugin_storage 恢复持久化方案: ${STATE.activeMode} (${STATE.targetVolt}mV @ ${STATE.targetFreq}MHz)`);
         }
@@ -651,12 +809,15 @@
 
     async function savePluginStorage() {
       const config = {
+        schema: 2,
         target_volt: STATE.targetVolt,
         target_freq: STATE.targetFreq,
         core_offset: STATE.coreOffset,
         mem_offset: STATE.memOffset,
         active_mode: STATE.activeMode,
         planned_deltas: STATE.plannedDeltas,
+        deltas: STATE.plannedDeltas,
+        saved_snapshot: STATE.savedSnapshot,
         updated_at: new Date().toISOString()
       };
 
@@ -667,16 +828,16 @@
       try {
         if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.set === 'function') {
           await window.OpenRevo.storage.set(config);
-          document.getElementById('statStorageHint').textContent = '已保存至 plugin_storage';
+          await syncWatcherToHost();
           return;
         }
         if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
           await window.parent.__OPENREVO_BRIDGE__.storage.set(config);
-          document.getElementById('statStorageHint').textContent = '已保存至 plugin_storage';
+          await syncWatcherToHost();
           return;
         }
         await rpc('set_plugin_storage', { pluginId: PLUGIN_ID, data: config });
-        document.getElementById('statStorageHint').textContent = '已保存至 plugin_storage';
+        await syncWatcherToHost();
       } catch (e) {
         console.warn('[Storage] Save failed:', e);
       }
@@ -698,6 +859,11 @@
         STATE.coreOffset = info.core_offset_mhz || 0;
         STATE.memOffset = info.mem_offset_mhz || 0;
         STATE.vfPoints = info.vf_points || [];
+
+        // If no planned curve, synchronize from current physical curve
+        if (!STATE.plannedDeltas && STATE.vfPoints.length > 0) {
+          STATE.plannedDeltas = STATE.vfPoints.map(p => p.delta_mhz || 0);
+        }
 
         document.getElementById('gpuTitle').textContent = STATE.gpuName;
         document.getElementById('statCoreOffset').textContent = (STATE.coreOffset >= 0 ? '+' : '') + STATE.coreOffset + ' MHz';
@@ -735,16 +901,27 @@
       document.getElementById('statMemOffset').textContent = (STATE.memOffset >= 0 ? '+' : '') + STATE.memOffset + ' MHz';
     }
 
-    // --- Undervolt Calculation & Curve Visualization ---
+    // --- Automatic Undervolt Calculation (Stock-Baseline Idempotent Algorithm) ---
     function applyPreset(volt, freq, label) {
       document.getElementById('inputTargetVolt').value = volt;
       document.getElementById('inputTargetFreq').value = freq;
+      
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+      if (window.event && window.event.currentTarget) {
+        window.event.currentTarget.classList.add('active');
+      }
+
       calculatePlannedCurve(volt, freq, label);
     }
 
     function applyCustomUndervoltInputs() {
       const v = parseInt(document.getElementById('inputTargetVolt').value, 10);
       const f = parseInt(document.getElementById('inputTargetFreq').value, 10);
+      if (isNaN(v) || isNaN(f)) {
+        log('[-] 请输入合法的目标电压与目标频率');
+        return;
+      }
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
       calculatePlannedCurve(v, f, `自定义 (${v}mV @ ${f}MHz)`);
     }
 
@@ -759,7 +936,9 @@
         return;
       }
 
-      // Find target anchor
+      pushUndo();
+
+      // Find target anchor closest to target voltage
       let targetIdx = 0;
       let minDiff = 999999;
       for (let i = 0; i < STATE.vfPoints.length; i++) {
@@ -771,6 +950,7 @@
       }
 
       const currentPoints = STATE.vfPoints;
+      // Stock baseline = freq_mhz - delta_mhz
       const stockFreqAtTarget = currentPoints[targetIdx].freq_mhz - currentPoints[targetIdx].delta_mhz;
       const baseBoost = Math.max(-300, Math.min(250, targetFreq - stockFreqAtTarget));
 
@@ -778,42 +958,362 @@
       for (let i = 1; i < currentPoints.length; i++) {
         const stockFreq = currentPoints[i].freq_mhz - currentPoints[i].delta_mhz;
         if (i <= targetIdx) {
+          // Low-voltage ascending region: elevate by baseBoost
           newDeltas[i] = baseBoost;
         } else {
+          // Flattened undervolt region: clamp flat to targetFreq
           const deltaToFlat = targetFreq - stockFreq;
-          newDeltas[i] = Math.max(-500, Math.min(baseBoost, deltaToFlat));
+          newDeltas[i] = Math.max(DELTA_MIN, Math.min(baseBoost, deltaToFlat));
         }
       }
 
-      // Monotonic sanity check
+      // Monotonic sanity check (guard against steep drops)
       let prevFreq = currentPoints[0].freq_mhz;
       for (let i = 1; i < currentPoints.length; i++) {
         const stockFreq = currentPoints[i].freq_mhz - currentPoints[i].delta_mhz;
         const effFreq = stockFreq + newDeltas[i];
         if (effFreq < prevFreq - 25) {
-          newDeltas[i] = Math.max(-500, Math.min(300, prevFreq - stockFreq));
+          newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, prevFreq - stockFreq));
         }
         prevFreq = stockFreq + newDeltas[i];
       }
 
       STATE.plannedDeltas = newDeltas;
-      log(`[✓] 已计算曲线方案 [${label}]: 低压段抬升 +${baseBoost}MHz, 超出 ${targetVolt}mV 后强制削平锁频至 ${targetFreq}MHz.`);
+      log(`[✓] 已计算曲线方案 [${label}]: 低压段抬升 ${baseBoost >= 0 ? '+' : ''}${baseBoost}MHz, 超出 ${targetVolt}mV 后强制削平锁频至 ${targetFreq}MHz.`);
       drawCurve();
+    }
+
+    // --- Math & Frequency Helpers ---
+    function getStockFreq(idx) {
+      if (!STATE.vfPoints || !STATE.vfPoints[idx]) return 0;
+      const p = STATE.vfPoints[idx];
+      return p.freq_mhz - (p.delta_mhz || 0);
+    }
+
+    function getEffFreq(idx) {
+      const stock = getStockFreq(idx);
+      const delta = (STATE.plannedDeltas && typeof STATE.plannedDeltas[idx] === 'number') 
+        ? STATE.plannedDeltas[idx] 
+        : (STATE.vfPoints[idx] ? (STATE.vfPoints[idx].delta_mhz || 0) : 0);
+      return stock + delta;
+    }
+
+    function deltaFor(idx, wantFreq) {
+      const stock = getStockFreq(idx);
+      const d = Math.round(wantFreq - stock);
+      return Math.max(DELTA_MIN, Math.min(DELTA_MAX, d));
+    }
+
+    function ensurePlannedDeltas() {
+      if (!STATE.plannedDeltas || STATE.plannedDeltas.length !== STATE.vfPoints.length) {
+        STATE.plannedDeltas = STATE.vfPoints.map(p => p.delta_mhz || 0);
+      }
+    }
+
+    // --- Undo Stack ---
+    function pushUndo() {
+      ensurePlannedDeltas();
+      STATE.undoStack.push(STATE.plannedDeltas.slice());
+      if (STATE.undoStack.length > 40) STATE.undoStack.shift();
+      document.getElementById('btnUndo').disabled = false;
+    }
+
+    function undoEdit() {
+      if (!STATE.undoStack || STATE.undoStack.length === 0) {
+        log('[!] 没有可撤销的历史步骤');
+        return;
+      }
+      const prev = STATE.undoStack.pop();
+      STATE.plannedDeltas = prev;
+      if (STATE.undoStack.length === 0) {
+        document.getElementById('btnUndo').disabled = true;
+      }
+      log('[↶] 已撤销上一步曲线修改');
+      readout(STATE.hoverIndex);
+      drawCurve();
+    }
+
+    // --- Manual Dragging Architecture ---
+    const drag = {
+      active: false,
+      index: -1,
+      shift: false,
+      moved: false,
+      startY: 0,
+      startFreq: 0,
+      snapshot: null
+    };
+
+    function getCanvasGeom() {
+      const canvas = document.getElementById('vfCanvas');
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width || 1;
+      const h = rect.height || 1;
+      const padL = 45, padR = 20, padT = 20, padB = 30;
+      const plotW = Math.max(10, w - padL - padR);
+      const plotH = Math.max(10, h - padT - padB);
+
+      // Voltage Range
+      const minV = 650;
+      const maxV = 1150;
+
+      // Frequency Range (adapt dynamically to visible window)
+      let fMin = Infinity, fMax = -Infinity;
+      if (STATE.vfPoints && STATE.vfPoints.length > 0) {
+        for (let i = 0; i < STATE.vfPoints.length; i++) {
+          const v = STATE.vfPoints[i].volt_mv;
+          if (v < minV || v > maxV) continue;
+          const sF = getStockFreq(i);
+          const eF = getEffFreq(i);
+          fMin = Math.min(fMin, sF, eF);
+          fMax = Math.max(fMax, sF, eF);
+        }
+      }
+      if (!isFinite(fMin) || fMax - fMin < 100) { fMin = 1600; fMax = 3000; }
+      const margin = Math.max(60, (fMax - fMin) * 0.12);
+      let yMin = Math.floor((fMin - margin) / 50) * 50;
+      let yMax = Math.ceil((fMax + margin) / 50) * 50;
+      yMax = Math.min(3200, Math.max(2600, yMax));
+      if (yMin > yMax - 400) yMin = yMax - 400;
+
+      const toX = (volt) => padL + ((volt - minV) / (maxV - minV)) * plotW;
+      const toY = (freq) => h - padB - ((freq - yMin) / (yMax - yMin)) * plotH;
+      const yToF = (y) => yMin + ((h - padB - y) / plotH) * (yMax - yMin);
+
+      return { canvas, w, h, padL, padR, padT, padB, plotW, plotH, minV, maxV, yMin, yMax, toX, toY, yToF };
+    }
+
+    function nearest(xPx, yPx) {
+      const g = getCanvasGeom();
+      if (!g || !STATE.vfPoints || STATE.vfPoints.length < 2) return -1;
+      let best = -1, bestDist = Infinity;
+      for (let i = 1; i < STATE.vfPoints.length; i++) {
+        const v = STATE.vfPoints[i].volt_mv;
+        if (v < g.minV || v > g.maxV) continue;
+        const ax = g.toX(v);
+        const ay = g.toY(getEffFreq(i));
+        const dx = Math.abs(ax - xPx);
+        const dy = Math.abs(ay - yPx);
+        const dist = Math.hypot(dx, dy);
+        // Euclidean proximity or strict column proximity
+        if (dist <= HIT_PX * 1.5 || (dx <= HIT_PX && dy <= 45)) {
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = i;
+          }
+        }
+      }
+      return best;
+    }
+
+    function readout(idx) {
+      const el = document.getElementById('readout');
+      if (idx < 1 || !STATE.vfPoints || idx >= STATE.vfPoints.length) {
+        el.innerHTML = `<span>🖱️ 拖拽锚点可微调 | 按住 Shift 拖动向右水平削平锁频 | 双击锚点归零</span>`;
+        return;
+      }
+      const p = STATE.vfPoints[idx];
+      const effF = Math.round(getEffFreq(idx));
+      const delta = (STATE.plannedDeltas ? STATE.plannedDeltas[idx] : p.delta_mhz) || 0;
+      const deltaStr = (delta >= 0 ? '+' : '') + delta + ' MHz';
+      el.innerHTML = `<span><b>锚点 #${idx}</b> · <b>${p.volt_mv} mV</b> · <b>${effF} MHz</b> (${deltaStr})${drag.active && drag.shift ? ' · <span style="color:#10b981;">Shift水平削平中</span>' : ''}</span>`;
+    }
+
+    // --- Interactive Drag Handlers ---
+    function setSinglePoint(idx, wantFreq) {
+      STATE.plannedDeltas[idx] = deltaFor(idx, wantFreq);
+    }
+
+    function setFollowFlatten(idx, wantFreq) {
+      const newD = deltaFor(idx, wantFreq);
+      STATE.plannedDeltas[idx] = newD;
+      const pinnedFreq = getStockFreq(idx) + newD;
+      // Flatten all points to the right to the exact same frequency
+      for (let i = idx + 1; i < STATE.plannedDeltas.length; i++) {
+        STATE.plannedDeltas[i] = deltaFor(i, pinnedFreq);
+      }
+    }
+
+    function onPointerDown(ev) {
+      if (!STATE.vfPoints || STATE.vfPoints.length < 16) return;
+      const g = getCanvasGeom();
+      if (!g) return;
+      const rect = g.canvas.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      const y = ev.clientY - rect.top;
+
+      const idx = nearest(x, y);
+      if (idx < 1) return;
+
+      ensurePlannedDeltas();
+      pushUndo();
+
+      drag.active = true;
+      drag.index = idx;
+      drag.shift = ev.shiftKey || ev.altKey;
+      drag.moved = false;
+      drag.startY = y;
+      drag.startFreq = getEffFreq(idx);
+      drag.snapshot = STATE.plannedDeltas.slice();
+
+      g.canvas.classList.add('dragging');
+      try { g.canvas.setPointerCapture(ev.pointerId); } catch (_) {}
+
+      readout(idx);
+      drawCurve();
+      ev.preventDefault();
+    }
+
+    function onPointerMove(ev) {
+      if (!STATE.vfPoints || STATE.vfPoints.length === 0) return;
+      const g = getCanvasGeom();
+      if (!g) return;
+      const rect = g.canvas.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      const y = ev.clientY - rect.top;
+
+      if (!drag.active) {
+        const idx = nearest(x, y);
+        if (idx !== STATE.hoverIndex) {
+          STATE.hoverIndex = idx;
+          readout(idx);
+          drawCurve();
+        }
+        return;
+      }
+
+      // Restore snapshot from drag start to calculate relative offset cleanly
+      STATE.plannedDeltas = drag.snapshot.slice();
+      const dy = y - drag.startY; // Downward is positive (lower frequency)
+      const mhzPerPx = Math.min((g.yMax - g.yMin) / g.plotH, 8);
+      const targetFreq = drag.startFreq - dy * mhzPerPx;
+
+      if (drag.shift) {
+        setFollowFlatten(drag.index, targetFreq);
+      } else {
+        setSinglePoint(drag.index, targetFreq);
+      }
+
+      drag.moved = true;
+      readout(drag.index);
+      drawCurve();
+    }
+
+    function onPointerUp(ev) {
+      if (!drag.active) return;
+      const idx = drag.index;
+      drag.active = false;
+      const g = getCanvasGeom();
+      if (g && g.canvas) g.canvas.classList.remove('dragging');
+
+      if (drag.moved && idx >= 1) {
+        STATE.activeMode = '手动微调方案';
+        document.getElementById('statModeText').textContent = STATE.activeMode;
+        const p = STATE.vfPoints[idx];
+        const effF = Math.round(getEffFreq(idx));
+        const modeDesc = drag.shift ? 'Shift 右侧水平削平锁频' : '单点微调';
+        log(`[✎] ${modeDesc}: 锚点 #${idx} (${p.volt_mv}mV) 调整为 ${effF}MHz (点击「一键写入」下发生效)`);
+        savePluginStorage();
+      } else {
+        // Did not actually move, pop redundant undo snapshot
+        STATE.undoStack.pop();
+        if (STATE.undoStack.length === 0) {
+          document.getElementById('btnUndo').disabled = true;
+        }
+      }
+
+      drag.index = -1;
+      drag.snapshot = null;
+      readout(STATE.hoverIndex);
+      drawCurve();
+    }
+
+    function onDblClick(ev) {
+      const g = getCanvasGeom();
+      if (!g) return;
+      const rect = g.canvas.getBoundingClientRect();
+      const idx = nearest(ev.clientX - rect.left, ev.clientY - rect.top);
+      if (idx < 1) return;
+
+      ensurePlannedDeltas();
+      pushUndo();
+      STATE.plannedDeltas[idx] = 0;
+      STATE.activeMode = '手动微调方案';
+      document.getElementById('statModeText').textContent = STATE.activeMode;
+      readout(idx);
+      drawCurve();
+      log(`[⟲] 锚点 #${idx} (${STATE.vfPoints[idx].volt_mv}mV) 偏移已归零`);
+      savePluginStorage();
+    }
+
+    // --- Manual Snapshot Archive & Hardware Reload ---
+    function refreshSnapshotButton() {
+      const btn = document.getElementById('btnLoadSnapshot');
+      const hasSnap = STATE.savedSnapshot && Array.isArray(STATE.savedSnapshot.deltas);
+      btn.disabled = !hasSnap;
+    }
+
+    function saveManualSnapshot() {
+      if (!STATE.vfPoints || STATE.vfPoints.length < 16) {
+        log('[!] 硬件曲线未就绪，无法暂存快照');
+        return;
+      }
+      ensurePlannedDeltas();
+      STATE.savedSnapshot = {
+        deltas: STATE.plannedDeltas.slice(),
+        target_volt: STATE.targetVolt,
+        target_freq: STATE.targetFreq,
+        saved_at: new Date().toISOString()
+      };
+      savePluginStorage();
+      refreshSnapshotButton();
+      log(`[💾] 已将当前 ${STATE.plannedDeltas.length} 锚点曲线存入本地独立快照！`);
+    }
+
+    function loadManualSnapshot() {
+      if (!STATE.savedSnapshot || !Array.isArray(STATE.savedSnapshot.deltas)) {
+        log('[!] 暂无保存过的手动曲线快照');
+        return;
+      }
+      if (STATE.savedSnapshot.deltas.length !== STATE.vfPoints.length) {
+        log(`[!] 快照点数 (${STATE.savedSnapshot.deltas.length}) 与硬件点数 (${STATE.vfPoints.length}) 不符，无法载入`);
+        return;
+      }
+      pushUndo();
+      STATE.plannedDeltas = STATE.savedSnapshot.deltas.slice();
+      if (typeof STATE.savedSnapshot.target_volt === 'number') STATE.targetVolt = STATE.savedSnapshot.target_volt;
+      if (typeof STATE.savedSnapshot.target_freq === 'number') STATE.targetFreq = STATE.savedSnapshot.target_freq;
+      document.getElementById('inputTargetVolt').value = STATE.targetVolt;
+      document.getElementById('inputTargetFreq').value = STATE.targetFreq;
+      STATE.activeMode = '快照方案';
+      document.getElementById('statModeText').textContent = STATE.activeMode;
+      drawCurve();
+      log('[📂] 已成功从独立快照载入曲线方案！');
+    }
+
+    async function reloadCurveFromHardware() {
+      await refreshHardwareInfo();
+      if (STATE.vfPoints && STATE.vfPoints.length > 0) {
+        pushUndo();
+        STATE.plannedDeltas = STATE.vfPoints.map(p => p.delta_mhz || 0);
+        STATE.activeMode = '硬件实时曲线';
+        document.getElementById('statModeText').textContent = STATE.activeMode;
+        drawCurve();
+        log('[⟳] 已从物理显卡读取当前硬件生效的 V/F 曲线');
+      }
     }
 
     // --- Drawing the V/F Curve on Canvas ---
     function drawCurve() {
-      const canvas = document.getElementById('vfCanvas');
-      if (!canvas) return;
+      const g = getCanvasGeom();
+      if (!g) return;
+      const { canvas, w, h, padL, padR, padT, padB, minV, maxV, yMin, yMax, toX, toY } = g;
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-
-      const w = rect.width;
-      const h = rect.height;
+      canvas.width = Math.max(1, Math.round(w * dpr));
+      canvas.height = Math.max(1, Math.round(h * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
       if (!STATE.vfPoints || STATE.vfPoints.length === 0) {
@@ -825,73 +1325,59 @@
       }
 
       const points = STATE.vfPoints;
-      const minV = 450;
-      const maxV = 1150;
-      const minF = 200;
-      const maxF = 2800;
 
-      const paddingLeft = 45;
-      const paddingRight = 20;
-      const paddingTop = 20;
-      const paddingBottom = 30;
-
-      const plotW = w - paddingLeft - paddingRight;
-      const plotH = h - paddingTop - paddingBottom;
-
-      function toX(volt) {
-        return paddingLeft + ((volt - minV) / (maxV - minV)) * plotW;
-      }
-      function toY(freq) {
-        return h - paddingBottom - ((freq - minF) / (maxF - minF)) * plotH;
-      }
-
-      // Draw Grid Lines
+      // 1. Draw Grid Lines
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
       ctx.lineWidth = 1;
       ctx.fillStyle = '#64748b';
       ctx.font = '10px monospace';
       ctx.textAlign = 'right';
 
-      // Horizontal freq ticks
-      for (let f = 500; f <= 2500; f += 500) {
+      const fStep = (yMax - yMin) > 2000 ? 500 : 200;
+      for (let f = Math.ceil(yMin / fStep) * fStep; f <= yMax; f += fStep) {
         const y = toY(f);
         ctx.beginPath();
-        ctx.moveTo(paddingLeft, y);
-        ctx.lineTo(w - paddingRight, y);
+        ctx.moveTo(padL, y);
+        ctx.lineTo(w - padR, y);
         ctx.stroke();
-        ctx.fillText(f + 'M', paddingLeft - 6, y + 3);
+        ctx.fillText(f + 'M', padL - 6, y + 3);
       }
 
-      // Vertical volt ticks
       ctx.textAlign = 'center';
-      for (let v = 600; v <= 1100; v += 100) {
+      for (let v = Math.ceil(minV / 100) * 100; v <= maxV; v += 100) {
         const x = toX(v);
         ctx.beginPath();
-        ctx.moveTo(x, paddingTop);
-        ctx.lineTo(x, h - paddingBottom);
+        ctx.moveTo(x, padT);
+        ctx.lineTo(x, h - padB);
         ctx.stroke();
         ctx.fillText(v + 'mV', x, h - 12);
       }
 
-      // 1. Draw Stock Curve (Dashed line)
+      // Clip drawing area to avoid lines drawing over axis labels
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(padL, padT, w - padL - padR, h - padT - padB);
+      ctx.clip();
+
+      // 2. Draw Stock Curve (White Dashed line)
       ctx.beginPath();
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
       let started = false;
       for (let i = 0; i < points.length; i++) {
-        const p = points[i];
-        if (p.volt_mv < minV || p.volt_mv > maxV) continue;
-        const stockF = p.freq_mhz - p.delta_mhz;
-        const x = toX(p.volt_mv);
-        const y = toY(stockF);
+        const v = points[i].volt_mv;
+        if (v < minV || v > maxV) continue;
+        const sF = getStockFreq(i);
+        const x = toX(v);
+        const y = toY(sF);
         if (!started) { ctx.moveTo(x, y); started = true; }
         else { ctx.lineTo(x, y); }
       }
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 2. Draw Active / Planned Undervolt Curve (Cyan Solid Line with Glow)
+      // 3. Draw Active / Planned Undervolt Curve (Cyan Solid Line with Glow)
       ctx.beginPath();
       ctx.strokeStyle = '#06b6d4';
       ctx.lineWidth = 2.5;
@@ -900,65 +1386,129 @@
       started = false;
 
       for (let i = 0; i < points.length; i++) {
-        const p = points[i];
-        if (p.volt_mv < minV || p.volt_mv > maxV) continue;
-        const stockF = p.freq_mhz - p.delta_mhz;
-        const delta = STATE.plannedDeltas ? STATE.plannedDeltas[i] : p.delta_mhz;
-        const effF = stockF + delta;
-        const x = toX(p.volt_mv);
-        const y = toY(effF);
+        const v = points[i].volt_mv;
+        if (v < minV || v > maxV) continue;
+        const eF = getEffFreq(i);
+        const x = toX(v);
+        const y = toY(eF);
         if (!started) { ctx.moveTo(x, y); started = true; }
         else { ctx.lineTo(x, y); }
       }
       ctx.stroke();
-      ctx.shadowBlur = 0; // reset shadow
+      ctx.shadowBlur = 0;
 
-      // 3. Highlight Target Anchor Point
-      if (STATE.targetVolt) {
+      // 4. Driver Running-Max Monotonicity Preview (Orange Dashed Line)
+      let runMax = -Infinity, hasLifted = false;
+      const drv = new Array(points.length);
+      for (let i = 0; i < points.length; i++) {
+        const eF = getEffFreq(i);
+        runMax = (i === 0) ? eF : Math.max(runMax, eF);
+        drv[i] = runMax;
+        if (runMax > eF + 2) hasLifted = true;
+      }
+
+      const legendPreviewEl = document.getElementById('legendDriverPreview');
+      if (hasLifted) {
+        if (legendPreviewEl) legendPreviewEl.style.display = 'flex';
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(251, 146, 60, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        started = false;
+        for (let i = 0; i < points.length; i++) {
+          const v = points[i].volt_mv;
+          if (v < minV || v > maxV) continue;
+          const x = toX(v);
+          const y = toY(drv[i]);
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else { ctx.lineTo(x, y); }
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        if (legendPreviewEl) legendPreviewEl.style.display = 'none';
+      }
+
+      ctx.restore();
+
+      // 5. Draw Interactive Anchor Point Handles
+      const hot = drag.active ? drag.index : STATE.hoverIndex;
+      for (let i = 1; i < points.length; i++) {
+        const v = points[i].volt_mv;
+        if (v < minV || v > maxV) continue;
+        const x = toX(v);
+        const y = toY(getEffFreq(i));
+        const isHot = (i === hot);
+
+        ctx.beginPath();
+        ctx.arc(x, y, isHot ? 5 : 2, 0, Math.PI * 2);
+        ctx.fillStyle = isHot ? '#10b981' : 'rgba(6, 182, 212, 0.65)';
+        ctx.fill();
+
+        if (isHot) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Horizontal alignment guide
+          ctx.beginPath();
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.moveTo(padL, y);
+          ctx.lineTo(w - padR, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // 6. Highlight Target Anchor Point Indicator
+      if (STATE.targetVolt && STATE.targetFreq) {
         const targetX = toX(STATE.targetVolt);
         const targetY = toY(STATE.targetFreq);
-        ctx.fillStyle = '#10b981';
-        ctx.beginPath();
-        ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        if (targetX >= padL && targetX <= w - padR) {
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath();
+          ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
 
-        ctx.fillStyle = '#10b981';
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(`[${STATE.targetVolt}mV, ${STATE.targetFreq}MHz]`, targetX, targetY - 10);
+          ctx.fillStyle = '#10b981';
+          ctx.font = 'bold 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`[${STATE.targetVolt}mV, ${STATE.targetFreq}MHz]`, targetX, targetY - 10);
+        }
       }
     }
 
-    // --- Hardware Actions ---
+    // --- Hardware Application Handlers ---
     async function applyClockOffsetsOnly() {
       try {
-        log(`正在应用频率偏移: 核心 ${STATE.coreOffset} MHz, 显存 ${STATE.memOffset} MHz...`);
+        log(`正在应用基础时钟偏移: Core ${STATE.coreOffset >= 0 ? '+' : ''}${STATE.coreOffset} MHz, Mem ${STATE.memOffset >= 0 ? '+' : ''}${STATE.memOffset} MHz...`);
         await rpc('set_gpu_clock_offsets', {
           coreOffsetMhz: STATE.coreOffset,
           memOffsetMhz: STATE.memOffset
         });
-        log('[✓] 核心/显存频率偏移已成功应用生效！');
+        log('[✓] 基础频率偏移已成功写入物理显卡生效！');
         await savePluginStorage();
         refreshHardwareInfo();
       } catch (err) {
-        log(`[-] 应用频率偏移失败: ${err.message || err}`);
+        log(`[-] 写入时钟偏移失败: ${err.message || err}`);
       }
     }
 
     async function applyFullUndervoltToHardware() {
       try {
-        // 1. Apply memory offset first
-        if (STATE.memOffset !== 0) {
-          log(`正在同步显存频率加成 +${STATE.memOffset} MHz...`);
+        if (STATE.memOffset !== 0 || STATE.coreOffset !== 0) {
+          log(`正在向显卡写入基础频率偏移 (Core: ${STATE.coreOffset >= 0 ? '+' : ''}${STATE.coreOffset} MHz, Mem: ${STATE.memOffset >= 0 ? '+' : ''}${STATE.memOffset} MHz)...`);
           await rpc('set_gpu_clock_offsets', {
             coreOffsetMhz: STATE.coreOffset,
             memOffsetMhz: STATE.memOffset
           });
         }
 
-        // 2. Apply planned V/F curve
         if (STATE.plannedDeltas && STATE.plannedDeltas.length >= 16) {
           log(`正在向 NVIDIA 驱动写入 ${STATE.plannedDeltas.length} 锚点平移降压曲线...`);
           await rpc('set_gpu_vf_curve_deltas', { deltasMhz: STATE.plannedDeltas });
@@ -985,6 +1535,7 @@
         STATE.plannedDeltas = null;
         STATE.coreOffset = 0;
         STATE.memOffset = 0;
+        STATE.activeMode = '出厂默认';
         document.getElementById('statModeText').textContent = '出厂默认';
         log('[✓] 显卡已成功恢复出厂 stock 状态！');
         await savePluginStorage();
@@ -1018,7 +1569,6 @@
         const s = e.data.payload;
         STATE.hostPowerMode = s.power_mode;
 
-        // Update telemetry badges
         if (typeof s.gpu_temp === 'number' && s.gpu_temp > 0) {
           document.getElementById('statTelemetryTemp').textContent = `${s.gpu_temp}°C`;
         }
@@ -1032,13 +1582,20 @@
           document.getElementById('statTelemetryVram').textContent = `显存: ${s.gpu_vram_used_mb} / ${s.gpu_vram_mb} MB`;
         }
 
-        // Mode 4 indicates Custom Mode
         const modeSyncPill = document.getElementById('modeSyncPill');
         if (s.power_mode === 4) {
           modeSyncPill.style.display = 'inline-flex';
         } else {
           modeSyncPill.style.display = 'none';
         }
+      }
+    });
+
+    // --- Keydown Listener for Ctrl+Z Undo ---
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        undoEdit();
       }
     });
 
@@ -1051,7 +1608,25 @@
       // 2. Refresh physical hardware state
       await refreshHardwareInfo();
 
-      // 3. Register Tauri Event Listener for host-wide clock offset sync
+      // 3. Register Canvas pointer dragging listeners
+      const canvas = document.getElementById('vfCanvas');
+      if (canvas) {
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointermove', onPointerMove);
+        canvas.addEventListener('pointerup', onPointerUp);
+        canvas.addEventListener('pointercancel', onPointerUp);
+        canvas.addEventListener('pointerleave', () => {
+          if (drag.active) return;
+          if (STATE.hoverIndex !== -1) {
+            STATE.hoverIndex = -1;
+            readout(-1);
+            drawCurve();
+          }
+        });
+        canvas.addEventListener('dblclick', onDblClick);
+      }
+
+      // 4. Register Tauri Event Listener for host-wide clock offset sync
       try {
         if (window.OpenRevo && typeof window.OpenRevo.listen === 'function') {
           window.OpenRevo.listen('gpu-clock-offsets-changed', (event) => {
@@ -1070,6 +1645,7 @@
         console.warn('Failed to attach gpu-clock-offsets-changed listener:', err);
       }
     });
+
   </script>
 </body>
 

@@ -692,7 +692,7 @@
         <div class="header-title-box">
           <h1>
             电池硬件限充守护者
-            <span class="header-badge" id="badgeVersion">v2.3.0 Pin-Safe</span>
+            <span class="header-badge" id="badgeVersion">v2.4.0 Pin-Safe</span>
           </h1>
           <div class="header-desc">
             底层硬件级截断充电回路 · 自适应 0x04/0x05 门控 · 持续常驻心跳锁定 · 彻底杜绝电池鼓包与过充
@@ -1179,8 +1179,11 @@
           },
           actions: [
             {
-              action: 'set_battery_limit',
-              limit: STATE.currentTarget
+              action: 'call_command',
+              command: 'set_battery_limit',
+              args: {
+                limit: STATE.currentTarget
+              }
             }
           ]
         };

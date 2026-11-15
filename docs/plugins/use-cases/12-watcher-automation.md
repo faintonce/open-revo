@@ -70,8 +70,21 @@
         "event": "ac_connected"
       },
       "actions": [
-        { "action": "set_battery_limit", "limit": 80 },
+        { "action": "call_command", "command": "set_battery_limit", "args": { "limit": 80 } },
         { "action": "notify_osd", "title": "电池健康守护", "message": "电源已连接，硬件限充已锁定在 80%" }
+      ]
+    },
+    {
+      "id": "gpu_undervolt_boot_guard",
+      "name": "开机/重连静默下发显卡降压超频曲线",
+      "enabled": true,
+      "cooldown_ms": 5000,
+      "when": {
+        "type": "power_event",
+        "event": "ac_connected"
+      },
+      "actions": [
+        { "action": "call_command", "command": "set_gpu_undervolt_curve", "args": { "targetVoltMv": 875, "maxBoostMhz": 2450 } }
       ]
     },
     {
@@ -92,6 +105,7 @@
 ```
 
 ## 3. 核心机制优势解析
+* **万能 IPC 命令分发 (`call_command`)**：动作支持通用的 `call_command`（别名 `invoke_command`），直接反射调用 OpenRevo 全量宿主 IPC 命令（如 `set_battery_limit`、`set_gpu_undervolt_curve`、`set_gpu_clock_offsets`、`set_fan_boost` 等）。插件开发者零 Rust 修改成本，前端调什么命令这里就填什么，全自动开机静默调度；
 * **`cooldown_ms` 防抖冷却**：规则命中后进入冷却锁，防止温度在临界线抖动时引发高频重复触发与硬件冲突；
 * **地址与掩码语法宽容**：`address` 与 `mask` 既支持字符串十六进制（`"0x0751"`、`"0x10"`），也支持十进制数字（`1873`、`16`）；
 * **宿主生命周期全托管**：在宿主【插件】列表中启用该插件即刻注入微内核总线开始看门狗监控；关闭插件时自动全量卸载，不留任何残留副作用；
