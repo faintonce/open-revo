@@ -1,4 +1,5 @@
 use tauri::AppHandle;
+use tauri::Emitter;
 use tauri::Manager;
 use super::super::sync::{sync_slint_power_schemes, sync_slint_power_state};
 
@@ -208,6 +209,40 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                     let _ = crate::system::config::save_config(&cfg);
                     sync_slint_power_state();
                 }
+            }
+            true
+        }
+        // 狂暴档 GPU OC 胶囊：复用设置页保存的默认偏移，调用既有 apply_gpu_oc，
+        // 关闭时回 0/0（与 React ModeSelector / DrawerPowerModeCard 完全一致）。
+        "toggle_gpu_oc" => {
+            if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
+                let cfg = crate::system::config::load_config();
+                let (core, mem) = if enabled {
+                    (
+                        cfg.gpu_oc_core_mhz.clamp(0, 250),
+                        cfg.gpu_oc_mem_mhz.clamp(0, 1000),
+                    )
+                } else {
+                    (0, 0)
+                };
+                match crate::commands::tuning_cmd::apply_gpu_oc(core, mem) {
+                    Ok(()) => {
+                        // 复用既有事件，让其它（WebView）面板的 OC 胶囊同步
+                        if let Some(app) = app {
+                            let _ = app.emit(
+                                "gpu-clock-offsets-changed",
+                                serde_json::json!({
+                                    "core_offset_mhz": core,
+                                    "mem_offset_mhz": mem
+                                }),
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        crate::log_warn!("SLINT_POWER", "apply_gpu_oc({}, {}) failed: {}", core, mem, e);
+                    }
+                }
+                sync_slint_power_state();
             }
             true
         }

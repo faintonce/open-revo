@@ -56,6 +56,8 @@ export component FullDashboard inherits Rectangle {
     in-out property <int> oc_mem_mhz: 500;
     in-out property <string> oc_save_hint: "";
     in-out property <bool> turbo_submode_supported: false;
+    in-out property <bool> turbo_silent: false;
+    in-out property <bool> gpu_oc_on: false;
 
     callback toggle_balanced_db(bool);
     callback change_oc_core(int);
@@ -323,6 +325,8 @@ export component FullDashboard inherits Rectangle {
     in-out property <string> power_target_text: "";
     in-out property <bool> is_power_mode_restricted: false;
     callback set_power_mode(int);
+    callback apply_turbo_silent(bool);
+    callback toggle_gpu_oc();
     callback open_custom_tuning();
 
     // Power & Battery Management Props & Callbacks
@@ -678,7 +682,12 @@ export component FullDashboard inherits Rectangle {
                 tgp_target: root.tgp_target;
                 power_target_text: root.power_target_text;
                 is_power_mode_restricted: root.is_power_mode_restricted;
+                turbo_submode_supported: root.turbo_submode_supported;
+                turbo_silent: root.turbo_silent;
+                gpu_oc_on: root.gpu_oc_on;
                 set_power_mode(mode) => { root.set_power_mode(mode); }
+                apply_turbo_silent(silent) => { root.apply_turbo_silent(silent); }
+                toggle_gpu_oc => { root.toggle_gpu_oc(); }
                 open_custom_tuning => {
                     root.is_in_tuning_view = true;
                     root.open_custom_tuning();

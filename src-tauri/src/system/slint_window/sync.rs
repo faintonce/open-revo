@@ -349,6 +349,12 @@ pub fn sync_slint_power_state() {
     let cfg = crate::system::config::load_config();
     sync_slint_power_targets(cfg.power_mode);
 
+    // GPU OC 实时状态：来自驱动的 core/mem 偏移（与 React get_gpu_oc_state 同源），
+    // 无 NVAPI / 读取失败时按关闭处理。
+    let gpu_oc_on = crate::driver::nvapi::get_gpu_clock_offsets()
+        .map(|(core, mem)| core != 0 || mem != 0)
+        .unwrap_or(false);
+
     let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
     if let Some(app) = app_opt {
         let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
@@ -375,6 +381,7 @@ pub fn sync_slint_power_state() {
             "sleep_auto_office": info.sleep_auto_office,
             "turbo_submode_supported": crate::system::power::turbo_submode::is_supported(),
             "turbo_silent": cfg.turbo_silent,
+            "gpu_oc_on": gpu_oc_on,
         }));
     } else {
         let cfg = crate::system::config::load_config();
@@ -408,6 +415,7 @@ pub fn sync_slint_power_state() {
             "sleep_auto_office": cfg.sleep_auto_office,
             "turbo_submode_supported": crate::system::power::turbo_submode::is_supported(),
             "turbo_silent": cfg.turbo_silent,
+            "gpu_oc_on": gpu_oc_on,
         }));
     }
 }

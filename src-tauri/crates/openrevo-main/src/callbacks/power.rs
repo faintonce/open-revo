@@ -9,14 +9,34 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
                 // Restricted on battery/Type-C without unlocking: prevent action and preserve current mode
                 return;
             }
-            if mode == 3 && ui.get_power_mode() == 3 && ui.get_turbo_submode_supported() {
-                let next_silent = !ui.get_turbo_silent();
-                ui.set_turbo_silent(next_silent);
-                ipc::send_action_to_host("apply_turbo_profile", serde_json::json!({ "silent": next_silent }));
-                return;
-            }
             ipc::send_action_to_host("set_power_mode", serde_json::json!({ "mode": mode }));
             ui.set_power_mode(mode);
+        }
+    });
+
+    // 狂暴子模式分段点击：silent 由 UI 段固定给出（左 true / 右 false），
+    // 这里从不取反；host 的 apply_turbo_profile 会自己切到 mode 3，
+    // 确认后的状态由 host 的 sync_power_settings(turbo_silent) 回灌。
+    let ui_cb = ui_weak.clone();
+    window.on_apply_turbo_silent(move |silent| {
+        if let Some(ui) = ui_cb.upgrade() {
+            if ui.get_is_power_mode_restricted() {
+                return;
+            }
+            ipc::send_action_to_host("apply_turbo_profile", serde_json::json!({ "silent": silent }));
+        }
+    });
+
+    // 狂暴档右上角 GPU OC 胶囊：把目标开关态交给 host，
+    // host 用 config 里最新的 gpu_oc_core_mhz / gpu_oc_mem_mhz 调既有 apply_gpu_oc。
+    let ui_cb = ui_weak.clone();
+    window.on_toggle_gpu_oc(move || {
+        if let Some(ui) = ui_cb.upgrade() {
+            if ui.get_is_power_mode_restricted() {
+                return;
+            }
+            let enabled = !ui.get_gpu_oc_on();
+            ipc::send_action_to_host("toggle_gpu_oc", serde_json::json!({ "enabled": enabled }));
         }
     });
 

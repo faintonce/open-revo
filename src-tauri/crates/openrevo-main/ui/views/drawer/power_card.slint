@@ -13,8 +13,13 @@ export component DrawerPowerCard inherits Rectangle {
     in-out property <bool> is_restricted: false; // Power gating on battery/Type-C
     in-out property <bool> turbo_submode_supported: false;
     in-out property <bool> turbo_silent: false;
+    in-out property <bool> gpu_oc_on: false;
 
     callback set_mode(int);
+    // 狂暴子模式：左段固定 silent=true，右段固定 silent=false（不做取反）
+    callback apply_turbo_silent(bool);
+    // 复用既有 GPU OC 快捷开关（对齐 DrawerPowerModeCard.tsx:74-104 的 gpu-oc-chip）
+    callback toggle_gpu_oc();
 
     VerticalLayout {
         padding: 6px;
@@ -63,6 +68,7 @@ export component DrawerPowerCard inherits Rectangle {
 
             // 1. Office
             btn_off := Rectangle {
+                horizontal-stretch: 1;
                 border-radius: 6px;
                 background: power_mode == 1 ? #10b98125 : (t_off.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: power_mode == 1 ? 1.5px : 1px;
@@ -97,6 +103,7 @@ export component DrawerPowerCard inherits Rectangle {
 
             // 2. Balance
             btn_bal := Rectangle {
+                horizontal-stretch: 1;
                 border-radius: 6px;
                 background: power_mode == 2 ? #3b82f625 : (t_bal.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: power_mode == 2 ? 1.5px : 1px;
@@ -130,12 +137,179 @@ export component DrawerPowerCard inherits Rectangle {
             }
 
             // 3. Beast
-            btn_bst := Rectangle {
+            //    支持子模式：单一 Turbo 外框内「左静音狂暴 / 右高能狂暴」两个独立分段
+            //    （对齐 DrawerPowerModeCard.tsx:177-206）；不支持时保持原来的单卡。
+            if root.turbo_submode_supported: btn_bst_seg := Rectangle {
+                // 支持子模式时狂暴占两栏宽（对齐 DrawerPowerModeCard 的 m-pwr-row flex 2.4），
+                // 这样左右两段各自仍有≈普通卡片宽度，文案不会被挤压。
+                horizontal-stretch: 2;
                 border-radius: 6px;
                 opacity: is_restricted ? 0.45 : 1.0;
-                background: power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf825 : #f43f5e25) : (t_bst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                // 外框只表达「狂暴组」归属：mode 3 时整组泛红，激活段由内部两段各自高亮
+                background: power_mode == 3 ? #f43f5e12 : AppTheme.surface_pill;
                 border-width: power_mode == 3 ? 1.5px : 1px;
-                border-color: power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf8 : #f43f5e) : AppTheme.border_subtle;
+                border-color: power_mode == 3 ? #f43f5e80 : AppTheme.border_subtle;
+
+                HorizontalLayout {
+                    padding: 2px;
+                    spacing: 2px;
+
+                    // 左段：静音狂暴（点击固定 silent=true）
+                    seg_bst_silent := Rectangle {
+                        horizontal-stretch: 1;
+                        border-radius: 4px;
+                        background: (power_mode == 3 && root.turbo_silent)
+                            ? #f43f5e25
+                            : (t_seg_silent.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_card);
+                        border-width: (power_mode == 3 && root.turbo_silent) ? 1px : 0px;
+                        border-color: #f43f5e;
+
+                        t_seg_silent := TouchArea {
+                            mouse-cursor: is_restricted ? default : pointer;
+                            clicked => {
+                                if (!is_restricted) {
+                                    root.apply_turbo_silent(true);
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 0px;
+                            HorizontalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../../assets/icons/snowflake.svg");
+                                    width: 13px;
+                                    height: 13px;
+                                    colorize: is_restricted ? AppTheme.text_muted : #67e8f9;
+                                }
+                            }
+                            Text {
+                                text: "静音狂暴";
+                                font-size: 9.5px;
+                                font-weight: (power_mode == 3 && root.turbo_silent) ? 700 : 500;
+                                color: is_restricted ? AppTheme.text_muted : AppTheme.text_primary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && root.turbo_silent) ? "● 当前" : "静音");
+                                font-size: 8px;
+                                color: is_restricted ? #f59e0b : ((power_mode == 3 && root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
+                                horizontal-alignment: center;
+                            }
+                        }
+
+                        // 右上角 OC 胶囊：仅激活的狂暴段显示（对齐 DrawerPowerModeCard.tsx:185）
+                        // 独立 TouchArea 覆盖在分段之上，点击不会穿透到 apply_turbo_silent。
+                        if power_mode == 3 && root.turbo_silent && !is_restricted: oc_silent := Rectangle {
+                            x: parent.width - self.width - 2px;
+                            y: 1px;
+                            width: oc_silent_text.preferred-width + 6px;
+                            height: 12px;
+                            border-radius: 3px;
+                            background: #38bdf824;
+                            border-width: 1px;
+                            border-color: root.gpu_oc_on ? #38bdf8 : #38bdf880;
+
+                            oc_silent_text := Text {
+                                text: "OC";
+                                font-size: 8px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.toggle_gpu_oc(); }
+                            }
+                        }
+                    }
+
+                    // 右段：高能狂暴（点击固定 silent=false）
+                    seg_bst_extreme := Rectangle {
+                        horizontal-stretch: 1;
+                        border-radius: 4px;
+                        background: (power_mode == 3 && !root.turbo_silent)
+                            ? #f43f5e25
+                            : (t_seg_extreme.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_card);
+                        border-width: (power_mode == 3 && !root.turbo_silent) ? 1px : 0px;
+                        border-color: #f43f5e;
+
+                        t_seg_extreme := TouchArea {
+                            mouse-cursor: is_restricted ? default : pointer;
+                            clicked => {
+                                if (!is_restricted) {
+                                    root.apply_turbo_silent(false);
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 0px;
+                            HorizontalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../../assets/icons/flame.svg");
+                                    width: 13px;
+                                    height: 13px;
+                                    colorize: is_restricted ? AppTheme.text_muted : #f43f5e;
+                                }
+                            }
+                            Text {
+                                text: "高能狂暴";
+                                font-size: 9.5px;
+                                font-weight: (power_mode == 3 && !root.turbo_silent) ? 700 : 500;
+                                color: is_restricted ? AppTheme.text_muted : AppTheme.text_primary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && !root.turbo_silent) ? "● 当前" : "高能");
+                                font-size: 8px;
+                                color: is_restricted ? #f59e0b : ((power_mode == 3 && !root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
+                                horizontal-alignment: center;
+                            }
+                        }
+
+                        // 右上角 OC 胶囊：仅激活的狂暴段显示（对齐 DrawerPowerModeCard.tsx:197）
+                        if power_mode == 3 && !root.turbo_silent && !is_restricted: oc_extreme := Rectangle {
+                            x: parent.width - self.width - 2px;
+                            y: 1px;
+                            width: oc_extreme_text.preferred-width + 6px;
+                            height: 12px;
+                            border-radius: 3px;
+                            background: #38bdf824;
+                            border-width: 1px;
+                            border-color: root.gpu_oc_on ? #38bdf8 : #38bdf880;
+
+                            oc_extreme_text := Text {
+                                text: "OC";
+                                font-size: 8px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.toggle_gpu_oc(); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !root.turbo_submode_supported: btn_bst := Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 6px;
+                opacity: is_restricted ? 0.45 : 1.0;
+                background: power_mode == 3 ? #f43f5e25 : (t_bst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: power_mode == 3 ? 1.5px : 1px;
+                border-color: power_mode == 3 ? #f43f5e : AppTheme.border_subtle;
 
                 t_bst := TouchArea {
                     mouse-cursor: is_restricted ? default : pointer;
@@ -152,24 +326,51 @@ export component DrawerPowerCard inherits Rectangle {
                     HorizontalLayout {
                         alignment: center;
                         Image {
-                            source: (power_mode == 3 && root.turbo_submode_supported && root.turbo_silent) ? @image-url("../../assets/icons/snowflake.svg") : @image-url("../../assets/icons/flame.svg");
+                            source: @image-url("../../assets/icons/flame.svg");
                             width: 15px;
                             height: 15px;
-                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf8 : #f43f5e) : AppTheme.text_secondary);
+                            colorize: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_secondary);
                         }
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : (power_mode == 3 && root.turbo_submode_supported ? (root.turbo_silent ? "静音狂暴" : "高能狂暴") : "狂暴");
+                        text: is_restricted ? "需圆口DC" : "狂暴";
                         font-size: 10.5px;
                         font-weight: power_mode == 3 ? 700 : 500;
-                        color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? (root.turbo_submode_supported && root.turbo_silent ? #38bdf8 : #f43f5e) : AppTheme.text_primary);
+                        color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
                         horizontal-alignment: center;
+                    }
+                }
+
+                // 不支持子模式时的狂暴卡：激活态同样显示 OC 胶囊（对齐 DrawerPowerModeCard.tsx:234）
+                if power_mode == 3 && !is_restricted: oc_fallback := Rectangle {
+                    x: parent.width - self.width - 3px;
+                    y: 2px;
+                    width: oc_fallback_text.preferred-width + 6px;
+                    height: 12px;
+                    border-radius: 3px;
+                    background: #38bdf824;
+                    border-width: 1px;
+                    border-color: root.gpu_oc_on ? #38bdf8 : #38bdf880;
+
+                    oc_fallback_text := Text {
+                        text: "OC";
+                        font-size: 8px;
+                        font-weight: 700;
+                        color: #38bdf8;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle_gpu_oc(); }
                     }
                 }
             }
 
             // 4. Custom Tuning
             btn_cst := Rectangle {
+                horizontal-stretch: 1;
                 border-radius: 6px;
                 opacity: is_restricted ? 0.45 : 1.0;
                 background: power_mode == 4 ? #38bdf825 : (t_cst.has-hover && !is_restricted ? AppTheme.surface_card_hover : AppTheme.surface_pill);
