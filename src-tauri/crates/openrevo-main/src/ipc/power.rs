@@ -3,6 +3,9 @@ use crate::{MainWindow, PowerSchemeItem};
 pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     match action {
         "sync_power_settings" => {
+            if let Some(pm) = val.get("power_mode").and_then(|v| v.as_i64()) {
+                ui.set_power_mode(pm as i32);
+            }
             if let Some(bp) = val.get("battery_percent").and_then(|v| v.as_i64()) {
                 ui.set_battery_percent(bp as i32);
             }
@@ -131,6 +134,21 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             if let Some(msg) = val.get("restore_plan_msg").and_then(|v| v.as_str()) {
                 ui.set_restore_plan_msg(msg.into());
+            }
+            true
+        }
+        "sync_power_targets" => {
+            if let Some(mode) = val.get("power_mode").and_then(|v| v.as_i64()) {
+                ui.set_power_mode(mode as i32);
+            }
+            if let Some(pl1) = val.get("pl1_target").and_then(|v| v.as_i64()) {
+                ui.set_pl1_target(pl1 as i32);
+            }
+            if let Some(tgp) = val.get("tgp_target").and_then(|v| v.as_i64()) {
+                ui.set_tgp_target(tgp as i32);
+            }
+            if let Some(txt) = val.get("power_target_text").and_then(|v| v.as_str()) {
+                ui.set_power_target_text(txt.into());
             }
             true
         }

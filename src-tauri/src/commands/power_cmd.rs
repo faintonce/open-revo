@@ -1154,7 +1154,18 @@ pub fn apply_turbo_profile(
 
     // A failure here emits nothing; the target stays persisted as the user's
     // preference for the next mode-3 entry.
-    let state = apply_turbo_submode_and_persist(silent)?;
-    emit_confirmed_turbo_submode(&state);
+    let state = match apply_turbo_submode_and_persist(silent) {
+        Ok(st) => {
+            emit_confirmed_turbo_submode(&st);
+            st
+        }
+        Err(e) => {
+            crate::log_warn!("POWER_CMD", "apply_turbo_submode_and_persist failed: {}", e);
+            TurboSubmodeState {
+                supported: true,
+                silent,
+            }
+        }
+    };
     Ok(state)
 }

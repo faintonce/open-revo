@@ -81,7 +81,12 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
 
   const applyTurboSeg = (silent: boolean, isRestricted: boolean) => {
     if (isRestricted) return;
-    const apply = () => { void turboSub.apply(silent); };
+    const apply = () => {
+      if (currentMode !== 3) {
+        onSelectMode(3);
+      }
+      void turboSub.apply(silent);
+    };
     if (checkOemGuard) checkOemGuard(apply);
     else apply();
   };

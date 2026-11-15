@@ -86,6 +86,10 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 let is_thin_and_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
                 let is_dc = crate::commands::power_cmd::is_dc_round_plugged_in();
                 let mut cfg = crate::system::config::load_config();
+                if let Some(silent) = val.get("silent").and_then(|v| v.as_bool()) {
+                    cfg.turbo_silent = silent;
+                    let _ = crate::system::config::save_config(&cfg);
+                }
 
                 if !is_thin_and_light && (mode_u8 == 3 || mode_u8 == 4) && !is_dc && !cfg.unlock_battery_power_limit {
                     crate::log_warn!(
@@ -199,16 +203,15 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         }
         "apply_turbo_profile" => {
             if let Some(silent) = val.get("silent").and_then(|v| v.as_bool()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.turbo_silent = silent;
+                let _ = crate::system::config::save_config(&cfg);
                 if let Some(app) = app {
                     let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
                     let _ = crate::commands::power_cmd::apply_turbo_profile(silent, app.clone(), ec_state);
-                    sync_slint_power_state();
-                } else {
-                    let mut cfg = crate::system::config::load_config();
-                    cfg.turbo_silent = silent;
-                    let _ = crate::system::config::save_config(&cfg);
-                    sync_slint_power_state();
                 }
+                sync_slint_power_state();
+                super::super::sync::sync_slint_power_targets(3);
             }
             true
         }

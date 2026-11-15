@@ -23,6 +23,9 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
             if ui.get_is_power_mode_restricted() {
                 return;
             }
+            ui.set_power_mode(3);
+            ui.set_turbo_silent(silent);
+            ipc::send_action_to_host("set_power_mode", serde_json::json!({ "mode": 3, "silent": silent }));
             ipc::send_action_to_host("apply_turbo_profile", serde_json::json!({ "silent": silent }));
         }
     });

@@ -65,9 +65,14 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
     };
   }, []);
 
-  // 静音/高能 分段按钮：单次 IPC 由后端确保进入狂暴档并应用子模式
+  // 静音/高能 分段按钮：先确保进入狂暴档，再应用子模式
   const applyTurboSeg = (silent: boolean) => {
-    checkOemGuard(() => { void turboSub.apply(silent); });
+    checkOemGuard(() => {
+      if (status.power_mode !== 3) {
+        onSetPowerMode(3);
+      }
+      void turboSub.apply(silent);
+    });
   };
 
   // OC 开关：文字固定 OC，开=高亮，关=普通；只跟随当前激活的狂暴子模式按钮显示

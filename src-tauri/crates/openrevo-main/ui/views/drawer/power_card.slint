@@ -168,6 +168,7 @@ export component DrawerPowerCard inherits Rectangle {
                             mouse-cursor: is_restricted ? default : pointer;
                             clicked => {
                                 if (!is_restricted) {
+                                    set_mode(3);
                                     root.apply_turbo_silent(true);
                                 }
                             }
@@ -242,6 +243,7 @@ export component DrawerPowerCard inherits Rectangle {
                             mouse-cursor: is_restricted ? default : pointer;
                             clicked => {
                                 if (!is_restricted) {
+                                    set_mode(3);
                                     root.apply_turbo_silent(false);
                                 }
                             }

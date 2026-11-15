@@ -194,6 +194,7 @@ export component DashboardPowerProfiles inherits Rectangle {
                             mouse-cursor: is_restricted ? default : pointer;
                             clicked => {
                                 if (!is_restricted) {
+                                    set_power_mode(3);
                                     root.apply_turbo_silent(true);
                                 }
                             }
@@ -268,6 +269,7 @@ export component DashboardPowerProfiles inherits Rectangle {
                             mouse-cursor: is_restricted ? default : pointer;
                             clicked => {
                                 if (!is_restricted) {
+                                    set_power_mode(3);
                                     root.apply_turbo_silent(false);
                                 }
                             }

@@ -361,6 +361,7 @@ pub fn sync_slint_power_state() {
         let info = crate::commands::power_cmd::read_power_settings(ec_state.inner());
         send_slint_ipc_message(serde_json::json!({
             "action": "sync_power_settings",
+            "power_mode": cfg.power_mode,
             "battery_percent": info.battery_percent,
             "is_ac_online": info.is_ac_online,
             "is_dc_online": crate::commands::power_cmd::is_dc_round_plugged_in(),
@@ -395,6 +396,7 @@ pub fn sync_slint_power_state() {
         };
         send_slint_ipc_message(serde_json::json!({
             "action": "sync_power_settings",
+            "power_mode": cfg.power_mode,
             "battery_percent": percent,
             "is_ac_online": is_ac,
             "is_dc_online": crate::commands::power_cmd::is_dc_round_plugged_in(),
