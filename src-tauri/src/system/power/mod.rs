@@ -157,7 +157,12 @@ pub fn apply_full_power_mode(ui_mode: u8) {
     sync_oem_main_option(ui_mode);
     if ui_mode == 4 {
         let cfg = crate::system::config::load_config();
-        sync_oem_mode4_profile(&cfg.custom_profile);
+        let profile = crate::system::config::list_profiles()
+            .into_iter()
+            .find(|p| p.id == cfg.active_profile_id)
+            .map(|p| p.profile)
+            .unwrap_or(cfg.custom_profile);
+        sync_oem_mode4_profile(&profile);
     }
 }
 
