@@ -206,13 +206,13 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
     const rawSteps = capabilities?.rgb_keyboard?.steps;
     const validSteps = Array.isArray(rawSteps) && rawSteps.length > 0
       ? [...rawSteps].filter((s) => typeof s === 'number' && s > 0).sort((a, b) => b - a)
-      : [3, 2, 1];
+      : isSingleColor ? [2, 1] : [3, 2, 1];
 
     return validSteps.map((lvl) => {
       const max = validSteps[0] || 1;
       let name = '';
       if (validSteps.length === 2) {
-        name = lvl === 2 ? '100% 满亮' : '50% 柔和';
+        name = lvl === 2 ? '100% 强光' : '50% 弱光';
       } else if (validSteps.length === 3) {
         name = lvl === 3 ? '100% 满亮' : lvl === 2 ? '60% 柔和' : '30% 微光';
       } else {
@@ -221,7 +221,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
       }
       return { level: lvl, name };
     });
-  }, [capabilities?.rgb_keyboard?.steps]);
+  }, [capabilities?.rgb_keyboard?.steps, isSingleColor]);
 
   const maxSingleColorLevel = useMemo(() => {
     return singleColorLevels[0]?.level || 2;

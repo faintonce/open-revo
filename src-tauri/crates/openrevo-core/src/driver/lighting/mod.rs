@@ -422,30 +422,25 @@ impl IteLightingManager {
             return hal.set_monochrome_backlight(lvl).is_ok();
         }
 
-        let cur_val = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE).unwrap_or(0);
-
-        if !enabled || brightness_idx == 0 {
-            // Set disable bit (Bit 1 = 1)
-            let target = cur_val | 0x02;
-            let ok = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
-            if let Some(cur_trigger_byte) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
-                let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, cur_trigger_byte | 0x20);
+        // Branch 2: Tongfang EC Direct Monochrome White Backlight (e.g. Wujie 14X, 15X, CODE series)
+        // Hardware ground-truth:
+        // - OFF:   0x01 (Bit 0 mode enabled, brightness nibble = 0, no bit 1 cutoff)
+        // - LOW:   0x21 (Bit 5 = 50% PWM + Bit 0 base)
+        // - HIGH:  0x41 (Bit 6 = 100% PWM + Bit 0 base)
+        let target = if !enabled || brightness_idx == 0 {
+            0x01
+        } else {
+            match brightness_idx {
+                1 => 0x21,
+                _ => 0x41,
             }
-            crate::log_info!("LIGHTING_ARBITER", "Monochrome white backlight disabled (EC=0x{:02X}) -> ok={}", target, ok);
-            return ok;
-        }
-
-        // Map brightness index (1 -> 50% (0x20), 2..=4 -> 100% (0x40))
-        let level_step = match brightness_idx {
-            1 => 0x20,
-            _ => 0x40,
         };
-        let target = (cur_val & !0x02 & 0x0F) | level_step | 0x01;
+
         let ok = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
         if let Some(cur_trigger_byte) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
             let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, cur_trigger_byte | 0x20);
         }
-        crate::log_info!("LIGHTING_ARBITER", "Monochrome white backlight set: level_idx={} (EC=0x{:02X}) -> ok={}", brightness_idx, target, ok);
+        crate::log_info!("LIGHTING_ARBITER", "Monochrome white backlight applied: on={}, level_idx={} (EC=0x{:02X}) -> ok={}", enabled && brightness_idx > 0, brightness_idx, target, ok);
         ok
     }
 

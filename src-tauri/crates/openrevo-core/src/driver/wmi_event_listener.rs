@@ -270,7 +270,18 @@ fn dispatch_acpi_event(
         }
         240 => {
             // EC_RGBKBBKL_LEVEL_UPDATE echo notification
-            crate::log_info!("WMI_LISTENER", "ACPI Keyboard brightness status update echo: 240");
+            if last_brightness_time.elapsed() >= Duration::from_millis(200) {
+                *last_brightness_time = Instant::now();
+                let cur_bl = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_BACKLIGHT_WHITE).unwrap_or(0);
+                let level = if (cur_bl & 0x40) != 0 {
+                    2
+                } else if (cur_bl & 0x20) != 0 {
+                    1
+                } else {
+                    0
+                };
+                crate::log_info!("WMI_LISTENER", "ACPI Keyboard brightness update echo: 240 (EC=0x{:02X}, level={})", cur_bl, level);
+            }
         }
         _ => {
             crate::log_debug!("WMI_LISTENER", "Received other ACPI Event code: {} (0x{:X})", code, code);
@@ -281,10 +292,10 @@ fn dispatch_acpi_event(
 /// Start the background WMI ACPI Event Listener for physical chassis keys (Q-Key mode switch & Fan Boost)
 /// Pure Rust in-process implementation via Windows COM (IWbemServices::ExecNotificationQuery)
 pub fn start_wmi_event_listener(ec_bridge: SharedEcBridge) {
-    if crate::hal::platform_probe::is_ultrabook() || !crate::hal::platform_probe::has_acpi_physical_key_events() {
+    if !crate::hal::platform_probe::has_acpi_physical_key_events() {
         crate::log_info!(
             "WMI_LISTENER",
-            "Ultrabook platform: AcpiTest_EventULong listener bypassed gracefully."
+            "Non-Tongfang platform: AcpiTest_EventULong listener bypassed gracefully."
         );
         return;
     }
