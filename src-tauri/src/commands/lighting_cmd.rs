@@ -128,9 +128,9 @@ pub fn get_keyboard_hardware_info_internal(
     let (has_logo, has_usb_logo, is_ec_logo) = if !contract.has_logo {
         (false, false, false)
     } else {
-        let usb_logo = crate::driver::lighting::IteLightingManager::probe_usb_logo_supported();
-        let ec_logo = !usb_logo && crate::driver::lighting::IteLightingManager::is_ec_logo_supported();
-        (usb_logo || ec_logo, usb_logo, ec_logo)
+        let ec_logo = crate::driver::lighting::IteLightingManager::is_ec_logo_supported();
+        let usb_logo = !ec_logo && crate::driver::lighting::IteLightingManager::probe_usb_logo_supported();
+        (ec_logo || usb_logo, usb_logo, ec_logo)
     };
 
     // 4. Keyboard Backlight Matrix: Routed by Constitution
