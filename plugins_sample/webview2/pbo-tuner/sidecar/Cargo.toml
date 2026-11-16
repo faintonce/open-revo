@@ -1,0 +1,23 @@
+[package]
+name = "pbo-service"
+version = "2.0.0"
+edition = "2021"
+description = "OpenRevo pbo-tuner companion service (AMD RSMU via PawnIO)"
+
+[[bin]]
+name = "pbo-service"
+path = "src/main.rs"
+
+# Standalone on purpose: this crate lives inside the plugin folder, not in the
+# host's src-tauri workspace, so `cargo build` here never touches host code.
+[workspace]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
