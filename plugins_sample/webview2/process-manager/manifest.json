@@ -1,0 +1,22 @@
+{
+  "id": "process-manager",
+  "name": "进程管理",
+  "version": "1.6.0",
+  "author": "Community",
+  "description": "进程 / 连接与端口 / 文件占用 三合一系统检视插件，基于本地伴随服务 process-service（Restart Manager 通道），守护进程管理员上下文直连，支持结束进程树与强制断连。",
+  "plugin_type": "tab",
+  "entry": "index.html",
+  "min_host_version": "0.9.4",
+  "service": {
+    "executable": "sidecar/process-service.exe",
+    "args": ["--serve", "--port", "18956"],
+    "elevated": true,
+    "auto_start": true,
+    "auto_stop": true,
+    "port": 18956,
+    "health_url": "http://127.0.0.1:18956/api/health"
+  },
+  "permissions": [
+    "storage"
+  ]
+}

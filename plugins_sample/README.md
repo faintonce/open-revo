@@ -18,6 +18,7 @@
 | [hybrid-battery](slint/hybrid-battery/) | WebView2 + Slint 混搭 | `tab.entry`: `dist/index.html`（当前缺失），`widget.entry`: `widget.slint` | 缺失，暂无本地 README |
 | [revo-llm-hub](webview2/revo-llm-hub/) | WebView2 | 根 `entry`: `index.html`（AI LLM 工具中枢与硬件直调） | [本地 SKILL.md](webview2/revo-llm-hub/SKILL.md) |
 | [revo-pet-companion](webview2/revo-pet-companion/) | WebView2 | 根 `entry`: `index.html`（透明桌面桌宠与状态互动） | [本地 SKILL.md](webview2/revo-pet-companion/SKILL.md) |
+| [process-manager](webview2/process-manager/) | WebView2 | 根 `entry`: `index.html`，另含 `service` 伴随提权服务（进程 / 连接 / 文件占用） | [本地 README](webview2/process-manager/README.md) |
 
 ## 说明
 

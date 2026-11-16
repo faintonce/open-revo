@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>进程管理</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-card: #1a212b;
+    --border-subtle: #2a313c;
+    --text-primary: #e6edf3;
+    --text-dim: #7d8590;
+    --accent: #58a6ff;
+    --status-ok: #3fb950;
+    --status-warn: #d29922;
+    --status-err: #f85149;
+    --radius-md: 10px;
+    --radius-sm: 6px;
+    --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 13px;
+    padding: 14px 16px;
+    overflow-y: auto;
+  }
+
+  /* ---- header ---- */
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+  .svc { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-err); }
+  .dot.ok { background: var(--status-ok); box-shadow: 0 0 6px var(--status-ok); }
+
+  /* ---- nav ---- */
+  .nav { display: flex; gap: 6px; margin-bottom: 14px; }
+  .nav button {
+    background: var(--surface); border: 1px solid var(--border-subtle); color: var(--text-dim);
+    font: inherit; font-size: 13px; padding: 7px 18px; cursor: pointer;
+    border-radius: 8px; transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .nav button:hover { color: var(--text-primary); border-color: #3d4653; background: #1c232e; }
+  .nav button.active {
+    background: #1f6feb33; border-color: #388bfd66; color: var(--accent);
+    font-weight: 600; box-shadow: inset 0 0 0 1px #388bfd22;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ---- generic ---- */
+  .card {
+    background: var(--surface-card); border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md); padding: 12px 14px;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .big { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+  .big small { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+  .bar-track { height: 6px; background: #21262d; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s; }
+  .btn {
+    background: var(--surface); border: 1px solid var(--border-subtle); color: var(--text-primary);
+    border-radius: var(--radius-sm); padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: #1f6feb33; border-color: #388bfd66; }
+  .btn.danger { color: var(--status-err); border-color: #f8514955; }
+  .btn.danger:hover { background: #f8514922; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  input[type="text"], select {
+    background: var(--surface); border: 1px solid var(--border-subtle); color: var(--text-primary);
+    border-radius: var(--radius-sm); padding: 6px 10px; font: inherit; font-size: 12px; outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  .clear-wrap { position: relative; display: flex; }
+  .clear-wrap input { width: 100%; padding-right: 28px; }
+  .clear-btn {
+    position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    font-size: 15px; line-height: 1; padding: 3px 7px; display: none; font-family: inherit;
+  }
+  .clear-wrap.has-value .clear-btn { display: block; }
+  .clear-btn:hover { color: var(--status-err); }
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+
+  /* ---- table ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; color: var(--text-dim); font-weight: 600; padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0; background: var(--bg);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  td { padding: 5px 8px; border-bottom: 1px solid #21262d; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  tr:hover td { background: #ffffff08; }
+  td.num { font-family: var(--mono); text-align: right; }
+  .tbl-wrap { max-height: 460px; overflow: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-card); }
+  .row-actions { display: flex; gap: 4px; }
+  .row-actions .btn { padding: 2px 8px; font-size: 11px; }
+
+
+  .toast {
+    position: fixed; bottom: 20px; right: 20px; background: #161b22ee; border: 1px solid var(--accent);
+    color: var(--text-primary); padding: 10px 16px; border-radius: var(--radius-md); font-size: 12px;
+    opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; max-width: 420px;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .toast.err { border-color: var(--status-err); }
+  .empty { color: var(--text-dim); text-align: center; padding: 30px; font-size: 12px; }
+  .spin { display: inline-block; animation: r 0.8s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚙️ 进程管理</h1>
+    <div class="svc"><span class="dot" id="svcDot"></span><span id="svcText">服务检测中…</span></div>
+  </div>
+
+  <div class="nav" id="nav">
+    <button data-page="proc" class="active">⚙️ 进程</button>
+    <button data-page="conn">🔌 连接</button>
+    <button data-page="file">📁 文件占用</button>
+    <button data-page="sched">⏰ 定时</button>
+    <button data-page="port">🛠 端口</button>
+  </div>
+
+  <!-- ======================= 进程 ======================= -->
+  <div class="page active" id="page-proc">
+    <div class="toolbar">
+      <div class="clear-wrap" style="flex:1; min-width:180px"><input type="text" id="procSearch" placeholder="搜索进程名 / PID…" /></div>
+      <button class="btn" id="procRefresh">↻ 刷新</button>
+      <label style="font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:4px;">
+        <input type="checkbox" id="procHideSys" /> 隐藏系统
+      </label>
+      <label style="font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:4px;">
+        <input type="checkbox" id="procAuto" checked /> 自动(3s)
+      </label>
+      <span style="font-size:11px; color:var(--text-dim)" id="procCount"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th data-sort="name">进程名</th><th data-sort="pid">PID</th><th data-sort="ppid">父PID</th>
+          <th data-sort="cpu" style="text-align:right">CPU%</th><th data-sort="mem" style="text-align:right">内存</th>
+          <th>路径</th><th>操作</th>
+        </tr></thead>
+        <tbody id="procBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ======================= 连接 ======================= -->
+  <div class="page" id="page-conn">
+    <div class="toolbar">
+      <select id="connProto"><option value="all">全部协议</option><option value="tcp">仅 TCP</option><option value="udp">仅 UDP</option></select>
+      <div class="clear-wrap" style="flex:1; min-width:180px"><input type="text" id="connSearch" placeholder="搜索地址 / 端口 / 进程…" /></div>
+      <button class="btn" id="connRefresh">↻ 刷新</button>
+      <label style="font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:4px;">
+        <input type="checkbox" id="connAuto" checked /> 自动(3s)
+      </label>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>协议</th><th>状态</th><th>本地地址</th><th>远端地址</th><th>PID</th><th>进程</th><th>操作</th>
+        </tr></thead>
+        <tbody id="connBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ======================= 文件占用 ======================= -->
+  <div class="page" id="page-file">
+    <div class="toolbar">
+      <div class="clear-wrap" style="flex:1; min-width:300px"><input type="text" id="filePath" placeholder="粘贴完整路径，如 D:\download\setup.exe" /></div>
+      <button class="btn primary" id="fileProbe">🔍 检测占用</button>
+    </div>
+    <div class="card" style="min-height:60px">
+      <div id="fileResult"><div class="empty">输入路径并点击「检测占用」，将列出所有锁定该文件的进程（Restart Manager 通道）</div></div>
+    </div>
+  </div>
+
+  <!-- ======================= 定时 ======================= -->
+  <div class="page" id="page-sched">
+    <div class="card" style="margin-bottom:12px">
+      <div class="label" style="margin-bottom:10px"><span>新建定时关闭</span></div>
+      <div class="toolbar" style="margin-bottom:6px">
+        <select id="schedName" style="flex:1; min-width:190px; max-width:320px"><option value="">加载进程列表…</option></select>
+        <select id="schedMode">
+          <option value="daily">每天</option>
+          <option value="once">一次性</option>
+        </select>
+        <input type="time" id="schedTime" value="23:30" />
+        <input type="date" id="schedDate" style="display:none" />
+        <label style="font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:4px;">
+          <input type="checkbox" id="schedTree" checked /> 连子进程
+        </label>
+        <button class="btn primary" id="schedAdd">＋ 添加</button>
+      </div>
+      <div style="font-size:11px; color:var(--text-dim); line-height:1.7">
+        从下拉框选择进程，提交时自动定位其<span style="color:var(--text-primary)">父进程</span>作为关闭目标（大小写不限）；到点后所有同名进程都会被关闭。任务保存在服务侧，重启面板或宿主后仍然有效。<span id="schedTarget"></span>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>进程名</th><th>类型</th><th>时间</th><th>下次执行</th><th>状态</th><th style="width:80px">操作</th></tr></thead>
+        <tbody id="schedBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ======================= 端口 ======================= -->
+  <div class="page" id="page-port">
+    <div class="card" style="max-width:620px">
+      <div class="label"><span>process-service 监听端口</span><span id="portCurrent"></span></div>
+      <div class="toolbar" style="margin-bottom:10px">
+        <input type="text" id="portInput" inputmode="numeric" placeholder="1024 - 65535" style="width:150px" />
+        <button class="btn" id="portCheck">🔍 检测</button>
+        <button class="btn primary" id="portApply" disabled>✔ Apply</button>
+        <span id="portHint" style="font-size:12px"></span>
+      </div>
+      <div style="font-size:11px; color:var(--text-dim); line-height:1.7">
+        此端口用于本插件伴随服务，没有冲突默认即可，有需要可以自定。
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ==========================================================================
+// 进程管理 (process-manager) — data source: local sidecar process-service.exe
+// The listening port is configurable (端口 tab); it persists in the plugin
+// manifest (source of truth) and is cached here for fast first connect.
+// ==========================================================================
+let apiPort = Number(localStorage.getItem('pm-port')) || 18956;
+let API = 'http://127.0.0.1:' + apiPort;
+function setApiPort(p) {
+  apiPort = p;
+  localStorage.setItem('pm-port', String(p));
+  API = 'http://127.0.0.1:' + p;
+}
+const $ = (id) => document.getElementById(id);
+
+// ---------------- toast ----------------
+let toastTimer = null;
+function toast(msg, isErr) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ---------------- service health ----------------
+let serviceOk = false;
+async function checkHealth() {
+  try {
+    const r = await fetchTimeout(API + '/api/health', 3000);
+    const j = await r.json();
+    serviceOk = j.status === 'ok';
+    // The service reports its real port; adopt it if we connected via a stale cache.
+    if (serviceOk && j.port && j.port !== apiPort) setApiPort(j.port);
+    const el = j.elevated;
+    $('svcText').textContent = serviceOk
+      ? `process-service 在线 ${el ? '(管理员)' : '(未提权!)'} · v${j.version || ''}`
+      : '服务异常';
+  } catch (_) {
+    serviceOk = false;
+    $('svcText').textContent = 'sidecar 未响应 — 面板重开或重启宿主';
+  }
+  $('svcDot').classList.toggle('ok', serviceOk);
+  return serviceOk;
+}
+function fetchTimeout(url, ms, opts) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t));
+}
+async function api(path, opts) {
+  if (!serviceOk && !(await checkHealth())) throw new Error('process-service 未在线');
+  const r = await fetchTimeout(API + path, 15000, opts);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+
+// ---------------- navigation ----------------
+document.querySelectorAll('#nav button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#nav button').forEach((x) => x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
+    $('page-' + b.dataset.page).classList.add('active');
+    if (b.dataset.page === 'sched') { refreshSched(); ensureSchedNames(); }
+  });
+});
+
+
+// ---------------- clearable inputs (× at tail) ----------------
+document.querySelectorAll('.clear-wrap').forEach((w) => {
+  const input = w.querySelector('input');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'clear-btn';
+  btn.textContent = '×';
+  btn.title = '清空';
+  btn.tabIndex = -1;
+  w.appendChild(btn);
+  const sync = () => w.classList.toggle('has-value', input.value.length > 0);
+  input.addEventListener('input', sync);
+  btn.addEventListener('mousedown', (e) => e.preventDefault()); // keep input focus
+  btn.addEventListener('click', () => {
+    input.value = '';
+    sync();
+    input.focus();
+    input.dispatchEvent(new Event('input', { bubbles: true })); // re-filter lists
+  });
+  sync();
+});
+
+// ==========================================================================
+// PAGE: 进程
+// ==========================================================================
+function fmtBytes(n) {
+  if (n == null || isNaN(n)) return '—';
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0; let v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return v.toFixed(v >= 100 ? 0 : 1) + u[i];
+}
+let procCache = [];
+let procSort = { key: 'cpu', dir: -1 };
+// 任务管理器交互：默认平铺列表，有子进程的行前带 ▸ 展开箭头，点击展开子树。
+// procExpanded 保存已展开的 PID，刷新后保持展开状态。
+// 注意 pid 0 是 System Idle Process，子进程映射按真实 ppid 建，不用数字哨兵键。
+const procExpanded = new Set();
+// 「隐藏系统」勾选状态持久化：exe 在 Windows 目录下或无 exe 路径
+// （System Idle Process / System / Registry / Memory Compression 等
+// 内核进程）的视为系统进程。
+let procHideSys = localStorage.getItem('proc-hide-sys') === '1';
+const isSystemProc = (p) => {
+  const exe = (p.exe || '').toLowerCase();
+  return exe === '' || exe.startsWith('c:\\windows');
+};
+
+async function refreshProc() {
+  let d;
+  try { d = await api('/api/processes'); } catch (_) { return; }
+  procCache = d.processes || [];
+  renderProc();
+}
+
+function renderProc() {
+  const kw = $('procSearch').value.trim().toLowerCase();
+  let rows = procCache;
+  if (procHideSys) rows = rows.filter((p) => !isSystemProc(p));
+  if (kw) rows = rows.filter((p) =>
+    p.name.toLowerCase().includes(kw) || String(p.pid).includes(kw));
+  const { key, dir } = procSort;
+  const cmp = (a, b) => {
+    const va = a[key] ?? '', vb = b[key] ?? '';
+    return (typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))) * dir;
+  };
+
+  let list;
+  {
+    // 平铺展示当前层级的根节点；点 ▸ 才展开该行子树。
+    // 搜索时保留命中项及其完整祖先链，且命中行所在分支自动展开。
+    let keep = rows;
+    if (kw) {
+      const byPid = new Map(procCache.map((p) => [p.pid, p]));
+      const set = new Set();
+      rows.forEach((start) => {
+        let cur = start; const guard = new Set();
+        while (cur && !guard.has(cur.pid)) {
+          guard.add(cur.pid); set.add(cur.pid);
+          cur = cur.ppid != null ? byPid.get(cur.ppid) : null;
+        }
+      });
+      keep = procCache.filter((p) => set.has(p.pid));
+    }
+    const pidSet = new Set(keep.map((p) => p.pid));
+    const kids = new Map();
+    const ROOT = '__root__';
+    keep.forEach((p) => {
+      // 任务管理器规则：拥有可见窗口的「应用」一律作为顶级条目（app 字段
+      // 由 sidecar EnumWindows 判定），其余进程挂在真实父进程之下。
+      const parent = (p.app || p.ppid == null || p.ppid === p.pid || !pidSet.has(p.ppid)) ? ROOT : p.ppid;
+      if (!kids.has(parent)) kids.set(parent, []);
+      kids.get(parent).push(p);
+    });
+    // 子树聚合：父节点按「整棵子树的 CPU/内存总和」排序与显示，
+    // 与任务管理器一致——父行显示整棵树的合计，而不是自身值。
+    const agg = new Map();
+    const computeAgg = (p) => {
+      if (agg.has(p.pid)) return agg.get(p.pid); // 环路防护
+      agg.set(p.pid, { cpu: 0, mem: 0 }); // 先占位再递归，防环
+      const a = { cpu: p.cpu || 0, mem: p.mem || 0 };
+      (kids.get(p.pid) || []).forEach((c) => {
+        const ca = computeAgg(c);
+        a.cpu += ca.cpu;
+        a.mem += ca.mem;
+      });
+      agg.set(p.pid, a);
+      return a;
+    };
+    (kids.get(ROOT) || []).forEach(computeAgg);
+    const cmpTree = (a, b) => {
+      if (key === 'cpu' || key === 'mem') {
+        const va = (agg.get(a.pid) || a)[key], vb = (agg.get(b.pid) || b)[key];
+        return ((va || 0) - (vb || 0)) * dir;
+      }
+      return cmp(a, b);
+    };
+    // 根节点：应用（有窗口）排在后台/系统进程前面
+    const rootCmp = (a, b) => ((b.app ? 1 : 0) - (a.app ? 1 : 0)) || cmpTree(a, b);
+    list = [];
+    const visited = new Set();
+    const visit = (p, depth) => {
+      if (visited.has(p.pid)) return;
+      visited.add(p.pid);
+      const a = agg.get(p.pid) || p;
+      list.push({ p, depth, hasKids: (kids.get(p.pid) || []).length > 0, dispCpu: a.cpu || 0, dispMem: a.mem || 0 });
+      if (!procExpanded.has(p.pid) && !kw) return; // 未展开：不深入子树
+      [...kids.get(p.pid) || []].sort(cmpTree).forEach((c) => visit(c, depth + 1));
+    };
+    (kids.get(ROOT) || []).sort(rootCmp).forEach((r) => visit(r, 0));
+    if (kw) {
+      // 搜索时保留的祖先链整条显示（命中项的子树也一并展示）
+      list = [];
+      const visited2 = new Set();
+      const visitAll = (p, depth) => {
+        if (visited2.has(p.pid)) return;
+        visited2.add(p.pid);
+        const a = agg.get(p.pid) || p;
+        list.push({ p, depth, hasKids: (kids.get(p.pid) || []).length > 0, dispCpu: a.cpu || 0, dispMem: a.mem || 0 });
+        [...kids.get(p.pid) || []].sort(cmpTree).forEach((c) => visitAll(c, depth + 1));
+      };
+      (kids.get(ROOT) || []).sort(rootCmp).forEach((r) => visitAll(r, 0));
+    }
+  }
+  // 计数显示「过滤后的进程总数」，不随展开/收起变化。
+  $('procCount').textContent = `共 ${rows.length} 项`;
+
+  const tb = $('procBody');
+  tb.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  list.forEach(({ p, depth, hasKids, dispCpu, dispMem }) => {
+    const tr = document.createElement('tr');
+    // 父行显示整棵子树的合计值（任务管理器规则），叶子行显示自身值
+    const cpu = hasKids ? dispCpu : p.cpu;
+    const mem = fmtBytes(hasKids ? dispMem : p.mem);
+    const arrow = hasKids
+      ? `<span data-a="toggle" data-pid="${p.pid}" style="cursor:pointer; display:inline-block; width:14px; color:var(--text-dim); user-select:none">${procExpanded.has(p.pid) ? '▾' : '▸'}</span>`
+      : '<span style="display:inline-block; width:14px"></span>';
+    const nameHtml = `<span style="padding-left:${depth * 16}px">${arrow}${p.app ? `<span style="font-weight:600">${p.name}</span>` : p.name}</span>`;
+    tr.innerHTML = `
+      <td title="${p.name}">${nameHtml}</td>
+      <td class="num">${p.pid}</td>
+      <td class="num">${p.ppid ?? '—'}</td>
+      <td class="num" style="color:${cpu > 50 ? 'var(--status-err)' : cpu > 15 ? 'var(--status-warn)' : 'inherit'}">${cpu.toFixed(1)}</td>
+      <td class="num">${mem}</td>
+      <td style="color:var(--text-dim); font-size:11px" title="${p.exe}">${p.exe}</td>
+      <td><div class="row-actions">
+        <button class="btn danger" data-a="kill" data-pid="${p.pid}">结束</button>
+        <button class="btn danger" data-a="tree" data-pid="${p.pid}">树</button>
+      </div></td>`;
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+}
+
+$('procBody').addEventListener('click', procAction);
+async function procAction(e) {
+  const el = e.target.closest('[data-a]');
+  if (!el) return;
+  const pid = Number(el.dataset.pid);
+  const act = el.dataset.a;
+  if (act === 'toggle') {
+    if (procExpanded.has(pid)) procExpanded.delete(pid);
+    else procExpanded.add(pid);
+    renderProc();
+    return;
+  }
+  try {
+    if (act === 'kill' || act === 'tree') {
+      if (!confirm(`${act === 'tree' ? '结束整棵进程树' : '结束进程'} PID ${pid}？`)) return;
+      await api('/api/process/kill', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pid, tree: act === 'tree' }) });
+      toast(`已结束 PID ${pid}${act === 'tree' ? ' 及其子进程' : ''}`);
+      refreshProc();
+    }
+  } catch (err) {
+    toast('操作失败: ' + err.message, true);
+  }
+}
+document.querySelectorAll('#page-proc th[data-sort]').forEach((th) => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    procSort = { key: k, dir: procSort.key === k ? -procSort.dir : -1 };
+    renderProc();
+  });
+});
+$('procRefresh').addEventListener('click', refreshProc);
+const procHideSysEl = $('procHideSys');
+procHideSysEl.checked = procHideSys;
+procHideSysEl.addEventListener('change', () => {
+  procHideSys = procHideSysEl.checked;
+  localStorage.setItem('proc-hide-sys', procHideSys ? '1' : '0');
+  renderProc();
+});
+$('procSearch').addEventListener('input', renderProc);
+
+// ==========================================================================
+// PAGE: 定时
+// ==========================================================================
+let schedCache = [];
+
+async function refreshSched() {
+  let d;
+  try { d = await api('/api/schedule'); } catch (_) { return; }
+  schedCache = d.tasks || [];
+  renderSched();
+}
+
+const fmtSchedDT = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+function nextRunText(t) {
+  const [h, m] = (t.time || '').split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return '—';
+  const now = new Date();
+  if (t.mode === 'daily') {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    if (d <= now) d.setDate(d.getDate() + 1);
+    return fmtSchedDT(d);
+  }
+  // once：任务时间本身
+  return t.date ? `${t.date} ${t.time}` : '—';
+}
+
+function renderSched() {
+  const tb = $('schedBody');
+  tb.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  if (!schedCache.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="6" style="text-align:center; color:var(--text-dim); padding:18px 0">暂无定时任务，在上方添加一个试试</td>';
+    frag.appendChild(tr);
+  }
+  schedCache.forEach((t) => {
+    const tr = document.createElement('tr');
+    const modeText = t.mode === 'once' ? '一次性' : '每天';
+    const timeText = t.mode === 'once' ? `${t.date} ${t.time}` : t.time;
+    const status = t.last_run
+      ? `上次 ${t.last_run} 执行：关闭 ${t.last_killed ?? 0} 个${t.last_failed ? `，失败 ${t.last_failed}` : ''}`
+      : (t.mode === 'once' ? '等待到点执行' : '待首次执行');
+    tr.innerHTML = `
+      <td title="${t.name}">${t.name}</td>
+      <td>${modeText}</td>
+      <td>${timeText}</td>
+      <td style="color:var(--text-dim)">${nextRunText(t)}</td>
+      <td style="color:var(--text-dim); font-size:11px">${status}</td>
+      <td><div class="row-actions">
+        <button class="btn danger" data-a="sched-del" data-id="${t.id}">删除</button>
+      </div></td>`;
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+}
+
+// 下拉框：从当前进程快照取候选（按名去重、排除系统/空闲进程）
+function fillSchedNames() {
+  const sel = $('schedName');
+  const names = [...new Set(procCache
+    .filter((p) => p.pid > 0 && !isSystemProc(p) && p.name)
+    .map((p) => p.name))]
+    .sort((a, b) => a.localeCompare(b));
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— 选择进程 —</option>' +
+    names.map((n) => `<option value="${n}">${n}</option>`).join('');
+  if (names.includes(cur)) sel.value = cur;
+  updateSchedTarget();
+}
+
+// 目标解析：沿父链向上找「应用级主进程」——最近一个有可见窗口的
+// 祖先（app 字段）。绝不越过 explorer（shell）或系统进程：从资源
+// 管理器直接启动的应用（如双击 exe），父进程是 explorer，此时目标
+// 就是所选进程自身；父进程不在快照里时同样退化为自身。
+function resolveSchedTarget() {
+  const sel = $('schedName').value;
+  if (!sel) return sel;
+  let cur = procCache.find((p) => p.name === sel);
+  if (!cur) return sel;
+  let target = cur;
+  const guard = new Set();
+  while (cur && !guard.has(cur.pid)) {
+    guard.add(cur.pid);
+    const parent = cur.ppid ? procCache.find((p) => p.pid === cur.ppid) : null;
+    if (!parent || parent.pid === 0 || parent.pid === cur.pid) break;
+    if (isSystemProc(parent)) break;                 // 系统进程：不跟进去
+    if (parent.name.toLowerCase() === 'explorer.exe') break; // shell：不跟进去
+    if (parent.app) { target = parent; break; }      // 有窗口的主进程：就是它
+    target = parent;                                 // 无窗口的中间启动器：继续向上
+    cur = parent;
+  }
+  return target.name;
+}
+
+function updateSchedTarget() {
+  const sel = $('schedName').value;
+  const el = $('schedTarget');
+  if (!sel) { el.textContent = ''; return; }
+  const t = resolveSchedTarget();
+  el.textContent = t && t !== sel ? `｜当前选中 ${sel}，将关闭父进程 ${t}` : '';
+}
+
+async function ensureSchedNames() {
+  if (!procCache.length) await refreshProc();
+  fillSchedNames();
+  updateSchedTarget();
+}
+
+$('schedName').addEventListener('change', updateSchedTarget);
+
+$('schedMode').addEventListener('change', () => {
+  const once = $('schedMode').value === 'once';
+  $('schedDate').style.display = once ? '' : 'none';
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  $('schedDate').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+});
+
+$('schedAdd').addEventListener('click', async () => {
+  const name = resolveSchedTarget();
+  if (!name) { toast('请先选择进程', true); return; }
+  const mode = $('schedMode').value;
+  const body = { name, mode, time: $('schedTime').value, tree: $('schedTree').checked };
+  if (mode === 'once') {
+    body.date = $('schedDate').value;
+    // 一次性任务不允许设过去的时间：服务端「到点即触发」的语义下，
+    // 过期任务会立即执行
+    const when = new Date(`${body.date}T${body.time || '00:00'}`);
+    if (isNaN(when.getTime()) || when <= new Date()) {
+      toast('一次性任务的时间已经过去了，请选择未来的时间', true);
+      return;
+    }
+  }
+  try {
+    await api('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body) });
+    toast(`定时任务已添加（关闭目标: ${name}）`);
+    refreshSched();
+  } catch (err) {
+    toast('添加失败: ' + err.message, true);
+  }
+});
+
+$('schedBody').addEventListener('click', async (e) => {
+  const el = e.target.closest('[data-a="sched-del"]');
+  if (!el) return;
+  const id = Number(el.dataset.id);
+  if (!confirm('删除这条定时任务？')) return;
+  try {
+    await api('/api/schedule?id=' + id, { method: 'DELETE' });
+    toast('已删除');
+    refreshSched();
+  } catch (err) {
+    toast('删除失败: ' + err.message, true);
+  }
+});
+
+// ==========================================================================
+// PAGE: 连接
+// ==========================================================================
+let connCache = [];
+
+async function refreshConn() {
+  let d;
+  try { d = await api('/api/connections'); } catch (_) { return; }
+  connCache = [...(d.tcp || []), ...(d.udp || [])];
+  renderConn();
+}
+
+function renderConn() {
+  const proto = $('connProto').value;
+  const kw = $('connSearch').value.trim().toLowerCase();
+  let rows = connCache;
+  if (proto !== 'all') rows = rows.filter((r) => r.proto === proto);
+  if (kw) rows = rows.filter((r) =>
+    r.local.toLowerCase().includes(kw) || (r.remote || '').toLowerCase().includes(kw) ||
+    String(r.pid).includes(kw) || r.process.toLowerCase().includes(kw));
+
+  const tb = $('connBody');
+  tb.innerHTML = '';
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7"><div class="empty">无匹配连接</div></td></tr>'; return; }
+  const frag = document.createDocumentFragment();
+  rows.forEach((r) => {
+    const tr = document.createElement('tr');
+    const established = r.state === 'ESTABLISHED';
+    tr.innerHTML = `
+      <td style="color:${r.proto === 'tcp' ? 'var(--accent)' : 'var(--status-warn)'}; font-weight:600">${r.proto.toUpperCase()}</td>
+      <td style="color:${established ? 'var(--status-ok)' : 'var(--text-dim)'}">${r.state || '—'}</td>
+      <td class="num" style="text-align:left">${r.local}</td>
+      <td class="num" style="text-align:left">${r.remote || '—'}</td>
+      <td class="num">${r.pid}</td>
+      <td title="${r.process}">${r.process}</td>
+      <td>${r.proto === 'tcp' && r.remote ? `<button class="btn danger" data-l="${r.local}" data-r="${r.remote}">断开</button>` : '—'}</td>`;
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+}
+
+$('connBody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-l]');
+  if (!btn) return;
+  const [laddr, lport] = btn.dataset.l.split(':');
+  const [raddr, rport] = btn.dataset.r.split(':');
+  if (!confirm(`强制断开 ${btn.dataset.l} → ${btn.dataset.r}？`)) return;
+  try {
+    await api('/api/connections/close', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ local_addr: laddr, local_port: Number(lport), remote_addr: raddr, remote_port: Number(rport) }) });
+    toast('连接已断开');
+    refreshConn();
+  } catch (err) {
+    toast('断开失败: ' + err.message, true);
+  }
+});
+$('connRefresh').addEventListener('click', refreshConn);
+$('connSearch').addEventListener('input', renderConn);
+$('connProto').addEventListener('change', renderConn);
+
+// ==========================================================================
+// PAGE: 文件占用
+// ==========================================================================
+async function probeFile() {
+  const p = $('filePath').value.trim();
+  if (!p) { toast('请输入文件或文件夹路径', true); return; }
+  $('fileResult').innerHTML = '<div class="empty"><span class="spin">⏳</span> Restart Manager 分析中…</div>';
+  try {
+    const d = await api('/api/file/occupiers?path=' + encodeURIComponent(p));
+    if (!d.occupiers.length) {
+      $('fileResult').innerHTML = `<div class="empty">✅ 当前没有进程占用此路径</div>`;
+      return;
+    }
+    const rows = d.occupiers.map((o) => `
+      <tr>
+        <td class="num">${o.pid}</td>
+        <td title="${o.process}">${o.process || o.app}</td>
+        <td>${o.app}</td>
+        <td style="color:var(--text-dim)">${o.app_type}${o.service ? ' · ' + o.service : ''}</td>
+        <td><button class="btn danger" data-fpid="${o.pid}">结束进程</button></td>
+      </tr>`).join('');
+    $('fileResult').innerHTML = `
+      <div class="label"><span>「${p}」被 ${d.count} 个进程占用</span></div>
+      <table><thead><tr><th>PID</th><th>进程</th><th>应用名</th><th>类型</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  } catch (err) {
+    $('fileResult').innerHTML = `<div class="empty" style="color:var(--status-err)">❌ ${err.message}</div>`;
+  }
+}
+$('fileProbe').addEventListener('click', probeFile);
+$('filePath').addEventListener('keydown', (e) => { if (e.key === 'Enter') probeFile(); });
+$('fileResult').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-fpid]');
+  if (!btn) return;
+  const pid = Number(btn.dataset.fpid);
+  if (!confirm(`结束占用进程 PID ${pid}？`)) return;
+  try {
+    await api('/api/process/kill', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pid, tree: false }) });
+    toast(`已结束 PID ${pid}`);
+    probeFile();
+  } catch (err) {
+    toast('结束失败: ' + err.message, true);
+  }
+});
+// Drag & drop removed: WebView2 never exposes full file paths to page JS,
+// and capturing them would require host-side changes. Users type/paste paths.
+
+
+// ==========================================================================
+// PAGE: 端口
+// ==========================================================================
+let portState = null; // last /api/port/check result
+let portCheckTimer = null;
+
+function portHintSet(text, color) {
+  const h = $('portHint');
+  h.textContent = text;
+  h.style.color = color || 'inherit';
+}
+
+function portApplyEnabled() {
+  $('portApply').disabled = !(portState && portState.free);
+}
+
+async function checkPort() {
+  const p = Number($('portInput').value.trim());
+  if (!p || p < 1 || p > 65535) {
+    portState = null;
+    portHintSet('请输入 1-65535 的端口号', 'var(--status-err)');
+    portApplyEnabled();
+    return;
+  }
+  portHintSet('检测中…', 'var(--text-dim)');
+  try {
+    const d = await api('/api/port/check?port=' + p);
+    portState = d;
+    if (d.free) {
+      portHintSet(
+        d.self ? `✅ 端口 ${p} 可用（当前端口）` : `✅ 端口 ${p} 可用`,
+        'var(--status-ok)');
+    } else {
+      const who = d.owner ? `${d.owner}${d.pid ? ' (PID ' + d.pid + ')' : ''}` : '其他进程';
+      portHintSet(`❌ 端口 ${p} 已被 ${who} 占用`, 'var(--status-err)');
+    }
+  } catch (e) {
+    portState = null;
+    portHintSet('检测失败: ' + e.message, 'var(--status-err)');
+  }
+  portApplyEnabled();
+}
+
+async function applyPort() {
+  if (!portState || !portState.free) return;
+  const p = portState.port;
+  $('portApply').disabled = true;
+  portHintSet('重启服务中…', 'var(--text-dim)');
+  try {
+    await api('/api/config/port', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ port: p }) });
+  } catch (e) {
+    portHintSet('应用失败', 'var(--status-err)');
+    toast('应用失败: ' + e.message, true);
+    portApplyEnabled();
+    return;
+  }
+
+  // Old instance hands over to a fresh one on the new port; poll health there.
+  setApiPort(p);
+  serviceOk = false;
+  let ok = false;
+  for (let i = 0; i < 20 && !ok; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    try {
+      const r = await fetchTimeout(API + '/api/health', 1500);
+      const j = await r.json();
+      if (j.status === 'ok') {
+        ok = true;
+        if (j.port && j.port !== apiPort) setApiPort(j.port);
+      }
+    } catch (_) { /* not up yet */ }
+  }
+
+  if (ok) {
+    $('svcDot').classList.add('ok');
+    $('svcText').textContent = `process-service 在线 · 端口 ${apiPort}`;
+    checkHealth();
+    refreshProc(); refreshConn();
+    portHintSet(`✅ 已切换到端口 ${apiPort}`, 'var(--status-ok)');
+    toast(`process-service 已在端口 ${apiPort} 重新上线`);
+  } else {
+    portHintSet('服务未在新端口上线 — 检查端口后重开面板', 'var(--status-err)');
+    toast('服务重启失败', true);
+    checkHealth();
+  }
+  portApplyEnabled();
+}
+
+$('portCheck').addEventListener('click', checkPort);
+$('portApply').addEventListener('click', applyPort);
+$('portInput').addEventListener('input', () => {
+  clearTimeout(portCheckTimer);
+  portCheckTimer = setTimeout(checkPort, 400);
+});
+$('portInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPort(); });
+// Prefill + check whenever the tab is opened
+document.querySelector('#nav button[data-page="port"]').addEventListener('click', () => {
+  $('portInput').value = apiPort;
+  $('portCurrent').textContent = `当前端口: ${apiPort}`;
+  checkPort();
+});
+
+// ==========================================================================
+// main loop
+// ==========================================================================
+let tick = 0;
+async function mainLoop() {
+  if (!serviceOk && tick % 5 === 0) await checkHealth();
+  const active = document.querySelector('.page.active').id;
+  if (!serviceOk) { tick++; return; }
+  if (active === 'page-proc' && $('procAuto').checked) await refreshProc();
+  else if (active === 'page-conn' && $('connAuto').checked) await refreshConn();
+  tick++;
+}
+
+(async function init() {
+  document.querySelectorAll('#page-proc th[data-sort]').forEach((th) => {
+    if (th.dataset.sort === 'cpu') th.textContent += ' ↓';
+  });
+  await checkHealth();
+  if (serviceOk) { refreshProc(); refreshConn(); }
+  setInterval(mainLoop, 1500);
+  setInterval(checkHealth, 30000);
+})();
+</script>
+</body>
+</html>
