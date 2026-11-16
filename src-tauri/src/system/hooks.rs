@@ -190,8 +190,11 @@ unsafe extern "system" fn low_level_keyboard_proc(
         if msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN {
             crate::driver::streamer::tracker::push_interactive_key_event(vk as i32);
 
-            // 0.05 Chassis Hardware Radio / Airplane Mode Hotkey (VK_F24 = 135, VK_F21 = 132)
-            if vk == 135 || vk == 132 {
+            // 0.05 Chassis Hardware Radio / Airplane Mode Hotkey (VK_F21 = 132)
+            // NOTE: VK_F24 (135) with Ctrl+Win is the official Microsoft Windows Precision Touchpad (PTP)
+            // toggle shortcut sent by laptop keyboard firmware on Fn+F5.
+            // It MUST NEVER be treated as a radio/Wi-Fi hotkey, otherwise Fn+F5 toggles Wi-Fi unexpectedly!
+            if vk == 132 {
                 static LAST_RADIO_VK: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
                 let should_fire = {
                     let mut last = LAST_RADIO_VK.lock().unwrap();
