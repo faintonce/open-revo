@@ -120,7 +120,7 @@ impl EcBridge {
                         let raw_fan_clamp = bytes[0];
                         let raw_mode = bytes[1];
                         let bat_mode_byte = bytes[2];
-                        let battery_up = bytes[3];
+                        let battery_up = bytes[3] & 0x7F; // Bit 7 signals that the charge limit was reached.
                         let cpu_rpm_high = bytes[4] as u16;
                         let cpu_rpm_low = bytes[5] as u16;
                         let gpu_rpm_high = bytes[6] as u16;
