@@ -860,9 +860,16 @@
         STATE.memOffset = info.mem_offset_mhz || 0;
         STATE.vfPoints = info.vf_points || [];
 
-        // If no planned curve, synchronize from current physical curve
+        // If no planned curve, synchronize from current physical curve or calculate from active preset
         if (!STATE.plannedDeltas && STATE.vfPoints.length > 0) {
-          STATE.plannedDeltas = STATE.vfPoints.map(p => p.delta_mhz || 0);
+          const hasActiveHardwareDeltas = STATE.vfPoints.some(p => (p.delta_mhz || 0) !== 0);
+          if (hasActiveHardwareDeltas) {
+            STATE.plannedDeltas = STATE.vfPoints.map(p => p.delta_mhz || 0);
+          } else if (STATE.targetVolt && STATE.targetFreq && STATE.activeMode !== '出厂默认') {
+            calculatePlannedCurve(STATE.targetVolt, STATE.targetFreq, STATE.activeMode);
+          } else {
+            STATE.plannedDeltas = STATE.vfPoints.map(() => 0);
+          }
         }
 
         document.getElementById('gpuTitle').textContent = STATE.gpuName;
@@ -951,35 +958,36 @@
 
       const currentPoints = STATE.vfPoints;
       // Stock baseline = freq_mhz - delta_mhz
-      const stockFreqAtTarget = currentPoints[targetIdx].freq_mhz - currentPoints[targetIdx].delta_mhz;
-      const baseBoost = Math.max(-300, Math.min(250, targetFreq - stockFreqAtTarget));
+      const stockFreqAtTarget = currentPoints[targetIdx].freq_mhz - (currentPoints[targetIdx].delta_mhz || 0);
+      const targetDelta = Math.max(DELTA_MIN, Math.min(DELTA_MAX, targetFreq - stockFreqAtTarget));
+      const actualTargetFreq = stockFreqAtTarget + targetDelta;
 
       const newDeltas = new Array(currentPoints.length).fill(0);
       for (let i = 1; i < currentPoints.length; i++) {
-        const stockFreq = currentPoints[i].freq_mhz - currentPoints[i].delta_mhz;
+        const stockFreq = currentPoints[i].freq_mhz - (currentPoints[i].delta_mhz || 0);
         if (i <= targetIdx) {
-          // Low-voltage ascending region: elevate by baseBoost
-          newDeltas[i] = baseBoost;
+          // Low-voltage ascending region: elevate by targetDelta
+          newDeltas[i] = targetDelta;
         } else {
-          // Flattened undervolt region: clamp flat to targetFreq
-          const deltaToFlat = targetFreq - stockFreq;
-          newDeltas[i] = Math.max(DELTA_MIN, Math.min(baseBoost, deltaToFlat));
+          // Flattened undervolt region: clamp flat to actualTargetFreq
+          const deltaToFlat = actualTargetFreq - stockFreq;
+          newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, deltaToFlat));
         }
       }
 
-      // Monotonic sanity check (guard against steep drops)
-      let prevFreq = currentPoints[0].freq_mhz;
+      // Monotonic sanity check (Strictly non-decreasing guard)
+      let prevFreq = (currentPoints[0].freq_mhz - (currentPoints[0].delta_mhz || 0)) + newDeltas[0];
       for (let i = 1; i < currentPoints.length; i++) {
-        const stockFreq = currentPoints[i].freq_mhz - currentPoints[i].delta_mhz;
+        const stockFreq = currentPoints[i].freq_mhz - (currentPoints[i].delta_mhz || 0);
         const effFreq = stockFreq + newDeltas[i];
-        if (effFreq < prevFreq - 25) {
+        if (effFreq < prevFreq) {
           newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, prevFreq - stockFreq));
         }
         prevFreq = stockFreq + newDeltas[i];
       }
 
       STATE.plannedDeltas = newDeltas;
-      log(`[✓] 已计算曲线方案 [${label}]: 低压段抬升 ${baseBoost >= 0 ? '+' : ''}${baseBoost}MHz, 超出 ${targetVolt}mV 后强制削平锁频至 ${targetFreq}MHz.`);
+      log(`[✓] 已计算曲线方案 [${label}]: 低压段抬升 ${targetDelta >= 0 ? '+' : ''}${targetDelta}MHz, 超出 ${currentPoints[targetIdx].volt_mv}mV 后强制削平锁频至 ${actualTargetFreq}MHz.`);
       drawCurve();
     }
 
@@ -1185,11 +1193,10 @@
 
       // Restore snapshot from drag start to calculate relative offset cleanly
       STATE.plannedDeltas = drag.snapshot.slice();
-      const dy = y - drag.startY; // Downward is positive (lower frequency)
-      const mhzPerPx = Math.min((g.yMax - g.yMin) / g.plotH, 8);
-      const targetFreq = drag.startFreq - dy * mhzPerPx;
+      const isShift = drag.shift || ev.shiftKey || ev.altKey;
+      const targetFreq = Math.round(g.yToF(y));
 
-      if (drag.shift) {
+      if (isShift) {
         setFollowFlatten(drag.index, targetFreq);
       } else {
         setSinglePoint(drag.index, targetFreq);
@@ -1212,7 +1219,17 @@
         document.getElementById('statModeText').textContent = STATE.activeMode;
         const p = STATE.vfPoints[idx];
         const effF = Math.round(getEffFreq(idx));
-        const modeDesc = drag.shift ? 'Shift 右侧水平削平锁频' : '单点微调';
+        const isShift = drag.shift || ev.shiftKey || ev.altKey;
+
+        if (isShift) {
+          STATE.targetVolt = p.volt_mv;
+          STATE.targetFreq = effF;
+          document.getElementById('inputTargetVolt').value = STATE.targetVolt;
+          document.getElementById('inputTargetFreq').value = STATE.targetFreq;
+          document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+        }
+
+        const modeDesc = isShift ? 'Shift 右侧水平削平锁频' : '单点微调';
         log(`[✎] ${modeDesc}: 锚点 #${idx} (${p.volt_mv}mV) 调整为 ${effF}MHz (点击「一键写入」下发生效)`);
         savePluginStorage();
       } else {
@@ -1464,21 +1481,34 @@
 
       // 6. Highlight Target Anchor Point Indicator
       if (STATE.targetVolt && STATE.targetFreq) {
-        const targetX = toX(STATE.targetVolt);
-        const targetY = toY(STATE.targetFreq);
-        if (targetX >= padL && targetX <= w - padR) {
-          ctx.fillStyle = '#10b981';
-          ctx.beginPath();
-          ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
+        let targetIdx = -1;
+        let minDiff = Infinity;
+        for (let i = 0; i < points.length; i++) {
+          const diff = Math.abs(points[i].volt_mv - STATE.targetVolt);
+          if (diff < minDiff) {
+            minDiff = diff;
+            targetIdx = i;
+          }
+        }
+        if (targetIdx >= 0) {
+          const actualV = points[targetIdx].volt_mv;
+          const actualF = Math.round(getEffFreq(targetIdx));
+          const targetX = toX(actualV);
+          const targetY = toY(actualF);
+          if (targetX >= padL && targetX <= w - padR) {
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
 
-          ctx.fillStyle = '#10b981';
-          ctx.font = 'bold 10px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText(`[${STATE.targetVolt}mV, ${STATE.targetFreq}MHz]`, targetX, targetY - 10);
+            ctx.fillStyle = '#10b981';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`[${actualV}mV, ${actualF}MHz]`, targetX, targetY - 10);
+          }
         }
       }
     }
