@@ -24,7 +24,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
   const isThinLight = capabilities?.form_factor === 'thin_light' || capabilities?.discrete_gpu === false;
   const hasCustomMode = capabilities?.power_modes ? capabilities.power_modes.includes('custom') : !isThinLight;
   const [gpuOc, setGpuOc] = useState<{ on: boolean; busy: boolean; error: boolean }>({ on: false, busy: false, error: false });
-  const [ocDefaults, setOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
+  const [ocDefaults, setOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 0 });
 
   useEffect(() => {
     invoke<any>('get_app_config')
@@ -34,7 +34,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
         const mem = Number(cfg.gpu_oc_mem_mhz);
         setOcDefaults({
           core: Number.isFinite(core) && core >= 0 ? core : 105,
-          mem: Number.isFinite(mem) && mem >= 0 ? mem : 500,
+          mem: Number.isFinite(mem) && mem >= 0 ? mem : 0,
         });
       })
       .catch(() => { });

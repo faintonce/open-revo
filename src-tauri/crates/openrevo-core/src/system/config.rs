@@ -277,7 +277,7 @@ fn default_gpu_offset_step() -> u32 { 5 }
 fn default_gpu_core_offset_max() -> i32 { 250 }
 fn default_gpu_mem_offset_max() -> i32 { 1000 }
 fn default_gpu_oc_core_mhz() -> i32 { 105 }
-fn default_gpu_oc_mem_mhz() -> i32 { 500 }
+fn default_gpu_oc_mem_mhz() -> i32 { 0 }
 
 fn default_cpu_temp_target_min() -> u8 { 85 }
 fn default_cpu_temp_target_max() -> u8 { 95 }
@@ -1260,6 +1260,11 @@ fn load_config_from_disk() -> AppConfig {
                 cfg.power_mode_ac = 4;
             }
             if cfg.power_mode_battery == 0 { cfg.power_mode_battery = if cfg.power_mode == 1 { 1 } else { 2 }; }
+            // Safety Guard: The legacy buggy default for gpu_oc_mem_mhz was 500 MHz, which caused
+            // GPU artifacting and crash on normal memory chips. Auto-heal legacy 500 back to 0 MHz.
+            if cfg.gpu_oc_mem_mhz == 500 {
+                cfg.gpu_oc_mem_mhz = 0;
+            }
             let profiles = list_profiles();
             if let Some(active) = profiles.iter().find(|p| p.id == cfg.active_profile_id).or_else(|| profiles.first()) {
                 cfg.active_profile_id = active.id.clone();

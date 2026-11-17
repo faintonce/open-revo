@@ -37,7 +37,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   // 狂暴子模式（静音/高能）：只有能力位满足的机型才拆成两段
   const turboSub = useTurboSubmode();
   const [gcuOc, setGcuOc] = useState<{ on: boolean; busy: boolean; error: boolean }>({ on: false, busy: false, error: false });
-  const [ocDefaults, setOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
+  const [ocDefaults, setOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 0 });
 
   // GPU OC 默认值来自设置页（config.json 持久化），开启时使用
   useEffect(() => {
@@ -48,7 +48,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
         const mem = Number(cfg.gpu_oc_mem_mhz);
         setOcDefaults({
           core: Number.isFinite(core) && core >= 0 ? core : 105,
-          mem: Number.isFinite(mem) && mem >= 0 ? mem : 500,
+          mem: Number.isFinite(mem) && mem >= 0 ? mem : 0,
         });
       })
       .catch(() => { });

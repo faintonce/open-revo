@@ -85,7 +85,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [balancedDbEnabled, setBalancedDbEnabled] = useState(true);
 
   // GPU OC 默认值（设置页可改；开启 GPU OC 时生效）
-  const [gpuOcDefaults, setGpuOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 500 });
+  const [gpuOcDefaults, setGpuOcDefaults] = useState<{ core: number; mem: number }>({ core: 105, mem: 0 });
   const [gpuOcSaveHint, setGpuOcSaveHint] = useState('');
 
   useEffect(() => {
@@ -99,7 +99,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         const mem = Number(cfg.gpu_oc_mem_mhz);
         setGpuOcDefaults({
           core: Number.isFinite(core) && core >= 0 ? core : 105,
-          mem: Number.isFinite(mem) && mem >= 0 ? mem : 500,
+          mem: Number.isFinite(mem) && mem >= 0 ? mem : 0,
         });
       })
       .catch(() => { });
