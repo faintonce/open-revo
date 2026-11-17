@@ -2610,6 +2610,44 @@ body,
   font-size: 11px;
 }
 
+.tuning-power-notice {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.tuning-power-safety-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.tuning-power-safety-status strong {
+  color: var(--text-primary);
+}
+
+.power-confirm-reasons {
+  margin-bottom: 8px;
+  color: var(--status-error);
+}
+
+[data-theme="mono"] .power-confirm-reasons {
+  color: var(--text-primary);
+}
+
+[data-theme="mono"] .tuning-power-safety-status {
+  background: var(--surface-sunken);
+  border-color: var(--border-subtle);
+}
+
 .power-confirm-backdrop {
   z-index: 10002;
 }

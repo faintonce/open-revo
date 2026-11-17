@@ -9,6 +9,7 @@ pub mod logger;
 pub mod model_engine;
 pub mod power;
 pub mod power_mode;
+pub mod power_safety;
 pub mod process;
 pub mod raw_gateway;
 pub mod autostart;

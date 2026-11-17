@@ -14,12 +14,13 @@ interface PowerChangeConfirmModalProps {
   target: number;
   unit: string;
   changes?: PowerLimitPreview[];
+  reasons?: string[];
   onCancel: () => void;
   onConfirm: () => void;
 }
 
 export const PowerChangeConfirmModal: React.FC<PowerChangeConfirmModalProps> = ({
-  label, current, target, unit, changes, onCancel, onConfirm,
+  label, current, target, unit, changes, reasons, onCancel, onConfirm,
 }) => {
   const titleId = useId();
   const bodyId = useId();
@@ -76,7 +77,11 @@ export const PowerChangeConfirmModal: React.FC<PowerChangeConfirmModalProps> = (
               ))}
             </ul>
           )}
-          <p className="sys-modal-warning-label">功率过低可能导致系统卡顿，过高可能增加发热或触发硬件保护。</p>
+          {reasons?.length ? (
+            <ul className="sys-modal-list power-confirm-reasons">
+              {reasons.map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
+          ) : <p className="sys-modal-warning-label">功率过低可能导致系统卡顿，过高可能增加发热或触发硬件保护。</p>}
           <p>其他 CPU 功率限制可能按现有规则联动调整。请核对数值，确认输入已完成后再应用。</p>
         </div>
         <div className="sys-modal-actions">

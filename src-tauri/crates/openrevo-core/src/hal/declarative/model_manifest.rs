@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn test_wujie_14_ip3_deserialization() {
-        let json = include_str!("../../../resources/drivers/wujie_14_ip3.json");
+        let json = include_str!("../../../../../resources/drivers/wujie_14_ip3.json");
         let manifest: ModelManifest = serde_json::from_str(json).expect("Failed to parse manifest");
         let action = manifest.actions.get("set_power_mode").expect("No set_power_mode");
         match action {
@@ -260,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_xingyao_14_p916f_deserialization() {
-        let json = include_str!("../../../resources/drivers/xingyao_14_p916f.json");
+        let json = include_str!("../../../../../resources/drivers/xingyao_14_p916f.json");
         let manifest: ModelManifest = serde_json::from_str(json).expect("Failed to parse manifest");
         let action = manifest.actions.get("set_power_mode").expect("No set_power_mode");
         match action {
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_wujie_14_bld_deserialization() {
-        let json = include_str!("../../../resources/drivers/wujie_14_bld.json");
+        let json = include_str!("../../../../../resources/drivers/wujie_14_bld.json");
         let manifest: ModelManifest = serde_json::from_str(json).expect("Failed to parse manifest");
         let action = manifest.actions.get("set_power_mode").expect("No set_power_mode");
         match action {
@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_jiaolong_16_bld_matching() {
-        let json = include_str!("../../../resources/drivers/jiaolong_16_bld.json");
+        let json = include_str!("../../../../../resources/drivers/jiaolong_16_bld.json");
         let manifest: ModelManifest = serde_json::from_str(json).expect("Failed to parse manifest");
         // Test real tester's DMI from report:
         // Board: MRID6-23, Product: Jiaolong Series MRID6
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_wujie_x_series_deserialization_and_matching() {
-        let json = include_str!("../../../resources/drivers/wujie_x_series.json");
+        let json = include_str!("../../../../../resources/drivers/wujie_x_series.json");
         let manifest: ModelManifest = serde_json::from_str(json).expect("Failed to parse manifest");
 
         // Verify capabilities: thin & light, no dGPU, fan curve enabled

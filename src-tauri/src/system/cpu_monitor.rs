@@ -1,4 +1,5 @@
-use std::sync::atomic::{AtomicI32, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, Ordering};
+use crate::system::power_safety::{now_ms, CpuSample, PowerHistory, PowerSnapshot, PowerSource};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -85,6 +86,8 @@ pub struct CpuMonitor {
     usage_pct: AtomicU32,
     cpu_temp: AtomicI32,
     power_dw: AtomicU32,
+    power_sample_at_ms: AtomicU64,
+    power_history: parking_lot::Mutex<PowerHistory>,
 }
 
 impl CpuMonitor {
@@ -95,6 +98,8 @@ impl CpuMonitor {
             usage_pct: AtomicU32::new(5),
             cpu_temp: AtomicI32::new(50),
             power_dw: AtomicU32::new(0),
+            power_sample_at_ms: AtomicU64::new(0),
+            power_history: parking_lot::Mutex::new(PowerHistory::default()),
         });
 
         let monitor_clone = Arc::clone(&monitor);
@@ -192,6 +197,10 @@ impl CpuMonitor {
                     continue;
                 }
 
+                let mut usage_sample = None;
+                let mut temperature_sample = None;
+                let mut power_sample = None;
+
                 // 1. Calculate CPU Usage via GetSystemTimes
                 if let Some(ref get_times) = get_system_times {
                     let mut idle = FILETIME::default();
@@ -211,6 +220,7 @@ impl CpuMonitor {
                             if total > 0 {
                                 let usage = ((total.saturating_sub(idle_diff)) as f64 / total as f64 * 100.0) as u32;
                                 monitor_clone.usage_pct.store(usage.min(100), Ordering::SeqCst);
+                                usage_sample = Some(usage.min(100) as f64);
                             }
                         }
 
@@ -275,7 +285,7 @@ impl CpuMonitor {
                                         if offset + item_size <= buf.len() {
                                             let item_ptr = buf.as_ptr().add(offset) as *const PdhFmtCountervalueItem;
                                             let val = (*item_ptr).fmt_value.double_value;
-                                            if val > 250.0 && val < 420.0 {
+                                            if (*item_ptr).fmt_value.c_status <= 1 && val > 250.0 && val < 420.0 {
                                                 let c = (val - 273.15).round() as i32;
                                                 if max_celsius.map_or(true, |m| c > m) {
                                                     max_celsius = Some(c);
@@ -285,6 +295,7 @@ impl CpuMonitor {
                                     }
                                     if let Some(c) = max_celsius {
                                         monitor_clone.cpu_temp.store(c, Ordering::SeqCst);
+                                        temperature_sample = Some(c as f64);
                                     }
                                 }
                             }
@@ -308,6 +319,7 @@ impl CpuMonitor {
                                         if offset + item_size <= buf.len() {
                                             let item_ptr = buf.as_ptr().add(offset) as *const PdhFmtCountervalueItem;
                                             let val = (*item_ptr).fmt_value.double_value;
+                                            if (*item_ptr).fmt_value.c_status > 1 || !val.is_finite() { continue; }
                                             if val > max_power_mw {
                                                 max_power_mw = val;
                                             }
@@ -332,6 +344,8 @@ impl CpuMonitor {
                                         // Store in deciwatts (0.1W units)
                                         let dw = (chosen_mw / 100.0).round() as u32;
                                         monitor_clone.power_dw.store(dw, Ordering::SeqCst);
+                                        monitor_clone.power_sample_at_ms.store(now_ms(), Ordering::SeqCst);
+                                        power_sample = Some(dw as f64 / 10.0);
                                     }
                                 }
                             }
@@ -355,6 +369,16 @@ impl CpuMonitor {
                     }
                 }
 
+                let measured = power_sample.is_some();
+                if power_sample.is_none() && usage_sample.is_some() {
+                    power_sample = Some(monitor_clone.estimate_power_w() as f64);
+                }
+                monitor_clone.power_history.lock().record(CpuSample {
+                    at_ms: now_ms(), load: usage_sample, temperature: temperature_sample,
+                    power: power_sample,
+                    source: if measured { PowerSource::Measured } else if power_sample.is_some() { PowerSource::Estimated } else { PowerSource::Unavailable },
+                    fan_rpm: None, gpu_power: None,
+                });
                 thread::sleep(Duration::from_millis(1500));
             }
         });
@@ -388,10 +412,22 @@ impl CpuMonitor {
 
     pub fn get_power_w(&self) -> f32 {
         let dw = self.power_dw.load(Ordering::SeqCst);
-        if dw > 0 {
+        let sampled_at = self.power_sample_at_ms.load(Ordering::SeqCst);
+        if dw > 0 && sampled_at > 0 && now_ms().saturating_sub(sampled_at) <= 5_000 {
             return dw as f32 / 10.0;
         }
+        self.estimate_power_w()
+    }
 
+    pub fn power_snapshot(&self) -> PowerSnapshot {
+        self.power_history.lock().snapshot(now_ms())
+    }
+
+    pub fn enrich_power_sample(&self, fan_rpm: u16, gpu_power: Option<f32>) {
+        self.power_history.lock().enrich(now_ms(), fan_rpm as f64, gpu_power.map(f64::from));
+    }
+
+    fn estimate_power_w(&self) -> f32 {
         // Fallback dynamic package power estimation (for AMD Ryzen APUs or systems where Windows RAPL is unavailable)
         let is_amd = is_amd_cpu();
         let is_hx = is_desktop_replacement_hx();

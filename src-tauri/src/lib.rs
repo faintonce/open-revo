@@ -271,6 +271,8 @@ pub fn run() {
             commands::hardware_cmd::import_profile_preset,
             commands::hardware_cmd::export_profile_preset,
             commands::hardware_cmd::apply_live_custom_tweak,
+            commands::power_safety_cmd::get_cpu_power_safety_snapshot,
+            commands::power_safety_cmd::assess_cpu_power_change,
             commands::hardware_cmd::set_bld_fan_speed_cap,
             commands::hardware_cmd::get_gpu_tuning_capabilities,
             commands::hardware_cmd::get_bios_advanced_menu_status,
