@@ -552,6 +552,9 @@ export component FullDashboard inherits Rectangle {
     callback minimize_clicked();
     callback close_clicked();
     callback open_sponsor();
+    in-out property <bool> sponsor_link_copied: false;
+    callback open_github();
+    callback copy_sponsor_info();
 
     // Cloud ICC Modal Props & Callbacks
     in-out property <bool> is_cloud_icc_modal_open: false;
@@ -1308,6 +1311,9 @@ export component FullDashboard inherits Rectangle {
             // Tab 7: 支持作者
             if root.active_tab == 7 && root.active_plugin_id == "": DashboardSponsorView {
                 vertical-stretch: 1;
+                link_copied <=> root.sponsor_link_copied;
+                open_github => { root.open_github(); }
+                copy_sponsor_info => { root.copy_sponsor_info(); }
             }
 
             // Custom Active Plugin Workspace View

@@ -147,7 +147,6 @@ export component DashboardSponsorView inherits Rectangle {
                                 t_copy := TouchArea {
                                     mouse-cursor: pointer;
                                     clicked => {
-                                        root.link_copied = true;
                                         root.copy_sponsor_info();
                                     }
                                 }
@@ -158,7 +157,7 @@ export component DashboardSponsorView inherits Rectangle {
                                     spacing: 5px;
 
                                     Image {
-                                        source: @image-url("../../assets/icons/copy.svg");
+                                        source: root.link_copied ? @image-url("../../assets/icons/check.svg") : @image-url("../../assets/icons/copy.svg");
                                         width: 12px;
                                         height: 12px;
                                         colorize: root.link_copied ? #10b981 : AppTheme.text_secondary;

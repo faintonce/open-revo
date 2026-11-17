@@ -576,6 +576,9 @@ export component MainWindow inherits Window {
     callback toggle_fullscreen_clicked();
     callback toggle_theme_clicked();
     callback open_sponsor_clicked();
+    in-out property <bool> sponsor_link_copied: false;
+    callback open_github();
+    callback copy_sponsor_info();
     callback open_custom_tuning();
     callback select_monitor_index(int);
     callback minimize_clicked();
@@ -1058,6 +1061,9 @@ export component MainWindow inherits Window {
         minimize_clicked => { root.minimize_clicked(); }
         close_clicked => { root.close_clicked(); }
         open_sponsor => { root.open_sponsor_clicked(); }
+        sponsor_link_copied <=> root.sponsor_link_copied;
+        open_github => { root.open_github(); }
+        copy_sponsor_info => { root.copy_sponsor_info(); }
 
         // Lighting Studio Connections
         lighting_sub_tab <=> root.lighting_sub_tab;

@@ -283,6 +283,18 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             }
             true
         }
+        "open_external_url" => {
+            if let Some(url) = val.get("url").and_then(|v| v.as_str()) {
+                let _ = crate::commands::market_cmd::open_external_url(url.to_string());
+            }
+            true
+        }
+        "write_clipboard" => {
+            if let Some(text) = val.get("text").and_then(|v| v.as_str()) {
+                let _ = crate::commands::market_cmd::write_clipboard(text.to_string());
+            }
+            true
+        }
         _ => false,
     }
 }

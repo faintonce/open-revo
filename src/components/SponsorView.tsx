@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Star, Coffee, ExternalLink, Check, Copy, ShieldAlert } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import alipayQr from '../assets/sponsor/alipay.jpg';
 import wechatQr from '../assets/sponsor/wechat.jpg';
 
@@ -7,14 +8,49 @@ export const SponsorView: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const githubUrl = 'https://github.com/faintonce/open-revo'; // 开源项目地址
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(githubUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopyLink = async () => {
+    let success = false;
+    try {
+      await invoke('write_clipboard', { text: githubUrl });
+      success = true;
+    } catch {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(githubUrl);
+          success = true;
+        }
+      } catch (err) {
+        console.warn('navigator.clipboard failed:', err);
+      }
+      if (!success) {
+        try {
+          const textArea = document.createElement('textarea');
+          textArea.value = githubUrl;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          success = document.execCommand('copy');
+          document.body.removeChild(textArea);
+        } catch (err) {
+          console.error('execCommand failed:', err);
+        }
+      }
+    }
+
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
 
-  const handleOpenGithub = () => {
-    window.open(githubUrl, '_blank');
+  const handleOpenGithub = async () => {
+    try {
+      await invoke('open_external_url', { url: githubUrl });
+    } catch {
+      window.open(githubUrl, '_blank');
+    }
   };
 
   return (

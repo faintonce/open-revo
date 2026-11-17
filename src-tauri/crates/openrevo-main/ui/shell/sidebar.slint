@@ -302,8 +302,8 @@ export component DashboardSidebar inherits Rectangle {
                 horizontal-stretch: 1;
                 height: 34px;
                 border-radius: 6px;
-                background: root.active_tab == 6 ? AppTheme.accent_active_bg : (t_sys.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
-                border-width: root.active_tab == 6 ? 1px : 0px;
+                background: (root.active_tab == 6 && root.active_plugin_id == "") ? AppTheme.accent_active_bg : (t_sys.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: (root.active_tab == 6 && root.active_plugin_id == "") ? 1px : 0px;
                 border-color: AppTheme.accent_active_border;
 
                 t_sys := TouchArea {
@@ -322,15 +322,15 @@ export component DashboardSidebar inherits Rectangle {
                         source: @image-url("../assets/icons/settings.svg");
                         width: 13px;
                         height: 13px;
-                        colorize: root.active_tab == 6 ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+                        colorize: (root.active_tab == 6 && root.active_plugin_id == "") ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
                         y: (parent.height - self.height) / 2;
                     }
 
                     Text {
                         text: "系统设置";
                         font-size: 11px;
-                        font-weight: root.active_tab == 6 ? 700 : 500;
-                        color: root.active_tab == 6 ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+                        font-weight: (root.active_tab == 6 && root.active_plugin_id == "") ? 700 : 500;
+                        color: (root.active_tab == 6 && root.active_plugin_id == "") ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
                         vertical-alignment: center;
                     }
                 }
@@ -341,8 +341,8 @@ export component DashboardSidebar inherits Rectangle {
                 horizontal-stretch: 1;
                 height: 34px;
                 border-radius: 6px;
-                background: root.active_tab == 7 ? AppTheme.accent_heart_bg : (t_sp.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
-                border-width: root.active_tab == 7 ? 1px : 0px;
+                background: (root.active_tab == 7 && root.active_plugin_id == "") ? AppTheme.accent_heart_bg : (t_sp.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                border-width: (root.active_tab == 7 && root.active_plugin_id == "") ? 1px : 0px;
                 border-color: AppTheme.accent_heart_border;
 
                 t_sp := TouchArea {
@@ -368,8 +368,8 @@ export component DashboardSidebar inherits Rectangle {
                     Text {
                         text: "支持作者";
                         font-size: 11px;
-                        font-weight: root.active_tab == 7 ? 700 : 500;
-                        color: root.active_tab == 7 ? AppTheme.accent_heart : (t_sp.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
+                        font-weight: (root.active_tab == 7 && root.active_plugin_id == "") ? 700 : 500;
+                        color: (root.active_tab == 7 && root.active_plugin_id == "") ? AppTheme.accent_heart : (t_sp.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
                         vertical-alignment: center;
                     }
                 }

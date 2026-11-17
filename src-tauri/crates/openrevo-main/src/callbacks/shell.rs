@@ -173,6 +173,33 @@ pub fn register(
         ipc::send_action_to_host("open_sponsor", serde_json::json!({}));
     });
 
+    window.on_open_github(move || {
+        let url = "https://github.com/faintonce/open-revo";
+        ipc::send_action_to_host("open_external_url", serde_json::json!({ "url": url }));
+    });
+
+    let copy_timer = std::rc::Rc::new(std::cell::RefCell::new(slint::Timer::default()));
+    let ui_copy = ui_weak.clone();
+    let timer_clone = copy_timer.clone();
+    window.on_copy_sponsor_info(move || {
+        let url = "https://github.com/faintonce/open-revo";
+        ipc::send_action_to_host("write_clipboard", serde_json::json!({ "text": url }));
+        if let Some(ui) = ui_copy.upgrade() {
+            ui.set_sponsor_link_copied(true);
+            let ui_reset = ui_copy.clone();
+            timer_clone.borrow_mut().stop();
+            timer_clone.borrow_mut().start(
+                slint::TimerMode::SingleShot,
+                std::time::Duration::from_millis(2500),
+                move || {
+                    if let Some(ui) = ui_reset.upgrade() {
+                        ui.set_sponsor_link_copied(false);
+                    }
+                },
+            );
+        }
+    });
+
     // Window controls
     let hwnd_min = hwnd_holder.clone();
     window.on_minimize_clicked(move || {

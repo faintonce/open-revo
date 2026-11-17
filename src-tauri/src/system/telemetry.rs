@@ -23,7 +23,8 @@ pub fn register_consumer(consumer_id: &str, sensors: &[String]) {
     let mut map = get_subscribed_sensors().lock();
     let set: HashSet<String> = sensors.iter().cloned().collect();
     map.insert(consumer_id.to_string(), set);
-    let count = ACTIVE_SUBSCRIBERS.fetch_add(1, Ordering::SeqCst) + 1;
+    let count = map.len() as u32;
+    ACTIVE_SUBSCRIBERS.store(count, Ordering::SeqCst);
     crate::log_info!(
         "TELEMETRY",
         "Registered consumer '{}' with {} sensors. Total active consumers: {}",
@@ -37,7 +38,8 @@ pub fn register_consumer(consumer_id: &str, sensors: &[String]) {
 pub fn unregister_consumer(consumer_id: &str) {
     let mut map = get_subscribed_sensors().lock();
     if map.remove(consumer_id).is_some() {
-        let count = ACTIVE_SUBSCRIBERS.fetch_sub(1, Ordering::SeqCst).saturating_sub(1);
+        let count = map.len() as u32;
+        ACTIVE_SUBSCRIBERS.store(count, Ordering::SeqCst);
         crate::log_info!(
             "TELEMETRY",
             "Unregistered consumer '{}'. Remaining active consumers: {}",
@@ -186,4 +188,22 @@ pub fn get_telemetry_heartbeat_status() -> Result<serde_json::Value, String> {
         "screen_suspended": screen_suspended,
         "query_gpu": query_gpu,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regression_consumer_registration_is_idempotent() {
+        let id = "telemetry-regression";
+        let initial = ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst);
+        register_consumer(id, &["cpu_temp".into()]);
+        register_consumer(id, &["gpu_temp".into()]);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), initial + 1);
+        assert!(get_subscribed_sensors().lock()[id].contains("gpu_temp"));
+        unregister_consumer(id);
+        unregister_consumer(id);
+        assert_eq!(ACTIVE_SUBSCRIBERS.load(Ordering::SeqCst), initial);
+    }
 }
