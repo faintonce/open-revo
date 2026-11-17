@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { PowerChangeConfirmModal, PowerLimitPreview } from './PowerChangeConfirmModal';
 
 export interface CpuPlSliderRowProps {
   label: string;
@@ -16,6 +17,8 @@ export interface CpuPlSliderRowProps {
   tooltip?: string;
   hint?: string;
   disabled?: boolean;
+  editContext?: string;
+  previewChange?: (target: number) => PowerLimitPreview[];
 }
 
 export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
@@ -34,73 +37,162 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
   tooltip,
   hint,
   disabled = false,
+  editContext,
+  previewChange,
 }) => {
   const minCap = minMax ?? min;
   const maxCap = maxMax ?? 300;
+  const inputId = useId();
+  const [draft, setDraft] = useState(String(value));
+  const draftRef = useRef(draft);
+  const [error, setError] = useState('');
+  const [pendingChange, setPendingChange] = useState<{
+    current: number;
+    target: number;
+    min: number;
+    max: number;
+    editContext?: string;
+    adjustMax?: number;
+  } | null>(null);
+
+  const updateDraft = (next: string) => {
+    draftRef.current = next;
+    setDraft(next);
+    setError('');
+  };
+
+  useEffect(() => {
+    // Discard drafts and confirmations when the profile or allowed range changes.
+    draftRef.current = String(value);
+    setDraft(String(value));
+    setError('');
+    setPendingChange(null);
+  }, [value, min, max, disabled, editContext]);
+
+  const requestChange = () => {
+    if (disabled) return;
+    const text = draftRef.current.trim();
+    const target = Number(text);
+    if (!text || !Number.isInteger(target) || target < min || target > max) {
+      setError(`请输入 ${min}–${max}${unit} 范围内的整数；当前功率未改变。`);
+      return;
+    }
+    updateDraft(String(value));
+    if (target !== value) {
+      setPendingChange({ current: value, target, min, max, editContext });
+    }
+  };
+
+  const requestAdjustMax = (delta: number) => {
+    if (disabled || !onAdjustMax) return;
+    const targetMax = Math.max(minCap, Math.min(maxCap, max + delta));
+    if (targetMax < value) {
+      // Lowering the ceiling can also lower the live power limit.
+      setPendingChange({ current: value, target: targetMax, min, max, editContext, adjustMax: delta });
+    } else {
+      onAdjustMax(delta);
+    }
+  };
+
+  const confirmChange = () => {
+    const change = pendingChange;
+    setPendingChange(null);
+    if (!change || disabled || change.current !== value || change.min !== min || change.max !== max || change.editContext !== editContext) return;
+    if (change.adjustMax !== undefined) {
+      onAdjustMax?.(change.adjustMax);
+    } else {
+      onChange(change.target);
+    }
+  };
 
   return (
-    <div className="tuning-row" style={{ opacity: disabled ? 0.45 : 1, transition: 'opacity var(--transition-fast)' }}>
+    <div
+      className={`tuning-row tuning-power-row${disabled ? ' is-disabled' : ''}`}
+      style={{ '--tuning-power-color': colorVar } as React.CSSProperties}
+    >
       <div className="tuning-row-header">
-        <span className="tuning-row-label" title={tooltip}>
+        <label className="tuning-row-label" htmlFor={inputId} title={tooltip}>
           {label}
           {hint && (
-            <span style={{ fontSize: '9.5px', color: 'var(--text-dim)', marginLeft: '4px', fontWeight: 400 }}>
+            <span className="tuning-power-hint">
               {hint}
             </span>
           )}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        </label>
+        <div className="tuning-power-controls">
           <input
+            id={inputId}
             type="number"
             min={min}
             max={max}
             step={step}
-            value={value}
+            value={draft}
             disabled={disabled}
-            onChange={(e) => onChange(parseInt(e.target.value, 10) || min)}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? `${inputId}-error` : undefined}
+            onChange={(e) => updateDraft(e.target.value)}
+            onBlur={requestChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                updateDraft(String(value));
+                e.currentTarget.blur();
+              }
+            }}
             className="tuning-input-number"
-            style={{ color: disabled ? 'var(--text-dim)' : colorVar, cursor: disabled ? 'not-allowed' : 'text' }}
           />
-          <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{unit}</span>
+          <span className="tuning-power-unit">{unit}</span>
         </div>
       </div>
 
-      <div style={{ padding: '2px 0' }}>
+      {error && <div id={`${inputId}-error`} className="tuning-power-error" role="alert">{error}</div>}
+
+      <div className="tuning-power-slider">
         <input
           type="range"
+          aria-label={`${label}滑块`}
           min={min}
           max={max}
           step={step}
-          value={value}
+          value={draft !== '' && Number.isFinite(Number(draft)) ? Number(draft) : value}
           disabled={disabled}
-          onChange={(e) => onChange(parseInt(e.target.value, 10))}
-          style={{ width: '100%', accentColor: colorVar, height: '7px', cursor: disabled ? 'not-allowed' : 'pointer' }}
+          onChange={(e) => updateDraft(e.target.value)}
+          onPointerUp={requestChange}
+          onPointerCancel={() => updateDraft(String(value))}
+          onBlur={requestChange}
+          onKeyUp={(e) => {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+              requestChange();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              updateDraft(String(value));
+            }
+          }}
         />
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '1px',
-          fontSize: '10px',
-          color: 'var(--text-dim)',
-        }}
-      >
+      <div className="tuning-power-footer">
         <span>
           {min}
           {unit}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="tuning-power-controls">
           <span>
             上限: {max}
             {unit}
           </span>
           <button
             type="button"
-            onClick={() => onAdjustMax?.(-adjustStep)}
-            disabled={max <= minCap}
+            onClick={() => requestAdjustMax(-adjustStep)}
+            disabled={disabled || !onAdjustMax || max <= minCap}
             title={`以 ${adjustStep}${unit} 步长调小上限`}
             className="tuning-step-btn"
           >
@@ -108,8 +200,8 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onAdjustMax?.(adjustStep)}
-            disabled={max >= maxCap}
+            onClick={() => requestAdjustMax(adjustStep)}
+            disabled={disabled || !onAdjustMax || max >= maxCap}
             title={`以 ${adjustStep}${unit} 步长调大上限`}
             className="tuning-step-btn"
           >
@@ -117,6 +209,17 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
           </button>
         </div>
       </div>
+      {pendingChange && (
+        <PowerChangeConfirmModal
+          label={label}
+          current={pendingChange.current}
+          target={pendingChange.target}
+          unit={unit}
+          changes={previewChange?.(pendingChange.target)}
+          onCancel={() => setPendingChange(null)}
+          onConfirm={confirmChange}
+        />
+      )}
     </div>
   );
 };

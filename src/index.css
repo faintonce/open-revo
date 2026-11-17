@@ -2548,6 +2548,113 @@ body,
 /* ==========================================================================
    BAOLONGDA (BLD) FAN RPM CLAMP / BOOST CONTROL CARD
    ========================================================================== */
+/* CPU power draft inputs and confirmation dialog. */
+.tuning-power-row {
+  transition: opacity var(--transition-fast);
+}
+
+.tuning-power-row.is-disabled {
+  opacity: 0.45;
+}
+
+.tuning-power-hint {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+.tuning-power-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tuning-power-row .tuning-input-number {
+  color: var(--tuning-power-color);
+  cursor: text;
+}
+
+.tuning-power-unit {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.tuning-power-slider {
+  padding: 2px 0;
+}
+
+.tuning-power-slider input {
+  width: 100%;
+  accent-color: var(--tuning-power-color);
+  height: 7px;
+  cursor: pointer;
+}
+
+.tuning-power-row input:disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.tuning-power-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.tuning-power-error {
+  color: var(--status-error);
+  font-size: 11px;
+}
+
+.power-confirm-backdrop {
+  z-index: 10002;
+}
+
+.power-confirm-card {
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--surface-overlay);
+  box-shadow: none;
+}
+
+.power-confirm-values {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.power-confirm-values > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.power-confirm-values strong {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: var(--text-primary);
+}
+
+.power-confirm-linked {
+  margin-bottom: 12px;
+}
+
+[data-theme="mono"] .tuning-power-error {
+  color: var(--text-primary);
+}
+
+[data-theme="mono"] .power-confirm-card {
+  background: var(--surface-overlay);
+  border-color: var(--border-medium);
+  box-shadow: none;
+}
+
 .bld-fan-card {
   min-width: 232px;
   max-width: 248px;
