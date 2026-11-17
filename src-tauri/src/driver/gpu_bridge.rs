@@ -736,8 +736,8 @@ impl GpuBridge {
                             if let Ok(m) = parts[2].parse::<u32>() {
                                 inner.mem_freq.store(m, Ordering::SeqCst);
                             }
-                            if let Ok(t) = parts[3].parse::<u32>() {
-                                inner.temp.store(t, Ordering::SeqCst);
+                            if let Ok(t) = parts[3].parse::<f32>() {
+                                inner.temp.store(t.round() as u32, Ordering::SeqCst);
                             }
                             if let Ok(u) = parts[4].parse::<u32>() {
                                 inner.usage.store(u, Ordering::SeqCst);
