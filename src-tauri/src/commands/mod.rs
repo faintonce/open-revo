@@ -7,6 +7,7 @@ pub mod display_cmd;
 pub mod hardware_cmd;
 pub mod lighting_cmd;
 pub mod power_cmd;
+pub mod power_safety_cmd;
 pub mod switches_cmd;
 pub mod system_cmd;
 pub mod tuning_cmd;

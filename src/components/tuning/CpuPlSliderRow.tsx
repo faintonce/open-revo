@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { PowerChangeConfirmModal, PowerLimitPreview } from './PowerChangeConfirmModal';
+import { PowerAssessment } from './powerSafety';
 
 export interface CpuPlSliderRowProps {
   label: string;
@@ -19,6 +20,7 @@ export interface CpuPlSliderRowProps {
   disabled?: boolean;
   editContext?: string;
   previewChange?: (target: number) => PowerLimitPreview[];
+  assessChange?: (target: number, confirmed?: boolean) => Promise<PowerAssessment>;
 }
 
 export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
@@ -39,6 +41,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
   disabled = false,
   editContext,
   previewChange,
+  assessChange,
 }) => {
   const minCap = minMax ?? min;
   const maxCap = maxMax ?? 300;
@@ -46,6 +49,10 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
   const [draft, setDraft] = useState(String(value));
   const draftRef = useRef(draft);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [assessing, setAssessing] = useState(false);
+  const assessingRef = useRef(false);
+  const assessmentToken = useRef(0);
   const [pendingChange, setPendingChange] = useState<{
     current: number;
     target: number;
@@ -53,6 +60,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
     max: number;
     editContext?: string;
     adjustMax?: number;
+    assessment?: PowerAssessment;
   } | null>(null);
 
   const updateDraft = (next: string) => {
@@ -67,10 +75,46 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
     setDraft(String(value));
     setError('');
     setPendingChange(null);
+    assessingRef.current = false;
+    setAssessing(false);
+    assessmentToken.current += 1;
+    return () => { assessmentToken.current += 1; };
   }, [value, min, max, disabled, editContext]);
 
+  const assessAndCommit = async (target: number, adjustMax?: number) => {
+    if (assessingRef.current || disabled) return;
+    assessingRef.current = true;
+    setAssessing(true);
+    const token = ++assessmentToken.current;
+    let assessment: PowerAssessment;
+    try {
+      assessment = assessChange ? await assessChange(target) : {
+        level: 'high', requires_confirmation: true, reasons: [], predicted_temperature_c: null,
+      };
+    } catch {
+      // A failed IPC is different from insufficient sensor data, which the backend
+      // handles without interrupting ordinary small changes.
+      assessment = {
+        level: 'high', requires_confirmation: true,
+        reasons: ['暂时无法取得风险评估，请核对功率及联动变化后再应用。'],
+        predicted_temperature_c: null,
+      };
+    }
+    if (token !== assessmentToken.current) return;
+    assessingRef.current = false;
+    setAssessing(false);
+    setNotice(assessment.requires_confirmation ? '' : assessment.reasons[0] ?? '');
+    if (assessment.requires_confirmation) {
+      setPendingChange({ current: value, target, min, max, editContext, adjustMax, assessment });
+    } else if (adjustMax !== undefined) {
+      onAdjustMax?.(adjustMax);
+    } else {
+      onChange(target);
+    }
+  };
+
   const requestChange = () => {
-    if (disabled) return;
+    if (disabled || assessingRef.current) return;
     const text = draftRef.current.trim();
     const target = Number(text);
     if (!text || !Number.isInteger(target) || target < min || target > max) {
@@ -79,16 +123,16 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
     }
     updateDraft(String(value));
     if (target !== value) {
-      setPendingChange({ current: value, target, min, max, editContext });
+      void assessAndCommit(target);
     }
   };
 
   const requestAdjustMax = (delta: number) => {
-    if (disabled || !onAdjustMax) return;
+    if (disabled || assessingRef.current || !onAdjustMax) return;
     const targetMax = Math.max(minCap, Math.min(maxCap, max + delta));
     if (targetMax < value) {
       // Lowering the ceiling can also lower the live power limit.
-      setPendingChange({ current: value, target: targetMax, min, max, editContext, adjustMax: delta });
+      void assessAndCommit(targetMax, delta);
     } else {
       onAdjustMax(delta);
     }
@@ -98,6 +142,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
     const change = pendingChange;
     setPendingChange(null);
     if (!change || disabled || change.current !== value || change.min !== min || change.max !== max || change.editContext !== editContext) return;
+    void assessChange?.(change.target, true).catch(() => {});
     if (change.adjustMax !== undefined) {
       onAdjustMax?.(change.adjustMax);
     } else {
@@ -108,6 +153,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
   return (
     <div
       className={`tuning-row tuning-power-row${disabled ? ' is-disabled' : ''}`}
+      aria-busy={assessing}
       style={{ '--tuning-power-color': colorVar } as React.CSSProperties}
     >
       <div className="tuning-row-header">
@@ -127,7 +173,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
             max={max}
             step={step}
             value={draft}
-            disabled={disabled}
+            disabled={disabled || assessing}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${inputId}-error` : undefined}
             onChange={(e) => updateDraft(e.target.value)}
@@ -150,6 +196,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
       </div>
 
       {error && <div id={`${inputId}-error`} className="tuning-power-error" role="alert">{error}</div>}
+      {!error && notice && <div className="tuning-power-notice" role="status">{notice}</div>}
 
       <div className="tuning-power-slider">
         <input
@@ -159,7 +206,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
           max={max}
           step={step}
           value={draft !== '' && Number.isFinite(Number(draft)) ? Number(draft) : value}
-          disabled={disabled}
+          disabled={disabled || assessing}
           onChange={(e) => updateDraft(e.target.value)}
           onPointerUp={requestChange}
           onPointerCancel={() => updateDraft(String(value))}
@@ -192,7 +239,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
           <button
             type="button"
             onClick={() => requestAdjustMax(-adjustStep)}
-            disabled={disabled || !onAdjustMax || max <= minCap}
+            disabled={disabled || assessing || !onAdjustMax || max <= minCap}
             title={`以 ${adjustStep}${unit} 步长调小上限`}
             className="tuning-step-btn"
           >
@@ -201,7 +248,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
           <button
             type="button"
             onClick={() => requestAdjustMax(adjustStep)}
-            disabled={disabled || !onAdjustMax || max >= maxCap}
+            disabled={disabled || assessing || !onAdjustMax || max >= maxCap}
             title={`以 ${adjustStep}${unit} 步长调大上限`}
             className="tuning-step-btn"
           >
@@ -216,6 +263,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
           target={pendingChange.target}
           unit={unit}
           changes={previewChange?.(pendingChange.target)}
+          reasons={pendingChange.assessment?.reasons}
           onCancel={() => setPendingChange(null)}
           onConfirm={confirmChange}
         />
