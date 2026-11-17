@@ -1355,5 +1355,13 @@ pub fn apply_gpu_oc(core_mhz: i32, mem_mhz: i32) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_gpu_oc_state() -> Result<(i32, i32), String> {
+    let cfg = crate::system::config::load_config();
+    if cfg.power_mode == 3 && cfg.turbo_oc_enabled {
+        let offsets = crate::driver::nvapi::get_gpu_clock_offsets().unwrap_or((0, 0));
+        if offsets.0 > 0 || offsets.1 > 0 {
+            return Ok(offsets);
+        }
+        return Ok((cfg.gpu_oc_core_mhz, cfg.gpu_oc_mem_mhz));
+    }
     Ok(crate::driver::nvapi::get_gpu_clock_offsets().unwrap_or((0, 0)))
 }

@@ -42,28 +42,45 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
   // 狂暴子模式（静音/高能）：只有能力位满足的机型才显示入口
   const turboSub = useTurboSubmode();
 
-  // OC 状态：初始查一次 + 跟随 gpu-clock-offsets-changed（大窗口/宿主复位时同步）
+  // OC 状态：初始查配置与驱动 + 跟随 host 的 turbo-oc-changed / gpu-clock-offsets-changed
   useEffect(() => {
     let alive = true;
-    const fromOffsets = (core: number, mem: number) => {
+    invoke<any>('get_app_config')
+      .then((cfg) => {
+        if (!alive) return;
+        if (cfg && typeof cfg.turbo_oc_enabled === 'boolean') {
+          setGpuOc((s) => ({ ...s, on: cfg.turbo_oc_enabled }));
+        }
+      })
+      .catch(() => { });
+
+    let unlistenTurboOc: any = null;
+    let unlistenOffsets: any = null;
+
+    listen('turbo-oc-changed', (e: any) => {
       if (!alive) return;
-      setGpuOc((s) => ({ ...s, on: core !== 0 || mem !== 0 }));
-    };
-    invoke<any>('get_gpu_oc_state')
-      .then((v) => { if (Array.isArray(v)) fromOffsets(Number(v[0]) || 0, Number(v[1]) || 0); })
-      .catch(() => { });
-    let unlisten: any = null;
-    listen('gpu-clock-offsets-changed', (e: any) => {
       const p = (e && e.payload) || {};
-      fromOffsets(Number(p.core_offset_mhz) || 0, Number(p.mem_offset_mhz) || 0);
-    })
-      .then((f) => { unlisten = f; })
-      .catch(() => { });
+      if (typeof p.enabled === 'boolean') {
+        setGpuOc((s) => ({ ...s, on: p.enabled, busy: false, error: false }));
+      }
+    }).then((f) => { unlistenTurboOc = f; }).catch(() => { });
+
+    listen('gpu-clock-offsets-changed', (e: any) => {
+      if (!alive) return;
+      const p = (e && e.payload) || {};
+      const core = Number(p.core_offset_mhz) || 0;
+      const mem = Number(p.mem_offset_mhz) || 0;
+      if (status.power_mode === 3) {
+        setGpuOc((s) => ({ ...s, on: core !== 0 || mem !== 0 }));
+      }
+    }).then((f) => { unlistenOffsets = f; }).catch(() => { });
+
     return () => {
       alive = false;
-      try { if (unlisten) unlisten(); } catch { /* ignore */ }
+      try { if (unlistenTurboOc) unlistenTurboOc(); } catch { /* ignore */ }
+      try { if (unlistenOffsets) unlistenOffsets(); } catch { /* ignore */ }
     };
-  }, []);
+  }, [status.power_mode]);
 
   // 静音/高能 分段按钮：先确保进入狂暴档，再应用子模式
   const applyTurboSeg = (silent: boolean) => {
@@ -90,12 +107,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
           const next = !gpuOc.on;
           setGpuOc((s) => ({ ...s, busy: true, error: false }));
           try {
-            const cfg: any = await invoke('get_app_config').catch(() => null);
-            const cfgCore = Number(cfg?.gpu_oc_core_mhz);
-            const cfgMem = Number(cfg?.gpu_oc_mem_mhz);
-            const core = Number.isFinite(cfgCore) && cfgCore >= 0 ? cfgCore : ocDefaults.core;
-            const mem = Number.isFinite(cfgMem) && cfgMem >= 0 ? cfgMem : ocDefaults.mem;
-            await invoke('apply_gpu_oc', { coreMhz: next ? core : 0, memMhz: next ? mem : 0 });
+            await invoke('set_turbo_oc_enabled', { enabled: next });
             setGpuOc({ on: next, busy: false, error: false });
           } catch (err) {
             console.warn('[DrawerPowerModeCard] toggle gpu oc failed:', err);

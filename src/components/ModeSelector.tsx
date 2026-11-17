@@ -54,30 +54,45 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
       .catch(() => { });
   }, []);
 
-  // OC 状态：初始查一次 + 跟随 host 的 gpu-clock-offsets-changed（宿主/另一窗口复位时同步）
+  // OC 状态：初始查配置与驱动 + 跟随 host 的 turbo-oc-changed / gpu-clock-offsets-changed
   useEffect(() => {
     let alive = true;
-    const fromOffsets = (core: number, mem: number) => {
-      if (!alive) return;
-      setGcuOc((s) => ({ ...s, on: core !== 0 || mem !== 0 }));
-    };
-    invoke<any>('get_gpu_oc_state')
-      .then((v) => {
-        if (Array.isArray(v)) fromOffsets(Number(v[0]) || 0, Number(v[1]) || 0);
+    invoke<any>('get_app_config')
+      .then((cfg) => {
+        if (!alive) return;
+        if (cfg && typeof cfg.turbo_oc_enabled === 'boolean') {
+          setGcuOc((s) => ({ ...s, on: cfg.turbo_oc_enabled }));
+        }
       })
       .catch(() => { });
-    let unlisten: any = null;
-    listen('gpu-clock-offsets-changed', (e: any) => {
+
+    let unlistenTurboOc: any = null;
+    let unlistenOffsets: any = null;
+
+    listen('turbo-oc-changed', (e: any) => {
+      if (!alive) return;
       const p = (e && e.payload) || {};
-      fromOffsets(Number(p.core_offset_mhz) || 0, Number(p.mem_offset_mhz) || 0);
-    })
-      .then((f) => { unlisten = f; })
-      .catch(() => { });
+      if (typeof p.enabled === 'boolean') {
+        setGcuOc((s) => ({ ...s, on: p.enabled, busy: false, error: false }));
+      }
+    }).then((f) => { unlistenTurboOc = f; }).catch(() => { });
+
+    listen('gpu-clock-offsets-changed', (e: any) => {
+      if (!alive) return;
+      const p = (e && e.payload) || {};
+      const core = Number(p.core_offset_mhz) || 0;
+      const mem = Number(p.mem_offset_mhz) || 0;
+      if (currentMode === 3) {
+        setGcuOc((s) => ({ ...s, on: core !== 0 || mem !== 0 }));
+      }
+    }).then((f) => { unlistenOffsets = f; }).catch(() => { });
+
     return () => {
       alive = false;
-      try { if (unlisten) unlisten(); } catch { /* ignore */ }
+      try { if (unlistenTurboOc) unlistenTurboOc(); } catch { /* ignore */ }
+      try { if (unlistenOffsets) unlistenOffsets(); } catch { /* ignore */ }
     };
-  }, []);
+  }, [currentMode]);
 
   const applyTurboSeg = (silent: boolean, isRestricted: boolean) => {
     if (isRestricted) return;
@@ -97,12 +112,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
     const next = !gcuOc.on;
     setGcuOc((s) => ({ ...s, busy: true, error: false }));
     try {
-      const cfg: any = await invoke('get_app_config').catch(() => null);
-      const cfgCore = Number(cfg?.gpu_oc_core_mhz);
-      const cfgMem = Number(cfg?.gpu_oc_mem_mhz);
-      const core = Number.isFinite(cfgCore) && cfgCore >= 0 ? cfgCore : ocDefaults.core;
-      const mem = Number.isFinite(cfgMem) && cfgMem >= 0 ? cfgMem : ocDefaults.mem;
-      await invoke('apply_gpu_oc', { coreMhz: next ? core : 0, memMhz: next ? mem : 0 });
+      await invoke('set_turbo_oc_enabled', { enabled: next });
       setGcuOc({ on: next, busy: false, error: false });
     } catch (err) {
       console.warn('[ModeSelector] toggle gpu oc failed:', err);

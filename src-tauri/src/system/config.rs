@@ -177,6 +177,8 @@ pub struct AppConfig {
     pub balanced_gpu_dynamic_boost: bool,
     #[serde(default)]
     pub turbo_silent: bool,
+    #[serde(default)]
+    pub turbo_oc_enabled: bool,
 
     // CPU Custom Tuning Bounds & Margins (Persisted in config.json)
     #[serde(default = "default_cpu_temp_target_min")]
@@ -527,6 +529,7 @@ impl Default for AppConfig {
             gpu_oc_mem_mhz: default_gpu_oc_mem_mhz(),
             balanced_gpu_dynamic_boost: true,
             turbo_silent: false,
+            turbo_oc_enabled: false,
             cpu_temp_target_min: default_cpu_temp_target_min(),
             cpu_temp_target_max: default_cpu_temp_target_max(),
             cpu_pl4_margin: default_cpu_pl4_margin(),

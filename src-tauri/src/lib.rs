@@ -787,6 +787,7 @@ pub fn run_tauri_runtime() {
             commands::power_cmd::get_turbo_submode_state,
             commands::power_cmd::set_turbo_submode,
             commands::power_cmd::apply_turbo_profile,
+            commands::power_cmd::set_turbo_oc_enabled,
             commands::tuning_cmd::apply_gpu_oc,
             commands::tuning_cmd::get_gpu_oc_state,
         ])

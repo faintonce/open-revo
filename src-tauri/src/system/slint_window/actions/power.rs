@@ -215,35 +215,43 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             }
             true
         }
-        // 狂暴档 GPU OC 胶囊：复用设置页保存的默认偏移，调用既有 apply_gpu_oc，
-        // 关闭时回 0/0（与 React ModeSelector / DrawerPowerModeCard 完全一致）。
+        // 狂暴档 GPU OC 胶囊：持久化保存 turbo_oc_enabled，并在当前处于狂暴档时立即下发
         "toggle_gpu_oc" => {
             if let Some(enabled) = val.get("enabled").and_then(|v| v.as_bool()) {
-                let cfg = crate::system::config::load_config();
-                let (core, mem) = if enabled {
-                    (
-                        cfg.gpu_oc_core_mhz.clamp(0, 250),
-                        cfg.gpu_oc_mem_mhz.clamp(0, 1000),
-                    )
-                } else {
-                    (0, 0)
-                };
-                match crate::commands::tuning_cmd::apply_gpu_oc(core, mem) {
-                    Ok(()) => {
-                        // 复用既有事件，让其它（WebView）面板的 OC 胶囊同步
-                        if let Some(app) = app {
-                            let _ = app.emit(
-                                "gpu-clock-offsets-changed",
-                                serde_json::json!({
-                                    "core_offset_mhz": core,
-                                    "mem_offset_mhz": mem
-                                }),
-                            );
+                let mut cfg = crate::system::config::load_config();
+                cfg.turbo_oc_enabled = enabled;
+                let _ = crate::system::config::save_config(&cfg);
+
+                if cfg.power_mode == 3 && crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
+                    let (core, mem) = if enabled {
+                        (
+                            cfg.gpu_oc_core_mhz.clamp(0, 250),
+                            cfg.gpu_oc_mem_mhz.clamp(0, 1000),
+                        )
+                    } else {
+                        (0, 0)
+                    };
+                    match crate::commands::tuning_cmd::apply_gpu_oc(core, mem) {
+                        Ok(()) => {
+                            crate::log_info!("SLINT_POWER", "Turbo GPU OC toggled to {} (core={}, mem={})", enabled, core, mem);
+                        }
+                        Err(e) => {
+                            crate::log_warn!("SLINT_POWER", "apply_gpu_oc({}, {}) failed: {}", core, mem, e);
                         }
                     }
-                    Err(e) => {
-                        crate::log_warn!("SLINT_POWER", "apply_gpu_oc({}, {}) failed: {}", core, mem, e);
-                    }
+                }
+                if let Some(app) = app {
+                    let _ = app.emit(
+                        "turbo-oc-changed",
+                        serde_json::json!({ "enabled": enabled }),
+                    );
+                    let _ = app.emit(
+                        "gpu-clock-offsets-changed",
+                        serde_json::json!({
+                            "core_offset_mhz": if enabled && cfg.power_mode == 3 { cfg.gpu_oc_core_mhz } else { 0 },
+                            "mem_offset_mhz": if enabled && cfg.power_mode == 3 { cfg.gpu_oc_mem_mhz } else { 0 }
+                        }),
+                    );
                 }
                 sync_slint_power_state();
             }

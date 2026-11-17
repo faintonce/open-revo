@@ -125,13 +125,13 @@ export component GpuBoostCard inherits Rectangle {
         }
 
         // Divider
-        if root.turbo_submode_supported: Rectangle {
+        Rectangle {
             height: 1px;
             background: AppTheme.border_subtle;
         }
 
         // Row 2: Default Core OC Offset
-        if root.turbo_submode_supported: HorizontalLayout {
+        HorizontalLayout {
             alignment: space-between;
 
             VerticalLayout {
@@ -226,13 +226,13 @@ export component GpuBoostCard inherits Rectangle {
         }
 
         // Divider
-        if root.turbo_submode_supported: Rectangle {
+        Rectangle {
             height: 1px;
             background: AppTheme.border_subtle;
         }
 
         // Row 3: Default Memory OC Offset
-        if root.turbo_submode_supported: HorizontalLayout {
+        HorizontalLayout {
             alignment: space-between;
 
             VerticalLayout {

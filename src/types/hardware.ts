@@ -90,6 +90,7 @@ export interface AppConfig {
   gpu_oc_mem_mhz?: number;
   balanced_gpu_dynamic_boost?: boolean;
   turbo_silent?: boolean;
+  turbo_oc_enabled?: boolean;
   cpu_temp_target_min?: number;
   cpu_temp_target_max?: number;
   cpu_tjmax?: number;
