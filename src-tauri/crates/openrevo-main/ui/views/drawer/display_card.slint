@@ -9,10 +9,15 @@ export component DrawerDisplayCard inherits Rectangle {
 
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
+    in-out property <int> min_refresh_rate: 60;
+    in-out property <int> max_refresh_rate: 240;
+    in-out property <[int]> intermediate_rates: [144];
     in-out property <string> monitor_name: "京东方";
     in-out property <bool> has_secondary_monitor: false;
     in-out property <string> primary_monitor_name: "内置主屏";
     in-out property <string> secondary_monitor_name: "外接副屏";
+
+    property <bool> is_intermediate: (refresh_rate != min_refresh_rate && refresh_rate != max_refresh_rate);
 
     callback switch_hz(int);
     callback toggle_auto_min_hz();
@@ -156,12 +161,12 @@ export component DrawerDisplayCard inherits Rectangle {
             }
         }
 
-        // Row 2: 拔电低刷 / 60Hz / 240Hz / 更多 (Height 28px)
+        // Row 2: 拔电低刷 / 最低档 / 最高档 / 更多 (Height 28px)
         HorizontalLayout {
             spacing: 5px;
             height: 28px;
 
-            // 拔电低刷
+            // 1. 拔电低刷
             Rectangle {
                 border-radius: 5px;
                 background: auto_min_hz ? #a5b4fc15 : (t_auto.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
@@ -204,60 +209,60 @@ export component DrawerDisplayCard inherits Rectangle {
                 }
             }
 
-            // 60Hz
+            // 2. 最低档 (min_refresh_rate)
             Rectangle {
                 border-radius: 5px;
-                background: refresh_rate == 60 ? #a5b4fc25 : (t_60.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                background: refresh_rate == min_refresh_rate ? #a5b4fc25 : (t_min.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: 1px;
-                border-color: refresh_rate == 60 ? #a5b4fc : AppTheme.border_subtle;
+                border-color: refresh_rate == min_refresh_rate ? #a5b4fc : AppTheme.border_subtle;
 
-                t_60 := TouchArea {
+                t_min := TouchArea {
                     mouse-cursor: pointer;
-                    clicked => { switch_hz(60); }
+                    clicked => { switch_hz(min_refresh_rate); }
                 }
 
                 HorizontalLayout {
                     alignment: center;
                     Text {
-                        text: "60Hz";
+                        text: min_refresh_rate + "Hz";
                         font-size: 10.5px;
-                        font-weight: refresh_rate == 60 ? 700 : 500;
-                        color: refresh_rate == 60 ? #a5b4fc : AppTheme.text_primary;
+                        font-weight: refresh_rate == min_refresh_rate ? 700 : 500;
+                        color: refresh_rate == min_refresh_rate ? #a5b4fc : AppTheme.text_primary;
                         vertical-alignment: center;
                     }
                 }
             }
 
-            // 240Hz
+            // 3. 最高档 (max_refresh_rate)
             Rectangle {
                 border-radius: 5px;
-                background: refresh_rate == 240 ? #a5b4fc25 : (t_240.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
+                background: refresh_rate == max_refresh_rate ? #a5b4fc25 : (t_max.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: 1px;
-                border-color: refresh_rate == 240 ? #a5b4fc : AppTheme.border_subtle;
+                border-color: refresh_rate == max_refresh_rate ? #a5b4fc : AppTheme.border_subtle;
 
-                t_240 := TouchArea {
+                t_max := TouchArea {
                     mouse-cursor: pointer;
-                    clicked => { switch_hz(240); }
+                    clicked => { switch_hz(max_refresh_rate); }
                 }
 
                 HorizontalLayout {
                     alignment: center;
                     Text {
-                        text: "240Hz";
+                        text: max_refresh_rate + "Hz";
                         font-size: 10.5px;
-                        font-weight: refresh_rate == 240 ? 700 : 500;
-                        color: refresh_rate == 240 ? #a5b4fc : AppTheme.text_primary;
+                        font-weight: refresh_rate == max_refresh_rate ? 700 : 500;
+                        color: refresh_rate == max_refresh_rate ? #a5b4fc : AppTheme.text_primary;
                         vertical-alignment: center;
                     }
                 }
             }
 
-            // 更多 ˇ (Dropdown)
+            // 4. 更多 ˇ (Dropdown / Intermediate)
             more_rect := Rectangle {
                 border-radius: 5px;
-                background: t_more.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                background: is_intermediate ? #a5b4fc25 : (t_more.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
                 border-width: 1px;
-                border-color: AppTheme.border_subtle;
+                border-color: is_intermediate ? #a5b4fc : AppTheme.border_subtle;
 
                 t_more := TouchArea {
                     mouse-cursor: pointer;
@@ -268,16 +273,17 @@ export component DrawerDisplayCard inherits Rectangle {
                     alignment: center;
                     spacing: 3px;
                     Text {
-                        text: "更多";
+                        text: is_intermediate ? (refresh_rate + "Hz") : "更多";
                         font-size: 10px;
-                        color: AppTheme.text_secondary;
+                        font-weight: is_intermediate ? 700 : 500;
+                        color: is_intermediate ? #a5b4fc : AppTheme.text_secondary;
                         vertical-alignment: center;
                     }
                     Image {
                         source: @image-url("../../assets/icons/chevron-down.svg");
                         width: 8px;
                         height: 8px;
-                        colorize: AppTheme.text_muted;
+                        colorize: is_intermediate ? #a5b4fc : AppTheme.text_muted;
                         y: (parent.height - self.height) / 2;
                     }
                 }
@@ -297,38 +303,48 @@ export component DrawerDisplayCard inherits Rectangle {
                             padding: 4px;
                             spacing: 2px;
 
-                            Rectangle {
-                                height: 26px;
-                                border-radius: 4px;
-                                background: t_hz165.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_hz165 := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { switch_hz(165); }
-                                }
-                                HorizontalLayout {
-                                    padding-left: 8px;
-                                    Text {
-                                        text: "165Hz (中间档位)";
-                                        font-size: 9.5px;
-                                        color: AppTheme.text_primary;
-                                        vertical-alignment: center;
+                            if intermediate_rates.length > 0: VerticalLayout {
+                                spacing: 2px;
+                                for inter_hz in root.intermediate_rates: Rectangle {
+                                    height: 26px;
+                                    border-radius: 4px;
+                                    background: (root.refresh_rate == inter_hz) ? #a5b4fc25 : (t_inter.has-hover ? AppTheme.surface_card_hover : transparent);
+                                    t_inter := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.switch_hz(inter_hz);
+                                        }
+                                    }
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        alignment: space-between;
+                                        Text {
+                                            text: inter_hz + "Hz";
+                                            font-size: 9.5px;
+                                            font-weight: (root.refresh_rate == inter_hz) ? 700 : 400;
+                                            color: (root.refresh_rate == inter_hz) ? #a5b4fc : AppTheme.text_primary;
+                                            vertical-alignment: center;
+                                        }
+                                        if root.refresh_rate == inter_hz: Text {
+                                            text: "✓";
+                                            font-size: 9.5px;
+                                            font-weight: 800;
+                                            color: #a5b4fc;
+                                            vertical-alignment: center;
+                                        }
                                     }
                                 }
                             }
 
-                            Rectangle {
+                            if intermediate_rates.length == 0: Rectangle {
                                 height: 26px;
-                                border-radius: 4px;
-                                background: t_hdr.has-hover ? AppTheme.surface_card_hover : transparent;
-                                t_hdr := TouchArea {
-                                    mouse-cursor: pointer;
-                                }
                                 HorizontalLayout {
-                                    padding-left: 8px;
+                                    alignment: center;
                                     Text {
-                                        text: "开启 HDR 增强";
+                                        text: "无中间档位";
                                         font-size: 9.5px;
-                                        color: AppTheme.text_secondary;
+                                        color: AppTheme.text_muted;
                                         vertical-alignment: center;
                                     }
                                 }

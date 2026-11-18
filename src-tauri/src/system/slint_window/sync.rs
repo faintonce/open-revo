@@ -70,6 +70,17 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         (supported_rates.clone(), Vec::new())
     };
 
+    let mut sorted_rates = supported_rates.clone();
+    sorted_rates.sort();
+    sorted_rates.dedup();
+    let min_refresh_rate = sorted_rates.first().copied().unwrap_or(60) as i32;
+    let max_refresh_rate = sorted_rates.last().copied().unwrap_or(240) as i32;
+    let intermediate_rates: Vec<i32> = if sorted_rates.len() > 2 {
+        sorted_rates[1..sorted_rates.len() - 1].iter().map(|&r| r as i32).collect()
+    } else {
+        Vec::new()
+    };
+
     let (live_battery, live_ac, _) = crate::commands::power_cmd::get_live_power_status();
     let has_secondary_monitor = state.monitors.len() > 1;
     let primary_monitor_name = if !state.monitors.is_empty() { state.monitors[0].friendly_name.clone() } else { "内置主屏".to_string() };
@@ -102,6 +113,9 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         "monitor_name": monitor_name,
         "rates_row1": rates_row1,
         "rates_row2": rates_row2,
+        "min_refresh_rate": min_refresh_rate,
+        "max_refresh_rate": max_refresh_rate,
+        "intermediate_rates": intermediate_rates,
         "has_secondary_monitor": has_secondary_monitor,
         "primary_monitor_name": primary_monitor_name,
         "secondary_monitor_name": secondary_monitor_name,
@@ -288,6 +302,17 @@ pub fn sync_slint_display_state() {
     } else {
         (supported_rates.clone(), Vec::new())
     };
+
+    let mut sorted_rates = supported_rates.clone();
+    sorted_rates.sort();
+    sorted_rates.dedup();
+    let min_refresh_rate = sorted_rates.first().copied().unwrap_or(60) as i32;
+    let max_refresh_rate = sorted_rates.last().copied().unwrap_or(240) as i32;
+    let intermediate_rates: Vec<i32> = if sorted_rates.len() > 2 {
+        sorted_rates[1..sorted_rates.len() - 1].iter().map(|&r| r as i32).collect()
+    } else {
+        Vec::new()
+    };
     let has_secondary_monitor = monitors.len() > 1;
     let primary_monitor_name = if !monitors.is_empty() { monitors[0].friendly_name.clone() } else { "内置主屏".to_string() };
     let secondary_monitor_name = if monitors.len() > 1 { monitors[1].friendly_name.clone() } else { "".to_string() };
@@ -335,6 +360,9 @@ pub fn sync_slint_display_state() {
         "refresh_rate": curr_hz,
         "rates_row1": rates_row1,
         "rates_row2": rates_row2,
+        "min_refresh_rate": min_refresh_rate,
+        "max_refresh_rate": max_refresh_rate,
+        "intermediate_rates": intermediate_rates,
         "has_secondary_monitor": has_secondary_monitor,
         "primary_monitor_name": primary_monitor_name,
         "secondary_monitor_name": secondary_monitor_name,

@@ -35,6 +35,9 @@ export component DrawerView inherits Rectangle {
     in-out property <bool> is_tri_mode: true;
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
+    in-out property <int> min_refresh_rate: 60;
+    in-out property <int> max_refresh_rate: 240;
+    in-out property <[int]> intermediate_rates: [144];
     in-out property <string> monitor_name: "京东方";
     in-out property <bool> has_secondary_monitor: false;
     in-out property <string> primary_monitor_name: "内置主屏";
@@ -79,6 +82,7 @@ export component DrawerView inherits Rectangle {
     callback apply_turbo_silent(bool);
     callback toggle_gpu_oc();
     callback gpu_mode_clicked(string, bool);
+    callback open_gpu_page();
     callback refresh_rate_switched(int);
     callback auto_min_hz_toggled();
     callback select_monitor_index(int);
@@ -140,13 +144,16 @@ export component DrawerView inherits Rectangle {
             gpu_temp: root.gpu_temp;
             gpu_rpm: root.gpu_rpm;
             is_thin_and_light: root.is_thin_and_light;
-            set_gpu_mode(mode) => { root.gpu_mode_clicked(mode, false); }
+            open_gpu_page => { root.open_gpu_page(); }
         }
 
         // 4. Display Refresh Rate Card
         DrawerDisplayCard {
             refresh_rate: root.refresh_rate;
             auto_min_hz: root.auto_min_hz;
+            min_refresh_rate: root.min_refresh_rate;
+            max_refresh_rate: root.max_refresh_rate;
+            intermediate_rates: root.intermediate_rates;
             monitor_name: root.monitor_name;
             has_secondary_monitor: root.has_secondary_monitor;
             primary_monitor_name: root.primary_monitor_name;

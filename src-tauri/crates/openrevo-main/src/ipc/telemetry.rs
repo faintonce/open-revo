@@ -87,16 +87,7 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
     if let Some(mon) = val.get("monitor_name").and_then(|v| v.as_str()) {
         ui.set_monitor_name(mon.into());
     }
-    if let Some(r1_arr) = val.get("rates_row1").and_then(|v| v.as_array()) {
-        let r1: Vec<i32> = r1_arr.iter().filter_map(|r| r.as_i64().map(|v| v as i32)).collect();
-        if !r1.is_empty() {
-            ui.set_rates_row1(slint::ModelRc::new(slint::VecModel::from(r1)));
-        }
-    }
-    if let Some(r2_arr) = val.get("rates_row2").and_then(|v| v.as_array()) {
-        let r2: Vec<i32> = r2_arr.iter().filter_map(|r| r.as_i64().map(|v| v as i32)).collect();
-        ui.set_rates_row2(slint::ModelRc::new(slint::VecModel::from(r2)));
-    }
+    super::update_refresh_rates(val, ui);
     if let Some(h) = val.get("has_secondary_monitor").and_then(|v| v.as_bool()) {
         ui.set_has_secondary_monitor(h);
     }
