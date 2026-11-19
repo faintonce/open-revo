@@ -57,7 +57,9 @@ impl EcBridge {
         };
         let mut initial_cache = HardwareStateCache::default();
         initial_cache.power_mode = initial_mode;
-        initial_cache.fan_boost = if initial_cfg.fan_boost && wmi_ec::is_acpi_driver_available() {
+        initial_cache.fan_boost = if initial_cfg.fan_boost
+            && (wmi_ec::is_acpi_driver_available() || crate::hal::platform_probe::is_tongfang_family())
+        {
             wmi_ec::is_fan_boost_active()
         } else {
             false
@@ -94,7 +96,7 @@ impl EcBridge {
             ];
 
             loop {
-                if !wmi_ec::is_acpi_driver_available() {
+                if !wmi_ec::is_acpi_driver_available() && !crate::hal::platform_probe::is_tongfang_family() {
                     let hal = crate::hal::get_hardware_driver();
                     if hal.kind() != crate::hal::DriverKind::TongfangAcpi && hal.is_hardware_supported() {
                         if let Ok((cpu_rpm, gpu_rpm)) = hal.read_fan_rpm() {
@@ -158,9 +160,21 @@ impl EcBridge {
                         // by OpenRevo custom profile, NOT an autonomous EC mode switch.
                         // We must NEVER let the poller misinterpret 0 as Balance and revert Custom Mode!
                         if now >= c.power_mode_cooldown_until && c.power_mode != 4 {
-                            let mode_bits = raw_mode & 0x1E;
-                            if (mode_bits & 0x10) != 0 {
-                                c.power_mode = 3; // Turbo
+                            if crate::hal::platform_probe::is_legacy_pascal_turing_tongfang() {
+                                // 10&20-Series: Operating mode is stored in lower 4 bits of ADDR_FAN_BOOST_CLAMP
+                                // ECSpec.cs: 0 => Gaming/Balance, 1 => Office, 2 => Turbo
+                                let legacy_mode = raw_fan_clamp & 0x0F;
+                                match legacy_mode {
+                                    0 => c.power_mode = 2, // Balance
+                                    1 => c.power_mode = 1, // Office
+                                    2 => c.power_mode = 3, // Turbo
+                                    _ => {}
+                                }
+                            } else {
+                                let mode_bits = raw_mode & 0x1E;
+                                if (mode_bits & 0x10) != 0 {
+                                    c.power_mode = 3; // Turbo
+                                }
                             }
                         }
 
@@ -387,6 +401,7 @@ impl EcBridge {
 
         thread::spawn(move || {
             let is_tongfang_hardware = crate::driver::wmi_ec::is_acpi_driver_available()
+                || crate::hal::platform_probe::is_tongfang_family()
                 || crate::hal::declarative::load_matched_manifest()
                     .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
                     .unwrap_or(false);

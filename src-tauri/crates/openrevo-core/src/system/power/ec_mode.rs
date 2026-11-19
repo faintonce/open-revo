@@ -37,6 +37,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
     // If Tongfang ACPI hardware channel is available (both gaming laptops and Tongfang ultrabooks like Wujie 14X/15X),
     // we MUST proceed with writing native Tongfang EC registers (APExist, MODE_INDEX, TRIGGER_BYTE, etc.)!
     let is_tongfang_hardware = crate::driver::wmi_ec::is_acpi_driver_available()
+        || crate::hal::platform_probe::is_tongfang_family()
         || crate::hal::declarative::load_matched_manifest()
             .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
             .unwrap_or(false);
@@ -82,6 +83,13 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
 
     let cfg = crate::system::config::load_config();
     let fan_boost_active = cfg.fan_boost;
+
+    // Direct routing for Legacy Pascal/Turing (10&20-Series) hardware:
+    // Inverted mode codes (0: Gaming, 1: Office, 2: Turbo), dedicated trigger gate, and zero dynamic fan table poking.
+    if crate::hal::platform_probe::is_legacy_pascal_turing_tongfang() {
+        apply_legacy_pascal_turing_mode(ui_mode, fan_boost_active);
+        return;
+    }
 
     // Sanitize and align Fan Boost hardware state:
     // If user has NOT explicitly activated Fan Boost, ensure ADDR_FAN_BOOST_CLAMP bit 6 is cleared
@@ -659,6 +667,79 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 "[ANOMALY] SilentMode status is active ({})! EC may override CPU fan curves and power targets.",
                 raw_turbo_flag
             );
+        }
+    }
+}
+
+/// Applies performance mode on Legacy Pascal/Turing (GTX 10-series / RTX 20-series) Tongfang laptops.
+/// Uses inverted mode codes (0: Gaming/Balance, 1: Office, 2: Turbo) and pulses ADDR_TRIGGER_BYTE.
+fn apply_legacy_pascal_turing_mode(ui_mode: u8, fan_boost_active: bool) {
+    use crate::driver::wmi_ec;
+
+    crate::log_info!("POWER_MODE", "Applying Legacy Pascal/Turing (10&20 Series) power mode {}...", ui_mode);
+
+    // 1. Assert APExist so EC grants control
+    if let Some(val) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_AP_OEM_BYTE) {
+        if (val & 0x01) == 0 {
+            let ok = wmi_ec::wmi_write_ec(wmi_ec::ADDR_AP_OEM_BYTE, val | 0x01);
+            crate::log_info!("POWER_MODE", "Legacy 10&20 Assert APExist result: {}", ok);
+        }
+    }
+
+    // 2. Map UI Mode to Legacy EC Code:
+    // Ground Truth from ECSpec.cs: FAN_GAMING_MODE = 0, FAN_OFFICE_MODE = 1, FAN_TURBO_MODE = 2
+    let (legacy_code, trigger_val, silent_status) = match ui_mode {
+        1 => (1u8, 0x28u8, 1u8),       // Office
+        2 => (0u8, 0x20u8, 0u8),       // Balance / Gaming
+        3 | 4 => (2u8, 0x20u8, 0u8),   // Turbo / Custom
+        _ => (0u8, 0x20u8, 0u8),
+    };
+
+    // 3. Write ADDR_FAN_BOOST_CLAMP: lower 4 bits is mode, bit 6 (0x40) is FanBoost
+    let clamp_val = if fan_boost_active {
+        legacy_code | wmi_ec::FAN_BOOST_CLAMP_BIT
+    } else {
+        legacy_code
+    };
+    wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_BOOST_CLAMP, clamp_val);
+
+    // 4. Write Hardware Trigger Gate ADDR_TRIGGER_BYTE (preserve Bit 4 USB charge)
+    let cur_trig = wmi_ec::wmi_read_ec(wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
+    wmi_ec::wmi_write_ec(wmi_ec::ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | trigger_val);
+
+    // 5. Silent mode flag (ADDR_TURBO_TRIGGER)
+    wmi_ec::wmi_write_ec(wmi_ec::ADDR_TURBO_TRIGGER, silent_status);
+
+    // 6. Optional: User presets for CPU PL1/PL2/PL4 if explicitly configured
+    let active_profile = crate::system::model_engine::get_active_profile();
+    let user_presets = active_profile.as_ref().and_then(|p| p.presets.as_ref());
+    if let Some(p) = user_presets {
+        let (pl1, pl2, pl4, tcc) = match ui_mode {
+            1 => (p.office.pl1, p.office.pl2, p.office.pl4, p.office.temp_offset),
+            2 => (p.balanced.pl1, p.balanced.pl2, p.balanced.pl4, p.balanced.temp_offset),
+            _ => (p.turbo.pl1, p.turbo.pl2, p.turbo.pl4, p.turbo.temp_offset),
+        };
+        wmi_ec::set_custom_pl_limits(pl1, pl2, pl4);
+        wmi_ec::apply_preset_tcc_adaptive(tcc);
+        crate::log_info!("POWER_MODE", "Legacy 10&20 Presets applied -> PL1={}W, PL2={}W, PL4={}W, TccOffset={}°C", pl1, pl2, pl4, tcc);
+    }
+
+    // 7. GPU Overclocking via NVAPI if Turbo mode and enabled
+    if crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
+        let cfg = crate::system::config::load_config();
+        if (ui_mode == 3 || ui_mode == 4) && cfg.turbo_oc_enabled {
+            let core = cfg.gpu_oc_core_mhz.clamp(0, 250);
+            let mem = cfg.gpu_oc_mem_mhz.clamp(0, 1000);
+            if let Err(e) = crate::driver::nvapi::set_gpu_clock_offsets(core, mem) {
+                crate::log_warn!("POWER_MODE", "Legacy 10&20 Turbo: Failed to apply GPU OC offsets ({}, {}): {}", core, mem, e);
+            } else {
+                let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                gpu.lock().set_clock_offsets(core, mem);
+            }
+        } else {
+            let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
+            let gpu = crate::driver::gpu_bridge::get_global_gpu();
+            gpu.lock().set_clock_offsets(0, 0);
         }
     }
 }

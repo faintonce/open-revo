@@ -392,6 +392,7 @@ pub fn trigger_ec_action(mask: u8) -> bool {
 
 pub fn is_fan_boost_active() -> bool {
     let is_tongfang_hardware = is_acpi_driver_available()
+        || crate::hal::platform_probe::is_tongfang_family()
         || crate::hal::declarative::load_matched_manifest()
             .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
             .unwrap_or(false);
@@ -438,6 +439,7 @@ pub fn is_nextgen_oem_magic_ec() -> bool {
 /// while instantly asserting or clearing the fan boost speed floor.
 pub fn set_fan_boost_hardware(enable: bool) -> bool {
     let is_tongfang_hardware = is_acpi_driver_available()
+        || crate::hal::platform_probe::is_tongfang_family()
         || crate::hal::declarative::load_matched_manifest()
             .map(|m| m.channels.values().any(|c| matches!(c, crate::hal::declarative::model_manifest::ChannelDef::AcpiIoctl { .. })))
             .unwrap_or(false);
@@ -462,6 +464,12 @@ pub fn set_fan_boost_hardware(enable: bool) -> bool {
             enable,
             val
         );
+
+        // Legacy Pascal/Turing (10&20 Series) requires pulsing ADDR_TRIGGER_BYTE to latch fan clamp
+        if crate::hal::platform_probe::is_legacy_pascal_turing_tongfang() {
+            let cur_trig = wmi_read_ec(ADDR_TRIGGER_BYTE).unwrap_or(0);
+            let _ = wmi_write_ec(ADDR_TRIGGER_BYTE, (cur_trig & 0x10) | 0x20);
+        }
     }
     true
 }

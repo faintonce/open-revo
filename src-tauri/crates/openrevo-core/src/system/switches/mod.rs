@@ -151,7 +151,7 @@ pub struct QuickSwitchesState {
 /// Detect whether the current machine supports EC physical hardware device switches
 /// (Direct hardware register communication for Camera Cutoff, Touchpad state, etc.)
 pub fn has_ec_device_switches() -> bool {
-    crate::driver::wmi_ec::is_acpi_driver_available()
+    (crate::driver::wmi_ec::is_acpi_driver_available() || crate::hal::platform_probe::is_tongfang_family())
         && crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_PROJECT_ID).is_some()
 }
 

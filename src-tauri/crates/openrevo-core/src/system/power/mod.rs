@@ -599,7 +599,7 @@ pub fn restore_ec_power_options(cfg: &crate::system::config::AppConfig) {
         );
         return;
     }
-    if !crate::driver::wmi_ec::is_acpi_driver_available() {
+    if !crate::driver::wmi_ec::is_acpi_driver_available() && !crate::hal::platform_probe::is_tongfang_family() {
         return;
     }
     for (option, enable) in [
