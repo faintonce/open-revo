@@ -523,7 +523,10 @@ pub fn get_hardware_support_flags() -> HardwareSupportFlags {
     static CACHED_FLAGS: std::sync::OnceLock<HardwareSupportFlags> = std::sync::OnceLock::new();
     *CACHED_FLAGS.get_or_init(|| {
         if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
-            let is_rgb = manifest
+            let hw_byte2 = wmi_read_ec(ADDR_SUPPORT_BYTE2).unwrap_or(0);
+            let is_hw_rgb = (hw_byte2 & 0x04) != 0
+                || crate::driver::ite_lighting::IteLightingManager::probe_keyboard_device_exists();
+            let is_rgb = is_hw_rgb || manifest
                 .capabilities
                 .rgb_keyboard
                 .as_ref()

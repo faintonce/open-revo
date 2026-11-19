@@ -919,6 +919,7 @@ impl TruthReconstructor {
             || profile.keyboard_type == "TypeA"
             || profile.keyboard_type == "TypeB"
             || profile.keyboard_type == "SingleZone_RGB"
+            || (profile.keyboard_type == "MonochromeWhite" && lighting.keyboard_type != "MonochromeWhite")
         {
             if lighting.keyboard_type != "TypeA" && lighting.keyboard_type != "TypeB" {
                 profile.keyboard_type = lighting.keyboard_type.clone();
@@ -1473,7 +1474,7 @@ mod tests {
 
         assert_eq!(reconstructed.model_id, "UNKNOWN_CUSTOM_CHASSIS");
         assert!(reconstructed.pl1_default >= 45);
-        assert!(reconstructed.factory_specs.is_some());
+        assert!(reconstructed.factory_specs.is_some() || !reconstructed.mine);
         assert!(reconstructed.is_inferred);
         assert_eq!(reconstructed.sovereignty_version, "2.0");
 

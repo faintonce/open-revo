@@ -366,6 +366,9 @@ impl HardwareDriver for DeclarativeHardwareDriver {
     }
 
     fn kind(&self) -> DriverKind {
+        if self.manifest.channels.values().any(|c| matches!(c, ChannelDef::AcpiIoctl { .. })) {
+            return DriverKind::TongfangAcpi;
+        }
         DriverKind::GenericWmi
     }
 

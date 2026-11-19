@@ -198,8 +198,8 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
 
   // 硬件形态判断
   const isDeclaredStepped = capabilities?.rgb_keyboard?.type === 'monochrome_stepped';
-  const isSingleColor = isDeclaredStepped || kbHwInfo?.hardware_type === 'SingleColor';
-  const isSingleZone = !isDeclaredStepped && kbHwInfo?.hardware_type === 'SingleZoneRgb';
+  const isSingleZone = kbHwInfo?.hardware_type === 'SingleZoneRgb' || (!isDeclaredStepped && capabilities?.rgb_keyboard?.type === 'single_zone_rgb');
+  const isSingleColor = !isSingleZone && (isDeclaredStepped || kbHwInfo?.hardware_type === 'SingleColor');
 
   // 动态根据 capabilities.rgb_keyboard.steps 计算单色键盘背光档位定义
   const singleColorLevels = useMemo(() => {

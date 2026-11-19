@@ -1759,6 +1759,15 @@ pub fn get_model_capabilities() -> serde_json::Value {
             }
         };
 
+        let mut effective_rgb_kb = manifest.capabilities.rgb_keyboard.clone();
+        if let Some(ref mut kb) = effective_rgb_kb {
+            let hw_byte2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_SUPPORT_BYTE2).unwrap_or(0);
+            if (hw_byte2 & 0x04) != 0 {
+                kb.keyboard_type = "single_zone_rgb".to_string();
+                kb.supported = true;
+            }
+        }
+
         return serde_json::json!({
             "id": manifest.id,
             "name": manifest.name,
@@ -1779,7 +1788,7 @@ pub fn get_model_capabilities() -> serde_json::Value {
             "battery_charge_limit": manifest.capabilities.battery_charge_limit,
             "power_modes": manifest.capabilities.power_modes,
             "power_mode_watts": effective_pmw,
-            "rgb_keyboard": manifest.capabilities.rgb_keyboard,
+            "rgb_keyboard": effective_rgb_kb,
             "is_adapted": true,
             "is_debug_mode": is_debug,
         });

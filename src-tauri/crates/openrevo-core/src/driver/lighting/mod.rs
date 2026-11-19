@@ -419,8 +419,12 @@ impl IteLightingManager {
         }
 
         // Branch 1: Declarative HAL / Thin & Light models (IP3, Baolongda, Xingyao, etc.)
-        let hal = crate::hal::get_hardware_driver();
-        if hal.kind() != crate::hal::DriverKind::TongfangAcpi {
+        let is_tongfang = crate::driver::wmi_ec::is_acpi_driver_available()
+            || crate::hal::platform_probe::is_tongfang_family()
+            || crate::hal::get_hardware_driver().kind() == crate::hal::DriverKind::TongfangAcpi;
+
+        if !is_tongfang {
+            let hal = crate::hal::get_hardware_driver();
             let lvl = if enabled { brightness_idx } else { 0 };
             return hal.set_monochrome_backlight(lvl).is_ok();
         }
@@ -462,8 +466,12 @@ impl IteLightingManager {
         }
 
         // Branch 1: Declarative HAL / Non-Tongfang platforms (e.g. Baolongda MRID6)
-        let hal = crate::hal::get_hardware_driver();
-        if hal.kind() != crate::hal::DriverKind::TongfangAcpi {
+        let is_tongfang = crate::driver::wmi_ec::is_acpi_driver_available()
+            || crate::hal::platform_probe::is_tongfang_family()
+            || crate::hal::get_hardware_driver().kind() == crate::hal::DriverKind::TongfangAcpi;
+
+        if !is_tongfang {
+            let hal = crate::hal::get_hardware_driver();
             let is_on = enabled && brightness_idx > 0;
             let level = if is_on { brightness_idx.min(3) } else { 0 };
             let (r, g, b) = if is_on {
