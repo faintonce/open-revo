@@ -174,10 +174,32 @@ pub fn sync_slint_tuning_state() {
     let clamped_pl2 = (profile.cpu_pl2_watts as i32).clamp(bounds.min_pl, bounds.pl2_max);
     let clamped_pl4 = (profile.cpu_pl4_watts as i32).clamp(bounds.min_pl + bounds.pl4_margin, bounds.pl4_max);
 
-    let base_tgp = crate::system::power_mode::get_cached_factory_power_presets().map(|fp| fp.base_tgp).unwrap_or(150);
+    let is_pure_igpu = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu()
+        || !crate::driver::gpu_bridge::is_nvidia_dgpu_available();
+    let fp = crate::system::power_mode::get_factory_power_presets(!is_pure_igpu);
     let is_clamped = crate::driver::bld_driver_mgr::is_bld_fan_clamped();
 
     let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
+    let base_tgp = if fp.base_tgp > 0 {
+        fp.base_tgp as u32
+    } else if gpu_caps.base_tgp_max_watts > 0 {
+        gpu_caps.base_tgp_max_watts
+    } else {
+        115
+    };
+    let factory_base_tgp = if fp.base_tgp > 0 {
+        fp.base_tgp as u32
+    } else {
+        base_tgp
+    };
+    let factory_max_db = if fp.max_db > 0 {
+        fp.max_db as u32
+    } else if gpu_caps.max_db_watts > 0 {
+        gpu_caps.max_db_watts
+    } else {
+        25
+    };
+
     let gpu_power_tuning_mode = manifest.as_ref()
         .and_then(|m| m.capabilities.gpu_power_tuning_mode.clone())
         .unwrap_or_else(|| if is_bld { "mode_locked".to_string() } else { "none".to_string() });
@@ -272,6 +294,13 @@ pub fn sync_slint_tuning_state() {
         "ctgp_enabled": profile.gpu_ctgp_enabled,
         "max_db_watts": max_db_watts,
         "is_mode_locked": is_mode_locked,
+        "factory_office_pl1": fp.office_pl1,
+        "factory_balance_pl1": fp.balance_pl1,
+        "factory_turbo_pl1": fp.turbo_pl1,
+        "factory_base_tgp": factory_base_tgp,
+        "factory_max_db": factory_max_db,
+        "factory_hardware_read": fp.hardware_read,
+        "is_declarative": is_mode_locked,
         "fan_custom_curve": fan_custom_curve,
         "fan_boost_mode": fan_boost_mode,
         "is_direct_clamp": is_direct_clamp,

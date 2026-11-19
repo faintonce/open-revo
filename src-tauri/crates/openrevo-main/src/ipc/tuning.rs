@@ -158,6 +158,27 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(ml) = val.get("is_mode_locked").and_then(|v| v.as_bool()) {
                 ui.set_is_mode_locked(ml);
             }
+            if let Some(v) = val.get("factory_office_pl1").and_then(|v| v.as_i64()) {
+                ui.set_factory_office_pl1(v as i32);
+            }
+            if let Some(v) = val.get("factory_balance_pl1").and_then(|v| v.as_i64()) {
+                ui.set_factory_balance_pl1(v as i32);
+            }
+            if let Some(v) = val.get("factory_turbo_pl1").and_then(|v| v.as_i64()) {
+                ui.set_factory_turbo_pl1(v as i32);
+            }
+            if let Some(v) = val.get("factory_base_tgp").and_then(|v| v.as_i64()) {
+                ui.set_factory_base_tgp(v as i32);
+            }
+            if let Some(v) = val.get("factory_max_db").and_then(|v| v.as_i64()) {
+                ui.set_factory_max_db(v as i32);
+            }
+            if let Some(v) = val.get("factory_hardware_read").and_then(|v| v.as_bool()) {
+                ui.set_factory_hardware_read(v);
+            }
+            if let Some(v) = val.get("is_declarative").and_then(|v| v.as_bool()) {
+                ui.set_is_declarative(v);
+            }
 
             if let Some(fcc) = val.get("fan_custom_curve").and_then(|v| v.as_bool()) {
                 ui.set_fan_custom_curve(fcc);

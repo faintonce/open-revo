@@ -25,6 +25,15 @@ export component GpuTuningCol inherits Rectangle {
     in-out property <int> max_db_watts: 25;
     in-out property <bool> is_mode_locked: false;
 
+    // Factory Power Presets (模具原厂建议功耗参考)
+    in-out property <int> factory_office_pl1: 45;
+    in-out property <int> factory_balance_pl1: 75;
+    in-out property <int> factory_turbo_pl1: 115;
+    in-out property <int> factory_base_tgp: 115;
+    in-out property <int> factory_max_db: 25;
+    in-out property <bool> factory_hardware_read: true;
+    in-out property <bool> is_declarative: false;
+
     // Callbacks
     callback toggle_super_perf();
     callback change_core_offset(int);
@@ -32,6 +41,8 @@ export component GpuTuningCol inherits Rectangle {
     callback toggle_db();
     callback change_db_watts(int);
     callback change_ctgp_watts(int);
+
+    property <int> factory_total_tgp: root.factory_base_tgp + root.factory_max_db;
 
     property <bool> effective_super_perf: root.is_mode_locked ? true : root.super_perf;
     property <int> effective_core_offset: root.effective_super_perf ? root.core_offset : 0;
@@ -627,8 +638,8 @@ export component GpuTuningCol inherits Rectangle {
                             color: #f59e0b;
                         }
                     }
-                    Text {
-                        text: "EC 硬件直读";
+                    if root.factory_hardware_read: Text {
+                        text: root.is_declarative ? "原厂硬件直读" : "EC 硬件直读";
                         font-size: 9.5px;
                         font-weight: 700;
                         color: #10b981;
@@ -636,14 +647,18 @@ export component GpuTuningCol inherits Rectangle {
                 }
 
                 Text {
-                    text: "• CPU 原厂预设: 办公 45W / 平衡 75W / 狂暴 205W";
+                    text: root.factory_hardware_read ?
+                        ("• CPU 原厂预设: 办公 " + root.factory_office_pl1 + "W / 平衡 " + root.factory_balance_pl1 + "W / 狂暴 " + root.factory_turbo_pl1 + "W") :
+                        "• CPU 推荐: 持续 PL1 45W~75W / 爆发 PL2 75W~115W";
                     font-size: 9px;
                     color: AppTheme.text_secondary;
                     wrap: word-wrap;
                 }
 
                 Text {
-                    text: "• GPU 原厂预设: 基础 150W + DB 25W (原厂最大 175W)";
+                    text: root.factory_hardware_read ?
+                        ("• GPU 原厂预设: 基础 " + root.factory_base_tgp + "W + DB " + root.factory_max_db + "W (原厂最大 " + root.factory_total_tgp + "W)") :
+                        "• GPU 推荐: 基础 Base TGP + DB 15W~25W 动态分配";
                     font-size: 9px;
                     color: AppTheme.text_secondary;
                     wrap: word-wrap;

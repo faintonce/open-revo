@@ -198,6 +198,15 @@ export component MainWindow inherits Window {
     in-out property <int> max_db_watts: 25;
     in-out property <bool> is_mode_locked: false;
 
+    // Factory Power Presets (模具原厂建议功耗参考)
+    in-out property <int> factory_office_pl1: 45;
+    in-out property <int> factory_balance_pl1: 75;
+    in-out property <int> factory_turbo_pl1: 115;
+    in-out property <int> factory_base_tgp: 115;
+    in-out property <int> factory_max_db: 25;
+    in-out property <bool> factory_hardware_read: true;
+    in-out property <bool> is_declarative: false;
+
     in-out property <bool> fan_custom_curve: true;
     in-out property <bool> single_fan_channel: false;
     in-out property <string> fan_boost_mode: "none";
@@ -945,6 +954,13 @@ export component MainWindow inherits Window {
         ctgp_max_watts <=> root.ctgp_max_watts;
         max_db_watts <=> root.max_db_watts;
         is_mode_locked <=> root.is_mode_locked;
+        factory_office_pl1 <=> root.factory_office_pl1;
+        factory_balance_pl1 <=> root.factory_balance_pl1;
+        factory_turbo_pl1 <=> root.factory_turbo_pl1;
+        factory_base_tgp <=> root.factory_base_tgp;
+        factory_max_db <=> root.factory_max_db;
+        factory_hardware_read <=> root.factory_hardware_read;
+        is_declarative <=> root.is_declarative;
 
         fan_custom_curve <=> root.fan_custom_curve;
         single_fan_channel <=> root.single_fan_channel;
