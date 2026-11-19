@@ -24,6 +24,67 @@ use crate::driver::wmi_ec::{
 
 pub type SharedIteLightingManager = Arc<IteLightingManager>;
 
+/// 单色白光机型 `BACKLIGHT_WHITE`（EC H2RAM 0x78C）的目标值。
+///
+/// 寄存器语义来自无界白灯机型实测：
+/// - `bit1`   = 电源禁用位：1 关 / 0 开（只改亮度位不会真的灭灯）
+/// - `bit4`   = 亮度更新标记：写入时置 1，固件刷完 PWM 后自行清零
+/// - `bit5~7` = 亮度档：0 关 / 1 暗 / 2 亮（该机型只有两档亮度）
+/// - 低 5 位保留机型自己的位
+///
+/// `level` = 0 表示关闭。
+fn white_backlight_target(current: u8, level: u8) -> u8 {
+    let mut value = (current & 0x1F) | 0x10 | ((level & 0x07) << 5);
+    if level > 0 {
+        value &= !0x02;
+    } else {
+        value |= 0x02;
+    }
+    value
+}
+
+/// 从寄存器值取亮度档（0..=2）
+fn white_backlight_level(value: u8) -> u8 {
+    (value >> 5) & 0x07
+}
+
+/// 写白光寄存器，回读校验亮度档与电源位；不一致就把原值写回去并返回 false。
+///
+/// 这一步的意义是：EC 拒绝写入或固件没刷 PWM 时，界面不能显示成功。
+fn apply_white_backlight_confirmed(previous: u8, target: u8, level: u8) -> bool {
+    let written = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
+    latch_backlight();
+    if !written {
+        return false;
+    }
+
+    let read_back = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE);
+    let confirmed = match read_back {
+        Some(v) => white_backlight_level(v) == level && ((v & 0x02) == 0) == (level > 0),
+        None => false,
+    };
+    if confirmed {
+        return true;
+    }
+
+    // 回读不符：把写入前的原值写回，避免留下一个半生效的亮度
+    let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, previous);
+    latch_backlight();
+    crate::log_warn!(
+        "LIGHTING_ARBITER",
+        "White backlight not confirmed (want level {} = 0x{:02X}, read back {:02X?}); rolled back to 0x{:02X}",
+        level, target, read_back, previous
+    );
+    false
+}
+
+/// 触发热光寄存器，让 EC 把 RAM 值刷进硬件 PWM
+fn latch_backlight() {
+    if let Some(cur_trigger_byte) = crate::driver::wmi_ec::wmi_read_ec(ADDR_TRIGGER_BYTE) {
+        let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, cur_trigger_byte | 0x20);
+    }
+}
+
 pub struct IteLightingManager {
     kb_dev: Arc<Mutex<Option<IteLightingDevice>>>,
     lb_dev: Arc<Mutex<Option<IteLightingDevice>>>,
@@ -429,25 +490,22 @@ impl IteLightingManager {
             return hal.set_monochrome_backlight(lvl).is_ok();
         }
 
-        // Branch 2: Tongfang EC Direct Monochrome White Backlight (e.g. Wujie 14X, 15X, CODE series)
-        // Hardware ground-truth:
-        // - OFF:   0x01 (Bit 0 mode enabled, brightness nibble = 0, no bit 1 cutoff)
-        // - LOW:   0x21 (Bit 5 = 50% PWM + Bit 0 base)
-        // - HIGH:  0x41 (Bit 6 = 100% PWM + Bit 0 base)
-        let target = if !enabled || brightness_idx == 0 {
-            0x01
-        } else {
-            match brightness_idx {
-                1 => 0x21,
-                _ => 0x41,
-            }
+        // Branch 2: Tongfang EC Direct Monochrome White Backlight (Wujie / CODE series)
+        // 寄存器语义见 `white_backlight_target`：写的是「状态 + 更新标记」，
+        // 不是固定的 0x01 / 0x21 / 0x41，低 5 位要保留机型自己的位。
+        let current = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE).unwrap_or(0x01);
+        let level = match (enabled, brightness_idx) {
+            (false, _) | (true, 0) => 0,
+            (true, 1) => 1,
+            (true, _) => 2,
         };
-
-        let ok = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
-        if let Some(cur_trigger_byte) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
-            let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, cur_trigger_byte | 0x20);
-        }
-        crate::log_info!("LIGHTING_ARBITER", "Monochrome white backlight applied: on={}, level_idx={} (EC=0x{:02X}) -> ok={}", enabled && brightness_idx > 0, brightness_idx, target, ok);
+        let target = white_backlight_target(current, level);
+        let ok = apply_white_backlight_confirmed(current, target, level);
+        crate::log_info!(
+            "LIGHTING_ARBITER",
+            "Monochrome white backlight applied: level={} idx={} (EC=0x{:02X} -> 0x{:02X}) -> ok={}",
+            level, brightness_idx, current, target, ok
+        );
         ok
     }
 
@@ -1660,3 +1718,29 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod white_backlight_tests {
+    use super::{white_backlight_level, white_backlight_target};
+
+    #[test]
+    fn target_sets_the_update_flag_and_keeps_low_bits() {
+        // 0x21 (暗) -> 0x51 (亮，带更新标记)
+        assert_eq!(white_backlight_target(0x21, 2), 0x51);
+        assert_eq!(white_backlight_target(0x3D, 2), 0x5D);
+        assert_eq!(white_backlight_target(0xFF, 2), 0x5D);
+    }
+
+    #[test]
+    fn level_zero_disables_the_power_bit() {
+        assert_eq!(white_backlight_target(0x41, 0), 0x13);
+    }
+
+    #[test]
+    fn level_round_trips_through_the_register_layout() {
+        for level in 0u8..=2 {
+            let value = white_backlight_target(0x01, level);
+            assert_eq!(white_backlight_level(value), level);
+            assert_eq!((value & 0x02) == 0, level > 0);
+        }
+    }
+}
