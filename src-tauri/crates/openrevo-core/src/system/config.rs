@@ -141,6 +141,9 @@ pub struct AppConfig {
     // Modern Standby & Sleep Guard (Windows S0ix Anti-Overheat)
     #[serde(default)]
     pub sleep_guard_enabled: bool,
+    /// 睡眠守护当前查看的来源："ac" / "dc"；空串表示跟随当前供电
+    #[serde(default)]
+    pub sleep_guard_source: String,
     #[serde(default)]
     pub sleep_disconnect_net: bool,
     #[serde(default)]
@@ -499,6 +502,7 @@ impl Default for AppConfig {
             custom_shortcuts: Vec::new(),
 
             sleep_guard_enabled: false,
+        sleep_guard_source: String::new(),
             sleep_disconnect_net: false,
             sleep_block_away: false,
             sleep_ignore_sysreq: false,

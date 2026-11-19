@@ -30,21 +30,54 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             }
             true
         }
-        "toggle_sleep_guard_option" => {
-            if let (Some(opt), Some(enable)) = (val.get("option").and_then(|v| v.as_str()), val.get("enable").and_then(|v| v.as_bool())) {
+        "select_sleep_guard_source" => {
+            if let Some(src) = val.get("source").and_then(|v| v.as_str()) {
                 let mut cfg = crate::system::config::load_config();
-                match opt {
-                    "disconnect_net" => cfg.sleep_disconnect_net = enable,
-                    "block_away" => cfg.sleep_block_away = enable,
-                    "ignore_sysreq" => cfg.sleep_ignore_sysreq = enable,
-                    "disable_wake_timers" => cfg.sleep_disable_wake_timers = enable,
-                    "deep_sleep" => cfg.sleep_deep_sleep = enable,
-                    "hibernate_30m" => cfg.sleep_hibernate_30m = enable,
-                    _ => {}
-                }
-                crate::commands::power_cmd::apply_sleep_guard_powercfg(opt, enable);
+                cfg.sleep_guard_source = src.to_ascii_lowercase();
                 let _ = crate::system::config::save_config(&cfg);
+                // 只切换「看哪一套」，不写任何策略
                 sync_slint_power_state();
+            }
+            true
+        }
+        "toggle_sleep_guard_option" => {
+            if let Some(opt) = val.get("option").and_then(|v| v.as_str()) {
+                let cfg = crate::system::config::load_config();
+                // 与同步层同一套解析：空值按当前供电方式
+                let is_ac = match cfg.sleep_guard_source.to_ascii_lowercase().as_str() {
+                    "ac" => true,
+                    "dc" => false,
+                    _ => crate::commands::power_cmd::get_live_power_status().1,
+                };
+                // 以硬件真实回读为准再取反，避免界面状态与注册表脱节
+                let state = crate::commands::power_cmd::query_sleep_guard_state();
+                let values = state.for_source(is_ac);
+                let idx = match opt {
+                    "disconnect_net" => 0,
+                    "block_away" => 1,
+                    "ignore_sysreq" => 2,
+                    "disable_wake_timers" => 3,
+                    "deep_sleep" => 4,
+                    "hibernate_30m" => 5,
+                    _ => 6,
+                };
+                if idx < 6 {
+                    let enable = !values[idx];
+                    // 只写当前查看的那个来源，另一侧完全不动
+                    crate::commands::power_cmd::apply_sleep_guard_powercfg_for(opt, enable, is_ac);
+                    let mut cfg = crate::system::config::load_config();
+                    match opt {
+                        "disconnect_net" => cfg.sleep_disconnect_net = enable,
+                        "block_away" => cfg.sleep_block_away = enable,
+                        "ignore_sysreq" => cfg.sleep_ignore_sysreq = enable,
+                        "disable_wake_timers" => cfg.sleep_disable_wake_timers = enable,
+                        "deep_sleep" => cfg.sleep_deep_sleep = enable,
+                        "hibernate_30m" => cfg.sleep_hibernate_30m = enable,
+                        _ => {}
+                    }
+                    let _ = crate::system::config::save_config(&cfg);
+                    sync_slint_power_state();
+                }
             }
             true
         }
