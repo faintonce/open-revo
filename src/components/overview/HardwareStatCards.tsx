@@ -220,7 +220,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
                   {isPureIgpu ? '主散热扇' : 'CPU 扇'}
                 </span>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'baseline' }}>
-                  <span>{status.cpu_fan_rpm > 0 ? status.cpu_fan_rpm : '--'}</span>
+                  <span>{status.cpu_fan_rpm}</span>
                   <span style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 500, marginLeft: '2px' }}>RPM</span>
                 </div>
               </div>
@@ -230,7 +230,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
                   {isPureIgpu ? '副散热扇' : 'GPU 扇'}
                 </span>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: '#a5f3fc', display: 'flex', alignItems: 'baseline' }}>
-                  <span>{status.gpu_fan_rpm > 0 ? status.gpu_fan_rpm : '--'}</span>
+                  <span>{status.gpu_fan_rpm}</span>
                   <span style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 500, marginLeft: '2px' }}>RPM</span>
                 </div>
               </div>
@@ -241,7 +241,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
                 散热风扇
               </span>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'baseline' }}>
-                <span>{status.cpu_fan_rpm > 0 ? status.cpu_fan_rpm : '--'}</span>
+                <span>{status.cpu_fan_rpm}</span>
                 <span style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 500, marginLeft: '4px' }}>RPM</span>
               </div>
             </div>

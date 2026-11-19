@@ -178,14 +178,21 @@ impl EcBridge {
                             }
                         }
 
-                        // 4. Fan RPMs (Always update with real RPM readings)
+                        // 4. Fan RPMs (Always update with real RPM readings, including 0 = stopped)
+                        // EC reports a fixed baseline (e.g. 145 RPM) when the fan is stopped at duty=0.
+                        // Treat any reading below 150 RPM as a real 0 so the panel never shows a stale/spurious RPM.
+                        const FAN_STOP_BASELINE: u16 = 150;
                         let cpu_rpm = (cpu_rpm_high << 8) | cpu_rpm_low;
-                        if cpu_rpm > 0 && cpu_rpm < 8000 {
+                        if cpu_rpm < FAN_STOP_BASELINE {
+                            c.cpu_fan_rpm = 0;
+                        } else if cpu_rpm < 8000 {
                             c.cpu_fan_rpm = cpu_rpm;
                         }
 
                         let gpu_rpm = (gpu_rpm_high << 8) | gpu_rpm_low;
-                        if gpu_rpm > 0 && gpu_rpm < 8000 {
+                        if gpu_rpm < FAN_STOP_BASELINE {
+                            c.gpu_fan_rpm = 0;
+                        } else if gpu_rpm < 8000 {
                             c.gpu_fan_rpm = gpu_rpm;
                         }
 
