@@ -139,6 +139,12 @@ unsafe extern "system" fn low_level_keyboard_proc(
     if n_code >= 0 {
         let msg = w_param.0 as u32;
         let kbd_struct = *(l_param.0 as *const KBDLLHOOKSTRUCT);
+
+        // 自己注入的触摸板热键（Win+Ctrl+F24）直接放行，不进入下面的无线电/系统键逻辑，
+        // 否则 F24 会被当成厂商无线电键，按一次触摸板顺带把 Wi-Fi 切了。
+        if kbd_struct.dwExtraInfo == crate::system::switches::touchpad::SYNTHETIC_KEY_TAG {
+            return CallNextHookEx(None, n_code, w_param, l_param);
+        }
         let vk = kbd_struct.vkCode as u16;
 
         // Bypass dummy mask key (0xE8) from interfering with interactive lighting or lock logic
