@@ -294,11 +294,7 @@ fn default_cpu_temp_target_max() -> u8 { 95 }
 fn default_cpu_pl4_margin() -> u16 { 20 }
 fn default_wake_window_mode() -> String { "remember".to_string() }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct FanCurvePoint {
-    pub temp: u8,
-    pub duty: u8,
-}
+pub use openrevo_core::system::config::FanCurvePoint;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CustomProfileConfig {
@@ -391,12 +387,7 @@ pub fn default_fan_curve() -> Vec<FanCurvePoint> {
     ]
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CoolerCurvePoint {
-    pub temp: u8,
-    pub fan_duty: u8,
-    pub pump_voltage: u8, // 7, 8, 11
-}
+pub use openrevo_core::system::config::CoolerCurvePoint;
 
 pub fn default_cooler_curve_points() -> Vec<CoolerCurvePoint> {
     vec![

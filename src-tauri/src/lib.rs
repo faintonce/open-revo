@@ -413,7 +413,7 @@ fn run_slint_pure_daemon() {
 
     // 8. WMI Physical ACPI Key Listener (Q-Key, Fn+1)
     if !crate::hal::platform_probe::is_ultrabook() && crate::hal::platform_probe::has_acpi_physical_key_events() {
-        crate::driver::wmi_event_listener::start_wmi_event_listener(None, ec_for_wmi);
+        crate::driver::wmi_event_listener::start_wmi_event_listener(ec_for_wmi);
     }
 
     // 9. Touchpad Hardware Listener
@@ -846,7 +846,7 @@ pub fn run_tauri_runtime() {
                     crate::system::boot_trace::boot_log("LISTENER_BYPASS", "Ultrabook detected: AcpiTest_EventULong companion listener bypassed.");
                     return;
                 }
-                crate::driver::wmi_event_listener::start_wmi_event_listener(Some(app.handle().clone()), ec_for_wmi);
+                crate::driver::wmi_event_listener::start_wmi_event_listener(ec_for_wmi);
             });
 
             // Step 6.6: Start dedicated Precision Touchpad registry listener for hardware Fn+F5 sync

@@ -189,7 +189,7 @@ pub fn dispatch_action(app: AppHandle, binding: ShortcutBinding) {
 
             // 7. Cycle Keyboard Brightness
             ShortcutAction::CycleKeyboardBrightness => {
-                crate::driver::ite_lighting::cycle_keyboard_brightness(Some(&app));
+                crate::driver::ite_lighting::cycle_keyboard_brightness();
             }
 
             // 8. Trigger OSD Preview
