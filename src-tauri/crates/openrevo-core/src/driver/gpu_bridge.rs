@@ -757,9 +757,29 @@ impl GpuBridge {
         self.inner.vram_used_mb.load(Ordering::SeqCst)
     }
 
+    /// 写入前按驱动上报的范围校验：超范围直接拒绝，不夹取、不落值。
+    fn offset_out_of_range(core: i32, mem: i32) -> Option<String> {
+        let Some(((cmin, cmax), (mmin, mmax))) =
+            crate::driver::nvapi::get_gpu_clock_offset_ranges_mhz()
+        else {
+            return None; // 读不到范围就不拦，交给驱动自己判断
+        };
+        if core < cmin || core > cmax {
+            return Some(format!("core offset {} MHz outside {}..{}", core, cmin, cmax));
+        }
+        if mem < mmin || mem > mmax {
+            return Some(format!("mem offset {} MHz outside {}..{}", mem, mmin, mmax));
+        }
+        None
+    }
+
     pub fn set_core_offset(&self, offset_mhz: i32) -> bool {
-        self.inner.core_offset.store(offset_mhz, Ordering::SeqCst);
         let mem = self.inner.mem_offset.load(Ordering::SeqCst);
+        if let Some(reason) = Self::offset_out_of_range(offset_mhz, mem) {
+            crate::log_warn!("GPU_BRIDGE", "Core offset rejected: {}", reason);
+            return false;
+        }
+        self.inner.core_offset.store(offset_mhz, Ordering::SeqCst);
         if let Err(e) = crate::driver::nvapi::set_gpu_clock_offsets(offset_mhz, mem) {
             crate::log_warn!("GPU_BRIDGE", "Failed to apply core offset {}MHz to NVAPI: {}", offset_mhz, e);
             false
@@ -769,8 +789,12 @@ impl GpuBridge {
     }
 
     pub fn set_mem_offset(&self, offset_mhz: i32) -> bool {
-        self.inner.mem_offset.store(offset_mhz, Ordering::SeqCst);
         let core = self.inner.core_offset.load(Ordering::SeqCst);
+        if let Some(reason) = Self::offset_out_of_range(core, offset_mhz) {
+            crate::log_warn!("GPU_BRIDGE", "Mem offset rejected: {}", reason);
+            return false;
+        }
+        self.inner.mem_offset.store(offset_mhz, Ordering::SeqCst);
         if let Err(e) = crate::driver::nvapi::set_gpu_clock_offsets(core, offset_mhz) {
             crate::log_warn!("GPU_BRIDGE", "Failed to apply mem offset {}MHz to NVAPI: {}", offset_mhz, e);
             false
@@ -780,6 +804,10 @@ impl GpuBridge {
     }
 
     pub fn set_clock_offsets(&self, core_offset_mhz: i32, mem_offset_mhz: i32) -> bool {
+        if let Some(reason) = Self::offset_out_of_range(core_offset_mhz, mem_offset_mhz) {
+            crate::log_warn!("GPU_BRIDGE", "Clock offsets rejected: {}", reason);
+            return false;
+        }
         self.inner.core_offset.store(core_offset_mhz, Ordering::SeqCst);
         self.inner.mem_offset.store(mem_offset_mhz, Ordering::SeqCst);
         if let Err(e) = crate::driver::nvapi::set_gpu_clock_offsets(core_offset_mhz, mem_offset_mhz) {
