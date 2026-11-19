@@ -53,21 +53,6 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     });
 
     let ui_cb = ui_weak.clone();
-    window.on_toggle_master_sleep_guard(move || {
-        if let Some(ui) = ui_cb.upgrade() {
-            let next = !ui.get_sleep_guard_enabled();
-            ui.set_sleep_guard_enabled(next);
-            ui.set_sleep_disconnect_net(next);
-            ui.set_sleep_block_away(next);
-            ui.set_sleep_ignore_sysreq(next);
-            ui.set_sleep_disable_wake_timers(next);
-            ui.set_sleep_deep_sleep(next);
-            ui.set_sleep_hibernate_30m(next);
-            ipc::send_action_to_host("toggle_master_sleep_guard", serde_json::json!({ "enable": next }));
-        }
-    });
-
-    let ui_cb = ui_weak.clone();
     window.on_toggle_sleep_guard_option(move |opt| {
         if let Some(ui) = ui_cb.upgrade() {
             let opt_str = opt.as_str();

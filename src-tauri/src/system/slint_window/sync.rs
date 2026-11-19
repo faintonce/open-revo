@@ -435,6 +435,7 @@ pub fn sync_slint_power_state() {
     if let Some(app) = app_opt {
         let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
         let info = crate::commands::power_cmd::read_power_settings(ec_state.inner());
+        let (sleep_source, sleep_values) = resolve_sleep_guard_values(&cfg, info.is_ac_online);
         send_slint_ipc_message(serde_json::json!({
             "action": "sync_power_settings",
             "power_mode": cfg.power_mode,
@@ -449,12 +450,13 @@ pub fn sync_slint_power_state() {
             "ac_recovery_enabled": info.ac_recovery_enabled,
             "high_perf_scheme": info.high_perf_scheme,
             "sleep_guard_enabled": info.sleep_guard_enabled,
-            "sleep_disconnect_net": info.sleep_disconnect_net,
-            "sleep_block_away": info.sleep_block_away,
-            "sleep_ignore_sysreq": info.sleep_ignore_sysreq,
-            "sleep_disable_wake_timers": info.sleep_disable_wake_timers,
-            "sleep_deep_sleep": info.sleep_deep_sleep,
-            "sleep_hibernate_30m": info.sleep_hibernate_30m,
+            "sleep_guard_source": sleep_source,
+            "sleep_disconnect_net": sleep_values[0],
+            "sleep_block_away": sleep_values[1],
+            "sleep_ignore_sysreq": sleep_values[2],
+            "sleep_disable_wake_timers": sleep_values[3],
+            "sleep_deep_sleep": sleep_values[4],
+            "sleep_hibernate_30m": sleep_values[5],
             "sleep_auto_office": info.sleep_auto_office,
             "turbo_submode_supported": crate::system::power::turbo_submode::is_supported(),
             "turbo_silent": cfg.turbo_silent,
@@ -463,6 +465,7 @@ pub fn sync_slint_power_state() {
     } else {
         let cfg = crate::system::config::load_config();
         let (percent, is_ac, _) = crate::commands::power_cmd::get_live_power_status();
+        let (sleep_source, sleep_values) = resolve_sleep_guard_values(&cfg, is_ac);
         let mode = if cfg.battery_limit >= 95 {
             "long_life"
         } else if cfg.battery_limit <= 65 {
@@ -484,12 +487,13 @@ pub fn sync_slint_power_state() {
             "ac_recovery_enabled": cfg.ac_recovery_enabled,
             "high_perf_scheme": cfg.high_perf_scheme,
             "sleep_guard_enabled": cfg.sleep_guard_enabled,
-            "sleep_disconnect_net": cfg.sleep_disconnect_net,
-            "sleep_block_away": cfg.sleep_block_away,
-            "sleep_ignore_sysreq": cfg.sleep_ignore_sysreq,
-            "sleep_disable_wake_timers": cfg.sleep_disable_wake_timers,
-            "sleep_deep_sleep": cfg.sleep_deep_sleep,
-            "sleep_hibernate_30m": cfg.sleep_hibernate_30m,
+            "sleep_guard_source": sleep_source,
+            "sleep_disconnect_net": sleep_values[0],
+            "sleep_block_away": sleep_values[1],
+            "sleep_ignore_sysreq": sleep_values[2],
+            "sleep_disable_wake_timers": sleep_values[3],
+            "sleep_deep_sleep": sleep_values[4],
+            "sleep_hibernate_30m": sleep_values[5],
             "sleep_auto_office": cfg.sleep_auto_office,
             "turbo_submode_supported": crate::system::power::turbo_submode::is_supported(),
             "turbo_silent": cfg.turbo_silent,
@@ -1040,4 +1044,20 @@ pub fn sync_slint_power_targets(power_mode: u8) {
         "tgp_target": tgp,
         "power_target_text": text,
     }));
+}
+
+
+/// 解析当前查看的睡眠策略来源（空值按当前供电），并取出该来源的六项真实状态
+fn resolve_sleep_guard_values(
+    cfg: &crate::system::config::AppConfig,
+    is_ac_now: bool,
+) -> (String, [bool; 6]) {
+    let state = crate::commands::power_cmd::query_sleep_guard_state();
+    let is_ac = match cfg.sleep_guard_source.to_ascii_lowercase().as_str() {
+        "ac" => true,
+        "dc" => false,
+        _ => is_ac_now,
+    };
+    let source = if is_ac { "ac" } else { "dc" }.to_string();
+    (source, *state.for_source(is_ac))
 }

@@ -45,6 +45,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(sg) = val.get("sleep_guard_enabled").and_then(|v| v.as_bool()) {
                 ui.set_sleep_guard_enabled(sg);
             }
+            if let Some(src) = val.get("sleep_guard_source").and_then(|v| v.as_str()) {
+                ui.set_sleep_guard_source(src.into());
+            }
             if let Some(sdn) = val.get("sleep_disconnect_net").and_then(|v| v.as_bool()) {
                 ui.set_sleep_disconnect_net(sdn);
             }

@@ -9,14 +9,18 @@ export component SleepGuardCard inherits Rectangle {
     in-out property <bool> sleep_disable_wake_timers: false;
     in-out property <bool> sleep_deep_sleep: false;
     in-out property <bool> sleep_hibernate_30m: false;
+    // 当前查看哪一套策略："ac" 插电 / "dc" 离电
+    in-out property <string> sleep_guard_source: "ac";
 
-    callback toggle_master_sleep_guard();
+    callback select_sleep_guard_source(string);
     callback toggle_sleep_guard_option(string);
 
     border-radius: 8px;
     background: #f43f5e08;
     border-width: 1px;
-    border-color: root.sleep_guard_enabled ? #f43f5e80 : #f43f5e35;
+    border-color: (root.sleep_disconnect_net || root.sleep_block_away || root.sleep_ignore_sysreq
+        || root.sleep_disable_wake_timers || root.sleep_deep_sleep || root.sleep_hibernate_30m)
+        ? #f43f5e80 : #f43f5e35;
 
     VerticalLayout {
         padding: 10px;
@@ -26,11 +30,6 @@ export component SleepGuardCard inherits Rectangle {
         HorizontalLayout {
             alignment: space-between;
             height: 32px;
-
-            TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.toggle_master_sleep_guard(); }
-            }
 
             HorizontalLayout {
                 spacing: 8px;
@@ -99,11 +98,61 @@ export component SleepGuardCard inherits Rectangle {
                 }
             }
 
-            SwitchToggle {
-                checked: root.sleep_guard_enabled;
-                active_color: #f43f5e;
+            HorizontalLayout {
+                spacing: 6px;
                 y: (parent.height - self.height) / 2;
-                toggled => { root.toggle_master_sleep_guard(); }
+
+                Rectangle {
+                    height: 24px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.sleep_guard_source == "ac" ? AppTheme.accent_active_bg : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.sleep_guard_source == "ac" ? AppTheme.accent_active : AppTheme.border_subtle;
+
+                    ac_ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_sleep_guard_source("ac"); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        alignment: center;
+                        Text {
+                            text: "插电时";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: root.sleep_guard_source == "ac" ? AppTheme.accent_active : AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 24px;
+                    border-radius: AppTheme.radius_xs;
+                    background: root.sleep_guard_source == "dc" ? AppTheme.accent_active_bg : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: root.sleep_guard_source == "dc" ? AppTheme.accent_active : AppTheme.border_subtle;
+
+                    dc_ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select_sleep_guard_source("dc"); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        alignment: center;
+                        Text {
+                            text: "离电时";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: root.sleep_guard_source == "dc" ? AppTheme.accent_active : AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
             }
         }
 
