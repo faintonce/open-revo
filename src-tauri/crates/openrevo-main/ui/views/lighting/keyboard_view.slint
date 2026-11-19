@@ -12,7 +12,8 @@ export component KeyboardLightingView inherits Rectangle {
     in-out property <int> kb_effect: 101; // effect id (101: Wave, etc.)
     in-out property <int> kb_direction: 0; // 0: Right, 1: Left, 2: Up, 3: Down
     in-out property <int> kb_brightness: 3; // 0..4
-    in-out property <int> kb_speed: 2; // 0..4
+    in-out property <int> kb_speed: 2; // 0..kb_speed_max
+    in-out property <int> kb_speed_max: 4;
     in-out property <string> kb_color_hex: "#6366F1";
     in-out property <color> kb_color: #6366f1;
 
@@ -279,6 +280,7 @@ export component KeyboardLightingView inherits Rectangle {
             kb_direction <=> root.kb_direction;
             kb_brightness <=> root.kb_brightness;
             kb_speed <=> root.kb_speed;
+            kb_speed_max: root.kb_speed_max;
             select_direction(dir) => { root.select_direction(dir); }
             change_brightness(b) => { root.change_brightness(b); }
             change_speed(s) => { root.change_speed(s); }
