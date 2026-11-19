@@ -1213,12 +1213,10 @@ pub fn probe_gpu_tuning_capabilities() -> GpuTuningCapabilities {
     // physically lack Dynamic Boost / cTGP EC protocol support!
     // In legacy chassis, EC registers 1859..1863 are MyFan2 fan speed PWM tables.
     // Writing DB commands to them corrupts the fan curve and causes violent RPM surging!
-    if crate::hal::platform_probe::is_legacy_pascal_turing_tongfang() || (gen <= 20 && gen > 0) {
+    if crate::hal::platform_probe::is_legacy_pascal_turing_tongfang() {
         crate::log_info!(
             "GPU_TUNING",
-            "Legacy architecture detected (chassis_legacy={}, gpu_gen={}): DB/cTGP EC tuning permanently bypassed to protect fan table.",
-            crate::hal::platform_probe::is_legacy_pascal_turing_tongfang(),
-            gen
+            "Legacy architecture detected (Chassis Tier signed as LegacyPascalTuring): DB/cTGP EC tuning permanently bypassed to protect fan table."
         );
         return GpuTuningCapabilities {
             gpu_generation: gen,

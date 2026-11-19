@@ -413,118 +413,23 @@ pub fn is_fan_boost_active() -> bool {
 
 /// Hardware Truth: Probes whether this platform uses the Legacy Dual-Mode EC architecture
 /// (e.g. GK / GM5T series chassis, RTX 30-series / 20-series / 10-series, full-byte FanBoost clamp 0x50/0x10).
+/// Centrally signed by Chassis Architecture Tier.
 pub fn is_legacy_dual_mode_ec() -> bool {
-    static CACHE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *CACHE.get_or_init(|| {
-        let (res, reason) = (|| {
-            // Priority 0: Next-Gen OemMagic EC (50-Series) is NEVER legacy dual-mode
-            if is_nextgen_oem_magic_ec() {
-                return (false, "Priority 0: Next-Gen 50-Series OemMagic architecture verified");
-            }
-
-            // Priority 1: Declarative Driver Manifest Contract
-            if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
-                if manifest.id.contains("legacy") || manifest.id.contains("dual_mode") {
-                    return (true, "Priority 1: Declared as Legacy Dual-Mode via Manifest Contract");
-                }
-                if manifest.capabilities.gpu_mux_type.as_deref() == Some("dual_mode") {
-                    return (true, "Priority 1: Manifest declares dual_mode GPU MUX");
-                }
-                if manifest.capabilities.gpu_mux_type.as_deref() == Some("tri_mode") {
-                    return (false, "Priority 1: Manifest declares tri_mode GPU MUX");
-                }
-            }
-
-            // Priority 2: Discrete GPU generation detection (Ground Truth in Registry/Driver)
-            // 30-series (e.g. GM5T 11800H + 3070) or older strictly uses legacy EC fan control
-            #[cfg(windows)]
-            let detected_gpu = crate::driver::gpu_bridge::detect_discrete_gpu()
-                .or_else(crate::driver::gpu_bridge::detect_gpu_from_registry);
-            #[cfg(not(windows))]
-            let detected_gpu: Option<(String, u64)> = None;
-
-            if let Some((ref gpu_name, _)) = detected_gpu {
-                let gen = crate::driver::gpu_bridge::extract_gpu_generation(gpu_name);
-                if gen > 0 && gen <= 30 {
-                    return (true, "Priority 2: Discrete GPU generation <= 30 (Legacy Dual-Mode EC architecture)");
-                } else if gen >= 40 {
-                    return (false, "Priority 2: Discrete GPU generation >= 40 (Modern 40/50-Series EC architecture)");
-                }
-            }
-
-            // Priority 3: CPU Architecture detection (Intel 11th Gen or older, AMD Ryzen 5000 or older)
-            let (cpu_name, is_amd) = crate::driver::uefi_nvram::get_cpu_info();
-            let cpu_upper = cpu_name.to_uppercase();
-            if is_amd {
-                if cpu_upper.contains("5800H") || cpu_upper.contains("5600H") || cpu_upper.contains("5900H")
-                    || cpu_upper.contains("5980H") || cpu_upper.contains("4800H") || cpu_upper.contains("4600H")
-                    || cpu_upper.contains("4900H") || cpu_upper.contains("3750H") || cpu_upper.contains("3550H")
-                {
-                    return (true, "Priority 3: Legacy AMD Ryzen 3000-5000 mobile platform");
-                }
-            } else {
-                if cpu_upper.contains("11800H") || cpu_upper.contains("11400H") || cpu_upper.contains("11260H")
-                    || cpu_upper.contains("11900H") || cpu_upper.contains("11980HK") || cpu_upper.contains("11300H")
-                    || cpu_upper.contains("11370H") || cpu_upper.contains("11390H") || cpu_upper.contains("10875H")
-                    || cpu_upper.contains("10750H") || cpu_upper.contains("10870H") || cpu_upper.contains("10300H")
-                    || cpu_upper.contains("10200H") || cpu_upper.contains("10980HK") || cpu_upper.contains("9750H")
-                    || cpu_upper.contains("9300H") || cpu_upper.contains("8750H") || cpu_upper.contains("8300H")
-                {
-                    return (true, "Priority 3: Legacy Intel 11th Gen or older mobile platform");
-                }
-            }
-
-            // Priority 4: NVRAM Ground Truth (APVersion & Variable Existence)
-            if let Ok(nv) = crate::driver::uefi_nvram::read_active_nvram() {
-                if nv.ap_version >= 23 {
-                    return (false, "Priority 4: Modern APVersion in NVRAM (Not Legacy Dual-Mode)");
-                }
-                if nv.bytes_read > 0 && nv.bytes_read < 80 {
-                    return (true, "Priority 4: Legacy UniWill NVRAM verified (payload size < 80 bytes)");
-                }
-            } else if crate::hal::platform_probe::is_tongfang_family() {
-                return (true, "Priority 4: No active UEFI NVRAM variable found on Tongfang platform -> Legacy Dual-Mode");
-            }
-
-            (false, "Default: Modern architecture")
-        })();
-
-        crate::log_info!(
-            "PLATFORM_DETECT",
-            "Hardware architecture identified: {} [{}]",
-            if res { "Legacy Dual-Mode EC architecture" } else { "Modern EC architecture" },
-            reason
-        );
-        res
-    })
+    matches!(
+        crate::hal::platform_probe::get_chassis_architecture_tier(),
+        crate::hal::platform_probe::ChassisArchitectureTier::LegacyPascalTuring
+            | crate::hal::platform_probe::ChassisArchitectureTier::DualModeAmpere
+    )
 }
 
 /// Hardware Truth: Distinguishes Next-Gen OemMagicVariable NVRAM architecture
 /// (APVersion >= 25, pure RAM fan latch commit) from UniWillVariable architecture.
+/// Centrally signed by Chassis Architecture Tier.
 pub fn is_nextgen_oem_magic_ec() -> bool {
-    static CACHE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *CACHE.get_or_init(|| {
-        let (res, reason) = (|| -> (bool, &'static str) {
-            // Signal 1: Hardware NVRAM (Ground Truth in SPI Flash: OemMagicVariable vs UniWillVariable)
-            if let Ok(nv) = crate::driver::uefi_nvram::read_active_nvram() {
-                if nv.is_50_series || nv.ap_version >= 25 {
-                    return (true, "Signal 1: Hardware NVRAM OemMagicVariable / APVersion >= 25");
-                } else {
-                    return (false, "Signal 1: Hardware NVRAM UniWillVariable");
-                }
-            }
-
-            (false, "Default: Standard UniWill architecture")
-        })();
-
-        crate::log_info!(
-            "PLATFORM_DETECT",
-            "Hardware platform architecture identified: {} [{}]",
-            if res { "Next-Gen OemMagicVariable architecture" } else { "Standard UniWillVariable architecture" },
-            reason
-        );
-        res
-    })
+    matches!(
+        crate::hal::platform_probe::get_chassis_architecture_tier(),
+        crate::hal::platform_probe::ChassisArchitectureTier::NextGenBlackwell
+    )
 }
 
 /// Hardware Fan Boost using direct zero-latency hardware clamp:

@@ -3,6 +3,78 @@
 
 use std::sync::OnceLock;
 
+/// Centrally signed Chassis Architecture Tier based on Hardware Truth
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChassisArchitectureTier {
+    /// Declarative manifest or thin & light ultrabook (Wujie, Xingyao, Baolongda, IP3) -> WMI Mailbox / Ip3Wmi
+    DeclarativeOrUltrabook,
+    /// 10/16/20-Series Pascal / Turing Legacy Tongfang (GK5CN, GK5CP, Z2 Air, etc.)
+    /// Pre-APVersion era (NVRAM <= 64 bytes or absent), driverless WMI AcpiTest_MULong, Optimus MSHybrid, no DB/cTGP
+    LegacyPascalTuring,
+    /// 30-Series Ampere Dual-Mode Tongfang (GM5T, GK5T, etc.)
+    /// Modern NVRAM payload (>= 128 bytes) with APVersion < 23, \\.\ACPIDriver, Dual-Mode MUX (no iGPU-only), full-byte FanBoost clamp
+    DualModeAmpere,
+    /// 40-Series Ada Lovelace Modern Tongfang (Kuangshi 16, Jiaolong 16, etc.)
+    /// Modern NVRAM payload (>= 128 bytes) with APVersion >= 23, \\.\ACPIDriver, Tri-Mode MUX, Bitmask FanBoost, full DB/cTGP
+    ModernAda,
+    /// 50-Series Blackwell Next-Gen Tongfang (Yilong, etc.)
+    /// OemMagicVariable NVRAM (>= 128 bytes), \\.\ACPIDriver, OemMagicDoor, autonomous scheduling
+    NextGenBlackwell,
+    /// Unknown fallback platform
+    Unknown,
+}
+
+static DETECTED_TIER: OnceLock<ChassisArchitectureTier> = OnceLock::new();
+
+/// Centrally determines and signs the authoritative Chassis Architecture Tier based on SPI Flash NVRAM & Channel Truth.
+pub fn get_chassis_architecture_tier() -> ChassisArchitectureTier {
+    *DETECTED_TIER.get_or_init(|| {
+        // Step 1: Declarative Manifest Contract Priority (Level 0 Architecture)
+        if crate::hal::declarative::load_matched_manifest().is_some() {
+            crate::log_info!("PLATFORM_PROBE", "Chassis Tier signed: Declarative Manifest Matched");
+            return ChassisArchitectureTier::DeclarativeOrUltrabook;
+        }
+
+        #[cfg(windows)]
+        {
+            // Step 2: SPI Flash UEFI NVRAM & APVersion Ground Truth Arbitration
+            if let Ok(nv) = crate::driver::uefi_nvram::read_active_nvram() {
+                // Priority A: 50-Series (OemMagicVariable or ap_version >= 25)
+                if nv.var_name.starts_with("OemMagicVariable") || nv.is_50_series || nv.ap_version >= 25 {
+                    crate::log_info!("PLATFORM_PROBE", "Chassis Tier signed: Next-Gen Blackwell (50-Series, ap_version={})", nv.ap_version);
+                    return ChassisArchitectureTier::NextGenBlackwell;
+                }
+
+                // Priority B: 40-Series (Modern payload >= 128 bytes and ap_version >= 23)
+                if nv.bytes_read >= 128 && nv.ap_version >= 23 {
+                    crate::log_info!("PLATFORM_PROBE", "Chassis Tier signed: Modern Ada Lovelace (40-Series, ap_version={})", nv.ap_version);
+                    return ChassisArchitectureTier::ModernAda;
+                }
+
+                // Priority C: 30-Series (Modern payload >= 128 bytes and ap_version < 23)
+                if nv.bytes_read >= 128 && nv.ap_version < 23 {
+                    crate::log_info!("PLATFORM_PROBE", "Chassis Tier signed: Dual-Mode Ampere (30-Series, payload={}B, ap_version={})", nv.bytes_read, nv.ap_version);
+                    return ChassisArchitectureTier::DualModeAmpere;
+                }
+
+                // Priority D: Pre-APVersion 10/16/20-Series (Legacy payload <= 64 bytes)
+                if nv.bytes_read <= 64 {
+                    crate::log_info!("PLATFORM_PROBE", "Chassis Tier signed: Legacy Pascal/Turing (10/16/20-Series, payload={}B <= 64B)", nv.bytes_read);
+                    return ChassisArchitectureTier::LegacyPascalTuring;
+                }
+            }
+
+            // Priority E: Completely missing NVRAM on discrete GPU platform
+            if crate::driver::wmi_mulong::is_mulong_available() {
+                crate::log_info!("PLATFORM_PROBE", "Chassis Tier signed: Legacy Pascal/Turing via MULong (No NVRAM)");
+                return ChassisArchitectureTier::LegacyPascalTuring;
+            }
+        }
+
+        ChassisArchitectureTier::Unknown
+    })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlatformChannelKind {
     /// Traditional Tongfang Gaming Laptops requiring UWACPIDriver.sys (\\.\ACPIDriver)
@@ -47,75 +119,34 @@ pub fn get_platform_channel() -> PlatformChannelKind {
 
         #[cfg(windows)]
         {
-            use windows::core::{w, PCWSTR};
-            use windows::Win32::System::Registry::{
-                RegCloseKey, RegOpenKeyExW, HKEY_LOCAL_MACHINE, KEY_READ, HKEY,
-            };
+            // Route via Authoritative Signed Chassis Tier (No small-condition guessing)
+            match get_chassis_architecture_tier() {
+                ChassisArchitectureTier::LegacyPascalTuring => {
+                    crate::log_info!("PLATFORM_PROBE", "Platform identified: Legacy Tongfang Gaming (LegacyTongfangMulong driverless channel)");
+                    return PlatformChannelKind::LegacyTongfangMulong;
+                }
+                ChassisArchitectureTier::DualModeAmpere
+                | ChassisArchitectureTier::ModernAda
+                | ChassisArchitectureTier::NextGenBlackwell => {
+                    crate::log_info!("PLATFORM_PROBE", "Platform identified: Modern Tongfang Gaming (TongfangAcpiKernel)");
+                    return PlatformChannelKind::TongfangAcpiKernel;
+                }
+                ChassisArchitectureTier::DeclarativeOrUltrabook => {
+                    return PlatformChannelKind::WmiMailbox;
+                }
+                ChassisArchitectureTier::Unknown => {}
+            }
 
-            // 1. Fast path: Check if standard Tongfang ACPIDriver is already active & responsive
-            let acpi_driver_active = crate::driver::wmi_ec::is_acpi_driver_available();
-            if acpi_driver_active {
-                crate::log_info!("PLATFORM_PROBE", "Platform identified: Tongfang ACPI Kernel Driver (active device link)");
+            // Fallback: Check if standard Tongfang ACPIDriver is already active & responsive
+            if crate::driver::wmi_ec::is_acpi_driver_available() {
+                crate::log_info!("PLATFORM_PROBE", "Platform identified via active ACPIDriver link");
                 return PlatformChannelKind::TongfangAcpiKernel;
             }
 
-            // 2. Hardware Ground Truth: Physical UEFI NVRAM (UniWillVariable / OemMagicVariable)
-            // Modern Tongfang platforms (Canglong, Yaoshi, Kuangshi, etc.) physically respond in SPI Flash
-            let has_tongfang_nvram = crate::driver::uefi_nvram::read_active_nvram()
-                .map(|nv| nv.bytes_read > 0)
-                .unwrap_or(false);
-
-            // 3. System Service Ground Truth: UWACPIDriver registered in system services
-            let service_key: PCWSTR = w!(r"SYSTEM\CurrentControlSet\Services\UWACPIDriver");
-            let mut h_svc = HKEY::default();
-            let has_driver_service = unsafe { RegOpenKeyExW(HKEY_LOCAL_MACHINE, service_key, 0, KEY_READ, &mut h_svc).is_ok() };
-            if has_driver_service {
-                unsafe { let _ = RegCloseKey(h_svc); }
-            }
-
-            // 4. Hardware Topology Ground Truth: Discrete NVIDIA GPU presence
-            let has_nvidia_dgpu = crate::driver::gpu_bridge::is_nvidia_dgpu_available();
-
-            // 5. WMI Mulong Check: Does the platform have AcpiTest_MULong AND does it actually communicate?
-            let has_mulong_wmi = crate::driver::wmi_mulong::is_mulong_available();
-            let is_mulong_functional = if has_mulong_wmi {
-                crate::driver::wmi_mulong::verify_mulong_functional()
-            } else {
-                false
-            };
-
-            crate::log_info!(
-                "PLATFORM_PROBE",
-                "Probe synthesis: driver_active={}, nvram={}, service={}, dgpu={}, mulong_wmi={}, mulong_functional={}",
-                acpi_driver_active,
-                has_tongfang_nvram,
-                has_driver_service,
-                has_nvidia_dgpu,
-                has_mulong_wmi,
-                is_mulong_functional
-            );
-
-            // Comprehensive Multi-Protocol Arbitration:
-            // Rule A: Modern Tongfang Gaming Laptop Indicators
-            // If the machine has Tongfang UEFI NVRAM, or driver service registered, or discrete NVIDIA gaming GPU topology,
-            // it is definitively a modern architecture laptop requiring the ACPI kernel driver.
-            // Even if WMI AcpiTest_MULong is present in BIOS, it is merely legacy firmware residue (Ghost WMI).
-            if has_tongfang_nvram || has_driver_service || has_nvidia_dgpu {
-                crate::log_info!("PLATFORM_PROBE", "Platform identified: Modern Tongfang Gaming (TongfangAcpiKernel, self-healing ready)");
-                return PlatformChannelKind::TongfangAcpiKernel;
-            }
-
-            // Rule B: Genuine Legacy Tongfang Gaming Laptop
-            // Only if there are NO modern indicators AND Mulong successfully performs active hardware EC communication,
-            // do we classify it as driverless Legacy MULong.
-            if has_mulong_wmi && is_mulong_functional {
-                crate::log_info!("PLATFORM_PROBE", "Platform identified: Genuine Legacy Tongfang/Hasee Gaming (Driverless AcpiTest_MULong)");
+            // Fallback: WMI Mulong Check
+            if crate::driver::wmi_mulong::is_mulong_available() && crate::driver::wmi_mulong::verify_mulong_functional() {
+                crate::log_info!("PLATFORM_PROBE", "Platform identified: Genuine Legacy Tongfang/Hasee Gaming (Driverless AcpiTest_MULong fallback)");
                 return PlatformChannelKind::LegacyTongfangMulong;
-            }
-
-            // Rule C: Ghost MULong rejection
-            if has_mulong_wmi && !is_mulong_functional {
-                crate::log_warn!("PLATFORM_PROBE", "AcpiTest_MULong detected in WMI but failed active hardware handshake (ghost interface). Rejecting as legacy channel.");
             }
         }
 
@@ -157,30 +188,8 @@ pub fn is_ultrabook() -> bool {
 }
 
 /// Returns true if this platform is a Legacy Tongfang Gaming Laptop (GTX 10-series / RTX 20-series):
-/// - Has active UWACPIDriver (Tongfang ACPI Kernel interface)
-/// - Not a thin & light ultrabook (has discrete gaming GPU)
-/// - SPI Flash lacks modern UniWillVariable and OemMagicVariable NVRAM variables
+/// Centrally signed by the Chassis Architecture Tier.
 pub fn is_legacy_pascal_turing_tongfang() -> bool {
-    static CACHE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *CACHE.get_or_init(|| {
-        if is_ultrabook() {
-            return false;
-        }
-        if !is_tongfang_family() {
-            return false;
-        }
-        // Check if modern Tongfang NVRAM variables exist
-        let has_modern_nvram = crate::driver::uefi_nvram::read_active_nvram()
-            .map(|nv| nv.bytes_read > 0)
-            .unwrap_or(false);
-        let is_legacy = !has_modern_nvram;
-        if is_legacy {
-            crate::log_info!(
-                "PLATFORM_PROBE",
-                "Chassis generation confirmed: Legacy Pascal/Turing Tongfang (UWACPIDriver active, no modern NVRAM)"
-            );
-        }
-        is_legacy
-    })
+    matches!(get_chassis_architecture_tier(), ChassisArchitectureTier::LegacyPascalTuring)
 }
 
