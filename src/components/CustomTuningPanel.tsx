@@ -123,6 +123,13 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const [gpuCaps, setGpuCaps] = useState<GpuTuningCapabilities | null>(null);
 
   const isDirectRpmFan = capabilities?.fan_boost_mode === 'direct_rpm_clamp' || modelCaps?.fan_boost_mode === 'direct_rpm_clamp';
+
+  // 硬件只有一条有效风扇通道（manifest: fan_independent_channels = false）。
+  // 这类机型必须走 apply_fan_curve_linked，且不能置 0x07C5 bit7。
+  // 注意与 profile.fan_curve_linked 区分：后者是「双通道机型把两条曲线同步」的 UI 开关，
+  // 硬件上仍有两个通道，必须继续走 apply_fan_curve_live。旧存档没有这个字段（默认 false），
+  // 所以命令选择只看机型能力，caps 未就绪时退回老行为。
+  const singleFanChannel = modelCaps ? !modelCaps.fan_independent_channels : false;
   const minDutyFloor = isDirectRpmFan ? 22 : 0;
 
   useEffect(() => {
@@ -519,8 +526,9 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       setPresetsList((prev) => prev.map((p) => (p.id === activeProfileId ? { ...res, profile: safeProfile } : p)));
       await invoke('apply_custom_profile', { profile: safeProfile });
       const isBld = isDirectRpmFan;
-      if (safeProfile.fan_isolated_output || isBld) {
-        triggerLiveFanApply(safeProfile.cpu_fan_curve, safeProfile.gpu_fan_curve);
+      // 单通道机型没有「独立输出」开关，重置后必须照样把新曲线推下去
+      if (safeProfile.fan_isolated_output || isBld || singleFanChannel) {
+        triggerLiveFanApply(safeProfile.cpu_fan_curve, safeProfile.gpu_fan_curve, singleFanChannel);
       }
       setResetSuccess(true);
       if (onApplied) onApplied();
@@ -779,29 +787,41 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     }
   };
 
-  const triggerLiveFanApply = (cpuCurve: FanCurvePoint[], gpuCurve: FanCurvePoint[]) => {
+  const triggerLiveFanApply = (cpuCurve: FanCurvePoint[], gpuCurve: FanCurvePoint[], singleChannelOverride?: boolean) => {
     const isBld = isDirectRpmFan;
     if (!isBld && status.power_mode !== 4) return;
     if (liveFanDebounceRef.current) {
       clearTimeout(liveFanDebounceRef.current);
     }
+    // singleChannelOverride：用于「刚打开/关闭联动开关」这一拍，此时 profile 还是旧值
+    const useLinkedCommand = singleChannelOverride ?? singleFanChannel;
     liveFanDebounceRef.current = setTimeout(() => {
-      invoke('apply_fan_curve_live', { cpuCurve, gpuCurve }).catch((err) => {
-        console.warn('Failed to apply live fan curve:', err);
-      });
+      // 单通道机型（两把扇共用一条）：走 apply_fan_curve_linked，
+      // 由宿主清除 0x07C5 bit7。用老命令会置起隔离位，副扇改走 GPU 表后
+      // 永远停在第 0 档（零转待机，duty 必须为 0），从此不再转。
+      if (useLinkedCommand) {
+        invoke('apply_fan_curve_linked', { curve: cpuCurve }).catch((err) => {
+          console.warn('Failed to apply linked fan curve:', err);
+        });
+      } else {
+        invoke('apply_fan_curve_live', { cpuCurve, gpuCurve }).catch((err) => {
+          console.warn('Failed to apply live fan curve:', err);
+        });
+      }
     }, 250);
   };
 
   const handleCurveChange = (type: 'cpu' | 'gpu', newCurve: FanCurvePoint[]) => {
     const isBld = isDirectRpmFan;
-    if (profile.fan_curve_linked) {
+    const syncCurves = singleFanChannel || profile.fan_curve_linked;
+    if (syncCurves) {
       setProfile((prev) => ({
         ...prev,
         cpu_fan_curve: newCurve,
         gpu_fan_curve: newCurve,
       }));
-      if (profile.fan_isolated_output || isBld) {
-        triggerLiveFanApply(newCurve, newCurve);
+      if (singleFanChannel || profile.fan_isolated_output || isBld) {
+        triggerLiveFanApply(newCurve, newCurve, singleFanChannel);
       }
     } else {
       const curveKey = type === 'cpu' ? 'cpu_fan_curve' : 'gpu_fan_curve';
@@ -809,25 +829,29 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       const nextGpu = type === 'gpu' ? newCurve : profile.gpu_fan_curve;
       setProfile((prev) => ({ ...prev, [curveKey]: newCurve }));
       if (profile.fan_isolated_output || isBld) {
-        triggerLiveFanApply(nextCpu, nextGpu);
+        triggerLiveFanApply(nextCpu, nextGpu, false);
       }
     }
   };
 
   const handleToggleFanCurveLinked = (linked: boolean) => {
     const isBld = isDirectRpmFan;
-    setProfile((prev) => {
-      const next = { ...prev, fan_curve_linked: linked };
-      if (linked) {
-        const activeCurve = fanCurveTab === 'cpu' ? prev.cpu_fan_curve : prev.gpu_fan_curve;
-        next.cpu_fan_curve = activeCurve;
-        next.gpu_fan_curve = activeCurve;
-        if (prev.fan_isolated_output || isBld) {
-          triggerLiveFanApply(activeCurve, activeCurve);
-        }
+    const activeCurve = fanCurveTab === 'cpu' ? profile.cpu_fan_curve : profile.gpu_fan_curve;
+    if (linked) {
+      setProfile((prev) => ({
+        ...prev,
+        fan_curve_linked: linked,
+        cpu_fan_curve: activeCurve,
+        gpu_fan_curve: activeCurve,
+      }));
+      if (profile.fan_isolated_output || isBld) {
+        // 这个开关只在双通道机型显示，命令固定走 apply_fan_curve_live；
+        // 显式传 false 避免这一拍读到状态里的旧值
+        triggerLiveFanApply(activeCurve, activeCurve, false);
       }
-      return next;
-    });
+    } else {
+      setProfile((prev) => ({ ...prev, fan_curve_linked: linked }));
+    }
   };
 
   const handleToggleFanRampRate = async (nextVal: boolean) => {
