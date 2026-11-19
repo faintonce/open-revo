@@ -335,6 +335,9 @@ export component FullDashboard inherits Rectangle {
     in-out property <string> battery_mode: "station";
     in-out property <bool> is_ac_online: true;
     in-out property <int> battery_limit: 60;
+    in-out property <string> adapter_text: "";
+    in-out property <string> charge_power_text: "";
+    in-out property <int> battery_cycle_count: 0;
     in-out property <bool> usb_charge_enabled: false;
     in-out property <bool> ac_recovery_enabled: false;
     in-out property <bool> high_perf_scheme: true;
@@ -1057,6 +1060,9 @@ export component FullDashboard inherits Rectangle {
                 is_ac_online: root.is_ac_online;
                 battery_mode: root.battery_mode;
                 battery_limit: root.battery_limit;
+                adapter_text: root.adapter_text;
+                charge_power_text: root.charge_power_text;
+                battery_cycle_count: root.battery_cycle_count;
                 usb_charge_enabled: root.usb_charge_enabled;
                 ac_recovery_enabled: root.ac_recovery_enabled;
                 high_perf_scheme: root.high_perf_scheme;
