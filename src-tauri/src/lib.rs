@@ -40,6 +40,15 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
         crate::system::native_wry::broadcast_event(event, &payload);
 
         match event {
+            "fan-boost-changed" => {
+                if let Some(enabled) = payload.as_bool() {
+                    crate::update_tray_fan_boost(enabled);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state",
+                        "fan_boost": enabled
+                    }));
+                }
+            }
             "win-lock-state-changed" => {
                 let locked = payload.as_bool().unwrap_or(false);
                 crate::system::osd_window::show_key_lock_toast("win", locked);
@@ -102,6 +111,15 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
     fn emit(&self, event: &str, payload: serde_json::Value) {
         crate::system::native_wry::broadcast_event(event, &payload);
         match event {
+            "fan-boost-changed" => {
+                if let Some(enabled) = payload.as_bool() {
+                    crate::update_tray_fan_boost(enabled);
+                    crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                        "action": "sync_state",
+                        "fan_boost": enabled
+                    }));
+                }
+            }
             "win-lock-state-changed" => {
                 let locked = payload.as_bool().unwrap_or(false);
                 crate::system::osd_window::show_key_lock_toast("win", locked);

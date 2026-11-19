@@ -258,7 +258,10 @@ pub fn spawn_hardware_state_restore(ec_for_restore: crate::driver::ec_bridge::Sh
             }
         };
 
-        crate::event::power_mode_changed_global(effective_power_mode);
+        crate::event::emit_global(
+            "power-mode-changed",
+            serde_json::json!({ "mode": effective_power_mode }),
+        );
         if is_thin_light {
             let hal = crate::hal::get_hardware_driver();
             let hw_mode = match effective_power_mode {

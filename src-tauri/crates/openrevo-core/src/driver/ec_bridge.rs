@@ -341,7 +341,7 @@ impl EcBridge {
         let mut cfg = crate::system::config::load_config();
         cfg.fan_boost = enable;
         crate::system::config::save_config(&cfg);
-        crate::event::fan_boost_changed_global(enable);
+        crate::event::emit_global("fan-boost-changed", serde_json::json!(enable));
 
         // Apply fan boost to hardware driver (Tongfang WMI EC or Declarative HAL)
         thread::spawn(move || {
@@ -361,7 +361,7 @@ impl EcBridge {
         let mut cfg = crate::system::config::load_config();
         cfg.fan_boost = enable;
         crate::system::config::save_config(&cfg);
-        crate::event::fan_boost_changed_global(enable);
+        crate::event::emit_global("fan-boost-changed", serde_json::json!(enable));
     }
 
     pub fn get_battery_limit(&self) -> u8 {
