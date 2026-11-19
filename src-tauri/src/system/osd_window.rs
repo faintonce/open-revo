@@ -145,7 +145,9 @@ pub fn init_osd_window(_app: &AppHandle) {
     let cfg = crate::system::config::load_config();
     if cfg.osd_enabled {
         if !cfg.use_classic_webview {
-            ensure_companion_process();
+            // High-efficiency on-demand lifecycle:
+            // Do NOT spawn companion process at startup! It will be spawned on-demand
+            // when the first OSD IPC request occurs, and auto-terminate after 30 seconds of inactivity.
         } else {
             crate::system::webview_orchestrator::WebviewOrchestrator::global().enqueue_osd();
         }

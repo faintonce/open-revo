@@ -193,6 +193,9 @@ fn reposition_osd_window(hwnd: HWND, position_str: &str) {
 
 pub fn apply_osd_window_styles(hwnd: HWND, position_str: &str) {
     unsafe {
+        // Guarantee window remains hidden while undergoing style mutations
+        let _ = ShowWindow(hwnd, SW_HIDE);
+
         // Clear title string so Windows DWM titlebar renderer has nothing to display
         let empty_title: [u16; 1] = [0];
         let _ = SetWindowTextW(hwnd, windows::core::PCWSTR(empty_title.as_ptr()));
@@ -239,6 +242,7 @@ pub fn apply_osd_window_styles(hwnd: HWND, position_str: &str) {
             0,
             SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
         );
+
         let _ = ShowWindow(hwnd, SW_HIDE);
         osd_log(&format!("apply_osd_window_styles applied at ({}, {}) for hwnd={:?}", x, y, hwnd.0));
     }
@@ -312,8 +316,36 @@ struct OsdGlobalState {
 
 static OSD_STATE: OnceLock<OsdGlobalState> = OnceLock::new();
 
+static LAST_ACTIVITY: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+pub fn touch_activity() {
+    if let Ok(mut g) = LAST_ACTIVITY.lock() {
+        *g = Some(std::time::Instant::now());
+    }
+}
+
 fn reveal_osd_window(hwnd_opt: Option<SafeHwnd>) {
-    if let Some(safe_hwnd) = hwnd_opt {
+    let safe_hwnd = hwnd_opt.or_else(|| {
+        if let Some(hwnd) = find_thread_hwnd() {
+            let pos = OSD_STATE
+                .get()
+                .and_then(|s| s.config.lock().ok().map(|c| c.position.clone()))
+                .unwrap_or_else(|| "top-left".to_string());
+            apply_osd_window_styles(hwnd, &pos);
+            let s = SafeHwnd::from_hwnd(hwnd);
+            if let Some(state) = OSD_STATE.get() {
+                if let Ok(mut g) = state.hwnd.lock() {
+                    *g = Some(s);
+                }
+            }
+            osd_log(&format!("reveal_osd_window: captured and primed HWND on demand: {:?}", hwnd.0));
+            Some(s)
+        } else {
+            None
+        }
+    });
+
+    if let Some(safe_hwnd) = safe_hwnd {
         let pos = OSD_STATE
             .get()
             .and_then(|s| s.config.lock().ok().map(|c| c.position.clone()))
@@ -351,6 +383,7 @@ pub fn handle_ipc_message(
 
     let action = val.get("action").and_then(|a| a.as_str()).unwrap_or("");
     osd_log(&format!("handle_ipc_message: action = {}", action));
+    touch_activity();
     let weak = ui_weak.clone();
     let hwnd_cloned = hwnd_shared.clone();
 
@@ -786,13 +819,35 @@ pub fn run_osd_standalone() {
     // Start stdin IPC listener
     ipc::start_ipc_server(osd_weak.clone(), hwnd_holder.clone());
 
+    touch_activity();
+
     // Show window once so winit actually creates the HWND
     let _ = osd.show();
     osd_log("Called osd.show() once to force HWND creation");
 
-    // Initial capture and style setup timer
-    let timer = slint::Timer::default();
+    let (pos, theme, scale) = {
+        let c = cfg_shared.lock().unwrap();
+        (c.position.clone(), c.theme.clone(), c.scale.clone())
+    };
+    osd.set_osd_theme(theme.clone().into());
+    osd.set_osd_scale(parse_scale_factor(&scale));
+    osd.set_osd_position(pos.clone().into());
+
     let applied_once = Arc::new(Mutex::new(false));
+
+    // Synchronously capture and prime HWND immediately on the main thread
+    if let Some(hwnd) = find_thread_hwnd() {
+        unsafe {
+            let _ = ShowWindow(hwnd, SW_HIDE);
+        }
+        apply_osd_window_styles(hwnd, &pos);
+        *hwnd_holder.lock().unwrap() = Some(SafeHwnd::from_hwnd(hwnd));
+        *applied_once.lock().unwrap() = true;
+        osd_log(&format!("Synchronously captured & primed HWND {:?}", hwnd.0));
+    }
+
+    // Fallback repeated timer just in case winit took an extra event loop tick to register
+    let timer = slint::Timer::default();
     let applied_clone = applied_once.clone();
     let hwnd_setter = hwnd_holder.clone();
     let cfg_getter = cfg_shared.clone();
@@ -800,12 +855,12 @@ pub fn run_osd_standalone() {
 
     timer.start(
         slint::TimerMode::Repeated,
-        Duration::from_millis(20),
+        Duration::from_millis(15),
         move || {
             let mut done = applied_clone.lock().unwrap();
             if !*done {
                 if let Some(hwnd) = find_thread_hwnd() {
-                    osd_log(&format!("Captured target HWND: {:?}", hwnd.0));
+                    osd_log(&format!("Fallback captured target HWND: {:?}", hwnd.0));
                     let (pos, theme, scale) = {
                         let c = cfg_getter.lock().unwrap();
                         (c.position.clone(), c.theme.clone(), c.scale.clone())
@@ -821,8 +876,32 @@ pub fn run_osd_standalone() {
                         let _ = ShowWindow(hwnd, SW_HIDE);
                     }
                     *done = true;
-                    osd_log(&format!("apply_osd_window_styles done (initial pos={}, theme={}, scale={}), window primed and hidden", pos, theme, scale));
+                    osd_log(&format!("apply_osd_window_styles done (fallback initial pos={}, theme={}, scale={}), window primed and hidden", pos, theme, scale));
                 }
+            }
+        },
+    );
+
+    // 30-second idle self-destruction watchdog
+    let idle_watchdog = slint::Timer::default();
+    idle_watchdog.start(
+        slint::TimerMode::Repeated,
+        Duration::from_secs(2),
+        move || {
+            let should_exit = {
+                if let Ok(g) = LAST_ACTIVITY.lock() {
+                    if let Some(last) = *g {
+                        last.elapsed() >= Duration::from_secs(30)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            };
+            if should_exit {
+                osd_log("Idle timeout reached (30s without OSD activity). Terminating companion process cleanly.");
+                std::process::exit(0);
             }
         },
     );
