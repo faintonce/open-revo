@@ -9,8 +9,62 @@ use windows::Win32::System::Registry::{
     REG_NOTIFY_CHANGE_LAST_SET, HKEY,
 };
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_F24, VK_LCONTROL, VK_LWIN,
+};
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+/// 合成按键的标记，写进 `dwExtraInfo`。键盘钩子据此区分「我们自己注入的触摸板热键」
+/// 与用户真实按下的按键，避免注入的键再被当成无线电热键处理。
+pub const SYNTHETIC_KEY_TAG: usize = 0x4F52_5654;
+
+/// 发一次 Windows 官方触摸板快捷键（Win + Ctrl + F24）。
+fn send_touchpad_hotkey() {
+    unsafe {
+        keybd_event(VK_LWIN.0 as u8, 0, KEYBD_EVENT_FLAGS(0), SYNTHETIC_KEY_TAG);
+        keybd_event(VK_LCONTROL.0 as u8, 0, KEYBD_EVENT_FLAGS(0), SYNTHETIC_KEY_TAG);
+        keybd_event(VK_F24.0 as u8, 0, KEYBD_EVENT_FLAGS(0), SYNTHETIC_KEY_TAG);
+        keybd_event(VK_F24.0 as u8, 0, KEYEVENTF_KEYUP, SYNTHETIC_KEY_TAG);
+        keybd_event(VK_LCONTROL.0 as u8, 0, KEYEVENTF_KEYUP, SYNTHETIC_KEY_TAG);
+        keybd_event(VK_LWIN.0 as u8, 0, KEYEVENTF_KEYUP, SYNTHETIC_KEY_TAG);
+    }
+}
+
+/// 切换触摸板：按「最快且验证得到」的通道依次尝试。
+///
+/// 返回 `(channel, success)`，channel 为 `already` / `hotkey` / `adminflows` / `failed`。
+/// 之所以不用厂商通道打头：它要拉起 SystemSettingsAdminFlows.exe（会闪设置窗口、需要提权、
+/// 单次几百毫秒到数秒），而 Win+Ctrl+F24 是 Windows 自己的 PTP 快捷键，几乎瞬时。
+pub fn apply_touchpad_state(enable: bool) -> (&'static str, bool) {
+    // 1. 已经是目标状态：什么都不做，别去打扰 EC 和设置应用
+    if read_ptp_registry_enabled() == Some(enable) {
+        return ("already", true);
+    }
+
+    // 2. 合成 Win+Ctrl+F24 + 回读确认（无需提权，不闪窗口）
+    send_touchpad_hotkey();
+    for _ in 0..10 {
+        std::thread::sleep(std::time::Duration::from_millis(60));
+        if read_ptp_registry_enabled() == Some(enable) {
+            return ("hotkey", true);
+        }
+    }
+
+    // 3. 兜底：厂商通道（设备管理器恢复 + 官方设置流 + PTP 注册表）
+    ensure_touchpad_device_enabled();
+    let admin_flows_val = if enable { "1" } else { "0" };
+    let _ = Command::new("C:\\Windows\\System32\\SystemSettingsAdminFlows.exe")
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(["EnableTouchpad", admin_flows_val])
+        .output();
+    write_ptp_registry_enabled(enable);
+    if read_ptp_registry_enabled() == Some(enable) {
+        ("adminflows", true)
+    } else {
+        ("failed", false)
+    }
+}
 
 /// Ensure touchpad is NOT left in PnP-disabled state in Windows Device Manager
 pub fn ensure_touchpad_device_enabled() {

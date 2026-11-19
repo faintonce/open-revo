@@ -163,6 +163,39 @@ pub fn get_realtime_wifi_state() -> Option<bool> {
 }
 
 /// Auto-detect Wi-Fi/WLAN adapter name dynamically via netsh (5ms, zero PowerShell)
+/// 把配置里的无线电状态对齐到系统真实状态（只读 + 写配置 + 发事件，**不调用任何 set_***）。
+///
+/// 用途：厂商 EC 在某些机型上会自己处理无线电开关（固件已经把 Wi-Fi 关了/开了），
+/// 我们只需要跟随记录，绝不能再切一次，否则会和固件打架。
+/// 返回是否有状态发生变化。
+pub fn sync_radio_state_from_system() -> bool {
+    let mut changed = false;
+
+    if let Some(wifi) = get_realtime_wifi_state() {
+        let mut cfg = crate::system::config::load_config();
+        if cfg.wifi_enabled != wifi {
+            cfg.wifi_enabled = wifi;
+            crate::system::config::save_config(&cfg);
+            crate::event::emit_global("wifi-state-changed", serde_json::json!(wifi));
+            crate::log_info!("DEVICE_SWITCH", "Wi-Fi state synced from system: {}", wifi);
+            changed = true;
+        }
+    }
+
+    if let Some(bt) = get_realtime_bluetooth_state() {
+        let mut cfg = crate::system::config::load_config();
+        if cfg.bluetooth_enabled != bt {
+            cfg.bluetooth_enabled = bt;
+            crate::system::config::save_config(&cfg);
+            crate::event::emit_global("bluetooth-state-changed", serde_json::json!(bt));
+            crate::log_info!("DEVICE_SWITCH", "Bluetooth state synced from system: {}", bt);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
 pub fn get_or_detect_wifi_adapter(cfg: &mut crate::system::config::AppConfig) -> String {
     if !cfg.wifi_adapter_name.is_empty() {
         return cfg.wifi_adapter_name.clone();

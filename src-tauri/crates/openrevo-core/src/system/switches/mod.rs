@@ -359,29 +359,22 @@ pub fn set_switch(switch_name: &str, enable: bool) -> Result<bool, String> {
             cfg.bluetooth_enabled = enable;
         }
         "touchpad" => {
-            // Always ensure PnP device in Device Manager is restored/enabled so Windows & Fn+F5 operate normally
-            touchpad::ensure_touchpad_device_enabled();
+            // 快速通道优先：已经是目标态就直接返回，否则先发 Win+Ctrl+F24 并回读，
+            // 只有热键通道不生效时才退到厂商通道（设置流 / 设备管理器 / 注册表）。
+            let (channel, ok) = touchpad::apply_touchpad_state(enable);
 
-            // 1. Hardware EC: Synchronize Touchpad state
-            // (Controls physical corner indicator LED on models with LED, and keeps EC state aligned)
+            // EC 侧同步：保持物理角标指示灯与状态一致（部分机型有该灯）
             crate::driver::wmi_ec::wmi_modify_ec_mask(
                 crate::driver::wmi_ec::ADDR_BATTERY_PROTECTION_MODE,
                 crate::driver::wmi_ec::TOUCHPAD_BITMASK,
                 enable,
             );
 
-            // 2. Windows System-Level Precision Touchpad Toggle:
-            // Invoke SystemSettingsAdminFlows.exe (Windows native Settings utility, runs elevated)
-            let admin_flows_val = if enable { "1" } else { "0" };
-            let _ = Command::new("C:\\Windows\\System32\\SystemSettingsAdminFlows.exe")
-                .creation_flags(CREATE_NO_WINDOW)
-                .args(["EnableTouchpad", admin_flows_val])
-                .output();
-
-            // 3. Synchronize Windows Precision Touchpad (PTP) Registry (1 = On, 0 = Off) via 0ms native Win32 API
-            touchpad::write_ptp_registry_enabled(enable);
-
-            crate::log_info!("DEVICE_SWITCH", "Touchpad set to enable={} (Hardware, AdminFlows, Win32 PTP Registry synced)", enable);
+            crate::log_info!(
+                "DEVICE_SWITCH",
+                "Touchpad set to enable={} via {} (ok={})",
+                enable, channel, ok
+            );
             cfg.touchpad_enabled = enable;
         }
         "camera" => {
