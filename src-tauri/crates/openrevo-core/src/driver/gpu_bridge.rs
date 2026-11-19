@@ -759,11 +759,9 @@ impl GpuBridge {
 
     /// 写入前按驱动上报的范围校验：超范围直接拒绝，不夹取、不落值。
     fn offset_out_of_range(core: i32, mem: i32) -> Option<String> {
-        let Some(((cmin, cmax), (mmin, mmax))) =
-            crate::driver::nvapi::get_gpu_clock_offset_ranges_mhz()
-        else {
-            return None; // 读不到范围就不拦，交给驱动自己判断
-        };
+        // 读不到驱动范围时用保守兜底值，保证老驱动上也不会放行离谱的偏移
+        let ((cmin, cmax), (mmin, mmax)) =
+            crate::driver::nvapi::gpu_clock_offset_ranges_with_fallback_mhz();
         if core < cmin || core > cmax {
             return Some(format!("core offset {} MHz outside {}..{}", core, cmin, cmax));
         }

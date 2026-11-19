@@ -290,6 +290,10 @@ fn parse_pstates20_offset_ranges(words: &[u32]) -> Option<((i32, i32), (i32, i32
     None
 }
 
+/// 驱动不回答时使用的保守兜底范围（MHz）。刻意收紧，宁可少给也不越界。
+pub const GPU_OC_CORE_OFFSET_FALLBACK_MHZ: (i32, i32) = (-500, 500);
+pub const GPU_OC_MEM_OFFSET_FALLBACK_MHZ: (i32, i32) = (-1000, 3000);
+
 /// 读取当前显卡允许的核心/显存偏移范围（MHz），由驱动与 VBIOS 上报，不是拍出来的常量。
 ///
 /// 读取失败（老驱动 / 非 NV 平台）返回 `None`，调用方自行决定兜底值。
@@ -305,6 +309,15 @@ pub fn get_gpu_clock_offset_ranges_mhz() -> Option<((i32, i32), (i32, i32))> {
         return None;
     }
     parse_pstates20_offset_ranges(&words)
+}
+
+/// 与 get_gpu_clock_offset_ranges_mhz 相同，但读不到时返回保守兜底值。
+/// 调用方（GPU 桥接）用它做越界校验，保证老驱动上也有可用的判断依据。
+pub fn gpu_clock_offset_ranges_with_fallback_mhz() -> ((i32, i32), (i32, i32)) {
+    get_gpu_clock_offset_ranges_mhz().unwrap_or((
+        GPU_OC_CORE_OFFSET_FALLBACK_MHZ,
+        GPU_OC_MEM_OFFSET_FALLBACK_MHZ,
+    ))
 }
 
 /// Apply a single clock offset (Core or Memory) via NvAPI_GPU_SetPstates20
