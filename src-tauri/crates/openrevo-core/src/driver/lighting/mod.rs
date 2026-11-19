@@ -1821,3 +1821,40 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod ec_single_zone_tests {
+    use super::{
+        ec_breath_code, ec_cycle_interval_ms, ec_cycle_speed_levels, normalize_cycle_colors,
+        EC_CYCLE_DEFAULT_COLORS,
+    };
+
+    #[test]
+    fn speed_level_rounds_to_the_table() {
+        assert_eq!(ec_cycle_speed_levels(), 8);
+        assert_eq!(ec_cycle_interval_ms(0), 1421);
+        assert_eq!(ec_cycle_interval_ms(7), 341);
+        // 越界档位夹到两端，不会返回 0 让线程空转
+        assert_eq!(ec_cycle_interval_ms(200), 341);
+    }
+
+    #[test]
+    fn breath_codes_match_the_four_hardware_colours() {
+        assert_eq!(ec_breath_code(255, 255, 255), 1);
+        assert_eq!(ec_breath_code(255, 0, 0), 2);
+        assert_eq!(ec_breath_code(0, 255, 0), 3);
+        assert_eq!(ec_breath_code(0, 0, 255), 4);
+        // 近似色按最近距离归类
+        assert_eq!(ec_breath_code(240, 30, 20), 2);
+        assert_eq!(ec_breath_code(20, 20, 240), 4);
+    }
+
+    #[test]
+    fn cycle_palette_is_padded_and_truncated_to_six() {
+        assert_eq!(normalize_cycle_colors(vec![]).len(), 6);
+        assert_eq!(normalize_cycle_colors(vec![[1, 2, 3]]).len(), 6);
+        assert_eq!(normalize_cycle_colors(vec![[1, 2, 3]; 9]).len(), 6);
+        assert_eq!(normalize_cycle_colors(vec![]), EC_CYCLE_DEFAULT_COLORS.to_vec());
+        // 不足 6 段时按默认表顺序补齐，最后一段就是默认表的第 6 项
+        assert_eq!(normalize_cycle_colors(vec![[1, 2, 3]]).last(), Some(&[7, 9, 214]));
+    }
+}
