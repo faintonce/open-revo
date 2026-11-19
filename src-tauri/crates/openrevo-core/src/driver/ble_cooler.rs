@@ -244,6 +244,7 @@ pub struct BleCoolerController {
     mac_address: Arc<AtomicU64>,
     active_char: Arc<parking_lot::Mutex<Option<GattCharacteristic>>>,
     supervisor_started: AtomicBool,
+    wakeup_notify: Arc<(parking_lot::Mutex<bool>, parking_lot::Condvar)>,
 }
 
 static BLE_TX_MUTEX: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
@@ -692,7 +693,15 @@ impl BleCoolerController {
             mac_address: Arc::new(AtomicU64::new(mac)),
             active_char: Arc::new(parking_lot::Mutex::new(None)),
             supervisor_started: AtomicBool::new(false),
+            wakeup_notify: Arc::new((parking_lot::Mutex::new(false), parking_lot::Condvar::new())),
         }
+    }
+
+    pub fn notify_supervisor(&self) {
+        let (lock, cvar) = &*self.wakeup_notify;
+        let mut ready = lock.lock();
+        *ready = true;
+        cvar.notify_all();
     }
 
     pub fn get_mac(&self) -> u64 {
@@ -705,6 +714,7 @@ impl BleCoolerController {
         cfg.cooler_mac = mac_u64_to_str(new_mac);
         crate::system::config::save_config(&cfg);
         crate::log_info!("BLE_COOLER", "Updated target MAC address to: {} ({:012X})", cfg.cooler_mac, new_mac);
+        self.notify_supervisor();
     }
 
     pub fn state(&self) -> Arc<WaterCoolerState> {
@@ -900,6 +910,7 @@ impl BleCoolerController {
 
         self.state.params_dirty.store(true, Ordering::SeqCst);
         self.state.led_dirty.store(true, Ordering::SeqCst);
+        self.notify_supervisor();
     }
 
     /// Called on system resume from sleep / hibernate or lid open
@@ -924,6 +935,7 @@ impl BleCoolerController {
 
         self.state.params_dirty.store(true, Ordering::SeqCst);
         self.state.led_dirty.store(true, Ordering::SeqCst);
+        self.notify_supervisor();
     }
 
     /// Graceful and immediate shutdown of physical water cooler:
@@ -952,6 +964,7 @@ impl BleCoolerController {
         // 2. Clear EC Water Cooling status flag
         crate::driver::wmi_ec::wmi_write_ec(ADDR_WATER_COOLER_FLAG, 0);
         crate::log_info!("BLE_COOLER", "Graceful hardware shutdown complete.");
+        self.notify_supervisor();
     }
 
     pub fn reset_defaults(&self) {
@@ -988,33 +1001,68 @@ impl BleCoolerController {
 
         // Ensure ONLY ONE supervisor daemon ever runs!
         if self.supervisor_started.swap(true, Ordering::SeqCst) {
+            self.notify_supervisor();
             return;
         }
 
         std::thread::spawn(move || {
+            unsafe {
+                use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
+                let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            }
+
             let mut consecutive_errors: u32 = 0;
+            let mut fast_retries_remaining: u32 = 4; // Start with active burst on boot/launch
+            let mut prefer_uncached: bool = false;
+
             loop {
                 // If paused (e.g. system in sleep, lid closed) or module disabled in config, wait quietly
                 if !self.state.running.load(Ordering::SeqCst) || self.state.is_suspended.load(Ordering::SeqCst) || !crate::system::config::is_water_cooler_enabled() {
-                    std::thread::sleep(Duration::from_millis(500));
+                    let (lock, cvar) = &*self.wakeup_notify;
+                    let mut ready = lock.lock();
+                    if !*ready {
+                        let _ = cvar.wait_for(&mut ready, Duration::from_millis(500));
+                    }
                     continue;
                 }
 
+                // If user or external/watcher trigger requested connection, reset fast retries
+                {
+                    let (lock, _) = &*self.wakeup_notify;
+                    let mut req = lock.lock();
+                    if *req {
+                        *req = false;
+                        fast_retries_remaining = 3;
+                        consecutive_errors = 0;
+                    }
+                }
+
+                crate::log_info!(
+                    "BLE_COOLER",
+                    "Initiating BLE connection session (burst remaining: {}, total errors: {})...",
+                    fast_retries_remaining,
+                    consecutive_errors
+                );
+
                 let session_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    self.run_connection_session()
+                    self.run_connection_session(prefer_uncached)
                 }));
 
                 match session_res {
                     Ok(Ok(_)) => {
                         consecutive_errors = 0;
+                        fast_retries_remaining = 3;
+                        prefer_uncached = false;
                         crate::log_info!("BLE_COOLER", "Session finished normally.");
                     }
-                    Ok(Err(_e)) => {
+                    Ok(Err(e)) => {
                         consecutive_errors = consecutive_errors.saturating_add(1);
-                        // Cooler not connected/powered off; retry with adaptive backoff (3s -> 8s)
+                        prefer_uncached = true;
                         self.state.connected.store(false, Ordering::SeqCst);
                         self.state.is_flow_ok.store(false, Ordering::SeqCst);
                         *self.active_char.lock() = None;
+
+                        crate::log_warn!("BLE_COOLER", "Connection attempt failed: {}", e);
 
                         // Zero-overhead registry check (0ms, no RF scan): if current MAC failed, auto-sync with Windows PnP paired cooler
                         if let Some(paired) = find_paired_water_cooler_mac() {
@@ -1024,8 +1072,30 @@ impl BleCoolerController {
                             }
                         }
 
-                        let retry_secs = if consecutive_errors >= 3 { 8 } else { 3 };
-                        std::thread::sleep(Duration::from_secs(retry_secs));
+                        if fast_retries_remaining > 0 {
+                            fast_retries_remaining -= 1;
+                            let retry_secs = match fast_retries_remaining {
+                                2 => 2,
+                                1 => 3,
+                                _ => 4,
+                            };
+                            crate::log_info!("BLE_COOLER", "Active burst retry in {}s (remaining: {})...", retry_secs, fast_retries_remaining);
+
+                            let (lock, cvar) = &*self.wakeup_notify;
+                            let mut ready = lock.lock();
+                            if !*ready {
+                                let _ = cvar.wait_for(&mut ready, Duration::from_secs(retry_secs));
+                            }
+                            *ready = false;
+                        } else {
+                            // Active burst exhausted. Water cooler is offline / powered off.
+                            // Switch to Passive Advertisement Watcher Standby (0% CPU, 0 RF TX).
+                            crate::log_info!(
+                                "BLE_COOLER",
+                                "Water cooler offline. Entering Passive Advertisement Standby (zero RF/CPU, auto-wakes on cooler power-on)..."
+                            );
+                            self.standby_listen_for_cooler(Duration::from_secs(45));
+                        }
                     }
                     Err(panic_err) => {
                         consecutive_errors = consecutive_errors.saturating_add(1);
@@ -1033,33 +1103,168 @@ impl BleCoolerController {
                         self.state.connected.store(false, Ordering::SeqCst);
                         self.state.is_flow_ok.store(false, Ordering::SeqCst);
                         *self.active_char.lock() = None;
-                        std::thread::sleep(Duration::from_secs(5));
+                        std::thread::sleep(Duration::from_secs(4));
                     }
                 }
             }
         });
     }
 
-    fn run_connection_session(&self) -> Result<(), String> {
+    /// Low-power passive BLE advertisement listener:
+    /// Zero RF broadcast transmission, 0% CPU overhead, zero interference with Bluetooth audio/mice.
+    /// Wakes up instantly when the physical water cooler powers on and broadcasts advertising packets.
+    fn standby_listen_for_cooler(&self, max_wait: Duration) {
+        let target_mac = self.get_mac();
+        let watcher_res = BluetoothLEAdvertisementWatcher::new();
+        let watcher = match watcher_res {
+            Ok(w) => w,
+            Err(e) => {
+                crate::log_warn!("BLE_COOLER", "Failed to create BLE Advertisement Watcher for standby: {}", e);
+                let (lock, cvar) = &*self.wakeup_notify;
+                let mut ready = lock.lock();
+                if !*ready {
+                    let _ = cvar.wait_for(&mut ready, max_wait);
+                }
+                return;
+            }
+        };
+
+        let _ = watcher.SetScanningMode(BluetoothLEScanningMode::Passive);
+
+        let notify_clone = Arc::clone(&self.wakeup_notify);
+        let mac_clone = Arc::clone(&self.mac_address);
+
+        let token_res = watcher.Received(&windows::Foundation::TypedEventHandler::new(
+            move |_sender: &Option<BluetoothLEAdvertisementWatcher>, args: &Option<BluetoothLEAdvertisementReceivedEventArgs>| {
+                if let Some(args) = args {
+                    let address = args.BluetoothAddress().unwrap_or(0);
+                    if address == 0 {
+                        return Ok(());
+                    }
+
+                    let target = mac_clone.load(Ordering::SeqCst);
+                    let mut matched = false;
+
+                    if target != 0 && address == target {
+                        matched = true;
+                    } else if let Ok(ad) = args.Advertisement() {
+                        let mut has_local_name = false;
+                        if let Ok(name) = ad.LocalName() {
+                            let name_str = name.to_string();
+                            if !name_str.is_empty() {
+                                has_local_name = true;
+                                let upper = name_str.to_uppercase();
+                                if upper.contains("COOLING") || upper.contains("LCT") || upper.contains("CS_") {
+                                    crate::log_info!(
+                                        "BLE_COOLER",
+                                        "Standby watcher detected cooler by name: '{}' (MAC: {:012X})",
+                                        name_str,
+                                        address
+                                    );
+                                    if target == 0 {
+                                        mac_clone.store(address, Ordering::SeqCst);
+                                    }
+                                    matched = true;
+                                }
+                            }
+                        }
+                        if !matched && !has_local_name {
+                            if let Ok(uuids) = ad.ServiceUuids() {
+                                for i in 0..uuids.Size().unwrap_or(0) {
+                                    if let Ok(u) = uuids.GetAt(i) {
+                                        if u == NUS_SERVICE_UUID {
+                                            crate::log_info!(
+                                                "BLE_COOLER",
+                                                "Standby watcher detected NUS service UUID advertisement (MAC: {:012X})",
+                                                address
+                                            );
+                                            if target == 0 {
+                                                mac_clone.store(address, Ordering::SeqCst);
+                                            }
+                                            matched = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if matched {
+                        crate::log_info!(
+                            "BLE_COOLER",
+                            "Standby watcher matched cooler {:012X}! Waking supervisor...",
+                            address
+                        );
+                        let (lock, cvar) = &*notify_clone;
+                        let mut ready = lock.lock();
+                        *ready = true;
+                        cvar.notify_all();
+                    }
+                }
+                Ok(())
+            },
+        ));
+
+        let token = match token_res {
+            Ok(t) => t,
+            Err(e) => {
+                crate::log_warn!("BLE_COOLER", "Failed to attach Received handler to watcher: {}", e);
+                let (lock, cvar) = &*self.wakeup_notify;
+                let mut ready = lock.lock();
+                if !*ready {
+                    let _ = cvar.wait_for(&mut ready, max_wait);
+                }
+                return;
+            }
+        };
+
+        if let Err(e) = watcher.Start() {
+            crate::log_warn!("BLE_COOLER", "Failed to start BLE Advertisement Watcher: {}", e);
+            let _ = watcher.RemoveReceived(token);
+            let (lock, cvar) = &*self.wakeup_notify;
+            let mut ready = lock.lock();
+            if !*ready {
+                let _ = cvar.wait_for(&mut ready, max_wait);
+            }
+            return;
+        }
+
+        crate::log_info!(
+            "BLE_COOLER",
+            "Passive BLE Advertisement Watcher active (target: {:012X}, max standby sleep: {:?})",
+            target_mac,
+            max_wait
+        );
+
+        // Park thread on condvar until watcher signals or timeout or user clicks reconnect
+        {
+            let (lock, cvar) = &*self.wakeup_notify;
+            let mut ready = lock.lock();
+            if !*ready {
+                let _ = cvar.wait_for(&mut ready, max_wait);
+            }
+        }
+
+        // Stop watcher once awakened
+        let _ = watcher.Stop();
+        let _ = watcher.RemoveReceived(token);
+        crate::log_info!("BLE_COOLER", "Passive BLE Advertisement Watcher stopped, resuming active connection path.");
+    }
+
+    fn run_connection_session(&self, prefer_uncached: bool) -> Result<(), String> {
         self.state.connected.store(false, Ordering::SeqCst);
 
         let mut target_mac = self.mac_address.load(Ordering::SeqCst);
 
-        // Auto-discovery fallback: if no stored MAC, try Windows PnP paired device, then RF scan
+        // Auto-discovery fallback: if no stored MAC, try Windows PnP paired device
         if target_mac == 0 {
             if let Some(paired) = find_paired_water_cooler_mac() {
                 crate::log_warn!("BLE_COOLER", "No stored MAC, resolved paired water cooler from Windows PnP: {:012X}", paired);
                 self.set_mac(paired);
                 target_mac = paired;
             } else {
-                crate::log_warn!("BLE_COOLER", "Stored MAC is 0 and no paired cooler found in Windows PnP. Scanning for nearby water cooler...");
-                if let Ok(discovered_mac) = scan_for_water_cooler(Duration::from_secs(6)) {
-                    crate::log_warn!("BLE_COOLER", "Auto-discovered water cooler: {:012X}!", discovered_mac);
-                    self.set_mac(discovered_mac);
-                    target_mac = discovered_mac;
-                } else {
-                    return Err("No water cooler found during scan".to_string());
-                }
+                return Err("No water cooler MAC configured and none paired in Windows PnP".to_string());
             }
         }
 
@@ -1072,9 +1277,36 @@ impl BleCoolerController {
 
         let dev = dev_res.map_err(|e| format!("Device resolution failed: {}", e))?;
 
+        struct BleSessionGuard {
+            dev: BluetoothLEDevice,
+            conn_token: Option<windows::Foundation::EventRegistrationToken>,
+            gatt_session: Option<GattSession>,
+            service: Option<GattDeviceService>,
+            notify_char: Option<GattCharacteristic>,
+            notify_token: Option<windows::Foundation::EventRegistrationToken>,
+        }
+
+        impl Drop for BleSessionGuard {
+            fn drop(&mut self) {
+                if let (Some(nc), Some(tok)) = (self.notify_char.take(), self.notify_token.take()) {
+                    let _ = nc.RemoveValueChanged(tok);
+                }
+                if let Some(tok) = self.conn_token.take() {
+                    let _ = self.dev.RemoveConnectionStatusChanged(tok);
+                }
+                if let Some(gs) = self.gatt_session.take() {
+                    let _ = gs.SetMaintainConnection(false);
+                    let _ = gs.Close();
+                }
+                if let Some(svc) = self.service.take() {
+                    let _ = svc.Close();
+                }
+                let _ = self.dev.Close();
+            }
+        }
+
         // Maintain connection to prevent Windows BLE stack from dropping link or sleeping.
-        // MUST hold _gatt_session alive throughout run_connection_session to prevent automatic teardown!
-        let _gatt_session = if let Ok(device_id) = dev.BluetoothDeviceId() {
+        let gatt_session = if let Ok(device_id) = dev.BluetoothDeviceId() {
             if let Ok(session_op) = GattSession::FromDeviceIdAsync(&device_id) {
                 if let Ok(session) = session_op.get() {
                     let _ = session.SetMaintainConnection(true);
@@ -1091,25 +1323,42 @@ impl BleCoolerController {
 
         // Monitor real physical Bluetooth connection status changes
         let state_for_event = Arc::clone(&self.state);
-        let _ = dev.ConnectionStatusChanged(&windows::Foundation::TypedEventHandler::new(
-            move |sender: &Option<BluetoothLEDevice>, _| {
-                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    if let Some(d) = sender {
-                        if let Ok(status) = d.ConnectionStatus() {
-                            let is_conn = status == BluetoothConnectionStatus::Connected;
-                            if is_conn {
-                                state_for_event.connected.store(true, Ordering::SeqCst);
+        let conn_token = dev
+            .ConnectionStatusChanged(&windows::Foundation::TypedEventHandler::new(
+                move |sender: &Option<BluetoothLEDevice>, _| {
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        if let Some(d) = sender {
+                            if let Ok(status) = d.ConnectionStatus() {
+                                let is_conn = status == BluetoothConnectionStatus::Connected;
+                                if is_conn {
+                                    state_for_event.connected.store(true, Ordering::SeqCst);
+                                }
                             }
                         }
-                    }
-                }));
-                Ok(())
-            },
-        ));
+                    }));
+                    Ok(())
+                },
+            ))
+            .ok();
 
-        // Attempt Cached service discovery first, then Uncached if needed
+        let mut guard = BleSessionGuard {
+            dev: dev.clone(),
+            conn_token,
+            gatt_session,
+            service: None,
+            notify_char: None,
+            notify_token: None,
+        };
+
+        let cache_modes: &[BluetoothCacheMode] = if prefer_uncached {
+            &[BluetoothCacheMode::Uncached]
+        } else {
+            &[BluetoothCacheMode::Cached, BluetoothCacheMode::Uncached]
+        };
+
+        // Attempt Cached service discovery first (unless recovering from failure), then Uncached if needed
         let mut service_opt = None;
-        for cache_mode in [BluetoothCacheMode::Cached, BluetoothCacheMode::Uncached] {
+        for &cache_mode in cache_modes {
             if let Ok(svc_op) = dev.GetGattServicesForUuidWithCacheModeAsync(NUS_SERVICE_UUID, cache_mode) {
                 if let Ok(svc_res) = svc_op.get() {
                     if svc_res.Status().unwrap_or(GattCommunicationStatus::Unreachable) == GattCommunicationStatus::Success {
@@ -1130,11 +1379,11 @@ impl BleCoolerController {
         let service: GattDeviceService = match service_opt {
             Some(s) => s,
             None => {
-                let _ = dev.Close();
                 crate::log_warn!("BLE_COOLER", "GATT service unreachable on {:012X}.", target_mac);
                 return Err("NUS GATT Service unreachable or cooler disconnected".to_string());
             }
         };
+        guard.service = Some(service.clone());
 
         // Open service in shared read/write mode
         let _ = service.OpenAsync(GattSharingMode::SharedReadAndWrite).map(|op| op.get());
@@ -1143,7 +1392,7 @@ impl BleCoolerController {
         let mut write_char = None;
         let mut notify_char = None;
 
-        for cache_mode in [BluetoothCacheMode::Cached, BluetoothCacheMode::Uncached] {
+        for &cache_mode in cache_modes {
             if let Ok(chars_op) = service.GetCharacteristicsWithCacheModeAsync(cache_mode) {
                 if let Ok(chars_res) = chars_op.get() {
                     if chars_res.Status().unwrap_or(GattCommunicationStatus::Unreachable) == GattCommunicationStatus::Success {
@@ -1172,8 +1421,6 @@ impl BleCoolerController {
         let write_char = match write_char {
             Some(w) => w,
             None => {
-                let _ = service.Close();
-                let _ = dev.Close();
                 return Err("NUS TX characteristic not found".into());
             }
         };
@@ -1183,38 +1430,42 @@ impl BleCoolerController {
         // Enable notifications on RX & handle telemetry callbacks (0x31 unsolicited, 0x32 query response)
         if let Some(ref nc) = _held_notify_char {
             let state_clone = Arc::clone(&self.state);
-            let _ = nc.ValueChanged(&windows::Foundation::TypedEventHandler::new(
-                move |_sender, args: &Option<GattValueChangedEventArgs>| {
-                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        if let Some(args) = args {
-                            if let Ok(buf) = args.CharacteristicValue() {
-                                let len = buf.Length().unwrap_or(0) as usize;
-                                if len >= 4 {
-                                    use windows::Storage::Streams::DataReader;
-                                    if let Ok(reader) = DataReader::FromBuffer(&buf) {
-                                        let mut bytes = vec![0u8; len];
-                                        if reader.ReadBytes(&mut bytes).is_ok() {
-                                            crate::log_info!("BLE_COOLER", "[Notify] Received {} bytes: {:02X?}", bytes.len(), &bytes);
-                                            // Official protocol: FE [31|32] XX SS 00 00 00 EF
-                                            // byte[3] is SS (Meter state from LC_Event_Meter_State)
-                                            // state=2: Normal Flow (OK) ✓ (From official disassembled LiquidCooling.cs)
-                                            // state=1: Normal Flow / Flowing (OK) ✓
-                                            // state=0: No Flow / device not ready / fault
-                                            if bytes[0] == 0xFE && bytes.len() >= 4 {
-                                                let meter_state = bytes[3];
-                                                let flow_ok = meter_state == 2 || meter_state == 1;
-                                                state_clone.meter_state.store(meter_state, Ordering::SeqCst);
-                                                state_clone.is_flow_ok.store(flow_ok, Ordering::SeqCst);
+            let notify_token = nc
+                .ValueChanged(&windows::Foundation::TypedEventHandler::new(
+                    move |_sender, args: &Option<GattValueChangedEventArgs>| {
+                        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            if let Some(args) = args {
+                                if let Ok(buf) = args.CharacteristicValue() {
+                                    let len = buf.Length().unwrap_or(0) as usize;
+                                    if len >= 4 {
+                                        use windows::Storage::Streams::DataReader;
+                                        if let Ok(reader) = DataReader::FromBuffer(&buf) {
+                                            let mut bytes = vec![0u8; len];
+                                            if reader.ReadBytes(&mut bytes).is_ok() {
+                                                crate::log_info!("BLE_COOLER", "[Notify] Received {} bytes: {:02X?}", bytes.len(), &bytes);
+                                                // Official protocol: FE [31|32] XX SS 00 00 00 EF
+                                                // byte[3] is SS (Meter state from LC_Event_Meter_State)
+                                                // state=2: Normal Flow (OK) ✓ (From official disassembled LiquidCooling.cs)
+                                                // state=1: Normal Flow / Flowing (OK) ✓
+                                                // state=0: No Flow / device not ready / fault
+                                                if bytes[0] == 0xFE && bytes.len() >= 4 {
+                                                    let meter_state = bytes[3];
+                                                    let flow_ok = meter_state == 2 || meter_state == 1;
+                                                    state_clone.meter_state.store(meter_state, Ordering::SeqCst);
+                                                    state_clone.is_flow_ok.store(flow_ok, Ordering::SeqCst);
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                    }));
-                    Ok(())
-                },
-            ));
+                        }));
+                        Ok(())
+                    },
+                ))
+                .ok();
+            guard.notify_char = Some(nc.clone());
+            guard.notify_token = notify_token;
 
             let _ = nc.WriteClientCharacteristicConfigurationDescriptorAsync(
                 GattClientCharacteristicConfigurationDescriptorValue::Notify,
@@ -1223,8 +1474,6 @@ impl BleCoolerController {
 
         // Handshake "sw"
         if let Err(e) = write_frame(&write_char, &[0x73, 0x77]) {
-            let _ = service.Close();
-            let _ = dev.Close();
             return Err(format!("Handshake failed: {}", e));
         }
         // Give MCU 300ms to process handshake and stabilize
@@ -1488,8 +1737,7 @@ impl BleCoolerController {
         }
 
         *self.active_char.lock() = None;
-        let _ = service.Close();
-        let _ = dev.Close();
+        drop(guard);
 
         if let Some(err) = last_error {
             Err(err)

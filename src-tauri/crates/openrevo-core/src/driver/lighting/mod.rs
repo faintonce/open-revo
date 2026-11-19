@@ -257,6 +257,7 @@ impl IteLightingManager {
     /// Invalidate and drop cached HID device handles (e.g. before sleep or upon error)
     pub fn invalidate_devices(&self) {
         crate::driver::ite_streamer::IteStreamerController::invalidate_probe_cache();
+        crate::system::model_engine::invalidate_lighting_contract_cache();
         *self.kb_dev.lock() = None;
         *self.lb_dev.lock() = None;
         *self.hinge_dev.lock() = None;
@@ -413,7 +414,9 @@ impl IteLightingManager {
 
     /// Apply Monochrome White Backlight level directly via Motherboard EC (for Thin & Light laptops)
     pub fn apply_monochrome_white_ec(&self, enabled: bool, brightness_idx: u8) -> bool {
-        self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        if enabled && brightness_idx > 0 {
+            self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
 
         // Branch 1: Declarative HAL / Thin & Light models (IP3, Baolongda, Xingyao, etc.)
         let hal = crate::hal::get_hardware_driver();
@@ -453,7 +456,10 @@ impl IteLightingManager {
         _speed_idx: u8,
         color_hex: &str,
     ) -> bool {
-        self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        let is_on = enabled && brightness_idx > 0;
+        if is_on {
+            self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
 
         // Branch 1: Declarative HAL / Non-Tongfang platforms (e.g. Baolongda MRID6)
         let hal = crate::hal::get_hardware_driver();
@@ -484,7 +490,7 @@ impl IteLightingManager {
 
         let mut new_bl_white = cur_bl_white;
         if is_on {
-            new_bl_white &= !0x02; // Bit 1 清零 = 启用背光供电
+            new_bl_white &= !0x03; // Bit 1 清零 = 启用背光供电; Bit 0 清零 = 确保单区全彩RGB模式(而非单白模式)
             new_bl_white &= 0x0F;  // 保留低 4 位，清零旧亮度高 4 位
             let high_nibble = match brightness_idx {
                 1 => 0x30,
@@ -562,7 +568,9 @@ impl IteLightingManager {
         direction_idx: u8,
         color_hex: &str,
     ) -> bool {
-        self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        if enabled && brightness_idx > 0 {
+            self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
 
         let contract = self.active_contract();
         if contract.backend == "None" || contract.keyboard_type == "None" {
@@ -608,7 +616,9 @@ impl IteLightingManager {
         color_hex: &str,
         zone_colors: Option<&[String; 4]>,
     ) -> bool {
-        self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        if enabled && brightness_idx > 0 {
+            self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
         self.refresh_devices();
 
         // Hardware Power Guard: Ensure EC Backlight Disable Bit is cleared (0 = Enabled)
@@ -731,7 +741,9 @@ impl IteLightingManager {
         speed_idx: u8,
         color_hex: &str,
     ) -> bool {
-        self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        if enabled {
+            self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
 
         // Hardware Constitution Gate:
         if !self.is_coastline_allowed() {
@@ -760,7 +772,9 @@ impl IteLightingManager {
         speed_idx: u8,
         color_hex: &str,
     ) -> bool {
-        self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        if enabled {
+            self.is_sleeping.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
 
         // Hardware Constitution Gate:
         if !self.is_air_vent_allowed() {
@@ -1179,6 +1193,9 @@ impl IteLightingManager {
         if has_ec_logo {
             Self::sync_ec_logo(false, 1, 0, "#000000");
         }
+
+        // 无论各硬件通道执行了何种熄灯动作，最终必须严格确立处于睡眠状态
+        self.is_sleeping.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Restore all lighting zones to their saved preset states

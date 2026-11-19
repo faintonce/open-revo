@@ -41,6 +41,12 @@ pub struct EcBridge {
     pub oem_conflict_detected: bool,
 }
 
+static GLOBAL_EC: std::sync::OnceLock<SharedEcBridge> = std::sync::OnceLock::new();
+
+pub fn get_global_ec() -> SharedEcBridge {
+    GLOBAL_EC.get_or_init(|| Arc::new(Mutex::new(EcBridge::auto_load()))).clone()
+}
+
 impl EcBridge {
     pub fn new(conflict: bool) -> Self {
         let initial_cfg = crate::system::config::load_config();
@@ -172,7 +178,7 @@ impl EcBridge {
                             }
                         }
 
-                        // 4. Fan RPMs (Always update with real RPM readings)
+                        // 4. Fan RPMs (Always update with real RPM readings, including 0 = stopped)
                         // EC reports a fixed baseline (e.g. 145 RPM) when the fan is stopped at duty=0.
                         // Treat any reading below 150 RPM as a real 0 so the panel never shows a stale/spurious RPM.
                         const FAN_STOP_BASELINE: u16 = 150;
@@ -190,26 +196,9 @@ impl EcBridge {
                             c.gpu_fan_rpm = gpu_rpm;
                         }
 
-                        // 5. Battery Gate Watchdog: Protect platform override from accidental drop (Tongfang platforms only)
-                        if now >= c.battery_limit_cooldown_until {
-                            let cfg_snap = crate::system::config::load_config();
-                            if crate::hal::declarative::load_matched_manifest().is_none() && cfg_snap.battery_hardware_limit_enabled && c.battery_limit < 95 {
-                                if let Some(cur_plat_id) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID) {
-                                    if cur_plat_id != 0x04 {
-                                        crate::log_warn!(
-                                            "EC_WATCHDOG",
-                                            "Battery hardware gate dropped (platform code 0x{:02X})! Auto-healing platform override...",
-                                            cur_plat_id
-                                        );
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_UP, c.battery_limit);
-                                        let down = if c.battery_limit > 5 { c.battery_limit - 5 } else { c.battery_limit };
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_DOWN, down);
-                                    }
-                                }
-                            }
-                        }
+                        // 5. Battery Gate Watchdog: Deprecated legacy spoofing loop.
+                        // Advanced charge gating is now fully decoupled into the official demonstration plugin
+                        // using non-invasive pulse-trigger storage (zero persistent platform tampering, zero keyboard matrix conflict).
                     }
                 }
 
@@ -278,15 +267,40 @@ impl EcBridge {
 
     pub fn set_power_mode(&self, ui_mode: u8) {
         crate::log_info!("EC_BRIDGE", "User triggered set_power_mode: {}", ui_mode);
-        {
-            let mut c = self.cache.lock();
-            c.power_mode = ui_mode;
-            c.power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
-        }
+        self.mark_power_mode(ui_mode);
 
         thread::spawn(move || {
             crate::system::power_mode::apply_full_power_mode(ui_mode);
+            // Physical Q-key / tray / watcher entry points do not pass through
+            // the turbo command, so report the applied sub-mode once here.
+            // A failed read must not be broadcast as `silent=false`: the
+            // `physical-mode-switched` event already tells UI to re-query.
+            if ui_mode == 3 && crate::system::power::turbo_submode::is_supported() {
+                match crate::system::power::turbo_submode::current_silent() {
+                    Some(silent) => {
+                        crate::event::emit_global("turbo-submode-changed", serde_json::json!({
+                            "supported": true,
+                            "silent": silent,
+                        }));
+                    }
+                    None => crate::log_warn!(
+                        "EC_BRIDGE",
+                        "turbo-submode-changed skipped: sub-mode register read failed"
+                    ),
+                }
+            }
         });
+    }
+
+    /// Update the cached mode and its poller cooldown without touching hardware.
+    ///
+    /// The lock is released before returning, so callers that need a synchronous
+    /// hardware apply can call `apply_full_power_mode` afterwards without
+    /// holding the EC bridge lock.
+    pub fn mark_power_mode(&self, ui_mode: u8) {
+        let mut c = self.cache.lock();
+        c.power_mode = ui_mode;
+        c.power_mode_cooldown_until = Instant::now() + Duration::from_secs(5);
     }
 
     pub fn set_power_mode_from_hardware(&self, detected_mode: u8) {
@@ -400,17 +414,12 @@ impl EcBridge {
 
             let down_limit = if limit > 5 { limit - 5 } else { limit };
 
-            // 0. Platform4 Gate method (for legacy gaming chassis without manifest):
-            //    Only apply platform spoofing on non-declarative gaming platforms
+            // 0. Auto-restore platform ID: ensure platform identity is clean and restored (prevents keyboard mapping issues)
             let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
             if !is_declarative {
-                if hardware_override && limit < 95 {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
-                } else {
-                    let cur_id = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID).unwrap_or(0x07);
-                    let restore_id = if cur_id == 0x04 || cur_id == 0x05 { 0x07 } else { cur_id };
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restore_id);
-                }
+                let cur_id = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID).unwrap_or(0x07);
+                let restore_id = if cur_id == 0x04 || cur_id == 0x05 { 0x07 } else { cur_id };
+                wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restore_id);
                 wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
             }
 

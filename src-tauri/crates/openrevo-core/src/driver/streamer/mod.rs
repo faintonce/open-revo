@@ -650,6 +650,13 @@ impl IteStreamerController {
                 let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
             }
         }
+
+        if !kb_is_on {
+            self.turn_off();
+            crate::log_info!("STREAMER", "resume_after_wake: keyboard is disabled in user config, keeping streamer stopped & dark");
+            return;
+        }
+
         if cfg.lighting.kb_engine == "hardware" {
             let hw_effect = if cfg.lighting.kb_effect > 0 && cfg.lighting.kb_effect < 100 {
                 cfg.lighting.kb_effect

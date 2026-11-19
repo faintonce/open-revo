@@ -281,6 +281,8 @@ fn dispatch_acpi_event(
                     0
                 };
                 crate::log_info!("WMI_LISTENER", "ACPI Keyboard brightness update echo: 240 (EC=0x{:02X}, level={})", cur_bl, level);
+                crate::event::osd_notify_global("keyboard_brightness", &level.to_string());
+                crate::event::emit_global("keyboard-brightness-changed", serde_json::json!(level));
             }
         }
         _ => {

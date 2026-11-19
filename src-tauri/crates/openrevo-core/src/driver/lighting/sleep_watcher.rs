@@ -244,9 +244,9 @@ pub fn set_keyboard_brightness_level(level: u8) -> u8 {
         );
         crate::log_info!("WMI_KEYBOARD", "Four-zone keyboard brightness updated to: level {}", target_level);
     } else if is_sz {
-        if let Some(cur_fan_isolated) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_FAN_ISOLATED) {
-            if (cur_fan_isolated & 0x07) != 0 {
-                let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_FAN_ISOLATED, cur_fan_isolated & 0xF8);
+        if let Some(cur_rgb_ctrl) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_RGB_CONTROL) {
+            if (cur_rgb_ctrl & 0x07) != 0 {
+                let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_RGB_CONTROL, cur_rgb_ctrl & 0xF8);
             }
         }
         let cur_trigger_byte = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE).unwrap_or(0);
