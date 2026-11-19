@@ -473,6 +473,7 @@ export component FullDashboard inherits Rectangle {
     in-out property <bool> fan_custom_curve: true;
     in-out property <string> fan_boost_mode: "none";
     in-out property <bool> is_direct_clamp: false;
+    in-out property <bool> single_fan_channel: false;
     in-out property <int> fan_min_duty: 0;
     in-out property <bool> smooth_transition: true;
     in-out property <string> smooth_time: "300ms";
@@ -804,6 +805,7 @@ export component FullDashboard inherits Rectangle {
 
                 // Fan
                 fan_custom_curve <=> root.fan_custom_curve;
+                single_fan_channel <=> root.single_fan_channel;
                 fan_boost_mode <=> root.fan_boost_mode;
                 is_direct_clamp <=> root.is_direct_clamp;
                 fan_min_duty <=> root.fan_min_duty;

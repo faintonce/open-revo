@@ -199,6 +199,7 @@ export component MainWindow inherits Window {
     in-out property <bool> is_mode_locked: false;
 
     in-out property <bool> fan_custom_curve: true;
+    in-out property <bool> single_fan_channel: false;
     in-out property <string> fan_boost_mode: "none";
     in-out property <bool> is_direct_clamp: false;
     in-out property <int> fan_min_duty: 0;
@@ -946,6 +947,7 @@ export component MainWindow inherits Window {
         is_mode_locked <=> root.is_mode_locked;
 
         fan_custom_curve <=> root.fan_custom_curve;
+        single_fan_channel <=> root.single_fan_channel;
         fan_boost_mode <=> root.fan_boost_mode;
         is_direct_clamp <=> root.is_direct_clamp;
         fan_min_duty <=> root.fan_min_duty;
@@ -1033,12 +1035,16 @@ export component MainWindow inherits Window {
             root.tuning_change_smooth_time(st);
         }
         tuning_toggle_isolated => {
-            root.fan_isolated_output = !root.fan_isolated_output;
-            root.tuning_toggle_isolated();
+            if !root.single_fan_channel {
+                root.fan_isolated_output = !root.fan_isolated_output;
+                root.tuning_toggle_isolated();
+            }
         }
         tuning_toggle_link => {
-            root.fan_linked = !root.fan_linked;
-            root.tuning_toggle_link();
+            if !root.single_fan_channel {
+                root.fan_linked = !root.fan_linked;
+                root.tuning_toggle_link();
+            }
         }
         tuning_select_fan_tab(tab) => {
             root.active_fan_tab = tab;

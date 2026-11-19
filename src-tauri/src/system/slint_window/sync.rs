@@ -155,10 +155,17 @@ pub fn sync_slint_tuning_state() {
     let profile = current_preset.as_ref().map(|p| &p.profile).unwrap_or(&cfg.custom_profile);
     let preset_name = current_preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "静音狂暴".to_string());
 
+    let single_fan_channel = manifest.as_ref()
+        .map(|m| !m.capabilities.fan_independent_channels)
+        .unwrap_or(false);
     let fan_boost_mode_cap = manifest.as_ref().and_then(|m| m.capabilities.fan_boost_mode.clone()).unwrap_or_else(|| "none".to_string());
     let min_duty_floor: u8 = if fan_boost_mode_cap == "direct_rpm_clamp" { 22 } else { 0 };
     let cpu_curve = normalize_fan_curve_8(&profile.cpu_fan_curve, min_duty_floor);
-    let gpu_curve = normalize_fan_curve_8(&profile.gpu_fan_curve, min_duty_floor);
+    let gpu_curve = if single_fan_channel {
+        cpu_curve.clone()
+    } else {
+        normalize_fan_curve_8(&profile.gpu_fan_curve, min_duty_floor)
+    };
     let effective_temp_wall_max = bounds
         .temp_wall_max
         .max((profile.cpu_temp_target as i32).min(bounds.max_temp_wall));
@@ -268,11 +275,12 @@ pub fn sync_slint_tuning_state() {
         "fan_custom_curve": fan_custom_curve,
         "fan_boost_mode": fan_boost_mode,
         "is_direct_clamp": is_direct_clamp,
+        "single_fan_channel": single_fan_channel,
         "min_duty": min_duty,
         "smooth_transition": profile.fan_ramp_rate,
         "smooth_time": format!("{}ms", profile.fan_ramp_speed_ms),
-        "fan_isolated_output": profile.fan_isolated_output,
-        "fan_linked": profile.fan_curve_linked,
+        "fan_isolated_output": if single_fan_channel { false } else { profile.fan_isolated_output },
+        "fan_linked": if single_fan_channel { true } else { profile.fan_curve_linked },
         "cpu_curve": cpu_curve,
         "gpu_curve": gpu_curve,
         "bld_rpm_cap": 5800,

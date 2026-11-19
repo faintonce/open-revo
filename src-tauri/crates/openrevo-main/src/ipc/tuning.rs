@@ -178,6 +178,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(stm) = val.get("smooth_time").and_then(|v| v.as_str()) {
                 ui.set_smooth_time(stm.into());
             }
+            if let Some(sfc) = val.get("single_fan_channel").and_then(|v| v.as_bool()) {
+                ui.set_single_fan_channel(sfc);
+            }
             if let Some(ifo) = val.get("fan_isolated_output").and_then(|v| v.as_bool()) {
                 ui.set_fan_isolated_output(ifo);
             }

@@ -3,6 +3,7 @@ import { AppTheme } from "../../theme.slint";
 export component FanCurveCanvas inherits VerticalLayout {
     in-out property <int> active_fan_tab: 0; // 0: CPU, 1: GPU
     in-out property <bool> fan_linked: true;
+    in-out property <bool> single_fan_channel: false;
     in-out property <[int]> active_curve: [20, 30, 45, 55, 65, 75, 85, 100];
     in-out property <int> min_duty: 0; // 22 for direct_rpm_clamp, 0 otherwise
 
@@ -21,9 +22,9 @@ export component FanCurveCanvas inherits VerticalLayout {
         HorizontalLayout {
             spacing: 4px;
 
-            // CPU tab
+            // CPU tab / 双风扇曲线
             Rectangle {
-                width: 62px;
+                width: root.single_fan_channel ? 76px : 62px;
                 height: 22px;
                 border-radius: 3px;
                 background: root.active_fan_tab == 0 ? #6366f135 : AppTheme.surface_pill;
@@ -37,7 +38,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: "CPU风扇";
+                    text: root.single_fan_channel ? "双风扇曲线" : "CPU风扇";
                     font-size: 10px;
                     font-weight: root.active_fan_tab == 0 ? 700 : 500;
                     color: root.active_fan_tab == 0 ? (AppTheme.is_light ? #4338ca : #ffffff) : AppTheme.text_muted;
@@ -46,8 +47,8 @@ export component FanCurveCanvas inherits VerticalLayout {
                 }
             }
 
-            // Link button
-            Rectangle {
+            // Link button (仅双通道机型展示)
+            if !root.single_fan_channel: Rectangle {
                 width: 24px;
                 height: 22px;
                 border-radius: 3px;
@@ -70,8 +71,8 @@ export component FanCurveCanvas inherits VerticalLayout {
                 }
             }
 
-            // GPU tab
-            Rectangle {
+            // GPU tab (仅双通道机型展示)
+            if !root.single_fan_channel: Rectangle {
                 width: 62px;
                 height: 22px;
                 border-radius: 3px;

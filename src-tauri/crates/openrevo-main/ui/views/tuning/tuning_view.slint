@@ -58,6 +58,7 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <bool> is_mode_locked: false;
 
     // Fan values
+    in-out property <bool> single_fan_channel: false;
     in-out property <bool> fan_custom_curve: true;
     in-out property <string> fan_boost_mode: "none";
     in-out property <bool> is_direct_clamp: false;
@@ -501,6 +502,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                 width: parent.col_w;
                 height: parent.height;
                 is_bld <=> root.is_bld;
+                single_fan_channel <=> root.single_fan_channel;
                 fan_custom_curve <=> root.fan_custom_curve;
                 fan_boost_mode <=> root.fan_boost_mode;
                 is_direct_clamp <=> root.is_direct_clamp;

@@ -352,10 +352,21 @@ pub fn apply_fan_curve_live_internal(
         }
     }
 
-    crate::driver::wmi_ec::set_custom_mode_ec(true);
-    crate::driver::wmi_ec::set_fan_isolated_output(true);
+    let linked_channels = !crate::hal::declarative::load_matched_manifest()
+        .map(|m| m.capabilities.fan_independent_channels)
+        .unwrap_or(true);
 
-    let table = crate::system::power_mode::build_custom_fan_table(&cpu_curve, &gpu_curve);
+    crate::driver::wmi_ec::set_custom_mode_ec(true);
+    // 联动通道机型（无独显薄本）：保持清除隔离位，副扇才会跟随 CPU 表
+    // 独立通道机型：置起隔离位（主副扇各走各的表）
+    crate::driver::wmi_ec::set_fan_isolated_output(!linked_channels);
+
+    let (cpu_ref, gpu_ref) = if linked_channels {
+        (&cpu_curve, &cpu_curve)
+    } else {
+        (&cpu_curve, &gpu_curve)
+    };
+    let table = crate::system::power_mode::build_custom_fan_table(cpu_ref, gpu_ref);
     crate::system::power_mode::apply_fan_table_to_ec(&table);
 
     Ok(())
@@ -368,45 +379,15 @@ pub fn apply_fan_curve_live_internal(
 /// 副扇，而 GPU 表永远停在第 0 档；第 0 档按固件硬规则必须是 0x00（零转待机），
 /// 于是副扇停转且再也起不来。
 ///
-/// 本命令把同一条曲线同时写进两个通道，并**显式清掉**隔离位，让两把扇都跟随
-/// CPU 表。与 `apply_fan_curve_live` 的唯一差别就是把 `set_fan_isolated_output`
-/// 的参数从 `true` 改成 `false`，其余时序完全一致。
+/// 本命令把同一条曲线同时写进两个通道，统一走 `apply_fan_curve_live_internal` 下发，
+/// 其内部已自适应机型 `fan_independent_channels`，单通道机型自动保持清除隔离位。
 #[tauri::command]
 pub fn apply_fan_curve_linked(
     app: AppHandle,
-    ec_state: State<'_, SharedEcBridge>,
+    _ec_state: State<'_, SharedEcBridge>,
     curve: Vec<crate::system::config::FanCurvePoint>,
 ) -> Result<(), String> {
-    let is_bld_manifest = crate::hal::declarative::load_matched_manifest()
-        .map(|m| m.channels.values().any(|ch| matches!(ch, crate::hal::declarative::model_manifest::ChannelDef::WmiMailbox { .. })))
-        .unwrap_or(false);
-
-    if is_bld_manifest {
-        let cfg = crate::system::config::load_config();
-        crate::driver::bld_driver_mgr::set_bld_fan_curve(
-            curve.clone(),
-            curve,
-            cfg.custom_profile.fan_ramp_rate,
-            cfg.custom_profile.fan_ramp_speed_ms,
-        );
-        crate::log_info!("BLD_FAN", "BLD linked fan curve applied to 1Hz heartbeat arbiter");
-        return Ok(());
-    }
-
-    let cfg = crate::system::config::load_config();
-    if (cfg.custom_profile.fan_isolated_output || cfg.custom_profile.fan_curve_enabled) && ec_state.lock().is_fan_boost() {
-        crate::log_info!("POWER_MODE", "apply_fan_curve_linked: Fan Boost is ON, terminating it to yield control to the linked curve");
-        let _ = set_fan_boost(app, false, ec_state);
-    }
-
-    crate::driver::wmi_ec::set_custom_mode_ec(true);
-    // 联动模式：隔离位保持清除，副扇才会跟随 CPU 表
-    crate::driver::wmi_ec::set_fan_isolated_output(false);
-
-    let table = crate::system::power_mode::build_custom_fan_table(&curve, &curve);
-    crate::system::power_mode::apply_fan_table_to_ec(&table);
-
-    Ok(())
+    apply_fan_curve_live_internal(Some(&app), curve.clone(), curve)
 }
 
 #[tauri::command]
@@ -462,6 +443,15 @@ pub fn toggle_fan_isolated_output_internal(
             let _ = app.emit("fan-boost-changed", false);
             let _ = app.emit("physical-fan-boost-switched", false);
         }
+    }
+
+    let linked_channels = !crate::hal::declarative::load_matched_manifest()
+        .map(|m| m.capabilities.fan_independent_channels)
+        .unwrap_or(true);
+    if linked_channels {
+        crate::log_warn!("EC_TUNING", "toggle_fan_isolated_output: Ignored isolated toggle for linked fan channel model to prevent secondary fan stall");
+        crate::driver::wmi_ec::set_fan_isolated_output(false);
+        return Ok(false);
     }
 
     if enable {

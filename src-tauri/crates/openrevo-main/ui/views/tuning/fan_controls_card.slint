@@ -4,6 +4,7 @@ export component FanControlsCard inherits VerticalLayout {
     in-out property <bool> smooth_transition: true;
     in-out property <string> smooth_time: "300ms";
     in-out property <bool> fan_isolated_output: true;
+    in-out property <bool> single_fan_channel: false;
 
     callback toggle_smooth();
     callback toggle_isolated();
@@ -134,8 +135,8 @@ export component FanControlsCard inherits VerticalLayout {
         }
     }
 
-    // 2. Row 2: Fan Isolated Output Sub-card (风扇独立输出独立卡片)
-    Rectangle {
+    // 2. Row 2: Fan Isolated Output Sub-card (风扇独立输出独立卡片，单通道机型隐藏)
+    if !root.single_fan_channel: Rectangle {
         background: AppTheme.surface_pill;
         border-radius: AppTheme.radius_sm;
         border-width: 1px;

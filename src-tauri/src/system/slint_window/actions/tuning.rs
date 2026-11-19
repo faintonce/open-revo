@@ -239,6 +239,12 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             true
         }
         "tuning_toggle_isolated" => {
+            let is_single_channel = crate::hal::declarative::load_matched_manifest()
+                .map(|m| !m.capabilities.fan_independent_channels)
+                .unwrap_or(false);
+            if is_single_channel {
+                return true;
+            }
             mutate_active_preset_profile(|p| {
                 let next = !p.fan_isolated_output;
                 p.fan_isolated_output = next;
@@ -259,6 +265,12 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             true
         }
         "tuning_toggle_link" => {
+            let is_single_channel = crate::hal::declarative::load_matched_manifest()
+                .map(|m| !m.capabilities.fan_independent_channels)
+                .unwrap_or(false);
+            if is_single_channel {
+                return true;
+            }
             mutate_active_preset_profile(|p| p.fan_curve_linked = !p.fan_curve_linked);
             true
         }
@@ -276,18 +288,26 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                     for (i, p) in new_gpu_curve.iter_mut().enumerate() {
                         p.duty = g_pcts[i];
                     }
+                    let is_single_channel = crate::hal::declarative::load_matched_manifest()
+                        .map(|m| !m.capabilities.fan_independent_channels)
+                        .unwrap_or(false);
                     let c_clone = new_cpu_curve.clone();
-                    let g_clone = new_gpu_curve.clone();
+                    let g_clone = if is_single_channel { new_cpu_curve.clone() } else { new_gpu_curve.clone() };
                     mutate_active_preset_profile(|p| {
-                        p.cpu_fan_curve = c_clone;
-                        p.gpu_fan_curve = g_clone;
+                        p.cpu_fan_curve = c_clone.clone();
+                        p.gpu_fan_curve = g_clone.clone();
+                        if is_single_channel {
+                            p.fan_curve_linked = true;
+                        }
                     });
                     let app_clone = app.cloned();
+                    let c_send = c_clone;
+                    let g_send = g_clone;
                     std::thread::spawn(move || {
                         let _ = crate::commands::tuning_cmd::apply_fan_curve_live_internal(
                             app_clone.as_ref(),
-                            new_cpu_curve,
-                            new_gpu_curve,
+                            c_send,
+                            g_send,
                         );
                     });
                 }
@@ -345,10 +365,13 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                 Ok(target) => {
                     crate::log_info!("TUNING_RESET", "Successfully reset preset {} to factory baseline", active_id);
                     let target_profile = target.profile;
-                    if target_profile.fan_isolated_output || target_profile.fan_curve_enabled {
+                    let is_single_channel = crate::hal::declarative::load_matched_manifest()
+                        .map(|m| !m.capabilities.fan_independent_channels)
+                        .unwrap_or(false);
+                    if target_profile.fan_isolated_output || target_profile.fan_curve_enabled || is_single_channel {
                         let app_clone = app.cloned();
                         let c_clone = target_profile.cpu_fan_curve;
-                        let g_clone = target_profile.gpu_fan_curve;
+                        let g_clone = if is_single_channel { c_clone.clone() } else { target_profile.gpu_fan_curve };
                         std::thread::spawn(move || {
                             let _ = crate::commands::tuning_cmd::apply_fan_curve_live_internal(
                                 app_clone.as_ref(),

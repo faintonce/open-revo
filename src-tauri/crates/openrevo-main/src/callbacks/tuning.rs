@@ -210,15 +210,21 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     });
     let ui_iso = ui_weak.clone();
     window.on_tuning_toggle_isolated(move || {
-        ipc::send_action_to_host("tuning_toggle_isolated", serde_json::json!({}));
         if let Some(ui) = ui_iso.upgrade() {
+            if ui.get_single_fan_channel() {
+                return;
+            }
+            ipc::send_action_to_host("tuning_toggle_isolated", serde_json::json!({}));
             ui.set_fan_isolated_output(!ui.get_fan_isolated_output());
         }
     });
     let ui_lnk = ui_weak.clone();
     window.on_tuning_toggle_link(move || {
-        ipc::send_action_to_host("tuning_toggle_link", serde_json::json!({}));
         if let Some(ui) = ui_lnk.upgrade() {
+            if ui.get_single_fan_channel() {
+                return;
+            }
+            ipc::send_action_to_host("tuning_toggle_link", serde_json::json!({}));
             let next_linked = !ui.get_fan_linked();
             ui.set_fan_linked(next_linked);
             if next_linked {
@@ -243,9 +249,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     });
     let ui_tab = ui_weak.clone();
     window.on_tuning_select_fan_tab(move |tab| {
-        ipc::send_action_to_host("tuning_select_fan_tab", serde_json::json!({ "tab": tab }));
         if let Some(ui) = ui_tab.upgrade() {
-            ui.set_active_fan_tab(tab);
+            let effective_tab = if ui.get_single_fan_channel() { 0 } else { tab };
+            ipc::send_action_to_host("tuning_select_fan_tab", serde_json::json!({ "tab": effective_tab }));
+            ui.set_active_fan_tab(effective_tab);
         }
     });
 
@@ -261,7 +268,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_adjust_point(move |idx, delta| {
         if let Some(ui) = ui_fan.upgrade() {
             let active_tab = ui.get_active_fan_tab();
-            let is_linked = ui.get_fan_linked();
+            let is_linked = ui.get_fan_linked() || ui.get_single_fan_channel();
             let min_duty = ui.get_fan_min_duty();
 
             let mut cpu_pts: Vec<i32> = ui.get_cpu_curve().iter().collect();
@@ -313,7 +320,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_set_point(move |idx, duty| {
         if let Some(ui) = ui_fan_set.upgrade() {
             let active_tab = ui.get_active_fan_tab();
-            let is_linked = ui.get_fan_linked();
+            let is_linked = ui.get_fan_linked() || ui.get_single_fan_channel();
             let min_duty = ui.get_fan_min_duty();
 
             let mut cpu_pts: Vec<i32> = ui.get_cpu_curve().iter().collect();

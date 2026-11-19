@@ -25,6 +25,7 @@ export component FanTuningCol inherits Rectangle {
     in-out property <int> gpu_rpm: 2123;
 
     // Normal Fan Curve Props
+    in-out property <bool> single_fan_channel: false;
     in-out property <bool> smooth_transition: true;
     in-out property <string> smooth_time: "300ms";
     in-out property <bool> fan_isolated_output: true;
@@ -171,6 +172,7 @@ export component FanTuningCol inherits Rectangle {
             }
 
             FanControlsCard {
+                single_fan_channel <=> root.single_fan_channel;
                 smooth_transition <=> root.smooth_transition;
                 smooth_time <=> root.smooth_time;
                 fan_isolated_output <=> root.fan_isolated_output;
@@ -180,6 +182,7 @@ export component FanTuningCol inherits Rectangle {
             }
 
             FanCurveCanvas {
+                single_fan_channel <=> root.single_fan_channel;
                 active_fan_tab <=> root.active_fan_tab;
                 fan_linked <=> root.fan_linked;
                 active_curve: root.active_curve;
