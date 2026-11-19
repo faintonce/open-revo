@@ -20,6 +20,7 @@ export component DashboardPowerView inherits Rectangle {
 
     // Modern Standby & Sleep Guard Policies
     in-out property <bool> sleep_guard_enabled: false;
+    in-out property <string> sleep_guard_source: "ac";
     in-out property <bool> sleep_disconnect_net: false;
     in-out property <bool> sleep_block_away: false;
     in-out property <bool> sleep_ignore_sysreq: false;
@@ -30,8 +31,8 @@ export component DashboardPowerView inherits Rectangle {
 
     // Callbacks to Host
     callback toggle_sleep_auto_office();
-    callback toggle_master_sleep_guard();
     callback toggle_sleep_guard_option(string);
+    callback select_sleep_guard_source(string);
     callback toggle_power_option(string);
     callback select_battery_mode(string);
 
@@ -138,8 +139,9 @@ export component DashboardPowerView inherits Rectangle {
             sleep_disable_wake_timers: root.sleep_disable_wake_timers;
             sleep_deep_sleep: root.sleep_deep_sleep;
             sleep_hibernate_30m: root.sleep_hibernate_30m;
-            toggle_master_sleep_guard => { root.toggle_master_sleep_guard(); }
+            sleep_guard_source: root.sleep_guard_source;
             toggle_sleep_guard_option(opt) => { root.toggle_sleep_guard_option(opt); }
+            select_sleep_guard_source(src) => { root.select_sleep_guard_source(src); }
         }
 
         // 3. Section 2: 电源与供电选项

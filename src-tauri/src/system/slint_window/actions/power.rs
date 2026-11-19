@@ -14,22 +14,6 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             }
             true
         }
-        "toggle_master_sleep_guard" => {
-            if let Some(enable) = val.get("enable").and_then(|v| v.as_bool()) {
-                let mut cfg = crate::system::config::load_config();
-                cfg.sleep_guard_enabled = enable;
-                cfg.sleep_disconnect_net = enable;
-                cfg.sleep_block_away = enable;
-                cfg.sleep_ignore_sysreq = enable;
-                cfg.sleep_disable_wake_timers = enable;
-                cfg.sleep_deep_sleep = enable;
-                cfg.sleep_hibernate_30m = enable;
-                crate::commands::power_cmd::apply_all_sleep_guard(enable);
-                let _ = crate::system::config::save_config(&cfg);
-                sync_slint_power_state();
-            }
-            true
-        }
         "select_sleep_guard_source" => {
             if let Some(src) = val.get("source").and_then(|v| v.as_str()) {
                 let mut cfg = crate::system::config::load_config();
