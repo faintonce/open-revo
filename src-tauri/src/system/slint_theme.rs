@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+pub const DEFAULT_FONT_FAMILY: &str = "Microsoft YaHei UI, Microsoft YaHei, Segoe UI, sans-serif";
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SlintThemeTokens {
     pub theme_mode: u8,
@@ -74,7 +76,7 @@ impl SlintThemeTokens {
                 text_primary: "#111827".into(),
                 text_secondary: "#4b5563".into(),
                 text_muted: "#9ca3af".into(),
-                font_family: String::new(),
+                font_family: DEFAULT_FONT_FAMILY.into(),
                 accent_brand: "#6366f1".into(),
                 mode_office: "#10b981".into(),
                 mode_balance: "#3b82f6".into(),
@@ -113,7 +115,7 @@ impl SlintThemeTokens {
                 text_primary: "#ffffff".into(),
                 text_secondary: "#cccccc".into(),
                 text_muted: "#777777".into(),
-                font_family: String::new(),
+                font_family: DEFAULT_FONT_FAMILY.into(),
                 accent_brand: "#ffffff".into(),
                 mode_office: "#ffffff".into(),
                 mode_balance: "#ffffff".into(),
@@ -152,7 +154,7 @@ impl SlintThemeTokens {
                 text_primary: "#f8fafc".into(),
                 text_secondary: "#cbd5e1".into(),
                 text_muted: "#64748b".into(),
-                font_family: String::new(),
+                font_family: DEFAULT_FONT_FAMILY.into(),
                 accent_brand: "#6366f1".into(),
                 mode_office: "#10b981".into(),
                 mode_balance: "#3b82f6".into(),
@@ -232,7 +234,11 @@ fn parse_css_font(raw: &str) -> Option<String> {
     if first.is_empty() || matches!(lower.as_str(), "sans-serif" | "serif" | "monospace" | "system-ui") {
         return None;
     }
-    Some(first.to_string())
+    if first.eq_ignore_ascii_case("Microsoft YaHei") || first.eq_ignore_ascii_case("Microsoft YaHei UI") {
+        Some(DEFAULT_FONT_FAMILY.to_string())
+    } else {
+        Some(format!("{}, {}", first, DEFAULT_FONT_FAMILY))
+    }
 }
 
 fn extract_css_variables_scoped(css: &str, theme_mode: u8) -> HashMap<String, String> {
@@ -356,7 +362,7 @@ fn apply_token_map(tokens: &mut SlintThemeTokens, key: &str, val: &str) {
         "text_muted" | "--text-muted" => {
             if let Some(c) = normalize_css_color(val) { tokens.text_muted = c; }
         }
-        "font_family" | "--font-family" | "--font-mech" => {
+        "font_family" | "--font-family" => {
             if let Some(f) = parse_css_font(val) { tokens.font_family = f; }
         }
         "accent_brand" | "--accent-brand" | "--color-brand" | "--accent-pwr" => {

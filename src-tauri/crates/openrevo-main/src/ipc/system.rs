@@ -56,8 +56,18 @@ fn apply_theme_tokens(ui: &MainWindow, tokens: &serde_json::Value) {
     set_color!("accent_heart_border", set_accent_heart_border);
     set_color!("tag_brand_text", set_tag_brand_text);
 
+    let default_font = "Microsoft YaHei UI, Microsoft YaHei, Segoe UI, sans-serif";
     if let Some(ff) = tokens.get("font_family").and_then(|v| v.as_str()) {
-        theme.set_font_family(ff.into());
+        let trimmed = ff.trim();
+        if trimmed.is_empty() {
+            theme.set_font_family(default_font.into());
+        } else if !trimmed.contains("Microsoft YaHei") {
+            theme.set_font_family(format!("{}, {}", trimmed, default_font).into());
+        } else {
+            theme.set_font_family(trimmed.into());
+        }
+    } else {
+        theme.set_font_family(default_font.into());
     }
     if let Some(r) = tokens.get("radius_xs").and_then(|v| v.as_f64()) {
         theme.set_radius_xs(r as f32);

@@ -525,8 +525,18 @@ pub fn handle_ipc_message(
                 }
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak.upgrade() {
+                        let default_font = "Microsoft YaHei UI, Microsoft YaHei, Segoe UI, sans-serif";
                         if let Some(ff) = tokens.get("font_family").and_then(|v| v.as_str()) {
-                            ui.set_font_family(ff.into());
+                            let trimmed = ff.trim();
+                            if trimmed.is_empty() {
+                                ui.set_font_family(default_font.into());
+                            } else if !trimmed.contains("Microsoft YaHei") {
+                                ui.set_font_family(format!("{}, {}", trimmed, default_font).into());
+                            } else {
+                                ui.set_font_family(trimmed.into());
+                            }
+                        } else {
+                            ui.set_font_family(default_font.into());
                         }
                         if let Some(c) = tokens.get("surface_elevated").and_then(|v| v.as_str()).and_then(parse_hex_color) {
                             let rgba = c.to_argb_u8();
