@@ -25,6 +25,7 @@ description: Official OpenRevo expert agent skill for developing third-party plu
 | UI 插槽类名、Design Tokens、WebView2 暗色表单 | [plugins/ui-design.md](plugins/ui-design.md) |
 | 安装、热刷新、安全模式排错 | [plugins/troubleshooting.md](plugins/troubleshooting.md) |
 | 13 个可运行实战用例 | [plugins/use-cases/README.md](plugins/use-cases/README.md) |
+| BetterRGB 自定义灯效脚本 (*.brfx) 编写、Rhai API 与演示案例 | [core/better-rgb-scripting.md](core/better-rgb-scripting.md) |
 | Core SDK（C# / C++ / C-ABI / Linux）接入 | [core/README.md](core/README.md) |
 | 仓库整体文档导航 | [docs/README.md](README.md) |
 

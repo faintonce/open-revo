@@ -7,6 +7,7 @@
 
 - [项目总览、下载与源码构建](../README.md)
 - [机型配置与功耗预设定制指南](core/models-customization.md)
+- [BetterRGB 自定义灯效脚本 (*.brfx) 开发指南](core/better-rgb-scripting.md)
 - [插件示例源码索引](../plugins_sample/README.md)
 
 ## 核心引擎与 SDK

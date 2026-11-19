@@ -7,6 +7,7 @@
 
 - [OpenRevo 核心引擎 SDK 接入与生态开发指南](sdk-integration.md)
 - [机型配置与功耗预设定制指南](models-customization.md)
+- [BetterRGB 自定义灯效脚本 (*.brfx) 开发指南](better-rgb-scripting.md)
 
 ## SDK 指南章节地图
 

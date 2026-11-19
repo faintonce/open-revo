@@ -772,7 +772,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div className="sys-row-label">软件版本与分发更新</div>
                 <RevBadge variant="info">
-                  {updateResult?.display_version || 'v0.9.7'}
+                  {updateResult?.display_version || 'v0.9.8'}
                 </RevBadge>
               </div>
               <div className="sys-row-desc">
