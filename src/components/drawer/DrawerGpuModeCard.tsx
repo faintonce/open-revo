@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { HardwareState } from '../../types/hardware';
-import { Cpu, Repeat, Crosshair } from 'lucide-react';
+import { Cpu, Repeat, Crosshair, Lock } from 'lucide-react';
+import { GpuCapabilities } from '../GpuModeView';
 
 interface DrawerGpuModeCardProps {
   status: HardwareState;
@@ -19,6 +20,7 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
     has_dgpu: boolean;
     has_igpu_present: boolean;
     gpu_name: string;
+    capabilities?: GpuCapabilities;
   } | null>(null);
 
   useEffect(() => {
@@ -43,6 +45,15 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
       if (unlistenGpu) unlistenGpu();
     };
   }, []);
+
+  const isSafetyLocked = gpuModeInfo?.capabilities?.is_safety_locked === true;
+  const isUserUnlocked = gpuModeInfo?.capabilities?.user_unlocked === true;
+  const isTriMode = isSafetyLocked
+    ? isUserUnlocked
+    : (gpuModeInfo?.capabilities ? gpuModeInfo.capabilities.supports_igpu_only : true);
+
+  // 双显双模机型保护锁定（有独立显卡但非三模硬件）
+  const isIgpuLocked = gpuModeInfo?.has_dgpu !== false && !isTriMode;
 
   return (
     <div className="m-card">
@@ -70,8 +81,9 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
       <div className="m-grid-3">
         <button
           className="m-btn-action"
+          disabled={isIgpuLocked}
           style={{
-            ...(gpuModeInfo?.current_mode === 'igpu' || gpuModeInfo?.has_dgpu === false
+            ...((gpuModeInfo?.current_mode === 'igpu' || gpuModeInfo?.has_dgpu === false) && !isIgpuLocked
               ? {
                   background: 'var(--theme-gpu-dim)',
                   borderColor: 'var(--theme-gpu-border)',
@@ -79,13 +91,24 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
                   boxShadow: '0 0 12px var(--theme-gpu-glow)',
                 }
               : {}),
+            ...(isIgpuLocked
+              ? { opacity: 0.38, cursor: 'not-allowed', filter: 'grayscale(0.6)' }
+              : {}),
           }}
-          title={gpuModeInfo?.has_dgpu === false ? '纯核显轻薄本架构，原生运行于核显模式' : '点击打开高级显卡切换面板'}
-          onClick={() => onExpandDashboard('gpu')}
+          title={
+            gpuModeInfo?.has_dgpu === false
+              ? '纯核显轻薄本架构，原生运行于核显模式'
+              : isIgpuLocked
+              ? (gpuModeInfo?.capabilities?.reason_igpu_unsupported || '当前机型为双模架构，无物理核显直连走线，已锁定保护防黑屏')
+              : '点击打开高级显卡切换面板'
+          }
+          onClick={() => {
+            if (!isIgpuLocked) onExpandDashboard('gpu');
+          }}
         >
-          <Cpu size={14} />
+          {isIgpuLocked ? <Lock size={14} /> : <Cpu size={14} />}
           <span style={{ fontSize: '10.5px', fontWeight: 600 }}>
-            {gpuModeInfo?.has_dgpu === false ? '纯集显 (生效)' : '纯集显'}
+            {gpuModeInfo?.has_dgpu === false ? '纯集显 (生效)' : isIgpuLocked ? '双模锁定' : '纯集显'}
           </span>
         </button>
 

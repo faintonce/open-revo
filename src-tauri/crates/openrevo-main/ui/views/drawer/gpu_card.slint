@@ -70,9 +70,11 @@ export component DrawerGpuCard inherits Rectangle {
                 border-color: gpu_mode == "dgpu" ? #10b981 : AppTheme.border_subtle;
 
                 t_dgpu := TouchArea {
-                    mouse-cursor: pointer;
+                    mouse-cursor: root.is_thin_and_light ? not-allowed : pointer;
                     clicked => {
-                        root.open_gpu_page();
+                        if !root.is_thin_and_light {
+                            root.open_gpu_page();
+                        }
                     }
                 }
 
@@ -134,17 +136,20 @@ export component DrawerGpuCard inherits Rectangle {
                 }
             }
 
-            // 3. iGPU (纯集显) - 双显三模机型可见，双模机型隐藏
-            if root.is_tri_mode: btn_igpu := Rectangle {
+            // 3. iGPU (纯集显) - 双显三模机型正常可用，双模机型显示为灰色锁定
+            btn_igpu := Rectangle {
                 border-radius: 6px;
-                background: gpu_mode == "igpu" ? #10b98125 : (t_igpu.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill);
-                border-width: gpu_mode == "igpu" ? 1.5px : 1px;
-                border-color: gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle;
+                opacity: !root.is_tri_mode ? 0.45 : 1.0;
+                background: !root.is_tri_mode ? AppTheme.surface_pill : (gpu_mode == "igpu" ? #10b98125 : (t_igpu.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill));
+                border-width: (!root.is_tri_mode || gpu_mode != "igpu") ? 1px : 1.5px;
+                border-color: !root.is_tri_mode ? AppTheme.border_subtle : (gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle);
 
                 t_igpu := TouchArea {
-                    mouse-cursor: pointer;
+                    mouse-cursor: root.is_tri_mode ? pointer : not-allowed;
                     clicked => {
-                        root.open_gpu_page();
+                        if root.is_tri_mode {
+                            root.open_gpu_page();
+                        }
                     }
                 }
 
@@ -154,17 +159,17 @@ export component DrawerGpuCard inherits Rectangle {
                     HorizontalLayout {
                         alignment: center;
                         Image {
-                            source: @image-url("../../assets/icons/cpu.svg");
+                            source: !root.is_tri_mode ? @image-url("../../assets/icons/lock.svg") : @image-url("../../assets/icons/cpu.svg");
                             width: 15px;
                             height: 15px;
-                            colorize: gpu_mode == "igpu" ? #10b981 : AppTheme.text_secondary;
+                            colorize: !root.is_tri_mode ? AppTheme.text_muted : (gpu_mode == "igpu" ? #10b981 : AppTheme.text_secondary);
                         }
                     }
                     Text {
-                        text: "纯集显";
+                        text: !root.is_tri_mode ? "双模锁定" : "纯集显";
                         font-size: 10.5px;
-                        font-weight: gpu_mode == "igpu" ? 700 : 500;
-                        color: gpu_mode == "igpu" ? #10b981 : AppTheme.text_primary;
+                        font-weight: (!root.is_tri_mode || gpu_mode != "igpu") ? 500 : 700;
+                        color: !root.is_tri_mode ? AppTheme.text_muted : (gpu_mode == "igpu" ? #10b981 : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                 }
