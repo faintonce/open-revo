@@ -267,6 +267,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     let ui_fan = ui_weak.clone();
     window.on_tuning_adjust_point(move |idx, delta| {
         if let Some(ui) = ui_fan.upgrade() {
+            let is_editing_allowed = ui.get_single_fan_channel() || ui.get_fan_isolated_output();
+            if !is_editing_allowed {
+                return;
+            }
             let active_tab = ui.get_active_fan_tab();
             let is_linked = ui.get_fan_linked() || ui.get_single_fan_channel();
             let min_duty = ui.get_fan_min_duty();
@@ -319,6 +323,10 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     let ui_fan_set = ui_weak.clone();
     window.on_tuning_set_point(move |idx, duty| {
         if let Some(ui) = ui_fan_set.upgrade() {
+            let is_editing_allowed = ui.get_single_fan_channel() || ui.get_fan_isolated_output();
+            if !is_editing_allowed {
+                return;
+            }
             let active_tab = ui.get_active_fan_tab();
             let is_linked = ui.get_fan_linked() || ui.get_single_fan_channel();
             let min_duty = ui.get_fan_min_duty();

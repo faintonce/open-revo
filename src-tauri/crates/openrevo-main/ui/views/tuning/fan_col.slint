@@ -183,6 +183,7 @@ export component FanTuningCol inherits Rectangle {
 
             FanCurveCanvas {
                 single_fan_channel <=> root.single_fan_channel;
+                fan_isolated_output <=> root.fan_isolated_output;
                 active_fan_tab <=> root.active_fan_tab;
                 fan_linked <=> root.fan_linked;
                 active_curve: root.active_curve;

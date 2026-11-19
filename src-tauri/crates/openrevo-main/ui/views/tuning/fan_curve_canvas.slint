@@ -4,8 +4,11 @@ export component FanCurveCanvas inherits VerticalLayout {
     in-out property <int> active_fan_tab: 0; // 0: CPU, 1: GPU
     in-out property <bool> fan_linked: true;
     in-out property <bool> single_fan_channel: false;
+    in-out property <bool> fan_isolated_output: true;
     in-out property <[int]> active_curve: [20, 30, 45, 55, 65, 75, 85, 100];
     in-out property <int> min_duty: 0; // 22 for direct_rpm_clamp, 0 otherwise
+
+    property <bool> is_editing_allowed: root.single_fan_channel ? true : root.fan_isolated_output;
 
     callback toggle_link();
     callback select_fan_tab(int);
@@ -98,10 +101,10 @@ export component FanCurveCanvas inherits VerticalLayout {
         }
 
         Text {
-            text: "● 8点曲线调校";
+            text: root.is_editing_allowed ? "● 8点曲线调校" : "○ 出厂预设托管";
             font-size: 10px;
             font-weight: 700;
-            color: #818cf8;
+            color: root.is_editing_allowed ? #818cf8 : AppTheme.text_muted;
             vertical-alignment: center;
         }
     }
@@ -166,9 +169,11 @@ export component FanCurveCanvas inherits VerticalLayout {
             viewbox-y: 0;
             viewbox-width: chart_canvas.width / 1px;
             viewbox-height: chart_canvas.height / 1px;
-            fill: root.active_fan_tab == 0 ?
-                @linear-gradient(180deg, #6366f140 0%, #6366f105 100%) :
-                @linear-gradient(180deg, #10b98140 0%, #10b98105 100%);
+            fill: !root.is_editing_allowed ?
+                @linear-gradient(180deg, #64748b20 0%, #64748b02 100%) :
+                (root.active_fan_tab == 0 ?
+                    @linear-gradient(180deg, #6366f140 0%, #6366f105 100%) :
+                    @linear-gradient(180deg, #10b98140 0%, #10b98105 100%));
 
             MoveTo { x: chart_canvas.x0 / 1px; y: chart_canvas.floor_y / 1px; }
             LineTo { x: chart_canvas.x0 / 1px; y: chart_canvas.y0 / 1px; }
@@ -191,7 +196,7 @@ export component FanCurveCanvas inherits VerticalLayout {
             viewbox-y: 0;
             viewbox-width: chart_canvas.width / 1px;
             viewbox-height: chart_canvas.height / 1px;
-            stroke: root.active_fan_tab == 0 ? #818cf8 : #34d399;
+            stroke: !root.is_editing_allowed ? #64748b : (root.active_fan_tab == 0 ? #818cf8 : #34d399);
             stroke-width: 2.5px;
 
             MoveTo { x: chart_canvas.x0 / 1px; y: chart_canvas.y0 / 1px; }
@@ -246,9 +251,9 @@ export component FanCurveCanvas inherits VerticalLayout {
             width: 14px;
             height: 14px;
             border-radius: 7px;
-            background: root.active_fan_tab == 0 ? #6366f140 : #10b98140;
+            background: !root.is_editing_allowed ? #64748b30 : (root.active_fan_tab == 0 ? #6366f140 : #10b98140);
             border-width: 1.5px;
-            border-color: root.active_fan_tab == 0 ? #818cf8 : #10b981;
+            border-color: !root.is_editing_allowed ? #64748b : (root.active_fan_tab == 0 ? #818cf8 : #10b981);
 
             // Core white circle
             Rectangle {
@@ -257,7 +262,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                 width: 6px;
                 height: 6px;
                 border-radius: 3px;
-                background: #ffffff;
+                background: !root.is_editing_allowed ? #94a3b8 : #ffffff;
             }
 
             // Value label directly above node
@@ -268,7 +273,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                 text: node.duty + "%";
                 font-size: 8.5px;
                 font-weight: 800;
-                color: root.active_fan_tab == 0 ? (AppTheme.is_light ? #4338ca : #e0e7ff) : (AppTheme.is_light ? #065f46 : #a7f3d0);
+                color: !root.is_editing_allowed ? AppTheme.text_muted : (root.active_fan_tab == 0 ? (AppTheme.is_light ? #4338ca : #e0e7ff) : (AppTheme.is_light ? #065f46 : #a7f3d0));
                 horizontal-alignment: center;
             }
         }
@@ -277,11 +282,14 @@ export component FanCurveCanvas inherits VerticalLayout {
         TouchArea {
             width: 100%;
             height: 100%;
-            mouse-cursor: self.has-hover ? ns-resize : default;
+            mouse-cursor: !root.is_editing_allowed ? not-allowed : (self.has-hover ? ns-resize : default);
 
             property <int> active_idx: -1;
 
             pointer-event(event) => {
+                if !root.is_editing_allowed {
+                    return;
+                }
                 if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                     let rel_x = self.mouse-x - chart_canvas.pad_l;
                     let col_step = chart_canvas.plot_w / 7.0;
@@ -297,6 +305,9 @@ export component FanCurveCanvas inherits VerticalLayout {
             }
 
             moved => {
+                if !root.is_editing_allowed {
+                    return;
+                }
                 if self.active_idx >= 0 {
                     let ratio = Math.clamp(1.0 - ((self.mouse-y - chart_canvas.pad_t) / chart_canvas.plot_h), 0.0, 1.0);
                     let new_duty = Math.clamp(Math.round(ratio * 100), root.min_duty, 100);
@@ -329,16 +340,20 @@ export component FanCurveCanvas inherits VerticalLayout {
                 Rectangle {
                     height: 16px;
                     border-radius: 2px;
-                    background: AppTheme.surface_card;
+                    background: root.is_editing_allowed ? AppTheme.surface_card : AppTheme.surface_sunken;
                     TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.adjust_point(idx, 1); }
+                        mouse-cursor: root.is_editing_allowed ? pointer : not-allowed;
+                        clicked => {
+                            if root.is_editing_allowed {
+                                root.adjust_point(idx, 1);
+                            }
+                        }
                     }
                     Text {
                         text: "+";
                         font-size: 11px;
                         font-weight: 700;
-                        color: AppTheme.text_secondary;
+                        color: root.is_editing_allowed ? AppTheme.text_secondary : AppTheme.text_muted;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }
@@ -350,7 +365,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                     text: node + "%";
                     font-size: 9.5px;
                     font-weight: 800;
-                    color: root.active_fan_tab == 0 ? #818cf8 : #10b981;
+                    color: !root.is_editing_allowed ? AppTheme.text_muted : (root.active_fan_tab == 0 ? #818cf8 : #10b981);
                     horizontal-alignment: center;
                     overflow: elide;
                 }
@@ -359,16 +374,20 @@ export component FanCurveCanvas inherits VerticalLayout {
                 Rectangle {
                     height: 16px;
                     border-radius: 2px;
-                    background: AppTheme.surface_card;
+                    background: root.is_editing_allowed ? AppTheme.surface_card : AppTheme.surface_sunken;
                     TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.adjust_point(idx, -1); }
+                        mouse-cursor: root.is_editing_allowed ? pointer : not-allowed;
+                        clicked => {
+                            if root.is_editing_allowed {
+                                root.adjust_point(idx, -1);
+                            }
+                        }
                     }
                     Text {
                         text: "-";
                         font-size: 11px;
                         font-weight: 700;
-                        color: AppTheme.text_secondary;
+                        color: root.is_editing_allowed ? AppTheme.text_secondary : AppTheme.text_muted;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }
