@@ -1,6 +1,4 @@
-//! Facade for system device switches
-//!
-//! All functionality has been decoupled into `crate::system::switches::*`.
-//! This file is retained for 100% backward compatibility with existing callers.
+//! OpenRevo Hardware Peripheral & Device Switches Facade
+//! Re-exports unified device switches subsystem from `crate::system::switches`.
 
 pub use crate::system::switches::*;

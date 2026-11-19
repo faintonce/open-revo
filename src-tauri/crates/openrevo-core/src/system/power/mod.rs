@@ -590,7 +590,7 @@ pub fn set_windows_power_overlay(ui_mode: u8) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn restore_ec_power_options(cfg: &crate::system::config::AppConfig) {
+pub fn restore_ec_power_options(cfg: &crate::system::config::AppConfig) {
     if let Err(error) = crate::system::config::ensure_config_writable() {
         crate::log_warn!(
             "POWER_RESTORE",

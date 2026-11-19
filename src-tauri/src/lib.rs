@@ -10,6 +10,7 @@ pub mod system;
 pub mod updater;
 
 pub use openrevo_core;
+pub use openrevo_core::{log_debug, log_error, log_info, log_warn};
 
 use crate::driver::ec_bridge::SharedEcBridge;
 use crate::driver::gpu_bridge::SharedGpuBridge;
@@ -48,6 +49,12 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
                     }));
                 }
             }
+            "power-mode-changed" => {
+                let mode = payload.get("mode").and_then(|m| m.as_u64()).or_else(|| payload.as_u64());
+                if let Some(m) = mode {
+                    crate::update_tray_power_mode(m as u8);
+                }
+            }
             "win-lock-state-changed" => {
                 let locked = payload.as_bool().unwrap_or(false);
                 crate::system::osd_window::show_key_lock_toast("win", locked);
@@ -55,6 +62,14 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
             "fn-lock-state-changed" => {
                 let locked = payload.as_bool().unwrap_or(false);
                 crate::system::osd_window::show_key_lock_toast("fn", locked);
+            }
+            "touchpad-state-changed" => {
+                let enabled = payload.as_bool().unwrap_or(true);
+                crate::system::osd_window::show_key_lock_toast("touchpad", !enabled);
+                crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                    "action": "sync_state",
+                    "touchpad_locked": !enabled
+                }));
             }
             _ => {}
         }
@@ -119,6 +134,12 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
                     }));
                 }
             }
+            "power-mode-changed" => {
+                let mode = payload.get("mode").and_then(|m| m.as_u64()).or_else(|| payload.as_u64());
+                if let Some(m) = mode {
+                    crate::update_tray_power_mode(m as u8);
+                }
+            }
             "win-lock-state-changed" => {
                 let locked = payload.as_bool().unwrap_or(false);
                 crate::system::osd_window::show_key_lock_toast("win", locked);
@@ -126,6 +147,14 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
             "fn-lock-state-changed" => {
                 let locked = payload.as_bool().unwrap_or(false);
                 crate::system::osd_window::show_key_lock_toast("fn", locked);
+            }
+            "touchpad-state-changed" => {
+                let enabled = payload.as_bool().unwrap_or(true);
+                crate::system::osd_window::show_key_lock_toast("touchpad", !enabled);
+                crate::system::slint_window::send_slint_ipc_message(serde_json::json!({
+                    "action": "sync_state",
+                    "touchpad_locked": !enabled
+                }));
             }
             _ => {}
         }
@@ -434,7 +463,7 @@ fn run_slint_pure_daemon() {
     }
 
     // 9. Touchpad Hardware Listener
-    crate::system::device_switches::start_touchpad_listener(None);
+    crate::system::device_switches::start_touchpad_listener();
 
     // 10. Hardware State Watcher (Bluetooth, Wi-Fi, Camera)
     crate::system::device_switches::start_hardware_state_watcher(None, ec_for_watcher);
@@ -812,7 +841,6 @@ pub fn run_tauri_runtime() {
         .setup(move |app| {
             openrevo_core::set_global_event_sink(Arc::new(TauriEventSink::new(app.handle().clone())));
             crate::system::boot_trace::boot_log("SETUP", "Tauri setup closure entered");
-            crate::system::actuator::UnifiedPowerActuator::global().bind_app_handle(app.handle().clone());
             crate::system::webview_orchestrator::WebviewOrchestrator::global().bind_app_handle(app.handle().clone());
 
             // Step 6.1: Initialize main WebviewWindow (positioning above taskbar)
@@ -868,7 +896,7 @@ pub fn run_tauri_runtime() {
 
             // Step 6.6: Start dedicated Precision Touchpad registry listener for hardware Fn+F5 sync
             crate::system::boot_trace::boot_scope("Step 6.6: Touchpad Listener", || {
-                crate::system::device_switches::start_touchpad_listener(Some(app.handle().clone()));
+                crate::system::device_switches::start_touchpad_listener();
             });
 
             // Step 6.7: Start dedicated background watcher for external Bluetooth, Wi-Fi, and Camera state changes

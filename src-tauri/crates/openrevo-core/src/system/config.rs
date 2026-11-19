@@ -134,6 +134,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub saved_power_mode_on_battery: Option<u8>,
 
+    // Custom Global Shortcuts
+    #[serde(default)]
+    pub custom_shortcuts: Vec<crate::system::shortcuts::ShortcutBinding>,
+
     // Modern Standby & Sleep Guard (Windows S0ix Anti-Overheat)
     #[serde(default)]
     pub sleep_guard_enabled: bool,
@@ -173,6 +177,8 @@ pub struct AppConfig {
     pub balanced_gpu_dynamic_boost: bool,
     #[serde(default)]
     pub turbo_silent: bool,
+    #[serde(default)]
+    pub turbo_oc_enabled: bool,
 
     // CPU Custom Tuning Bounds & Margins (Persisted in config.json)
     #[serde(default = "default_cpu_temp_target_min")]
@@ -205,6 +211,10 @@ pub struct AppConfig {
     // Startup Window Visibility (Diagnosability override: CLI --visible or config.json)
     #[serde(default)]
     pub launch_visible: bool,
+
+    // Auto-Update Channel: "stable" (default) | "beta" (preview)
+    #[serde(default = "default_update_channel")]
+    pub update_channel: String,
 
     // Window Presentation Mode on Wake/Restore: "remember" (default) | "mini" | "full"
     #[serde(default = "default_wake_window_mode")]
@@ -415,6 +425,13 @@ fn default_refresh_rate() -> u32 { 240 }
 fn default_osd_theme() -> String { "cinema".to_string() }
 fn default_osd_scale() -> String { "100%".to_string() }
 fn default_osd_position() -> String { "top-left".to_string() }
+pub fn default_update_channel() -> String {
+    if env!("CARGO_PKG_VERSION").contains('-') {
+        "beta".to_string()
+    } else {
+        "stable".to_string()
+    }
+}
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -479,6 +496,7 @@ impl Default for AppConfig {
             high_perf_scheme: true,
             preferred_power_scheme: None,
             saved_power_mode_on_battery: None,
+            custom_shortcuts: Vec::new(),
 
             sleep_guard_enabled: false,
             sleep_disconnect_net: false,
@@ -503,6 +521,7 @@ impl Default for AppConfig {
             active_profile_id: default_active_profile_id(),
             use_classic_webview: false,
             launch_visible: false,
+            update_channel: default_update_channel(),
             gpu_offset_step: default_gpu_offset_step(),
             gpu_core_offset_max: default_gpu_core_offset_max(),
             gpu_mem_offset_max: default_gpu_mem_offset_max(),
@@ -510,6 +529,7 @@ impl Default for AppConfig {
             gpu_oc_mem_mhz: default_gpu_oc_mem_mhz(),
             balanced_gpu_dynamic_boost: true,
             turbo_silent: false,
+            turbo_oc_enabled: false,
             cpu_temp_target_min: default_cpu_temp_target_min(),
             cpu_temp_target_max: default_cpu_temp_target_max(),
             cpu_pl4_margin: default_cpu_pl4_margin(),

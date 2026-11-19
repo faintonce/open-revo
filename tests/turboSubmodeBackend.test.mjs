@@ -9,11 +9,11 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(`../src-tauri/src/${path}`, import.meta.url), 'utf8');
 
-const turbo = read('system/power/turbo_submode.rs');
 const coreTurbo = readFileSync(
   new URL('../src-tauri/crates/openrevo-core/src/system/power/turbo_submode.rs', import.meta.url),
   'utf8',
 );
+const turbo = coreTurbo;
 const bridge = readFileSync(
   new URL('../src-tauri/crates/openrevo-core/src/driver/ec_bridge.rs', import.meta.url),
   'utf8',

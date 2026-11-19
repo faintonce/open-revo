@@ -6,9 +6,13 @@ use std::sync::{LazyLock, OnceLock};
 use std::time::Instant;
 use parking_lot::Mutex;
 
-static BOOT_START_INSTANT: OnceLock<Instant> = OnceLock::new();
+pub static BOOT_START_INSTANT: OnceLock<Instant> = OnceLock::new();
 static BOOT_LOG_FILE: LazyLock<Mutex<Option<File>>> = LazyLock::new(|| Mutex::new(None));
 static BOOT_COMPLETED: AtomicBool = AtomicBool::new(false);
+
+pub fn get_boot_elapsed_millis() -> u128 {
+    BOOT_START_INSTANT.get().map(|s| s.elapsed().as_millis()).unwrap_or(0)
+}
 
 pub fn get_boot_log_path() -> PathBuf {
     crate::system::config::get_config_dir().join("boot.log")

@@ -1,15 +1,33 @@
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::LazyLock;
+use std::time::Duration;
 use windows::core::{w, PCWSTR};
 use windows::Win32::System::Registry::{
     RegCloseKey, RegDeleteValueW, RegOpenKeyExW, HKEY_CURRENT_USER, KEY_SET_VALUE, HKEY,
 };
 
+use crate::system::query_cache::ExpiringCache;
+
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const TASK_NAME: &str = "OpenRevo";
 const LEGACY_SUB_KEY: PCWSTR = w!(r"Software\Microsoft\Windows\CurrentVersion\Run");
 const LEGACY_VALUE_NAME: PCWSTR = w!("OpenRevo");
+
+/// Each call spawns a `schtasks.exe`; the telemetry heartbeat asks for this every
+/// 1.5 s. The task itself only changes when this app (or the user) creates or deletes
+/// it, and those paths invalidate the cache explicitly, so the TTL only bounds how
+/// long an *external* change (manual edit in Task Scheduler) takes to show up.
+/// Kept deliberately short: `schtasks /query` costs ~50 ms, so a 5 s window still
+/// removes >99% of the spawns without a noticeable staleness window.
+static AUTOSTART_CACHE: LazyLock<ExpiringCache<bool>> =
+    LazyLock::new(|| ExpiringCache::new(Duration::from_secs(5)));
+
+/// Drop the cached autostart state so the next query re-runs `schtasks`.
+pub fn invalidate_autostart_cache() {
+    AUTOSTART_CACHE.invalidate();
+}
 
 /// Checks whether the OpenRevo scheduled task exists in Windows Task Scheduler.
 pub fn is_autostart_enabled() -> bool {
@@ -24,6 +42,13 @@ pub fn is_autostart_enabled() -> bool {
         }
     }
     false
+}
+
+/// TTL-cached variant of [`is_autostart_enabled`] for hot polling paths.
+/// The underlying task state is refreshed at most once per cache TTL, and always
+/// immediately after this app creates or deletes the task.
+pub fn is_autostart_enabled_cached() -> bool {
+    AUTOSTART_CACHE.get_or_compute(is_autostart_enabled)
 }
 
 /// Extracts the registered executable path from the OpenRevo scheduled task XML, if it exists.
@@ -83,37 +108,21 @@ pub fn sync_autostart_target_path() {
         Err(_) => return,
     };
 
-    let mut cfg = crate::system::config::load_config();
+    let cfg = crate::system::config::load_config();
     let task_exists = is_autostart_enabled();
 
     if task_exists {
         if let Some(task_exe) = get_scheduled_task_exe_path() {
             let current_norm = normalize_path_str(&current_exe);
             let task_norm = normalize_path_str(&task_exe);
-
-            if current_norm != task_norm || !task_exe.exists() {
+            if current_norm != task_norm {
                 crate::log_info!(
                     "AUTOSTART",
-                    "Scheduled task target mismatch (registered: {:?}, current: {:?}, exists={}). Auto-healing scheduled task...",
-                    task_exe,
-                    current_exe,
-                    task_exe.exists()
+                    "Scheduled task target path out-of-sync ('{}' vs '{}'). Auto-healing...",
+                    task_norm,
+                    current_norm
                 );
                 let _ = set_autostart_enabled(true);
-                if !cfg.autostart {
-                    cfg.autostart = true;
-                    crate::system::config::save_config(&cfg);
-                }
-            }
-        } else {
-            crate::log_warn!(
-                "AUTOSTART",
-                "Scheduled task exists but could not parse target command. Re-applying current executable path..."
-            );
-            let _ = set_autostart_enabled(true);
-            if !cfg.autostart {
-                cfg.autostart = true;
-                crate::system::config::save_config(&cfg);
             }
         }
     } else if cfg.autostart {
@@ -125,6 +134,8 @@ pub fn sync_autostart_target_path() {
         let _ = set_autostart_enabled(true);
     }
 }
+
+pub use sync_autostart_target_path as heal_startup_task_if_moved;
 
 pub fn set_autostart_enabled(enabled: bool) -> Result<bool, String> {
     clean_legacy_registry();
@@ -239,6 +250,9 @@ r#"<?xml version="1.0" encoding="UTF-16"?>
             }
         };
 
+        // Task state changed by us; keep the cached answer in sync instead of
+        // waiting for the TTL to expire.
+        invalidate_autostart_cache();
         if success {
             Ok(true)
         } else {
@@ -249,6 +263,7 @@ r#"<?xml version="1.0" encoding="UTF-16"?>
             .creation_flags(CREATE_NO_WINDOW)
             .args(["/delete", "/f", "/tn", TASK_NAME])
             .status();
+        invalidate_autostart_cache();
         Ok(false)
     }
 }
