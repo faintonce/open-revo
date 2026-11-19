@@ -14,7 +14,10 @@ const coreTurbo = readFileSync(
   new URL('../src-tauri/crates/openrevo-core/src/system/power/turbo_submode.rs', import.meta.url),
   'utf8',
 );
-const bridge = read('driver/ec_bridge.rs');
+const bridge = readFileSync(
+  new URL('../src-tauri/crates/openrevo-core/src/driver/ec_bridge.rs', import.meta.url),
+  'utf8',
+);
 const command = read('commands/power_cmd.rs');
 const events = read('system/turbo_events.rs');
 
@@ -79,11 +82,10 @@ test('core turbo_submode copy keeps the same upstream WMI-only contract', () => 
   assert.match(core, /\(wmi_ok \|\| nextgen, detail\)/);
 });
 
-test('command and physical paths publish through one shared event helper', () => {
+test('command and physical paths publish through shared event architecture', () => {
   assert.match(command, /crate::system::turbo_events::publish_turbo_submode_changed/);
-  assert.match(bridge, /crate::system::turbo_events::publish_turbo_submode_changed/);
+  assert.match(bridge, /crate::event::emit_global\(\s*"turbo-submode-changed"/);
   assert.doesNotMatch(command, /app\.emit\(\s*"turbo-submode-changed"/);
-  assert.doesNotMatch(bridge, /emit_global\(\s*"turbo-submode-changed"/);
 
   // The helper fans out to the runtime sink and native wry exactly once each.
   assert.equal(events.match(/emit_global\(/g)?.length, 1);
@@ -96,7 +98,7 @@ test('a failed sub-mode register read never broadcasts silent=false', () => {
   assert.doesNotMatch(turbo, /current_silent\(\)[\s\S]{0,80}unwrap_or/);
 
   const body = fnBody(bridge, 'set_power_mode');
-  const publishAt = body.indexOf('publish_turbo_submode_changed');
+  const publishAt = body.indexOf('emit_global');
   const warnAt = body.indexOf('"turbo-submode-changed skipped');
   assert.ok(publishAt >= 0 && warnAt > publishAt, 'physical path must skip the event on read failure');
   assert.match(body, /match crate::system::power::turbo_submode::current_silent\(\)/);
