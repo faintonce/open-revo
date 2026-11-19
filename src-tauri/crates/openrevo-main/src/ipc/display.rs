@@ -18,6 +18,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(reason) = val.get("igpu_lock_reason").and_then(|v| v.as_str()) {
                 ui.set_igpu_lock_reason(reason.into());
             }
+            if let Some(tl) = val.get("is_thin_and_light").and_then(|v| v.as_bool()) {
+                ui.set_is_thin_and_light(tl);
+            }
             if let Some(en) = val.get("tuning_enabled").and_then(|v| v.as_bool()) {
                 ui.set_tuning_enabled(en);
             }

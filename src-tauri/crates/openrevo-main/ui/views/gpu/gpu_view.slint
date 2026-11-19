@@ -19,6 +19,7 @@ export component DashboardGpuView inherits Rectangle {
     in-out property <bool> is_tri_mode: true;
     in-out property <bool> is_safety_locked: false;
     in-out property <bool> is_intel: true;
+    in-out property <bool> is_thin_and_light: false;
     in-out property <string> igpu_lock_reason: "";
     in-out property <int> gpu_temp: 51;
     in-out property <int> gpu_usage: 15;
@@ -146,6 +147,7 @@ export component DashboardGpuView inherits Rectangle {
             is_tri_mode: root.is_tri_mode;
             is_safety_locked: root.is_safety_locked;
             is_intel: root.is_intel;
+            is_thin_and_light: root.is_thin_and_light;
             igpu_lock_reason: root.igpu_lock_reason;
             request_mode_switch(mode, title) => {
                 root.pending_mode = mode;

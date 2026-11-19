@@ -79,6 +79,12 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         gpu_caps.supports_igpu_only
                     };
                     let is_intel = gpu_caps.platform != "amd";
+                    let is_thin_and_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
+                    let effective_gpu_mode = if is_thin_and_light {
+                        "igpu"
+                    } else {
+                        &cfg.gpu_mode
+                    };
                     let line = format!("{}\n", serde_json::json!({
                         "action": "sync_state",
                         "app_version": format!("v{}", env!("CARGO_PKG_VERSION")),
@@ -86,7 +92,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "pl1_target": init_pl1,
                         "tgp_target": init_tgp,
                         "power_target_text": init_power_text,
-                        "gpu_mode": cfg.gpu_mode,
+                        "gpu_mode": effective_gpu_mode,
                         "is_tri_mode": is_tri_mode,
                         "is_safety_locked": gpu_caps.is_safety_locked,
                         "is_intel": is_intel,
@@ -98,7 +104,7 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "battery_percent": live_percent,
                         "is_ac_online": live_ac,
                         "is_dc_online": crate::commands::power_cmd::is_dc_round_plugged_in(),
-                        "is_thin_and_light": crate::commands::power_cmd::is_thin_and_light_or_pure_igpu(),
+                        "is_thin_and_light": is_thin_and_light,
                         "battery_mode": if cfg.battery_limit >= 95 { "long_life" } else if cfg.battery_limit <= 65 { "station" } else { "balance" },
                         "usb_charge_enabled": cfg.usb_charge_enabled,
                         "ac_recovery_enabled": cfg.ac_recovery_enabled,

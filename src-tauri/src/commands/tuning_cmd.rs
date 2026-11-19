@@ -52,14 +52,21 @@ pub fn get_gpu_mode_info_internal(
     let hw = crate::driver::uefi_nvram::read_gpu_mode();
     let capabilities = crate::driver::uefi_nvram::probe_gpu_capabilities();
     let has_igpu = check_igpu_present();
-    let has_dgpu = if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
+    let is_pure_igpu = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
+    let has_dgpu = if is_pure_igpu {
+        false
+    } else if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
         manifest.capabilities.discrete_gpu && check_dgpu_present()
     } else {
         check_dgpu_present()
     };
     let gpu_name = gpu_bridge.lock().get_name(0);
 
-    let effective_mode = if !has_dgpu {
+    let effective_mode = if is_pure_igpu || !has_dgpu {
+        if cfg.gpu_mode != "igpu" {
+            cfg.gpu_mode = "igpu".to_string();
+            crate::system::config::save_config(&cfg);
+        }
         "igpu".to_string()
     } else if hw.hardware_read && hw.current_mode != "unknown" {
         if cfg.gpu_mode != hw.current_mode {

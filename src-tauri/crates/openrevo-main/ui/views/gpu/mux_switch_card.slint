@@ -7,6 +7,7 @@ export component MuxSwitchCard inherits Rectangle {
     in-out property <bool> is_tri_mode: true;
     in-out property <bool> is_safety_locked: false;
     in-out property <bool> is_intel: true;
+    in-out property <bool> is_thin_and_light: false;
     in-out property <string> igpu_lock_reason: "";
 
     callback request_mode_switch(string, string); // (mode, title)
@@ -32,7 +33,7 @@ export component MuxSwitchCard inherits Rectangle {
                         source: @image-url("../../assets/icons/monitor.svg");
                         width: 16px;
                         height: 16px;
-                        colorize: #38bdf8;
+                        colorize: root.is_thin_and_light ? #10b981 : #38bdf8;
                     }
                 }
 
@@ -40,15 +41,17 @@ export component MuxSwitchCard inherits Rectangle {
                     alignment: center;
                     spacing: 2px;
                     Text {
-                        text: root.is_tri_mode ? "显卡模式 (双显三模)" : "显卡模式 (双显双模)";
+                        text: root.is_thin_and_light ? "显卡模式 (原生核显架构)" : (root.is_tri_mode ? "显卡模式 (双显三模)" : "显卡模式 (双显双模)");
                         font-size: 13px;
                         font-weight: 800;
                         color: AppTheme.text_primary;
                     }
                     Text {
-                        text: root.is_tri_mode ?
-                            "主板硬件级 MUX 物理切换 · 由 BIOS POST 或高级动态 PCIe 链路与物理开关控制" :
-                            "当前机型模具为双显双模架构（支持独显直连与混合输出），已启用硬件安全保护锁定以防止黑屏变砖。";
+                        text: root.is_thin_and_light ?
+                            "当前机型模具为高能效纯核显架构，无独立显卡与 MUX 物理开关。屏幕由内建核心显卡直出，享有超长离电续航与极佳静音表现。" :
+                            (root.is_tri_mode ?
+                                "主板硬件级 MUX 物理切换 · 由 BIOS POST 或高级动态 PCIe 链路与物理开关控制" :
+                                "当前机型模具为双显双模架构（支持独显直连与混合输出），已启用硬件安全保护锁定以防止黑屏变砖。");
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         overflow: elide;
@@ -75,7 +78,7 @@ export component MuxSwitchCard inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: root.gpu_name + " · " + root.cpu_name;
+                        text: root.is_thin_and_light ? (root.cpu_name + " · 内建核心显卡") : (root.gpu_name + " · " + root.cpu_name);
                         font-size: 10.5px;
                         font-weight: 600;
                         color: AppTheme.text_secondary;
@@ -102,10 +105,10 @@ export component MuxSwitchCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: root.is_tri_mode ? "主板原生硬件 MUX 切换架构" : "主板双显双模安全保护架构";
+                        text: root.is_thin_and_light ? "原生纯核显高能效直驱架构" : (root.is_tri_mode ? "主板原生硬件 MUX 切换架构" : "主板双显双模安全保护架构");
                         font-size: 10.5px;
                         font-weight: 700;
-                        color: root.is_tri_mode ? #38bdf8 : #f59e0b;
+                        color: root.is_thin_and_light ? #10b981 : (root.is_tri_mode ? #38bdf8 : #f59e0b);
                         vertical-alignment: center;
                     }
                     Text {
@@ -116,9 +119,11 @@ export component MuxSwitchCard inherits Rectangle {
                         vertical-alignment: center;
                     }
                     Text {
-                        text: root.is_tri_mode ?
-                            "· 物理通道直通信号开关，保证杜绝降频与转接损耗" :
-                            "· 物理硬件重构：自检过程重配 PCIe 通道与屏幕物理开关，彻底杜绝驱动崩溃、掉帧与卡顿。";
+                        text: root.is_thin_and_light ?
+                            "· 原生核显直驱：图形与显示信号由 CPU 内建的高能效核显统一接管，无需且不支持 MUX 物理切换。" :
+                            (root.is_tri_mode ?
+                                "· 物理通道直通信号开关，保证杜绝降频与转接损耗" :
+                                "· 物理硬件重构：自检过程重配 PCIe 通道与屏幕物理开关，彻底杜绝驱动崩溃、掉帧与卡顿。");
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -131,14 +136,14 @@ export component MuxSwitchCard inherits Rectangle {
                         source: @image-url("../../assets/icons/shield.svg");
                         width: 12px;
                         height: 12px;
-                        colorize: #38bdf8;
+                        colorize: root.is_thin_and_light ? #10b981 : #38bdf8;
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: "HARDWARE MUX LINK";
+                        text: root.is_thin_and_light ? "NATIVE iGPU LINK" : "HARDWARE MUX LINK";
                         font-size: 9.5px;
                         font-weight: 800;
-                        color: #38bdf8;
+                        color: root.is_thin_and_light ? #10b981 : #38bdf8;
                         vertical-alignment: center;
                     }
                 }
@@ -149,14 +154,15 @@ export component MuxSwitchCard inherits Rectangle {
         HorizontalLayout {
             spacing: 12px;
 
-            // 1. dGPU Card
+            // 1. dGPU Card (轻薄本反向锁定)
             Rectangle {
                 horizontal-stretch: 1;
                 height: 135px;
                 border-radius: 8px;
-                background: root.gpu_mode == "dgpu" ? #38bdf815 : AppTheme.surface_pill;
+                opacity: root.is_thin_and_light ? 0.45 : 1.0;
+                background: (!root.is_thin_and_light && root.gpu_mode == "dgpu") ? #38bdf815 : AppTheme.surface_pill;
                 border-width: 1px;
-                border-color: root.gpu_mode == "dgpu" ? #38bdf8aa : AppTheme.border_subtle;
+                border-color: (!root.is_thin_and_light && root.gpu_mode == "dgpu") ? #38bdf8aa : (root.is_thin_and_light ? #f59e0b40 : AppTheme.border_subtle);
 
                 VerticalLayout {
                     padding: 12px;
@@ -168,20 +174,47 @@ export component MuxSwitchCard inherits Rectangle {
                             width: 30px;
                             height: 30px;
                             border-radius: 6px;
-                            background: root.gpu_mode == "dgpu" ? #38bdf825 : transparent;
+                            background: root.is_thin_and_light ? #f59e0b18 : (root.gpu_mode == "dgpu" ? #38bdf825 : transparent);
                             border-width: 1px;
-                            border-color: root.gpu_mode == "dgpu" ? #38bdf860 : AppTheme.border_subtle;
+                            border-color: root.is_thin_and_light ? #f59e0b50 : (root.gpu_mode == "dgpu" ? #38bdf860 : AppTheme.border_subtle);
                             Image {
-                                source: @image-url("../../assets/icons/zap.svg");
+                                source: root.is_thin_and_light ? @image-url("../../assets/icons/lock.svg") : @image-url("../../assets/icons/zap.svg");
                                 width: 15px;
                                 height: 15px;
-                                colorize: #38bdf8;
+                                colorize: root.is_thin_and_light ? #f59e0b : #38bdf8;
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
                             }
                         }
 
-                        if root.gpu_mode == "dgpu": Rectangle {
+                        if root.is_thin_and_light: Rectangle {
+                            height: 20px;
+                            border-radius: 4px;
+                            background: #f59e0b1a;
+                            border-width: 1px;
+                            border-color: #f59e0b50;
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                spacing: 3px;
+                                Image {
+                                    source: @image-url("../../assets/icons/lock.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: #f59e0b;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "轻薄本锁定";
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: #f59e0b;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        if !root.is_thin_and_light && root.gpu_mode == "dgpu": Rectangle {
                             height: 20px;
                             border-radius: 4px;
                             background: #38bdf825;
@@ -202,7 +235,9 @@ export component MuxSwitchCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "独立显卡物理直连内屏幕。避开核显中转，发挥极致电竞帧率与超低显示延迟。";
+                        text: root.is_thin_and_light ?
+                            "当前机型为轻薄本架构，未搭载独立显卡硬件，独显直连通道不可用。" :
+                            "独立显卡物理直连内屏幕。避开核显中转，发挥极致电竞帧率与超低显示延迟。";
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                         wrap: word-wrap;
@@ -211,22 +246,22 @@ export component MuxSwitchCard inherits Rectangle {
                     Rectangle {
                         height: 28px;
                         border-radius: 5px;
-                        background: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.surface_card;
+                        background: (!root.is_thin_and_light && root.gpu_mode == "dgpu") ? #38bdf8 : AppTheme.surface_card;
                         border-width: 1px;
-                        border-color: root.gpu_mode == "dgpu" ? #38bdf8 : AppTheme.border_subtle;
+                        border-color: (!root.is_thin_and_light && root.gpu_mode == "dgpu") ? #38bdf8 : AppTheme.border_subtle;
                         TouchArea {
-                            mouse-cursor: pointer;
+                            mouse-cursor: root.is_thin_and_light ? not-allowed : pointer;
                             clicked => {
-                                if (root.gpu_mode != "dgpu") {
+                                if (!root.is_thin_and_light && root.gpu_mode != "dgpu") {
                                     root.request_mode_switch("dgpu", "独显直连 (dGPU)");
                                 }
                             }
                         }
                         Text {
-                            text: "独显直连";
+                            text: root.is_thin_and_light ? "独显直连 (无硬件)" : "独显直连";
                             font-size: 11px;
                             font-weight: 700;
-                            color: root.gpu_mode == "dgpu" ? #000000 : AppTheme.text_primary;
+                            color: root.is_thin_and_light ? AppTheme.text_muted : ((root.gpu_mode == "dgpu") ? #000000 : AppTheme.text_primary);
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -234,14 +269,15 @@ export component MuxSwitchCard inherits Rectangle {
                 }
             }
 
-            // 2. Hybrid Card
+            // 2. Hybrid Card (轻薄本反向锁定)
             Rectangle {
                 horizontal-stretch: 1;
                 height: 135px;
                 border-radius: 8px;
-                background: root.gpu_mode == "hybrid" ? #a855f718 : AppTheme.surface_pill;
+                opacity: root.is_thin_and_light ? 0.45 : 1.0;
+                background: (!root.is_thin_and_light && root.gpu_mode == "hybrid") ? #a855f718 : AppTheme.surface_pill;
                 border-width: 1px;
-                border-color: root.gpu_mode == "hybrid" ? #a855f7aa : AppTheme.border_subtle;
+                border-color: (!root.is_thin_and_light && root.gpu_mode == "hybrid") ? #a855f7aa : (root.is_thin_and_light ? #f59e0b40 : AppTheme.border_subtle);
 
                 VerticalLayout {
                     padding: 12px;
@@ -253,20 +289,47 @@ export component MuxSwitchCard inherits Rectangle {
                             width: 30px;
                             height: 30px;
                             border-radius: 6px;
-                            background: root.gpu_mode == "hybrid" ? #a855f725 : transparent;
+                            background: root.is_thin_and_light ? #f59e0b18 : (root.gpu_mode == "hybrid" ? #a855f725 : transparent);
                             border-width: 1px;
-                            border-color: root.gpu_mode == "hybrid" ? #a855f760 : AppTheme.border_subtle;
+                            border-color: root.is_thin_and_light ? #f59e0b50 : (root.gpu_mode == "hybrid" ? #a855f760 : AppTheme.border_subtle);
                             Image {
-                                source: @image-url("../../assets/icons/layers.svg");
+                                source: root.is_thin_and_light ? @image-url("../../assets/icons/lock.svg") : @image-url("../../assets/icons/layers.svg");
                                 width: 15px;
                                 height: 15px;
-                                colorize: #c084fc;
+                                colorize: root.is_thin_and_light ? #f59e0b : #c084fc;
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
                             }
                         }
 
-                        if root.gpu_mode == "hybrid": Rectangle {
+                        if root.is_thin_and_light: Rectangle {
+                            height: 20px;
+                            border-radius: 4px;
+                            background: #f59e0b1a;
+                            border-width: 1px;
+                            border-color: #f59e0b50;
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                spacing: 3px;
+                                Image {
+                                    source: @image-url("../../assets/icons/lock.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: #f59e0b;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "轻薄本锁定";
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: #f59e0b;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        if !root.is_thin_and_light && root.gpu_mode == "hybrid": Rectangle {
                             height: 20px;
                             border-radius: 4px;
                             background: #a855f725;
@@ -287,7 +350,9 @@ export component MuxSwitchCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "轻量任务核显输出保证续航，复杂 3D 渲染与电竞游戏时自动介入独显加速。";
+                        text: root.is_thin_and_light ?
+                            "当前机型为纯核显直驱架构，无外部独立显卡介入加速，混合通道不可用。" :
+                            "轻量任务核显输出保证续航，复杂 3D 渲染与电竞游戏时自动介入独显加速。";
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                         wrap: word-wrap;
@@ -296,22 +361,22 @@ export component MuxSwitchCard inherits Rectangle {
                     Rectangle {
                         height: 28px;
                         border-radius: 5px;
-                        background: root.gpu_mode == "hybrid" ? #a855f7 : AppTheme.surface_card;
+                        background: (!root.is_thin_and_light && root.gpu_mode == "hybrid") ? #a855f7 : AppTheme.surface_card;
                         border-width: 1px;
-                        border-color: root.gpu_mode == "hybrid" ? #a855f7 : AppTheme.border_subtle;
+                        border-color: (!root.is_thin_and_light && root.gpu_mode == "hybrid") ? #a855f7 : AppTheme.border_subtle;
                         TouchArea {
-                            mouse-cursor: pointer;
+                            mouse-cursor: root.is_thin_and_light ? not-allowed : pointer;
                             clicked => {
-                                if (root.gpu_mode != "hybrid") {
+                                if (!root.is_thin_and_light && root.gpu_mode != "hybrid") {
                                     root.request_mode_switch("hybrid", "混合输出 (Hybrid)");
                                 }
                             }
                         }
                         Text {
-                            text: "混合输出";
+                            text: root.is_thin_and_light ? "混合输出 (无硬件)" : "混合输出";
                             font-size: 11px;
                             font-weight: 700;
-                            color: root.gpu_mode == "hybrid" ? #ffffff : AppTheme.text_primary;
+                            color: root.is_thin_and_light ? AppTheme.text_muted : ((root.gpu_mode == "hybrid") ? #ffffff : AppTheme.text_primary);
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -319,15 +384,15 @@ export component MuxSwitchCard inherits Rectangle {
                 }
             }
 
-            // 3. iGPU Card
+            // 3. iGPU Card (轻薄本原生生效)
             Rectangle {
                 horizontal-stretch: 1;
                 height: 135px;
                 border-radius: 8px;
-                opacity: root.is_tri_mode ? 1.0 : 0.65;
-                background: root.gpu_mode == "igpu" ? #10b98118 : AppTheme.surface_pill;
+                opacity: (root.is_thin_and_light || root.is_tri_mode) ? 1.0 : 0.65;
+                background: (root.is_thin_and_light || root.gpu_mode == "igpu") ? #10b98118 : AppTheme.surface_pill;
                 border-width: 1px;
-                border-color: root.gpu_mode == "igpu" ? #10b981aa : (!root.is_tri_mode ? #f59e0b40 : AppTheme.border_subtle);
+                border-color: (root.is_thin_and_light || root.gpu_mode == "igpu") ? #10b981aa : (!root.is_tri_mode ? #f59e0b40 : AppTheme.border_subtle);
 
                 VerticalLayout {
                     padding: 12px;
@@ -339,20 +404,20 @@ export component MuxSwitchCard inherits Rectangle {
                             width: 30px;
                             height: 30px;
                             border-radius: 6px;
-                            background: !root.is_tri_mode ? #f59e0b18 : (root.gpu_mode == "igpu" ? #10b98125 : transparent);
+                            background: (!root.is_thin_and_light && !root.is_tri_mode) ? #f59e0b18 : ((root.is_thin_and_light || root.gpu_mode == "igpu") ? #10b98125 : transparent);
                             border-width: 1px;
-                            border-color: !root.is_tri_mode ? #f59e0b50 : (root.gpu_mode == "igpu" ? #10b98160 : AppTheme.border_subtle);
+                            border-color: (!root.is_thin_and_light && !root.is_tri_mode) ? #f59e0b50 : ((root.is_thin_and_light || root.gpu_mode == "igpu") ? #10b98160 : AppTheme.border_subtle);
                             Image {
-                                source: !root.is_tri_mode ? @image-url("../../assets/icons/lock.svg") : @image-url("../../assets/icons/zap-off.svg");
+                                source: (!root.is_thin_and_light && !root.is_tri_mode) ? @image-url("../../assets/icons/lock.svg") : @image-url("../../assets/icons/zap-off.svg");
                                 width: 15px;
                                 height: 15px;
-                                colorize: !root.is_tri_mode ? #f59e0b : #34d399;
+                                colorize: (!root.is_thin_and_light && !root.is_tri_mode) ? #f59e0b : #34d399;
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
                             }
                         }
 
-                        if !root.is_tri_mode: Rectangle {
+                        if !root.is_thin_and_light && !root.is_tri_mode: Rectangle {
                             height: 20px;
                             border-radius: 4px;
                             background: #f59e0b1a;
@@ -379,7 +444,7 @@ export component MuxSwitchCard inherits Rectangle {
                             }
                         }
 
-                        if root.is_tri_mode && root.gpu_mode == "igpu": Rectangle {
+                        if root.is_thin_and_light || (root.is_tri_mode && root.gpu_mode == "igpu"): Rectangle {
                             height: 20px;
                             border-radius: 4px;
                             background: #10b98125;
@@ -389,7 +454,7 @@ export component MuxSwitchCard inherits Rectangle {
                                 padding-left: 6px;
                                 padding-right: 6px;
                                 Text {
-                                    text: "✔ 硬件生效中";
+                                    text: root.is_thin_and_light ? "✔ 原生核显直驱" : "✔ 硬件生效中";
                                     font-size: 9.5px;
                                     font-weight: 700;
                                     color: #34d399;
@@ -400,9 +465,11 @@ export component MuxSwitchCard inherits Rectangle {
                     }
 
                     Text {
-                        text: root.is_tri_mode ?
-                            "彻底切断独显供电与 PCIe 供电链路开关，消除独显待机功耗，超长离电续航。" :
-                            "当前模具硬件为双模架构，无物理核显直连开关。已锁定保护以彻底防止开机黑屏死锁。";
+                        text: root.is_thin_and_light ?
+                            "图形与屏幕显示由 CPU 内建核心显卡直接接管，无独显与 MUX 开销，享有极高续航。" :
+                            (root.is_tri_mode ?
+                                "彻底切断独显供电与 PCIe 供电链路开关，消除独显待机功耗，超长离电续航。" :
+                                "当前模具硬件为双模架构，无物理核显直连开关。已锁定保护以彻底防止开机黑屏死锁。");
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                         wrap: word-wrap;
@@ -411,22 +478,22 @@ export component MuxSwitchCard inherits Rectangle {
                     Rectangle {
                         height: 28px;
                         border-radius: 5px;
-                        background: !root.is_tri_mode ? AppTheme.surface_pill : (root.gpu_mode == "igpu" ? #10b981 : AppTheme.surface_card);
+                        background: (!root.is_thin_and_light && !root.is_tri_mode) ? AppTheme.surface_pill : ((root.is_thin_and_light || root.gpu_mode == "igpu") ? #10b981 : AppTheme.surface_card);
                         border-width: 1px;
-                        border-color: !root.is_tri_mode ? AppTheme.border_subtle : (root.gpu_mode == "igpu" ? #10b981 : AppTheme.border_subtle);
+                        border-color: (!root.is_thin_and_light && !root.is_tri_mode) ? AppTheme.border_subtle : ((root.is_thin_and_light || root.gpu_mode == "igpu") ? #10b981 : AppTheme.border_subtle);
                         TouchArea {
-                            mouse-cursor: root.is_tri_mode ? pointer : not-allowed;
+                            mouse-cursor: (!root.is_thin_and_light && !root.is_tri_mode) ? not-allowed : pointer;
                             clicked => {
-                                if (root.is_tri_mode && root.gpu_mode != "igpu") {
+                                if (!root.is_thin_and_light && root.is_tri_mode && root.gpu_mode != "igpu") {
                                     root.request_mode_switch("igpu", "纯集显模式 (iGPU)");
                                 }
                             }
                         }
                         Text {
-                            text: root.is_tri_mode ? "核显模式" : "核显模式 (双模锁定)";
+                            text: root.is_thin_and_light ? "原生核显直出" : (root.is_tri_mode ? "核显模式" : "核显模式 (双模锁定)");
                             font-size: 11px;
                             font-weight: 700;
-                            color: !root.is_tri_mode ? AppTheme.text_muted : (root.gpu_mode == "igpu" ? #000000 : AppTheme.text_primary);
+                            color: (!root.is_thin_and_light && !root.is_tri_mode) ? AppTheme.text_muted : ((root.is_thin_and_light || root.gpu_mode == "igpu") ? #000000 : AppTheme.text_primary);
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }

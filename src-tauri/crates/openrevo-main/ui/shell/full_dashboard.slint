@@ -46,6 +46,7 @@ export component FullDashboard inherits Rectangle {
     in-out property <bool> is_tuning_enabled: true;
     in-out property <bool> is_lighting_enabled: true;
     in-out property <bool> is_water_enabled: true;
+    in-out property <bool> is_thin_and_light: false;
     in-out property <[CustomPluginItem]> custom_plugins: [];
     in-out property <string> active_plugin_id: "";
     in-out property <[PluginItemData]> plugin_items: [];
@@ -948,6 +949,7 @@ export component FullDashboard inherits Rectangle {
                 is_tri_mode: root.is_tri_mode;
                 is_safety_locked: root.is_safety_locked;
                 is_intel: root.is_intel;
+                is_thin_and_light: root.is_thin_and_light;
                 igpu_lock_reason: root.igpu_lock_reason;
                 gpu_name: root.gpu_name;
                 cpu_name: root.cpu_name;

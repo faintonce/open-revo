@@ -368,11 +368,18 @@ pub fn sync_slint_display_state() {
         caps.supports_igpu_only
     };
     let is_intel = caps.platform != "amd";
+    let is_thin_and_light = crate::commands::power_cmd::is_thin_and_light_or_pure_igpu();
     let cfg = crate::system::config::load_config();
+    let effective_gpu_mode = if is_thin_and_light {
+        "igpu"
+    } else {
+        &cfg.gpu_mode
+    };
 
     send_slint_ipc_message(serde_json::json!({
         "action": "sync_display_state",
-        "gpu_mode": cfg.gpu_mode,
+        "gpu_mode": effective_gpu_mode,
+        "is_thin_and_light": is_thin_and_light,
         "is_tri_mode": is_tri_mode,
         "is_safety_locked": caps.is_safety_locked,
         "is_intel": is_intel,

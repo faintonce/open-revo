@@ -131,6 +131,10 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
   const [geekConfirmedRisk, setGeekConfirmedRisk] = React.useState(false);
 
   const handleInternalCardClick = (mode: 'dgpu' | 'hybrid' | 'igpu') => {
+    if (!hasPhysicalDgpu) {
+      // 纯核显轻薄本架构，无板载独显硬件通道
+      return;
+    }
     if (mode === 'igpu' && isSafetyLocked && !isUserUnlocked) {
       setShowGeekUnlockModal(true);
       return;
@@ -378,57 +382,99 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
       {/* Notice banner */}
       {notice && <NoticeBanner notice={notice} onClose={onDismissNotice} />}
 
-      {/* 3 Mode Cards (Only displayed when physical discrete GPU & MUX exist) */}
-      {hasDgpu ? (
+      {/* 3 Mode Cards (Unified for MUX laptops & Pure iGPU Ultrabooks) */}
+      {hasDgpu || !hasPhysicalDgpu ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
-        {/* dGPU */}
+        {/* dGPU (轻薄本反向锁定) */}
         {renderCard('dgpu', {
-          accentColor: '#3b82f6',
-          accentRgb: '59,130,246',
-          iconColor: '#60a5fa',
-          iconEl: <Zap className="w-4 h-4 text-blue-400 mb-0.5" />,
-          chipLabel: 'dGPU',
-          desc: '独立显卡物理直连内置屏幕。避开核显中转，发挥极致电竞帧率与超低延迟。',
-          titleText: '独显直连',
-          isActive: hasDgpu && gpuInfo.current_mode === 'dgpu',
-          isDisabled: !hasDgpu,
+          accentColor: !hasPhysicalDgpu ? '#f59e0b' : '#3b82f6',
+          accentRgb: !hasPhysicalDgpu ? '245,158,11' : '59,130,246',
+          iconColor: !hasPhysicalDgpu ? '#f59e0b' : '#60a5fa',
+          iconEl: !hasPhysicalDgpu
+            ? <Lock className="w-4 h-4 text-amber-400 mb-0.5" />
+            : <Zap className="w-4 h-4 text-blue-400 mb-0.5" />,
+          chipLabel: !hasPhysicalDgpu ? 'LOCK' : 'dGPU',
+          desc: !hasPhysicalDgpu
+            ? '当前机型为轻薄本架构，未搭载独立显卡硬件，独显直连通道不可用。'
+            : '独立显卡物理直连内置屏幕。避开核显中转，发挥极致电竞帧率与超低延迟。',
+          titleText: !hasPhysicalDgpu ? '独显直连 (无硬件)' : '独显直连',
+          isActive: hasPhysicalDgpu && gpuInfo.current_mode === 'dgpu',
+          isDisabled: !hasPhysicalDgpu || !hasDgpu,
+          disabledBadge: !hasPhysicalDgpu ? (
+            <div
+              className="gpu-mode-disabled-badge"
+              style={{
+                position: 'absolute', top: '10px', right: '10px',
+                display: 'flex', alignItems: 'center', gap: '4px',
+                fontSize: '9px', fontWeight: 700,
+                color: '#f59e0b', background: 'rgba(245,158,11,0.15)',
+                padding: '2px 7px', borderRadius: '4px',
+                border: '1px solid rgba(245,158,11,0.3)',
+              }}
+              title="当前机型为轻薄本架构，无物理独立显卡"
+            >
+              <Lock className="w-3 h-3 text-amber-400" />
+              <span>轻薄本锁定</span>
+            </div>
+          ) : undefined,
           activeBadgeColor: '#38bdf8',
           activeBadgeText: '硬件生效中',
         })}
 
-        {/* Hybrid */}
+        {/* Hybrid (轻薄本反向锁定) */}
         {renderCard('hybrid', {
-          accentColor: '#a855f7',
-          accentRgb: '168,85,247',
-          iconColor: '#c084fc',
-          iconEl: <Layers className="w-4 h-4 text-purple-400 mb-0.5" />,
-          chipLabel: 'HYBRID',
-          desc: '轻载时核显输出以省电静音，高负载 3D 图形与游戏时自动介入独显加速。',
-          titleText: '混合输出',
-          isActive: hasDgpu && gpuInfo.current_mode === 'hybrid',
-          isDisabled: !hasDgpu,
+          accentColor: !hasPhysicalDgpu ? '#f59e0b' : '#a855f7',
+          accentRgb: !hasPhysicalDgpu ? '245,158,11' : '168,85,247',
+          iconColor: !hasPhysicalDgpu ? '#f59e0b' : '#c084fc',
+          iconEl: !hasPhysicalDgpu
+            ? <Lock className="w-4 h-4 text-amber-400 mb-0.5" />
+            : <Layers className="w-4 h-4 text-purple-400 mb-0.5" />,
+          chipLabel: !hasPhysicalDgpu ? 'LOCK' : 'HYBRID',
+          desc: !hasPhysicalDgpu
+            ? '当前机型为纯核显直驱架构，无外部独立显卡介入加速，混合通道不可用。'
+            : '轻载时核显输出以省电静音，高负载 3D 图形与游戏时自动介入独显加速。',
+          titleText: !hasPhysicalDgpu ? '混合输出 (无硬件)' : '混合输出',
+          isActive: hasPhysicalDgpu && gpuInfo.current_mode === 'hybrid',
+          isDisabled: !hasPhysicalDgpu || !hasDgpu,
+          disabledBadge: !hasPhysicalDgpu ? (
+            <div
+              className="gpu-mode-disabled-badge"
+              style={{
+                position: 'absolute', top: '10px', right: '10px',
+                display: 'flex', alignItems: 'center', gap: '4px',
+                fontSize: '9px', fontWeight: 700,
+                color: '#f59e0b', background: 'rgba(245,158,11,0.15)',
+                padding: '2px 7px', borderRadius: '4px',
+                border: '1px solid rgba(245,158,11,0.3)',
+              }}
+              title="当前机型为轻薄本架构，无物理独立显卡"
+            >
+              <Lock className="w-3 h-3 text-amber-400" />
+              <span>轻薄本锁定</span>
+            </div>
+          ) : undefined,
           activeBadgeColor: '#c084fc',
           activeBadgeText: '硬件生效中',
         })}
 
-        {/* iGPU */}
+        {/* iGPU (轻薄本原生生效 / 双模机型安全锁定) */}
         {renderCard('igpu', {
-          accentColor: hasDgpu && !isTriModeSupported ? '#f59e0b' : '#10b981',
-          accentRgb: hasDgpu && !isTriModeSupported ? '245,158,11' : '16,185,129',
-          iconColor: hasDgpu && !isTriModeSupported ? '#f59e0b' : '#34d399',
-          iconEl: hasDgpu && !isTriModeSupported
+          accentColor: hasPhysicalDgpu && !isTriModeSupported ? '#f59e0b' : '#10b981',
+          accentRgb: hasPhysicalDgpu && !isTriModeSupported ? '245,158,11' : '16,185,129',
+          iconColor: hasPhysicalDgpu && !isTriModeSupported ? '#f59e0b' : '#34d399',
+          iconEl: hasPhysicalDgpu && !isTriModeSupported
             ? <ShieldAlert className="w-4 h-4 text-amber-400 mb-0.5" />
             : <PowerOff className="w-4 h-4 text-emerald-400 mb-0.5" />,
-          chipLabel: hasDgpu && !isTriModeSupported ? 'LOCK' : 'iGPU',
-          desc: !hasDgpu
-            ? '原生高能效核显架构。彻底无独显与 MUX 功耗开销，实现极致低发热与超长电池续航。'
+          chipLabel: hasPhysicalDgpu && !isTriModeSupported ? 'LOCK' : 'iGPU',
+          desc: !hasPhysicalDgpu
+            ? '原生高能效核显架构。图形与屏幕显示由内建核心显卡直出，无独显与 MUX 开销，享有极高续航。'
             : (!isTriModeSupported
                 ? '当前模具硬件为双模架构，无物理核显直连开关。已锁定保护以彻底防止开机黑屏死锁。'
                 : '彻底切断独立显卡 PCIe 供电与待机功耗，极致降低整机能耗与发热，极大提升续航。'),
-          titleText: !hasDgpu ? '原生核显架构' : (!isTriModeSupported ? '核显模式 (双模锁定)' : '核显模式'),
-          isActive: !hasDgpu || (isTriModeSupported && gpuInfo.current_mode === 'igpu'),
-          isDisabled: hasDgpu && !isTriModeSupported,
-          disabledBadge: hasDgpu && !isTriModeSupported ? (
+          titleText: !hasPhysicalDgpu ? '原生核显直出' : (!isTriModeSupported ? '核显模式 (双模锁定)' : '核显模式'),
+          isActive: !hasPhysicalDgpu || (isTriModeSupported && gpuInfo.current_mode === 'igpu'),
+          isDisabled: hasPhysicalDgpu && !isTriModeSupported,
+          disabledBadge: hasPhysicalDgpu && !isTriModeSupported ? (
             <div
               className="gpu-mode-disabled-badge"
               style={{
@@ -449,7 +495,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
               <Lock className="w-3 h-3 text-amber-400" />
               <span>双模保护锁定</span>
             </div>
-          ) : (hasDgpu && isSafetyLocked && isUserUnlocked ? (
+          ) : (hasPhysicalDgpu && isSafetyLocked && isUserUnlocked ? (
             <div
               style={{
                 position: 'absolute', top: '10px', right: '10px',
@@ -471,10 +517,11 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
             </div>
           ) : undefined),
           activeBadgeColor: '#34d399',
-          activeBadgeText: !hasDgpu ? '纯核显原生运行中' : '硬件生效中',
+          activeBadgeText: !hasPhysicalDgpu ? '原生核显生效中' : '硬件生效中',
         })}
       </div>
-    ) : hasPhysicalDgpu ? (
+    ) : (
+      /* 仅适用于搭载物理独显但主板完全无物理 MUX 切换芯片的老式 Optimus 机型 */
       <div
         className="sys-sub-panel"
         style={{
@@ -536,27 +583,6 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
           }}
         >
           无物理 MUX 开关 (自动协同)
-        </div>
-      </div>
-    ) : (
-      <div
-        className="sys-sub-panel"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          borderRadius: 'var(--radius-lg)',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            原生纯核显高能效架构
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: 1.5 }}>
-            当前机型为轻薄本架构，无板载独立显卡与物理 MUX 切换芯片，图形与屏幕显示由 CPU 内建核心显卡直出，已永久处于核显低功耗模式，无需切换。下方屏幕亮度控制、色彩增强与 ICC 校色功能均可正常使用。
-          </div>
         </div>
       </div>
     )}

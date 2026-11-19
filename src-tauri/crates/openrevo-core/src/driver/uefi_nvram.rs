@@ -604,6 +604,25 @@ pub fn probe_gpu_capabilities() -> GpuCapabilities {
         (name, has_physical_dgpu)
     };
 
+    // Fast-path: Ultrabook / Thin-and-light pure iGPU platform guard
+    if crate::system::power::status::is_thin_and_light_or_pure_igpu() {
+        return GpuCapabilities {
+            supports_dgpu: false,
+            supports_hybrid: false,
+            supports_igpu_only: false,
+            reason_igpu_unsupported: Some("当前机型为纯核显轻薄架构（无物理独立显卡与 MUX 切换芯片），无需且不支持显卡模式切换。".to_string()),
+            platform: if is_amd { "amd".to_string() } else { "intel".to_string() },
+            is_50_series: false,
+            is_30_series: false,
+            baseboard: baseboard.clone(),
+            gpu_name: gpu_name.clone(),
+            is_safety_locked: false,
+            user_unlocked: false,
+            supports_hotswitch: false,
+            acpi_igpu_active: false,
+        };
+    }
+
     // 0. Declarative Driver Contract First (Level 0 Architecture - e.g. Baolongda Jiaolong 16 Pro)
     if let Some(manifest) = crate::hal::declarative::load_matched_manifest() {
         let platform_str = manifest.capabilities.cpu_vendor.clone().unwrap_or_else(|| if is_amd { "amd".to_string() } else { "intel".to_string() });
