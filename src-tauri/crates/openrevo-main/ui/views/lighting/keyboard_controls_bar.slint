@@ -6,7 +6,8 @@ export component KeyboardControlsBar inherits Rectangle {
     in property <bool> is_four_zone: false;
     in-out property <int> kb_direction: 0; // 0: Right, 1: Left, 2: Up, 3: Down
     in-out property <int> kb_brightness: 3; // 0..4
-    in-out property <int> kb_speed: 2; // 0..4
+    in-out property <int> kb_speed: 2; // 0..kb_speed_max
+    in-out property <int> kb_speed_max: 4; // 后端下发：单区 EC 8 档 -> 7
 
     callback select_direction(int);
     callback change_brightness(int);
@@ -244,7 +245,7 @@ export component KeyboardControlsBar inherits Rectangle {
                     }
                 }
                 Text {
-                    text: (root.kb_speed + 1) + " 档 (适中)";
+                    text: (root.kb_speed + 1) + " / " + (root.kb_speed_max + 1) + " 档";
                     font-size: 10px;
                     font-weight: 700;
                     color: #06b6d4;
@@ -268,7 +269,7 @@ export component KeyboardControlsBar inherits Rectangle {
                     Rectangle {
                         x: 0;
                         y: 0;
-                        width: Math.max(0px, (root.kb_speed / 4.0) * parent.width);
+                        width: Math.max(0px, (root.kb_speed / Math.max(1.0, root.kb_speed_max * 1.0)) * parent.width);
                         height: parent.height;
                         background: #06b6d4;
                         border-radius: 2px;
@@ -277,7 +278,7 @@ export component KeyboardControlsBar inherits Rectangle {
 
                 // Knob
                 Rectangle {
-                    x: Math.max(0px, Math.min(parent.width - self.width, (root.kb_speed / 4.0) * parent.width - self.width / 2));
+                    x: Math.max(0px, Math.min(parent.width - self.width, (root.kb_speed / Math.max(1.0, root.kb_speed_max * 1.0)) * parent.width - self.width / 2));
                     y: (parent.height - self.height) / 2;
                     width: 12px;
                     height: 12px;
@@ -290,14 +291,14 @@ export component KeyboardControlsBar inherits Rectangle {
                     pointer-event(event) => {
                         if event.kind == PointerEventKind.down {
                             let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
-                            let val = Math.round(ratio * 4.0);
+                            let val = Math.round(ratio * root.kb_speed_max);
                             root.kb_speed = val;
                             root.change_speed(val);
                         }
                     }
                     moved => {
                         let ratio = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
-                        let val = Math.round(ratio * 4.0);
+                        let val = Math.round(ratio * root.kb_speed_max);
                         if val != root.kb_speed {
                             root.kb_speed = val;
                             root.change_speed(val);

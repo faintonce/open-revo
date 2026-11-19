@@ -614,6 +614,12 @@ pub fn sync_slint_lighting_state() {
         "hardware_type": hw.hardware_type,
         "is_four_zone": is_four_zone,
         "is_single_zone": is_single_zone,
+        // 单区走 EC 8 档节拍表，其余（4区/逐键）仍是 5 档；上限由后端给，界面不写死
+        "kb_speed_max": if is_single_zone {
+            crate::driver::lighting::ec_cycle_speed_levels() as i32 - 1
+        } else {
+            4
+        },
         "is_single_color": is_single_color,
     }));
 }
