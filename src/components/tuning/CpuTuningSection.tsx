@@ -4,8 +4,13 @@ import { BiosMenuStatus } from '../../types/hardware';
 import { CpuPlSliderRow } from './CpuPlSliderRow';
 import { CpuBiosOcRow } from './CpuBiosOcRow';
 import { HardwareTelemetryBar } from './HardwareTelemetryBar';
+import { CpuPowerLimits, resolveCpuPowerLimits } from './cpuPowerLimits';
+import { PowerAssessment, PowerSafetySnapshot } from './powerSafety';
 
 export interface CpuTuningSectionProps {
+  powerEditContext?: string;
+  powerSafetySnapshot?: PowerSafetySnapshot | null;
+  onAssessPowerChange?: (limit: keyof CpuPowerLimits, target: number, confirmed?: boolean) => Promise<PowerAssessment>;
   cpuTemp: number;
   cpuFanRpm?: number;
   cpuPowerW?: number;
@@ -53,6 +58,9 @@ export interface CpuTuningSectionProps {
 }
 
 export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
+  powerEditContext,
+  powerSafetySnapshot,
+  onAssessPowerChange,
   cpuTemp,
   cpuFanRpm,
   cpuPowerW,
@@ -103,6 +111,17 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
   }, [cpuVendor, cpuTuningType]);
 
   const isCpuTuningDisabled = cpuTuningType === 'none';
+  const editContext = JSON.stringify([powerEditContext, pl1, pl2, pl4, minPl, maxPl1, maxPl2, maxPl4, pl4Margin]);
+  const previewPowerChange = (limit: keyof CpuPowerLimits, target: number) => {
+    const current = { pl1, pl2, pl4 };
+    const next = resolveCpuPowerLimits(current, limit, target, pl4Margin);
+    const labels = isAmdPlatform
+      ? { pl1: '持续 SPL', pl2: '爆发 sPPT', pl4: '峰值 fPPT' }
+      : { pl1: '长时 PL1', pl2: '短时 PL2', pl4: '峰值 PL4' };
+    return (['pl1', 'pl2', 'pl4'] as const)
+      .filter((key) => current[key] !== next[key])
+      .map((key) => ({ label: labels[key], current: current[key], target: next[key] }));
+  };
 
   return (
     <div className="tuning-card">
@@ -112,6 +131,18 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
           <Cpu className="w-4 h-4" />
           <span>{isAmdPlatform ? 'AMD CPU 功耗与温控' : 'CPU 功耗与温控'}</span>
         </div>
+      </div>
+
+      <div className="tuning-power-safety-status" role="status">
+        <strong>智能功率保护</strong>
+        <span>输入完成后，常规调整直接生效，高风险变更二次确认。</span>
+        {powerSafetySnapshot?.ready ? (
+          <span>
+            近期负载 {powerSafetySnapshot.load_pct?.toFixed(0) ?? '—'}% · 温度 {powerSafetySnapshot.temperature_c?.toFixed(0) ?? '—'}°C
+            {' · '}{powerSafetySnapshot.power_source === 'measured' ? '实测' : powerSafetySnapshot.power_source === 'estimated' ? '估算' : '暂无'}功耗
+            {' '}{powerSafetySnapshot.power_p95_w?.toFixed(1) ?? '—'}W
+          </span>
+        ) : <span>正在积累近期数据，原厂范围与大幅变化保护已启用。</span>}
       </div>
 
       {/* Disabled Banner on Thin & Light Laptops */}
@@ -265,6 +296,10 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
         hint={isAmdPlatform ? '等效 PL1' : undefined}
         tooltip={isAmdPlatform ? 'AMD Sustained Power Limit (持续稳定功耗，等效 Intel PL1)' : 'Intel Long Duration Power Limit (PL1)'}
         value={pl1}
+        editContext={editContext}
+        previewChange={(target) => previewPowerChange('pl1', target)}
+        assessChange={onAssessPowerChange && ((target, confirmed) => onAssessPowerChange('pl1', target, confirmed))}
+        disabled={isCpuTuningDisabled}
         onChange={onChangePl1}
         min={minPl}
         max={maxPl1}
@@ -280,6 +315,10 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
         hint={isAmdPlatform ? '等效 PL2' : undefined}
         tooltip={isAmdPlatform ? 'AMD Slow Package Power Tracking (通常持续 28 秒的高负荷爆发功耗，等效 Intel PL2)' : 'Intel Short Duration Power Limit (PL2)'}
         value={pl2}
+        editContext={editContext}
+        previewChange={(target) => previewPowerChange('pl2', target)}
+        assessChange={onAssessPowerChange && ((target, confirmed) => onAssessPowerChange('pl2', target, confirmed))}
+        disabled={isCpuTuningDisabled}
         onChange={onChangePl2}
         min={minPl}
         max={maxPl2}
@@ -300,8 +339,11 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                 : 'AMD Fast Package Power Tracking (微秒级瞬时电感电流限制，等效 Intel PL4)')
             : 'Intel Peak Power Limit (PL4)'
         }
-        disabled={isAmdPlatform && !cpuSupportsFppt}
+        disabled={isCpuTuningDisabled || (isAmdPlatform && !cpuSupportsFppt)}
         value={pl4}
+        editContext={editContext}
+        previewChange={(target) => previewPowerChange('pl4', target)}
+        assessChange={onAssessPowerChange && ((target, confirmed) => onAssessPowerChange('pl4', target, confirmed))}
         onChange={onChangePl4}
         min={minPl + pl4Margin}
         max={maxPl4}

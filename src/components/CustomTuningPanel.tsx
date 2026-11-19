@@ -14,6 +14,8 @@ import { ModelCapabilities } from '../plugins/plugin_manifest';
 import { FanCurveEditor } from './tuning/FanCurveEditor';
 import { TuningToolbar } from './tuning/TuningToolbar';
 import { CpuTuningSection } from './tuning/CpuTuningSection';
+import { CpuPowerLimits, resolveCpuPowerLimits } from './tuning/cpuPowerLimits';
+import { PowerAssessment, PowerSafetySnapshot } from './tuning/powerSafety';
 import { GpuTuningSection } from './tuning/GpuTuningSection';
 import { BldFanStrategyPanel } from './tuning/BldFanStrategyPanel';
 
@@ -121,6 +123,20 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const appConfigRef = useRef<AppConfig | null>(null);
   appConfigRef.current = appConfig;
   const [gpuCaps, setGpuCaps] = useState<GpuTuningCapabilities | null>(null);
+  const [powerSafetySnapshot, setPowerSafetySnapshot] = useState<PowerSafetySnapshot | null>(null);
+  const powerEditContext = `${activeProfileId}:${status.power_mode}:${status.is_dc_online}`;
+
+  // Reuse the existing hardware heartbeat; this IPC reads only in-memory statistics.
+  useEffect(() => {
+    let cancelled = false;
+    invoke<PowerSafetySnapshot>('get_cpu_power_safety_snapshot', {
+      context: powerEditContext,
+      current: { pl1: profile.cpu_pl1_watts, pl2: profile.cpu_pl2_watts, pl4: profile.cpu_pl4_watts },
+      temperatureLimitC: profile.cpu_temp_target_enabled ? profile.cpu_temp_target : 100,
+    }).then((snapshot) => { if (!cancelled) setPowerSafetySnapshot(snapshot); })
+      .catch(() => { if (!cancelled) setPowerSafetySnapshot(null); });
+    return () => { cancelled = true; };
+  }, [status, powerEditContext, profile.cpu_pl1_watts, profile.cpu_pl2_watts, profile.cpu_pl4_watts, profile.cpu_temp_target_enabled, profile.cpu_temp_target]);
 
   const isDirectRpmFan = capabilities?.fan_boost_mode === 'direct_rpm_clamp' || modelCaps?.fan_boost_mode === 'direct_rpm_clamp';
 
@@ -661,47 +677,56 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   }, [turboPl1, turboPl2, turboPl4, pl1Offset, pl2Offset, pl4Offset, appConfig?.cpu_pl1_max, appConfig?.cpu_pl2_max, appConfig?.cpu_pl4_max]);
 
   // PL1 change auto pushes PL2 and PL4 up if exceeded
+  const assessPowerChange = (limit: keyof CpuPowerLimits, target: number, confirmed = false): Promise<PowerAssessment> => {
+    const current = { pl1: profile.cpu_pl1_watts, pl2: profile.cpu_pl2_watts, pl4: profile.cpu_pl4_watts };
+    return invoke('assess_cpu_power_change', { request: {
+      context: powerEditContext, current, confirmed,
+      proposed: resolveCpuPowerLimits(current, limit, target, pl4Margin),
+      factory: { pl1: turboPl1, pl2: turboPl2, pl4: turboPl4 },
+      factory_verified: presets?.hardware_read === true,
+      office_pl1: presets?.office_pl1 ?? minPl,
+      minimum_pl1: minPl, margin: pl4Margin,
+      temperature_limit_c: profile.cpu_temp_target_enabled ? Math.min(nativeTjMax, profile.cpu_temp_target) : nativeTjMax,
+    } });
+  };
+
   const handlePl1Change = (rawVal: number) => {
     const val = Math.max(minPl, Math.min(maxPl1, rawVal));
-    const nextPl2 = Math.max(val, profile.cpu_pl2_watts);
-    const nextPl4 = Math.max(nextPl2 + pl4Margin, profile.cpu_pl4_watts);
+    const next = resolveCpuPowerLimits({ pl1: profile.cpu_pl1_watts, pl2: profile.cpu_pl2_watts, pl4: profile.cpu_pl4_watts }, 'pl1', val, pl4Margin);
     setProfile((prev) => ({
       ...prev,
-      cpu_pl1_watts: val,
-      cpu_pl2_watts: nextPl2,
-      cpu_pl4_watts: nextPl4,
+      cpu_pl1_watts: next.pl1,
+      cpu_pl2_watts: next.pl2,
+      cpu_pl4_watts: next.pl4,
     }));
-    triggerLiveTweak({ pl1: val, pl2: nextPl2, pl4: nextPl4 });
+    triggerLiveTweak(next);
   };
 
   // PL2 change pulls PL1 down if PL2 < PL1, and pushes PL4 up to preserve >= pl4Margin transient buffer
   const handlePl2Change = (rawVal: number) => {
     const val = Math.max(minPl, Math.min(maxPl2, rawVal));
-    const nextPl1 = Math.min(val, profile.cpu_pl1_watts);
-    const nextPl4 = Math.max(val + pl4Margin, profile.cpu_pl4_watts);
+    const next = resolveCpuPowerLimits({ pl1: profile.cpu_pl1_watts, pl2: profile.cpu_pl2_watts, pl4: profile.cpu_pl4_watts }, 'pl2', val, pl4Margin);
     setProfile((prev) => ({
       ...prev,
-      cpu_pl1_watts: nextPl1,
-      cpu_pl2_watts: val,
-      cpu_pl4_watts: nextPl4,
+      cpu_pl1_watts: next.pl1,
+      cpu_pl2_watts: next.pl2,
+      cpu_pl4_watts: next.pl4,
     }));
-    triggerLiveTweak({ pl1: nextPl1, pl2: val, pl4: nextPl4 });
+    triggerLiveTweak(next);
   };
 
   // PL4 change: ensures PL4 is at least PL2 + pl4Margin (hardware transient safety buffer).
   // If user forces PL4 lower, smoothly pull PL2 (and PL1) down to keep PL2 <= PL4 - pl4Margin.
   const handlePl4Change = (rawVal: number) => {
     const val = Math.max(minPl + pl4Margin, Math.min(maxPl4, rawVal));
-    const maxAllowedPl2 = Math.max(minPl, val - pl4Margin);
-    const nextPl2 = Math.min(maxAllowedPl2, profile.cpu_pl2_watts);
-    const nextPl1 = Math.min(nextPl2, profile.cpu_pl1_watts);
+    const next = resolveCpuPowerLimits({ pl1: profile.cpu_pl1_watts, pl2: profile.cpu_pl2_watts, pl4: profile.cpu_pl4_watts }, 'pl4', val, pl4Margin);
     setProfile((prev) => ({
       ...prev,
-      cpu_pl1_watts: nextPl1,
-      cpu_pl2_watts: nextPl2,
-      cpu_pl4_watts: val,
+      cpu_pl1_watts: next.pl1,
+      cpu_pl2_watts: next.pl2,
+      cpu_pl4_watts: next.pl4,
     }));
-    triggerLiveTweak({ pl1: nextPl1, pl2: nextPl2, pl4: val });
+    triggerLiveTweak(next);
   };
 
   const handleAdjustMaxPl1 = (delta: number) => {
@@ -986,6 +1011,9 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', flex: 1 }}>
             {/* Column 1: CPU Power & Temperature */}
             <CpuTuningSection
+            powerEditContext={powerEditContext}
+            powerSafetySnapshot={powerSafetySnapshot}
+            onAssessPowerChange={assessPowerChange}
             cpuTemp={status.cpu_temp}
             cpuFanRpm={status.cpu_fan_rpm}
             cpuPowerW={status.cpu_power_w}
