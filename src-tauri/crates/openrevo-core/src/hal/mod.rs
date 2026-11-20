@@ -12,7 +12,10 @@ pub mod vault;
 pub use declarative::DeclarativeHardwareDriver;
 pub use driver_impl::MechrevoHALImpl;
 pub use mock::MockHAL;
-pub use platform_probe::{get_chassis_architecture_tier, ChassisArchitectureTier, PlatformChannelKind};
+pub use platform_probe::{
+    get_chassis_architecture_tier, is_legacy_pascal_turing_tongfang, ChassisArchitectureTier,
+    PlatformChannelKind,
+};
 pub use traits::*;
 
 use std::sync::OnceLock;

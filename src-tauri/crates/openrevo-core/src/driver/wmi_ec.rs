@@ -415,6 +415,9 @@ pub fn is_fan_boost_active() -> bool {
 /// Hardware Truth: Probes whether this platform uses the Legacy Dual-Mode EC architecture
 /// (e.g. GK / GM5T series chassis, RTX 30-series / 20-series / 10-series, full-byte FanBoost clamp 0x50/0x10).
 /// Centrally signed by Chassis Architecture Tier.
+/// NOTE: This helper is specifically for FanBoost clamp (0x50/0x10) and legacy fallbacks.
+/// DO NOT use this to gate RamFan1p5 table injection! 30-series (DualModeAmpere) fully supports
+/// RamFan1p5. Only 10/20-series (is_legacy_pascal_turing_tongfang) lacks RamFan1p5.
 pub fn is_legacy_dual_mode_ec() -> bool {
     matches!(
         crate::hal::platform_probe::get_chassis_architecture_tier(),

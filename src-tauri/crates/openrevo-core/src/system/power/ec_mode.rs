@@ -195,7 +195,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x83);
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Silent Fan Table
-            if !wmi_ec::is_legacy_dual_mode_ec() {
+            if !crate::hal::is_legacy_pascal_turing_tongfang() {
                 apply_mode_fan_table(1);
             }
         }
@@ -279,7 +279,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x83);
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Balanced Gaming Fan Table
-            if !wmi_ec::is_legacy_dual_mode_ec() {
+            if !crate::hal::is_legacy_pascal_turing_tongfang() {
                 apply_mode_fan_table(2);
             }
         }
@@ -364,7 +364,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             wmi_ec::wmi_write_ec(wmi_ec::ADDR_FAN_RAMP_RATE, 0x00);
             wmi_ec::set_fan_isolated_output(false);
             // 7. Apply Turbo Fan Table
-            if !wmi_ec::is_legacy_dual_mode_ec() {
+            if !crate::hal::is_legacy_pascal_turing_tongfang() {
                 apply_mode_fan_table(3);
             }
 
@@ -558,8 +558,8 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                 // 单通道机型 UI 上没有「启用曲线」开关，面板里显示的那条曲线就是用户意图，
                 // 所以这里把 linked_channels 也算作启用，避免切一次模式就退回固件表。
                 if profile.fan_isolated_output || profile.fan_curve_enabled || linked_channels {
-                    if wmi_ec::is_legacy_dual_mode_ec() {
-                        crate::log_warn!("POWER_MODE", "Legacy Dual-Mode chassis does not support RamFan1p5 RAM curve injection, bypassing to protect fan FSM");
+                    if crate::hal::is_legacy_pascal_turing_tongfang() {
+                        crate::log_warn!("POWER_MODE", "Legacy Pascal/Turing chassis does not support RamFan1p5 RAM curve injection, bypassing to protect fan FSM");
                     } else {
                         // 独立通道机型：Assert ADDR_FAN_ISOLATED Bit 7（主副扇各走各的表）
                         // 联动通道机型：保持清除，副扇继续跟随 CPU 表
@@ -581,7 +581,7 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
                         );
                     }
                 } else {
-                    if !wmi_ec::is_legacy_dual_mode_ec() {
+                    if !crate::hal::is_legacy_pascal_turing_tongfang() {
                         wmi_ec::set_fan_isolated_output(false);
                         apply_mode_fan_table(3);
                     }

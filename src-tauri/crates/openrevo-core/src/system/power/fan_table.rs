@@ -68,10 +68,11 @@ pub fn apply_mode_fan_table(ui_mode: u8) {
         crate::log_info!("POWER_MODE", "apply_mode_fan_table: fan boost is active, skipping fan table write to preserve full fan speed");
         return;
     }
-    // Ground Truth: Legacy dual-mode chassis (e.g. GK5 / 10-series / 20-series) strictly uses
+    // Ground Truth: Legacy Pascal/Turing chassis (e.g. GK5 / 10-series / 20-series) strictly uses
     // internal EC ROM fan curves. Injecting RAM fan tables corrupts the legacy fan state machine!
-    if crate::driver::wmi_ec::is_legacy_dual_mode_ec() {
-        crate::log_info!("POWER_MODE", "apply_mode_fan_table: Legacy Dual-Mode chassis detected, yielding to native EC firmware fan curve");
+    // Note: 30-series (DualModeAmpere) fully supports RamFan1p5 and must NOT be bypassed.
+    if crate::hal::is_legacy_pascal_turing_tongfang() {
+        crate::log_info!("POWER_MODE", "apply_mode_fan_table: Legacy Pascal/Turing chassis detected, yielding to native EC firmware fan curve");
         return;
     }
     let table = get_mode_fan_table(ui_mode);
@@ -207,8 +208,8 @@ pub fn build_custom_fan_table(
 pub fn apply_fan_table_to_ec(table: &FanTableData) {
     use crate::driver::wmi_ec;
 
-    if wmi_ec::is_legacy_dual_mode_ec() {
-        crate::log_warn!("POWER_MODE", "apply_fan_table_to_ec: Legacy Dual-Mode chassis does not support RamFan1p5 table injection, skipping to prevent fan oscillation");
+    if crate::hal::is_legacy_pascal_turing_tongfang() {
+        crate::log_warn!("POWER_MODE", "apply_fan_table_to_ec: Legacy Pascal/Turing chassis does not support RamFan1p5 table injection, skipping to prevent fan oscillation");
         return;
     }
 
