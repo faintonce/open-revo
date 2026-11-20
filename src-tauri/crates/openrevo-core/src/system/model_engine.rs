@@ -465,10 +465,19 @@ pub fn sync_active_machine_profile(profiles: &mut Vec<ModelProfile>) -> bool {
             0
         };
 
+        let tier = crate::hal::get_chassis_architecture_tier();
+        let is_ampere_30_series = tier == crate::hal::ChassisArchitectureTier::DualModeAmpere;
+
         let max_db = if drv_db > 0 {
             drv_db
         } else if target.max_db >= 5 && target.max_db <= 35 {
-            target.max_db
+            if is_ampere_30_series && target.base_tgp <= 140 {
+                15
+            } else {
+                target.max_db
+            }
+        } else if is_ampere_30_series {
+            15
         } else {
             25
         };
@@ -519,13 +528,21 @@ pub fn sync_active_machine_profile(profiles: &mut Vec<ModelProfile>) -> bool {
                     pl4: target.pl4_default + 40,
                     temp_offset: 5,
                 },
-                base_tgp: target.base_tgp,
-                max_db: target.max_db,
+                base_tgp: if base_tgp > 0 { base_tgp } else { target.base_tgp },
+                max_db: if max_db > 0 { max_db } else { target.max_db },
             }
         };
 
         if target.factory_specs.as_ref() != Some(&probed_specs) {
             target.factory_specs = Some(probed_specs.clone());
+            changed = true;
+        }
+        if base_tgp > 0 && target.base_tgp != base_tgp {
+            target.base_tgp = base_tgp;
+            changed = true;
+        }
+        if max_db > 0 && target.max_db != max_db {
+            target.max_db = max_db;
             changed = true;
         }
 

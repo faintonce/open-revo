@@ -303,7 +303,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
               <span>模具功耗联动：原厂模式锁定</span>
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-dim)', lineHeight: 1.45 }}>
-              当前模具 GPU 功耗由原厂性能模式统一调度（狂暴模式自动释放 140W 满血，含 25W Dynamic Boost；办公模式 30W；平衡模式 120W），核心与显存超频正常生效。
+              当前模具 GPU 功耗由原厂性能模式统一调度（狂暴模式自动释放 {presets?.base_tgp && presets?.max_db ? `${presets.base_tgp + presets.max_db}W 满血，含 ${presets.max_db}W Dynamic Boost` : '满血功耗'}；办公模式 30W；平衡模式 120W），核心与显存超频正常生效。
             </div>
           </div>
         )}

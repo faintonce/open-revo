@@ -100,10 +100,19 @@ pub fn refresh_factory_power_presets(_has_gpu: bool) -> FactoryPowerPresets {
         0
     };
 
+    let tier = crate::hal::get_chassis_architecture_tier();
+    let is_ampere_30_series = tier == crate::hal::ChassisArchitectureTier::DualModeAmpere;
+
     let max_db = if drv_db > 0 {
         drv_db
     } else if let Some(ref s) = profile.factory_specs {
-        s.max_db.clamp(5, 35)
+        if is_ampere_30_series && s.base_tgp <= 140 {
+            15
+        } else {
+            s.max_db.clamp(5, 35)
+        }
+    } else if is_ampere_30_series {
+        15
     } else {
         25
     };

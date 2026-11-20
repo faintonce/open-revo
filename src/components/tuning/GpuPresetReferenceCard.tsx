@@ -48,8 +48,12 @@ export const GpuPresetReferenceCard: React.FC<GpuPresetReferenceCardProps> = ({ 
           </>
         ) : (
           <>
-            <div>• CPU 推荐: 持续 PL1 45W~75W / 爆发 PL2 75W~115W</div>
-            <div>• GPU 推荐: 基础 Base TGP + DB 15W~25W 动态分配</div>
+            <div>
+              • CPU 推荐: 持续 PL1 {presets?.office_pl1 || 45}W~{presets?.balance_pl1 || 75}W / 爆发 PL2 {presets?.balance_pl2 || 75}W~{presets?.turbo_pl2 || 115}W
+            </div>
+            <div>
+              • GPU 推荐: 基础 {presets?.base_tgp || 'Base'}W + DB {presets?.max_db ? `+${presets.max_db}W` : '15W~25W'} 动态分配
+            </div>
           </>
         )}
       </div>
