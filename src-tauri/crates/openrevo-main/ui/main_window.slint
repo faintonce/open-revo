@@ -483,10 +483,14 @@ export component MainWindow inherits Window {
     in-out property <color> logo_color: #00ffff;
 
     in-out property <bool> topology_override_enabled: false;
-    in-out property <int> topology_kb_idx: 0;
-    in-out property <int> topology_lb_idx: 0;
-    in-out property <int> topology_ambient_idx: 0;
-    in-out property <int> topology_logo_idx: 0;
+    in-out property <string> topology_ov_keyboard: "auto";
+    in-out property <string> topology_ov_front_bar: "auto";
+    in-out property <string> topology_ov_ambient: "auto";
+    in-out property <string> topology_ov_logo: "auto";
+    in-out property <string> topology_base_keyboard: "per_key";
+    in-out property <string> topology_base_front_bar: "present";
+    in-out property <string> topology_base_ambient: "none";
+    in-out property <string> topology_base_logo: "shield";
 
     // Lighting Studio Callbacks
     callback set_lighting_sleep_timer(int);
@@ -531,7 +535,7 @@ export component MainWindow inherits Window {
     callback set_logo_brightness(int);
     callback set_logo_color(string, color);
 
-    callback apply_lighting_topology(bool, int, int, int, int);
+    callback apply_lighting_topology(string, string, string, string);
     callback reset_lighting_topology();
 
     // Water Cooler Props & Callbacks
@@ -1166,10 +1170,14 @@ export component MainWindow inherits Window {
         logo_color <=> root.logo_color;
 
         topology_override_enabled <=> root.topology_override_enabled;
-        topology_kb_idx <=> root.topology_kb_idx;
-        topology_lb_idx <=> root.topology_lb_idx;
-        topology_ambient_idx <=> root.topology_ambient_idx;
-        topology_logo_idx <=> root.topology_logo_idx;
+        topology_ov_keyboard <=> root.topology_ov_keyboard;
+        topology_ov_front_bar <=> root.topology_ov_front_bar;
+        topology_ov_ambient <=> root.topology_ov_ambient;
+        topology_ov_logo <=> root.topology_ov_logo;
+        topology_base_keyboard: root.topology_base_keyboard;
+        topology_base_front_bar: root.topology_base_front_bar;
+        topology_base_ambient: root.topology_base_ambient;
+        topology_base_logo: root.topology_base_logo;
 
         set_lighting_sleep_timer(mins) => { root.set_lighting_sleep_timer(mins); }
         toggle_ceremony => { root.toggle_ceremony(); }
@@ -1210,7 +1218,7 @@ export component MainWindow inherits Window {
         set_logo_brightness(b) => { root.set_logo_brightness(b); }
         set_logo_color(hex, c) => { root.set_logo_color(hex, c); }
 
-        apply_lighting_topology(en, kb, lb, amb, logo) => { root.apply_lighting_topology(en, kb, lb, amb, logo); }
+        apply_lighting_topology(kb, lb, amb, logo) => { root.apply_lighting_topology(kb, lb, amb, logo); }
         reset_lighting_topology => { root.reset_lighting_topology(); }
 
         // Water Cooler (BLE)

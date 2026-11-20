@@ -214,6 +214,22 @@ impl IteLightingManager {
         false
     }
 
+    /// Probe whether the machine physically possesses USB Lettering Logo hardware (ITE 7000 or 7001 capability 5/8/9/10/11).
+    /// Note: Canglong Series (ProjectID 25/26) uses EC Shield Logo and is excluded here.
+    pub fn probe_raw_usb_logo_hardware() -> bool {
+        let project_id = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_PROJECT_ID).unwrap_or(0);
+        if project_id == 25 || project_id == 26 {
+            return false;
+        }
+
+        // 1. Dedicated USB 7000 chip (e.g. Kuangshi 16 water-cooled series)
+        if Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_HINGE, 0).is_some() {
+            return true;
+        }
+        // 2. USB 7001 secondary lettering logo channel
+        Self::probe_7001_has_usb_logo()
+    }
+
     /// Static probe to determine if physical USB Lettering Logo (streamer hardware) is supported
     pub fn probe_usb_logo_supported() -> bool {
         // 0. Manual Topology Override takes absolute priority
@@ -226,32 +242,7 @@ impl IteLightingManager {
             }
         }
 
-        // If this machine has explicit EC Shield Logo hardware (e.g. Canglong ProjectID 25/26 or EC ModeIndex bit 0),
-        // any 7001 capability reporting logo is a shared-firmware false positive.
-        let project_id = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_PROJECT_ID).unwrap_or(0);
-        if project_id == 25 || project_id == 26 {
-            return false;
-        }
-
-        let raw_kb_support = crate::driver::wmi_ec::wmi_read_ec(ADDR_SUPPORT_BYTE2).unwrap_or(0);
-        let is_single_zone = (raw_kb_support & 0x04) != 0;
-        let raw_mode_index = crate::driver::wmi_ec::wmi_read_ec(ADDR_MODE_INDEX).unwrap_or(0);
-        if (raw_mode_index & 0x01) == 0x01 && !is_single_zone {
-            return false;
-        }
-
-        if let Some(mba) = read_hklm_dword(r"SOFTWARE\OEM\GamingCenter2\Support", "MBALogo") {
-            if mba == 1 && !is_single_zone {
-                return false;
-            }
-        }
-
-        // 1. Dedicated USB 7000 chip (e.g. Kuangshi 16 water-cooled series)
-        if Self::open_hid_device(ITE_VID, ITE_PID_LIGHTBAR_HINGE, 0).is_some() {
-            return true;
-        }
-        // 2. USB 7001 secondary lettering logo channel
-        Self::probe_7001_has_usb_logo()
+        Self::probe_raw_usb_logo_hardware()
     }
 
     /// Invalidate and drop cached HID device handles (e.g. before sleep or upon error)
@@ -836,22 +827,24 @@ impl IteLightingManager {
             return true;
         }
 
-        // 2. Check operating mode index bit 0 (official isSupportECALogo hardware capability bit)
+        // 2. Physical USB Lettering Logo hardware takes absolute precedence:
+        // If the machine physically possesses USB Lettering Logo hardware (e.g. Yaoshi 16 Super / Kuangshi 16),
+        // it CANNOT be an EC Shield Logo!
+        if Self::probe_raw_usb_logo_hardware() {
+            return false;
+        }
+
+        // 3. Check operating mode index bit 0 (official isSupportECALogo hardware capability bit)
         let raw_mode_index = crate::driver::wmi_ec::wmi_read_ec(ADDR_MODE_INDEX).unwrap_or(0);
         if (raw_mode_index & 0x01) == 0x01 {
             return true;
         }
 
-        // 3. Check OEM registry Support\MBALogo
+        // 4. Check OEM registry Support\MBALogo
         if let Some(mba) = read_hklm_dword(r"SOFTWARE\OEM\GamingCenter2\Support", "MBALogo") {
             if mba == 1 {
                 return true;
             }
-        }
-
-        // 4. Physical USB Lettering Logo hardware takes precedence if no EC Logo feature is declared
-        if Self::probe_usb_logo_supported() {
-            return false;
         }
 
         false
@@ -1581,10 +1574,10 @@ impl IteLightingManager {
 
         let auto_front = if Self::probe_lightbar_device_exists() { "present" } else { "none" }.to_string();
         let auto_amb = if Self::probe_hinge_device_exists() { "vent" } else { "none" }.to_string();
-        let auto_logo = if Self::is_ec_logo_supported() {
-            "shield".to_string()
-        } else if Self::probe_usb_logo_supported() {
+        let auto_logo = if Self::probe_usb_logo_supported() {
             "letter".to_string()
+        } else if Self::is_ec_logo_supported() {
+            "shield".to_string()
         } else {
             "none".to_string()
         };

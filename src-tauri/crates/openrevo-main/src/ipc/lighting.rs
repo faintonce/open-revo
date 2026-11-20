@@ -196,6 +196,36 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             }
             true
         }
+        "sync_lighting_topology_status" => {
+            if let Some(en) = val.get("override_enabled").and_then(|v| v.as_bool()) {
+                ui.set_topology_override_enabled(en);
+            }
+            if let Some(s) = val.get("ov_keyboard").and_then(|v| v.as_str()) {
+                ui.set_topology_ov_keyboard(s.into());
+            }
+            if let Some(s) = val.get("ov_front_bar").and_then(|v| v.as_str()) {
+                ui.set_topology_ov_front_bar(s.into());
+            }
+            if let Some(s) = val.get("ov_ambient").and_then(|v| v.as_str()) {
+                ui.set_topology_ov_ambient(s.into());
+            }
+            if let Some(s) = val.get("ov_logo").and_then(|v| v.as_str()) {
+                ui.set_topology_ov_logo(s.into());
+            }
+            if let Some(s) = val.get("base_keyboard").and_then(|v| v.as_str()) {
+                ui.set_topology_base_keyboard(s.into());
+            }
+            if let Some(s) = val.get("base_front_bar").and_then(|v| v.as_str()) {
+                ui.set_topology_base_front_bar(s.into());
+            }
+            if let Some(s) = val.get("base_ambient").and_then(|v| v.as_str()) {
+                ui.set_topology_base_ambient(s.into());
+            }
+            if let Some(s) = val.get("base_logo").and_then(|v| v.as_str()) {
+                ui.set_topology_base_logo(s.into());
+            }
+            true
+        }
         _ => false,
     }
 }

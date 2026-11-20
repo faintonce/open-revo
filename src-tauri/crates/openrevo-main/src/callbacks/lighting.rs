@@ -520,37 +520,15 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     });
 
     // Topology Callbacks
-    window.on_apply_lighting_topology(move |en, kb, lb, amb, logo| {
-        let kb_str = match kb {
-            1 => "per_key",
-            2 => "four_zone",
-            3 => "single_zone",
-            4 => "single_white",
-            _ => "auto",
-        };
-        let lb_str = match lb {
-            1 => "present",
-            2 => "none",
-            _ => "auto",
-        };
-        let amb_str = match amb {
-            1 => "vent",
-            2 => "none",
-            _ => "auto",
-        };
-        let logo_str = match logo {
-            1 => "letter",
-            2 => "shield",
-            3 => "none",
-            _ => "auto",
-        };
+    window.on_apply_lighting_topology(move |kb_str, lb_str, amb_str, logo_str| {
+        let is_all_auto = kb_str == "auto" && lb_str == "auto" && amb_str == "auto" && logo_str == "auto";
         ipc::send_action_to_host("apply_lighting_hardware_override", serde_json::json!({
             "override_cfg": {
-                "enabled": en,
-                "keyboard": kb_str,
-                "front_bar": lb_str,
-                "ambient": amb_str,
-                "logo": logo_str,
+                "enabled": !is_all_auto,
+                "keyboard": kb_str.as_str(),
+                "front_bar": lb_str.as_str(),
+                "ambient": amb_str.as_str(),
+                "logo": logo_str.as_str(),
             }
         }));
     });

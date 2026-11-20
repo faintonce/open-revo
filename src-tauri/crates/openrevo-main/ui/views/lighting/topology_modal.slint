@@ -3,68 +3,209 @@ import { AppTheme } from "../../theme.slint";
 export component LightingTopologyModal inherits Rectangle {
     in-out property <bool> is_open: false;
 
-    // Override settings
+    // Override settings (auto / specific value)
     in-out property <bool> override_enabled: false;
-    in-out property <int> kb_type_idx: 0; // 0: 自动嗅探, 1: 单键全彩RGB, 2: 4分区RGB, 3: 单区全彩RGB, 4: 单色白光, 5: 无背光
-    in-out property <int> lightbar_type_idx: 0; // 0: 自动嗅探, 1: 强制启用 (Coastline), 2: 强制停用
-    in-out property <int> ambient_type_idx: 0; // 0: 自动嗅探, 1: 强制尾部出风口, 2: 强制停用
-    in-out property <int> logo_type_idx: 0; // 0: 自动嗅探, 1: 字母全彩徽标, 2: 盾形呼吸徽标, 3: 强制停用
+    in-out property <string> ov_keyboard: "auto";
+    in-out property <string> ov_front_bar: "auto";
+    in-out property <string> ov_ambient: "auto";
+    in-out property <string> ov_logo: "auto";
+
+    // Hardware detected baseline truth
+    in property <string> base_keyboard: "per_key";
+    in property <string> base_front_bar: "present";
+    in property <string> base_ambient: "none";
+    in property <string> base_logo: "shield";
 
     callback close();
-    callback apply_topology(bool, int, int, int, int);
+    callback apply_topology(string, string, string, string);
     callback reset_topology();
 
-    background: #000000bd;
+    // Effective active option calculations
+    property <string> eff_kb: (ov_keyboard == "auto" || ov_keyboard == "") ? base_keyboard : ov_keyboard;
+    property <string> eff_front: (ov_front_bar == "auto" || ov_front_bar == "") ? base_front_bar : ov_front_bar;
+    property <string> eff_amb: (ov_ambient == "auto" || ov_ambient == "") ? base_ambient : ov_ambient;
+    property <string> eff_logo: (ov_logo == "auto" || ov_logo == "") ? base_logo : ov_logo;
 
-    // Prevent background clicks
+    // Difference counter vs baseline
+    property <int> diff_count: (ov_keyboard != "auto" && ov_keyboard != base_keyboard ? 1 : 0) +
+                               (ov_front_bar != "auto" && ov_front_bar != base_front_bar ? 1 : 0) +
+                               (ov_ambient != "auto" && ov_ambient != base_ambient ? 1 : 0) +
+                               (ov_logo != "auto" && ov_logo != base_logo ? 1 : 0);
+
+    // Interactive Hover Preview Item
+    property <string> hovered_id: "";
+    property <string> active_preview_id: hovered_id != "" ? hovered_id : ("kb:" + eff_kb);
+
+    pure function get_preview_title(id: string) -> string {
+        if id == "kb:per_key" { return "全彩逐键 RGB"; }
+        if id == "kb:four_zone" { return "4区 RGB 硬件分段"; }
+        if id == "kb:single_zone" { return "单区 RGB (整盘同色)"; }
+        if id == "kb:single_white" { return "单色白光背光"; }
+        if id == "kb:none" { return "无键盘背光"; }
+
+        if id == "lb:present" { return "前唇海岸流光灯条"; }
+        if id == "lb:none" { return "无前海岸灯"; }
+
+        if id == "amb:vent" { return "尾部排气格栅氛围灯"; }
+        if id == "amb:shoulder" { return "八字双飞翼肩灯"; }
+        if id == "amb:none" { return "无额外氛围灯"; }
+
+        if id == "logo:letter" { return "英文字母透光 LOGO"; }
+        if id == "logo:shield" { return "盾形螺母发光标"; }
+        if id == "logo:none" { return "无 A面 LOGO 背光"; }
+        return "硬件规格预览";
+    }
+
+    pure function get_preview_chip(id: string) -> string {
+        if id == "kb:per_key" { return "048D:600B / CE00"; }
+        if id == "kb:four_zone" { return "048D:CE00"; }
+        if id == "kb:single_zone" { return "EC RAM PWM"; }
+        if id == "kb:single_white" { return "EC 白光背光"; }
+        if id == "kb:none" { return "Disabled"; }
+
+        if id == "lb:present" { return "048D:7001 / EC"; }
+        if id == "lb:none" { return "None"; }
+
+        if id == "amb:vent" { return "048D:7000 / Hinge"; }
+        if id == "amb:shoulder" { return "IDZ Sync"; }
+        if id == "amb:none" { return "None"; }
+
+        if id == "logo:letter" { return "USB NewLogo (35)"; }
+        if id == "logo:shield" { return "主板 EC 灯效"; }
+        if id == "logo:none" { return "None"; }
+        return "Standard";
+    }
+
+    pure function get_preview_desc(id: string) -> string {
+        if id == "kb:per_key" { return "每个按键独立设色，支持 BetterRGB 60FPS 极客流光、水波涟漪与自定义着色器。"; }
+        if id == "kb:four_zone" { return "键盘横向分为 4 个物理区域独立设色，支持硬件级波浪跑马与呼吸。"; }
+        if id == "kb:single_zone" { return "由主板 EC 直驱，全键盘作为一个整体变色，支持单色常亮、呼吸与整体彩虹渐变。"; }
+        if id == "kb:single_white" { return "纯白光 LED，支持关 / 弱光 (50%) / 强光 (100%) 三档无频闪梯级调光。"; }
+        if id == "kb:none" { return "模具无发光背光，或在软件中彻底隐藏键盘控制卡片。"; }
+
+        if id == "lb:present" { return "位于触摸板正下方前边缘的细长多段流光灯条，支持对撞、跑马与全彩波浪。"; }
+        if id == "lb:none" { return "模具前唇物理无发光条，选择此项可彻底移除幽灵海岸灯卡片并停止发包。"; }
+
+        if id == "amb:vent" { return "后出风口左右对称的跑车式排气灯带，水冷模具经典硬核视觉标识。"; }
+        if id == "amb:shoulder" { return "C面键盘左右上方呈“八”字斜向展开的跑马飞翼双灯条，与键盘同频律动。"; }
+        if id == "amb:none" { return "普通机型无后排出风口灯或肩灯，控制台中不挂载氛围灯控制卡片。"; }
+
+        if id == "logo:letter" { return "整串 MECHREVO 英文全拼透光发光，由独立 USB 芯片驱动，支持彩色波浪与跑马流光。"; }
+        if id == "logo:shield" { return "上下两瓣组成的盾形/螺母发光标，由主板 EC 直驱，支持单色常亮、呼吸与三色混光。"; }
+        if id == "logo:none" { return "A面仅为金属贴牌、高光印字或不发光，移除 A 面灯效卡片避免误操作。"; }
+        return "请将鼠标悬停在上方任意选项查看对应协议说明";
+    }
+
+    pure function get_preview_example(id: string) -> string {
+        if id == "kb:per_key" { return "典型机型: 耀世16 Pro/Ultra, 苍龙16, 蛟龙 GM7ZG7S(CE00) 等高配"; }
+        if id == "kb:four_zone" { return "典型机型: 蛟龙16, X10 Pro, 极光早期版"; }
+        if id == "kb:single_zone" { return "典型机型: 极光X, 耀世15单区版, 旷世G16"; }
+        if id == "kb:single_white" { return "典型机型: 无界14X, 无界15X 等轻薄本"; }
+        if id == "kb:none" { return "典型机型: 无发光背光通用模具"; }
+
+        if id == "lb:present" { return "典型机型: 耀世16, 蛟龙16 等前唇灯机型"; }
+        if id == "lb:none" { return "典型机型: 极光全系, 旷世普通版"; }
+
+        if id == "amb:vent" { return "典型机型: 旷世16 Super 水冷版等旗舰"; }
+        if id == "amb:shoulder" { return "典型机型: 深海幽灵 IDZ 模具系列"; }
+        if id == "amb:none" { return "典型机型: 绝大多数无额外氛围灯机型"; }
+
+        if id == "logo:letter" { return "典型机型: GM6IX0B, 耀世早期特殊版"; }
+        if id == "logo:shield" { return "典型机型: 苍龙, 耀世全系列, 极光X, 蛟龙"; }
+        if id == "logo:none" { return "典型机型: 无界轻薄本全系列"; }
+        return "";
+    }
+
+    background: #000000c8;
+
+    // Prevent background click-through
     TouchArea { }
 
     Rectangle {
-        width: Math.min(parent.width - 48px, 620px);
-        height: Math.min(parent.height - 40px, 460px);
+        width: Math.min(parent.width - 32px, 830px);
+        height: Math.min(parent.height - 24px, 530px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: AppTheme.is_light ? #ffffff : #0f1522f5;
-        border-radius: 12px;
+        background: AppTheme.is_light ? #ffffff : #0c121ee8;
+        border-radius: 14px;
         border-width: 1px;
-        border-color: #38bdf845;
+        border-color: #38bdf838;
         clip: true;
 
         VerticalLayout {
             // 1. Header
             Rectangle {
-                height: 52px;
-                background: AppTheme.is_light ? #f8fafc : #131b2e;
+                height: 56px;
+                background: AppTheme.is_light ? #f8fafc : #111a2ce0;
 
                 HorizontalLayout {
-                    padding-left: 18px;
-                    padding-right: 18px;
+                    padding-left: 20px;
+                    padding-right: 20px;
                     alignment: space-between;
 
                     HorizontalLayout {
-                        spacing: 10px;
+                        spacing: 12px;
                         alignment: center;
 
-                        Image {
-                            source: @image-url("../../assets/icons/cpu.svg");
-                            width: 18px;
-                            height: 18px;
-                            colorize: #38bdf8;
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 8px;
+                            background: #0284c725;
+                            border-width: 1px;
+                            border-color: #0284c755;
                             y: (parent.height - self.height) / 2;
+
+                            Image {
+                                source: @image-url("../../assets/icons/cpu.svg");
+                                width: 17px;
+                                height: 17px;
+                                colorize: #38bdf8;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
                         }
 
                         VerticalLayout {
                             alignment: center;
-                            spacing: 2px;
+                            spacing: 3px;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
+
+                                Text {
+                                    text: "灯效硬件设备拓扑纠偏";
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    color: AppTheme.text_primary;
+                                    vertical-alignment: center;
+                                }
+
+                                Rectangle {
+                                    height: 18px;
+                                    border-radius: 4px;
+                                    background: #0284c718;
+                                    border-width: 1px;
+                                    border-color: #38bdf866;
+                                    y: (parent.height - self.height) / 2;
+
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: "超薄自适应";
+                                            font-size: 10px;
+                                            font-weight: 600;
+                                            color: #38bdf8;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
 
                             Text {
-                                text: "模具与物理灯效设备拓扑纠偏";
-                                font-size: 14px;
-                                font-weight: 700;
-                                color: AppTheme.text_primary;
-                            }
-                            Text {
-                                text: "当模具硬件自动探测存在误判时，可在此手动锁定真实物理硬件设备";
+                                text: "若自动检测与物理硬件不符，请在此手动指定物理设备。鼠标悬停在选项或 ⓘ 上可查看硬件协议与适用机型。";
                                 font-size: 11px;
                                 color: AppTheme.text_muted;
                             }
@@ -98,276 +239,953 @@ export component LightingTopologyModal inherits Rectangle {
 
             Rectangle { height: 1px; background: AppTheme.border_subtle; }
 
-            // 2. Body Settings
+            // 2. Body Settings: 4 维度拓扑卡片
             VerticalLayout {
-                padding: 16px;
-                spacing: 14px;
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 14px;
+                padding-bottom: 10px;
+                spacing: 12px;
 
-                // Master Override Switch
+                // Row 1: 键盘背光硬件
                 Rectangle {
-                    height: 40px;
-                    border-radius: AppTheme.radius_md;
-                    background: root.override_enabled ? #0284c715 : AppTheme.surface_sunken;
+                    height: 58px;
+                    border-radius: 8px;
+                    background: AppTheme.is_light ? #f8fafc : #11182745;
                     border-width: 1px;
-                    border-color: root.override_enabled ? #0284c7 : AppTheme.border_subtle;
+                    border-color: AppTheme.border_subtle;
 
                     HorizontalLayout {
                         padding-left: 14px;
                         padding-right: 14px;
                         alignment: space-between;
 
-                        Text {
-                            text: "启用强制拓扑覆盖 (覆盖系统默认自适应探测)";
-                            font-size: 12px;
-                            font-weight: 700;
-                            color: AppTheme.text_primary;
-                            vertical-alignment: center;
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+                            min-width: 160px;
+
+                            Text {
+                                text: "⌨️ 1. 键盘背光硬件";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                            }
+                            HorizontalLayout {
+                                spacing: 4px;
+                                Text {
+                                    text: "自动探测: ";
+                                    font-size: 11px;
+                                    color: AppTheme.text_muted;
+                                }
+                                Text {
+                                    text: root.base_keyboard;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: #38bdf8;
+                                }
+                            }
                         }
 
-                        // Toggle
+                        // Radio Pills
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: center;
+
+                            // 全彩逐键
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_kb == "per_key" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_kb == "per_key" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "kb:per_key"; }
+                                    }
+                                    clicked => { root.ov_keyboard = "per_key"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_kb == "per_key" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_kb == "per_key" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "全彩逐键 RGB";
+                                        font-size: 11px;
+                                        font-weight: root.eff_kb == "per_key" ? 700 : 500;
+                                        color: root.eff_kb == "per_key" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_keyboard == "per_key": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 4区 RGB
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_kb == "four_zone" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_kb == "four_zone" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "kb:four_zone"; }
+                                    }
+                                    clicked => { root.ov_keyboard = "four_zone"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_kb == "four_zone" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_kb == "four_zone" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "4区 RGB";
+                                        font-size: 11px;
+                                        font-weight: root.eff_kb == "four_zone" ? 700 : 500;
+                                        color: root.eff_kb == "four_zone" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_keyboard == "four_zone": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 单区 RGB
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_kb == "single_zone" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_kb == "single_zone" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "kb:single_zone"; }
+                                    }
+                                    clicked => { root.ov_keyboard = "single_zone"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_kb == "single_zone" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_kb == "single_zone" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "单区 RGB";
+                                        font-size: 11px;
+                                        font-weight: root.eff_kb == "single_zone" ? 700 : 500;
+                                        color: root.eff_kb == "single_zone" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_keyboard == "single_zone": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 单色白光
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_kb == "single_white" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_kb == "single_white" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "kb:single_white"; }
+                                    }
+                                    clicked => { root.ov_keyboard = "single_white"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_kb == "single_white" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_kb == "single_white" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "单色白光";
+                                        font-size: 11px;
+                                        font-weight: root.eff_kb == "single_white" ? 700 : 500;
+                                        color: root.eff_kb == "single_white" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_keyboard == "single_white": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 无背光/禁用
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_kb == "none" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_kb == "none" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "kb:none"; }
+                                    }
+                                    clicked => { root.ov_keyboard = "none"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_kb == "none" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_kb == "none" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "无背光/禁用";
+                                        font-size: 11px;
+                                        font-weight: root.eff_kb == "none" ? 700 : 500;
+                                        color: root.eff_kb == "none" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_keyboard == "none": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Row 2: 前置海岸灯条
+                Rectangle {
+                    height: 58px;
+                    border-radius: 8px;
+                    background: AppTheme.is_light ? #f8fafc : #11182745;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+                            min-width: 160px;
+
+                            Text {
+                                text: "🌊 2. 前置海岸灯条";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                            }
+                            HorizontalLayout {
+                                spacing: 4px;
+                                Text {
+                                    text: "自动探测: ";
+                                    font-size: 11px;
+                                    color: AppTheme.text_muted;
+                                }
+                                Text {
+                                    text: root.base_front_bar == "present" ? "具备灯条" : "未检测到";
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: #38bdf8;
+                                }
+                            }
+                        }
+
+                        // Radio Pills
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            // 前置海岸灯条 (具备)
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_front == "present" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_front == "present" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "lb:present"; }
+                                    }
+                                    clicked => { root.ov_front_bar = "present"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_front == "present" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_front == "present" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "前置海岸灯条 (具备)";
+                                        font-size: 11px;
+                                        font-weight: root.eff_front == "present" ? 700 : 500;
+                                        color: root.eff_front == "present" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_front_bar == "present": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 无海岸灯条 (屏蔽)
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_front == "none" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_front == "none" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "lb:none"; }
+                                    }
+                                    clicked => { root.ov_front_bar = "none"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_front == "none" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_front == "none" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "无海岸灯条 (屏蔽)";
+                                        font-size: 11px;
+                                        font-weight: root.eff_front == "none" ? 700 : 500;
+                                        color: root.eff_front == "none" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_front_bar == "none": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Row 3: 特色氛围灯
+                Rectangle {
+                    height: 58px;
+                    border-radius: 8px;
+                    background: AppTheme.is_light ? #f8fafc : #11182745;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+                            min-width: 160px;
+
+                            Text {
+                                text: "💨 3. 特色氛围灯";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                            }
+                            HorizontalLayout {
+                                spacing: 4px;
+                                Text {
+                                    text: "自动探测: ";
+                                    font-size: 11px;
+                                    color: AppTheme.text_muted;
+                                }
+                                Text {
+                                    text: root.base_ambient == "vent" ? "尾气灯 (后出风口)" : (root.base_ambient == "shoulder" ? "八字肩灯" : "未检测到");
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: #38bdf8;
+                                }
+                            }
+                        }
+
+                        // Radio Pills
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            // 尾气灯
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_amb == "vent" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_amb == "vent" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "amb:vent"; }
+                                    }
+                                    clicked => { root.ov_ambient = "vent"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_amb == "vent" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_amb == "vent" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "尾气灯 (后出风口氛围灯)";
+                                        font-size: 11px;
+                                        font-weight: root.eff_amb == "vent" ? 700 : 500;
+                                        color: root.eff_amb == "vent" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_ambient == "vent": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 八字肩灯
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_amb == "shoulder" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_amb == "shoulder" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "amb:shoulder"; }
+                                    }
+                                    clicked => { root.ov_ambient = "shoulder"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_amb == "shoulder" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_amb == "shoulder" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "八字肩灯 (飞翼同步灯)";
+                                        font-size: 11px;
+                                        font-weight: root.eff_amb == "shoulder" ? 700 : 500;
+                                        color: root.eff_amb == "shoulder" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_ambient == "shoulder": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 无氛围灯 (默认)
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_amb == "none" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_amb == "none" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "amb:none"; }
+                                    }
+                                    clicked => { root.ov_ambient = "none"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_amb == "none" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_amb == "none" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "无氛围灯 (默认)";
+                                        font-size: 11px;
+                                        font-weight: root.eff_amb == "none" ? 700 : 500;
+                                        color: root.eff_amb == "none" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_ambient == "none": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Row 4: A面 LOGO 灯
+                Rectangle {
+                    height: 58px;
+                    border-radius: 8px;
+                    background: AppTheme.is_light ? #f8fafc : #11182745;
+                    border-width: 1px;
+                    border-color: AppTheme.border_subtle;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+                            min-width: 160px;
+
+                            Text {
+                                text: "✨ 4. A面 LOGO 灯";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: AppTheme.text_primary;
+                            }
+                            HorizontalLayout {
+                                spacing: 4px;
+                                Text {
+                                    text: "自动探测: ";
+                                    font-size: 11px;
+                                    color: AppTheme.text_muted;
+                                }
+                                Text {
+                                    text: root.base_logo == "letter" ? "英文字母全彩" : (root.base_logo == "shield" ? "盾形螺母标" : "未检测到");
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: #38bdf8;
+                                }
+                            }
+                        }
+
+                        // Radio Pills
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            // 字母 LOGO
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_logo == "letter" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_logo == "letter" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "logo:letter"; }
+                                    }
+                                    clicked => { root.ov_logo = "letter"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_logo == "letter" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_logo == "letter" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "字母 LOGO (MECHREVO)";
+                                        font-size: 11px;
+                                        font-weight: root.eff_logo == "letter" ? 700 : 500;
+                                        color: root.eff_logo == "letter" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_logo == "letter": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 盾形 LOGO
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_logo == "shield" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_logo == "shield" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "logo:shield"; }
+                                    }
+                                    clicked => { root.ov_logo = "shield"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_logo == "shield" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_logo == "shield" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "盾形 LOGO (上下螺母标)";
+                                        font-size: 11px;
+                                        font-weight: root.eff_logo == "shield" ? 700 : 500;
+                                        color: root.eff_logo == "shield" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_logo == "shield": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+
+                            // 无 A面 LOGO 灯
+                            Rectangle {
+                                height: 30px;
+                                border-radius: 15px;
+                                background: root.eff_logo == "none" ? #0284c728 : AppTheme.surface_pill;
+                                border-width: 1px;
+                                border-color: root.eff_logo == "none" ? #38bdf8 : AppTheme.border_subtle;
+
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    pointer-event(event) => {
+                                        if event.kind == PointerEventKind.move { root.hovered_id = "logo:none"; }
+                                    }
+                                    clicked => { root.ov_logo = "none"; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: root.eff_logo == "none" ? #38bdf8 : transparent;
+                                        border-width: 1.5px;
+                                        border-color: root.eff_logo == "none" ? #38bdf8 : #64748b;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    Text {
+                                        text: "无 A面 LOGO 灯";
+                                        font-size: 11px;
+                                        font-weight: root.eff_logo == "none" ? 700 : 500;
+                                        color: root.eff_logo == "none" ? #ffffff : AppTheme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    if root.base_logo == "none": Rectangle {
+                                        height: 15px;
+                                        border-radius: 3px;
+                                        background: #0284c725;
+                                        border-width: 1px;
+                                        border-color: #38bdf877;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                    }
+                                    Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. 硬件协议与适用机型即时预览卡片 (随鼠标悬停实时联动)
+                Rectangle {
+                    height: 52px;
+                    border-radius: 8px;
+                    background: #0284c70d;
+                    border-width: 1px;
+                    border-color: #0284c738;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 12px;
+                        alignment: center;
+
                         Rectangle {
-                            width: 44px;
+                            width: 22px;
                             height: 22px;
                             border-radius: 11px;
-                            background: root.override_enabled ? #0284c7 : AppTheme.surface_pill;
+                            background: #0284c725;
                             y: (parent.height - self.height) / 2;
 
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.override_enabled = !root.override_enabled; }
-                            }
-
-                            Rectangle {
-                                width: 18px;
-                                height: 18px;
-                                border-radius: 9px;
-                                background: #ffffff;
-                                x: root.override_enabled ? 24px : 2px;
-                                y: 2px;
-                                animate x { duration: 150ms; }
+                            Text {
+                                text: "ⓘ";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: #38bdf8;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
                             }
                         }
-                    }
-                }
 
-                // Field 1: Keyboard Hardware
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: space-between;
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+                            horizontal-stretch: 1;
 
-                    Text {
-                        text: "键盘物理规格:";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: AppTheme.text_secondary;
-                        vertical-alignment: center;
-                    }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
 
-                    HorizontalLayout {
-                        spacing: 6px;
+                                Text {
+                                    text: root.get_preview_title(root.active_preview_id);
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: #38bdf8;
+                                    vertical-alignment: center;
+                                }
 
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.kb_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.kb_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 0; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
+                                Rectangle {
+                                    height: 16px;
+                                    border-radius: 3px;
+                                    background: #0284c725;
+                                    border-width: 1px;
+                                    border-color: #38bdf855;
+                                    y: (parent.height - self.height) / 2;
 
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.kb_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.kb_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 1; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "单键RGB"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
+                                    HorizontalLayout {
+                                        padding-left: 5px;
+                                        padding-right: 5px;
+                                        Text {
+                                            text: root.get_preview_chip(root.active_preview_id);
+                                            font-size: 9.5px;
+                                            font-weight: 600;
+                                            color: #e0f2fe;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
 
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.kb_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.kb_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 2; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "4分区RGB"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
+                                Text {
+                                    text: root.get_preview_desc(root.active_preview_id);
+                                    font-size: 11px;
+                                    color: AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                            }
 
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.kb_type_idx == 3 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.kb_type_idx == 3 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 3; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "单区RGB"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 3 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.kb_type_idx == 4 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.kb_type_idx == 4 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.kb_type_idx = 4; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "单色白光"; font-size: 11px; font-weight: 600; color: root.kb_type_idx == 4 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-                    }
-                }
-
-                // Field 2: Front Lightbar
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: space-between;
-
-                    Text {
-                        text: "前沿海岸灯条:";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: AppTheme.text_secondary;
-                        vertical-alignment: center;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 6px;
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.lightbar_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.lightbar_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.lightbar_type_idx = 0; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.lightbar_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.lightbar_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.lightbar_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.lightbar_type_idx = 1; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制启用"; font-size: 11px; font-weight: 600; color: root.lightbar_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.lightbar_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.lightbar_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.lightbar_type_idx = 2; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制停用"; font-size: 11px; font-weight: 600; color: root.lightbar_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-                    }
-                }
-
-                // Field 3: Ambient
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: space-between;
-
-                    Text {
-                        text: "尾部出风口/转轴氛围:";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: AppTheme.text_secondary;
-                        vertical-alignment: center;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 6px;
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.ambient_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.ambient_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.ambient_type_idx = 0; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.ambient_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.ambient_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.ambient_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.ambient_type_idx = 1; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制尾部出风口"; font-size: 11px; font-weight: 600; color: root.ambient_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.ambient_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.ambient_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.ambient_type_idx = 2; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制停用"; font-size: 11px; font-weight: 600; color: root.ambient_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-                    }
-                }
-
-                // Field 4: LOGO
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: space-between;
-
-                    Text {
-                        text: "A面 LOGO 徽标:";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: AppTheme.text_secondary;
-                        vertical-alignment: center;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 6px;
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.logo_type_idx == 0 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.logo_type_idx == 0 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 0; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "自适应检测"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 0 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.logo_type_idx == 1 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.logo_type_idx == 1 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 1; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "字母全彩"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 1 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.logo_type_idx == 2 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.logo_type_idx == 2 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 2; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "盾形呼吸"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 2 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
-                        }
-
-                        Rectangle {
-                            height: 26px;
-                            border-radius: 4px;
-                            background: root.logo_type_idx == 3 ? #0284c725 : AppTheme.surface_pill;
-                            border-width: 1px;
-                            border-color: root.logo_type_idx == 3 ? #0284c7 : AppTheme.border_subtle;
-                            TouchArea { mouse-cursor: pointer; clicked => { root.logo_type_idx = 3; } }
-                            HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "强制停用"; font-size: 11px; font-weight: 600; color: root.logo_type_idx == 3 ? #38bdf8 : AppTheme.text_muted; vertical-alignment: center; } }
+                            Text {
+                                text: root.get_preview_example(root.active_preview_id);
+                                font-size: 10.5px;
+                                color: AppTheme.text_muted;
+                                overflow: elide;
+                            }
                         }
                     }
                 }
@@ -375,89 +1193,141 @@ export component LightingTopologyModal inherits Rectangle {
 
             Rectangle { height: 1px; background: AppTheme.border_subtle; }
 
-            // 3. Footer Actions
+            // 4. Footer Actions
             Rectangle {
-                height: 48px;
-                background: AppTheme.is_light ? #f8fafc : #131b2e;
+                height: 52px;
+                background: AppTheme.is_light ? #f8fafc : #111a2ce0;
 
                 HorizontalLayout {
-                    padding-left: 18px;
-                    padding-right: 18px;
+                    padding-left: 20px;
+                    padding-right: 20px;
                     alignment: space-between;
 
-                    // Reset
-                    Rectangle {
-                        height: 28px;
-                        border-radius: AppTheme.radius_sm;
-                        background: AppTheme.surface_pill;
-                        border-width: 1px;
-                        border-color: AppTheme.border_subtle;
-                        y: (parent.height - self.height) / 2;
+                    // Left: Reset to Auto & Diff Status
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: center;
 
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.reset_topology(); }
+                        Rectangle {
+                            height: 30px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_subtle;
+                            y: (parent.height - self.height) / 2;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.ov_keyboard = "auto";
+                                    root.ov_front_bar = "auto";
+                                    root.ov_ambient = "auto";
+                                    root.ov_logo = "auto";
+                                    root.reset_topology();
+                                }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 5px;
+                                alignment: center;
+
+                                Image {
+                                    source: @image-url("../../assets/icons/rotate-ccw.svg");
+                                    width: 12px;
+                                    height: 12px;
+                                    colorize: AppTheme.text_muted;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "恢复全自动探测";
+                                    font-size: 11px;
+                                    font-weight: 500;
+                                    color: AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
                         }
 
-                        HorizontalLayout {
-                            padding-left: 10px;
-                            padding-right: 10px;
-                            spacing: 4px;
-                            alignment: center;
-                            Image {
-                                source: @image-url("../../assets/icons/rotate-ccw.svg");
-                                width: 12px;
-                                height: 12px;
-                                colorize: AppTheme.text_muted;
-                                y: (parent.height - self.height) / 2;
-                            }
-                            Text {
-                                text: "恢复默认探测";
-                                font-size: 11px;
-                                color: AppTheme.text_muted;
-                                vertical-alignment: center;
-                            }
+                        Text {
+                            text: root.diff_count == 0 ? "与自动探测一致" : (root.diff_count + " 项已手动纠偏");
+                            font-size: 11px;
+                            font-weight: root.diff_count == 0 ? 500 : 700;
+                            color: root.diff_count == 0 ? AppTheme.text_muted : #f59e0b;
+                            vertical-alignment: center;
                         }
                     }
 
-                    // Save / Apply
-                    Rectangle {
-                        height: 28px;
-                        border-radius: AppTheme.radius_sm;
-                        background: #0284c7;
-                        y: (parent.height - self.height) / 2;
+                    // Right: Cancel & Save
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: center;
 
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.apply_topology(
-                                    root.override_enabled,
-                                    root.kb_type_idx,
-                                    root.lightbar_type_idx,
-                                    root.ambient_type_idx,
-                                    root.logo_type_idx
-                                );
+                        Rectangle {
+                            height: 30px;
+                            border-radius: 6px;
+                            background: AppTheme.surface_pill;
+                            border-width: 1px;
+                            border-color: AppTheme.border_subtle;
+                            y: (parent.height - self.height) / 2;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.close(); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                alignment: center;
+                                Text {
+                                    text: "取消";
+                                    font-size: 11px;
+                                    color: AppTheme.text_secondary;
+                                    vertical-alignment: center;
+                                }
                             }
                         }
 
-                        HorizontalLayout {
-                            padding-left: 14px;
-                            padding-right: 14px;
-                            spacing: 5px;
-                            alignment: center;
-                            Image {
-                                source: @image-url("../../assets/icons/check.svg");
-                                width: 13px;
-                                height: 13px;
-                                colorize: #ffffff;
-                                y: (parent.height - self.height) / 2;
+                        Rectangle {
+                            height: 30px;
+                            border-radius: 6px;
+                            background: #0284c7;
+                            y: (parent.height - self.height) / 2;
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.apply_topology(
+                                        root.ov_keyboard,
+                                        root.ov_front_bar,
+                                        root.ov_ambient,
+                                        root.ov_logo
+                                    );
+                                }
                             }
-                            Text {
-                                text: "保存并生效拓扑";
-                                font-size: 11px;
-                                font-weight: 700;
-                                color: #ffffff;
-                                vertical-alignment: center;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                spacing: 5px;
+                                alignment: center;
+
+                                Image {
+                                    source: @image-url("../../assets/icons/check.svg");
+                                    width: 13px;
+                                    height: 13px;
+                                    colorize: #ffffff;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "保存并重新初始化硬件";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: #ffffff;
+                                    vertical-alignment: center;
+                                }
                             }
                         }
                     }
@@ -466,4 +1336,3 @@ export component LightingTopologyModal inherits Rectangle {
         }
     }
 }
-

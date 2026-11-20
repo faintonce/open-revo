@@ -616,6 +616,20 @@ pub fn sync_slint_lighting_state() {
         "is_single_zone": is_single_zone,
         "is_single_color": is_single_color,
     }));
+
+    let status = lm.get_runtime_status();
+    send_slint_ipc_message(serde_json::json!({
+        "action": "sync_lighting_topology_status",
+        "override_enabled": status.hardware_override.enabled,
+        "ov_keyboard": status.hardware_override.keyboard,
+        "ov_front_bar": status.hardware_override.front_bar,
+        "ov_ambient": status.hardware_override.ambient,
+        "ov_logo": status.hardware_override.logo,
+        "base_keyboard": status.detected_baseline.keyboard,
+        "base_front_bar": status.detected_baseline.front_bar,
+        "base_ambient": status.detected_baseline.ambient,
+        "base_logo": status.detected_baseline.logo,
+    }));
 }
 
 pub fn sync_slint_water_state(opt_cpu: Option<i32>, opt_gpu: Option<i32>) {

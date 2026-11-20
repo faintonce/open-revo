@@ -89,10 +89,14 @@ export component DashboardLightingView inherits Rectangle {
     // Topology modal state
     in-out property <bool> topology_modal_open: false;
     in-out property <bool> topology_override_enabled: false;
-    in-out property <int> topology_kb_idx: 0;
-    in-out property <int> topology_lb_idx: 0;
-    in-out property <int> topology_ambient_idx: 0;
-    in-out property <int> topology_logo_idx: 0;
+    in-out property <string> topology_ov_keyboard: "auto";
+    in-out property <string> topology_ov_front_bar: "auto";
+    in-out property <string> topology_ov_ambient: "auto";
+    in-out property <string> topology_ov_logo: "auto";
+    in property <string> topology_base_keyboard: "per_key";
+    in property <string> topology_base_front_bar: "present";
+    in property <string> topology_base_ambient: "none";
+    in property <string> topology_base_logo: "shield";
 
     // Callbacks to Host
     callback set_sleep_timer(int);
@@ -139,7 +143,7 @@ export component DashboardLightingView inherits Rectangle {
     callback set_logo_color(string, color);
 
     // Topology callbacks
-    callback apply_topology(bool, int, int, int, int);
+    callback apply_topology(string, string, string, string);
     callback reset_topology();
 
     VerticalLayout {
@@ -271,15 +275,19 @@ export component DashboardLightingView inherits Rectangle {
     if root.topology_modal_open : LightingTopologyModal {
         is_open <=> root.topology_modal_open;
         override_enabled <=> root.topology_override_enabled;
-        kb_type_idx <=> root.topology_kb_idx;
-        lightbar_type_idx <=> root.topology_lb_idx;
-        ambient_type_idx <=> root.topology_ambient_idx;
-        logo_type_idx <=> root.topology_logo_idx;
+        ov_keyboard <=> root.topology_ov_keyboard;
+        ov_front_bar <=> root.topology_ov_front_bar;
+        ov_ambient <=> root.topology_ov_ambient;
+        ov_logo <=> root.topology_ov_logo;
+        base_keyboard: root.topology_base_keyboard;
+        base_front_bar: root.topology_base_front_bar;
+        base_ambient: root.topology_base_ambient;
+        base_logo: root.topology_base_logo;
 
         close => { root.topology_modal_open = false; }
-        apply_topology(en, kb, lb, amb, logo) => {
+        apply_topology(kb, lb, amb, logo) => {
             root.topology_modal_open = false;
-            root.apply_topology(en, kb, lb, amb, logo);
+            root.apply_topology(kb, lb, amb, logo);
         }
         reset_topology => {
             root.topology_modal_open = false;
