@@ -482,10 +482,11 @@ pub fn set_gpu_vf_curve_deltas(deltas_mhz: &[i32]) -> Result<(), String> {
         return Err(format!("V/F 曲线锚点数超出控制表容量限制 ({} > {})", max_pos, CONTROL_TABLE_SIZE));
     }
 
-    // Safety guard: Clamp individual delta range within -500 MHz .. +300 MHz
+    // DIY Unlocked: Remove hardcoded clamp to allow full enthusiast control (like MSI Afterburner).
+    // Only basic sanity guard against extreme integer overflow when converting to kHz.
     for (i, &d) in deltas_mhz.iter().enumerate() {
-        if d < -500 || d > 300 {
-            return Err(format!("锚点 #{} 频率偏移超出安全边界 (-500 ~ +300 MHz): {} MHz", i, d));
+        if d < -2500 || d > 2500 {
+            return Err(format!("锚点 #{} 频率偏移超出合理物理极限 (-2500 ~ +2500 MHz): {} MHz", i, d));
         }
     }
 
@@ -548,7 +549,7 @@ pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Resul
     }
 
     let stock_freq_at_target = current_points[target_idx].freq_mhz - current_points[target_idx].delta_mhz;
-    let target_delta = (max_boost_mhz - stock_freq_at_target).clamp(-500, 300);
+    let target_delta = (max_boost_mhz - stock_freq_at_target).clamp(-1000, 1000);
     let actual_target_freq = stock_freq_at_target + target_delta;
 
     let mut new_deltas = vec![0i32; current_points.len()];
@@ -560,7 +561,7 @@ pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Resul
         } else {
             // Flattened region: pin effective target frequency to actual_target_freq
             let delta_to_flat = actual_target_freq - stock_freq;
-            new_deltas[i] = delta_to_flat.clamp(-500, 300);
+            new_deltas[i] = delta_to_flat.clamp(-1000, 1000);
         }
     }
 
@@ -570,7 +571,7 @@ pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Resul
         let stock_freq = current_points[i].freq_mhz - current_points[i].delta_mhz;
         let eff_freq = stock_freq + new_deltas[i];
         if eff_freq < prev_freq {
-            new_deltas[i] = (prev_freq - stock_freq).clamp(-500, 300);
+            new_deltas[i] = (prev_freq - stock_freq).clamp(-1000, 1000);
         }
         prev_freq = stock_freq + new_deltas[i];
     }

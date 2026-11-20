@@ -656,8 +656,12 @@
   <script>
     const PLUGIN_ID = 'gpu-curve-tuner';
     const LOCAL_STORAGE_KEY = 'openrevo_plugin_gpu_curve_tuner_cfg';
-    const DELTA_MIN = -500;
-    const DELTA_MAX = 300; // 与底层 nvapi.rs 严格对齐 (-500 ~ +300 MHz)
+    // [极客自由度配置 / DIY Tuner Config]
+    // 默认最大允许单点向上超频幅度 (+500MHz)，向下压降幅度 (-1000MHz)。
+    // 追求极致性能的玩家可直接用记事本打开本文件，自由修改 DELTA_MAX（如改为 600、800 或更大），
+    // 底层 NVAPI 驱动已全面解除安全硬上限限制，完全尊重玩家自由意志。
+    const DELTA_MIN = -1000;
+    const DELTA_MAX = 500;
     const HIT_PX = 14;     // 判定半径 (像素)
 
     // --- State Storage ---
