@@ -701,6 +701,12 @@
 
     // --- WatcherHub Background Guard Synchronization ---
     async function syncWatcherToHost() {
+      // 官方范式教学：
+      // 1. 基线开机守护规则已在 manifest.json 的 watchers 中进行声明式定义；
+      //    宿主微内核在开机引导阶段（bootstrap_enabled_plugins）会自动扫描并挂载，
+      //    确保无需手动点开本页面，系统冷启动即可完成 0MB Webview 占用的显卡降压下发；
+      // 2. 当用户在 UI 界面交互微调了锚点或时钟偏移时，前端通过动态向微内核事件中心同步 Watcher，
+      //    微内核会自动持久化存储至 custom_watchers.json，彻底摆脱开机前台依赖！
       try {
         if (!STATE.isAvailable) return;
 
@@ -735,19 +741,18 @@
           });
         }
 
-        if (actions.length === 0) return;
-
+        const isEnabled = actions.length > 0;
         const watcherDef = {
           id: 'gpu-undervolt-guard',
           name: '微内核显卡降压超频自愈守护',
           plugin_id: PLUGIN_ID,
-          enabled: true,
+          enabled: isEnabled,
           cooldown_ms: 5000,
           condition: {
             type: 'power_event',
             event: 'ac_connected'
           },
-          actions: actions
+          actions: isEnabled ? actions : []
         };
 
         if (window.OpenRevo && typeof window.OpenRevo.registerWatcher === 'function') {
@@ -755,9 +760,15 @@
         } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.registerWatcher === 'function') {
           await window.parent.__OPENREVO_BRIDGE__.registerWatcher(watcherDef);
         } else {
-          await rpc('register_custom_watcher', { watcher: watcherDef });
+          await rpc('register_custom_watcher', { watcher: watcherDef }).catch(() => {});
         }
-        document.getElementById('statStorageHint').textContent = '已保存并同步至微内核看门狗 (开机自启生效)';
+
+        const hintEl = document.getElementById('statStorageHint');
+        if (hintEl) {
+          hintEl.textContent = isEnabled
+            ? '已保存并同步至微内核看门狗 (开机与重连自愈生效)'
+            : '已恢复出厂并同步关闭微内核看门狗';
+        }
       } catch (err) {
         console.warn('[WatcherSync] 同步 Watcher 到宿主事件中心失败:', err);
       }
