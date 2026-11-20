@@ -1760,7 +1760,48 @@ pub fn get_model_capabilities() -> serde_json::Value {
         };
 
         let mut effective_rgb_kb = manifest.capabilities.rgb_keyboard.clone();
-        if let Some(ref mut kb) = effective_rgb_kb {
+
+        // Level 0 Lighting Decision Center Sovereignty:
+        // If the user configured an active hardware override, dynamically reconstruct
+        // `effective_rgb_kb` based on the active contract, so the entire frontend reactive tree updates immediately.
+        let cfg = crate::system::config::load_config();
+        if cfg.lighting.hardware_override.enabled {
+            let contract = crate::system::model_engine::get_active_lighting_contract();
+            let mut kb = effective_rgb_kb.unwrap_or_else(|| crate::hal::declarative::model_manifest::KeyboardCapability {
+                supported: true,
+                keyboard_type: "single_zone_rgb".to_string(),
+                steps: vec![1, 2, 3],
+                hardware_autonomous: false,
+                hotkey_osd_only: false,
+                sleep_timeout_supported: true,
+                timeout_options_seconds: vec![30, 60, 300, 600],
+            });
+            match contract.keyboard_type.as_str() {
+                "PerKey" => {
+                    kb.supported = true;
+                    kb.keyboard_type = "per_key_rgb".to_string();
+                }
+                "4Zone" => {
+                    kb.supported = true;
+                    kb.keyboard_type = "four_zone_rgb".to_string();
+                }
+                "SingleZone" | "SingleZone_RGB" => {
+                    kb.supported = true;
+                    kb.keyboard_type = "single_zone_rgb".to_string();
+                }
+                "MonochromeWhite" => {
+                    kb.supported = true;
+                    kb.keyboard_type = "monochrome_stepped".to_string();
+                    kb.steps = vec![2, 1];
+                }
+                "None" => {
+                    kb.supported = false;
+                    kb.keyboard_type = "none".to_string();
+                }
+                _ => {}
+            }
+            effective_rgb_kb = Some(kb);
+        } else if let Some(ref mut kb) = effective_rgb_kb {
             let hw_byte2 = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_SUPPORT_BYTE2).unwrap_or(0);
             if (hw_byte2 & 0x04) != 0 {
                 kb.keyboard_type = "single_zone_rgb".to_string();
@@ -1839,6 +1880,37 @@ pub fn get_model_capabilities() -> serde_json::Value {
         crate::driver::wmi_ec::get_hardware_support_flags().has_water_cooler
     };
 
+    let cfg = crate::system::config::load_config();
+    let fallback_rgb_kb = if cfg.lighting.hardware_override.enabled {
+        let contract = crate::system::model_engine::get_active_lighting_contract();
+        let mut supported = true;
+        let kb_type = match contract.keyboard_type.as_str() {
+            "PerKey" => "per_key_rgb",
+            "4Zone" => "four_zone_rgb",
+            "SingleZone" | "SingleZone_RGB" => "single_zone_rgb",
+            "MonochromeWhite" => "monochrome_stepped",
+            _ => {
+                supported = false;
+                "none"
+            }
+        };
+        serde_json::json!({
+            "supported": supported,
+            "type": kb_type,
+            "sleep_timeout_supported": true,
+            "timeout_options_seconds": [0, 10, 15, 30, 60],
+            "steps": if kb_type == "monochrome_stepped" { vec![2, 1] } else { vec![] }
+        })
+    } else {
+        serde_json::json!({
+            "supported": !is_thin_light,
+            "type": if is_thin_light { "none" } else { "per_key_rgb" },
+            "sleep_timeout_supported": is_thin_light,
+            "timeout_options_seconds": [0, 10, 15, 30, 60],
+            "steps": Vec::<u8>::new()
+        })
+    };
+
     serde_json::json!({
         "id": if is_thin_light { "builtin_thin_light" } else { "builtin_tongfang_gaming" },
         "name": if is_thin_light { "MECHREVO Thin & Light Laptop" } else { "MECHREVO Gaming Laptop" },
@@ -1858,13 +1930,7 @@ pub fn get_model_capabilities() -> serde_json::Value {
         "cpu_name": cpu_name,
         "battery_charge_limit": true,
         "power_modes": if is_thin_light { vec!["office", "balance", "turbo"] } else { vec!["office", "balance", "turbo", "custom"] },
-        "rgb_keyboard": {
-            "supported": !is_thin_light,
-            "type": if is_thin_light { "none" } else { "per_key_rgb" },
-            "sleep_timeout_supported": is_thin_light,
-            "timeout_options_seconds": [0, 10, 15, 30, 60],
-            "steps": if is_thin_light { Vec::<u8>::new() } else { Vec::<u8>::new() }
-        },
+        "rgb_keyboard": fallback_rgb_kb,
         "is_adapted": true,
         "is_debug_mode": is_debug,
     })

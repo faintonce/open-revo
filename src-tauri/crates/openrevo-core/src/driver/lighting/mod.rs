@@ -1494,15 +1494,49 @@ impl IteLightingManager {
         }
         self.invalidate_devices();
 
-        // 3. Reset conflicting EC registers
+        // 3. Reset conflicting EC registers (Strictly Tongfang platforms only; never pollute Baolongda / non-Tongfang models)
         if override_cfg.enabled {
-            if override_cfg.keyboard == "single_white" {
-                if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
-                    let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, val | 0x01);
-                }
-            } else if override_cfg.keyboard == "single_zone" {
-                if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
-                    let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, val & !0x01);
+            let is_tongfang = crate::driver::wmi_ec::is_acpi_driver_available()
+                || crate::hal::platform_probe::is_tongfang_family()
+                || crate::hal::get_hardware_driver().kind() == crate::hal::DriverKind::TongfangAcpi;
+
+            if is_tongfang {
+                match override_cfg.keyboard.as_str() {
+                    "single_white" => {
+                        if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
+                            // Bit 0 = 1 (single white mode), Bit 1 = 0 (unmute power)
+                            let target = (val | 0x01) & !0x02;
+                            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
+                        }
+                        if let Some(tb) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
+                            let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, tb | 0x20);
+                        }
+                    }
+                    "single_zone" => {
+                        if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
+                            // Bit 0 = 0 (RGB mode), Bit 1 = 0 (unmute power)
+                            let target = val & !0x03;
+                            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
+                        }
+                        if let Some(tb) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE) {
+                            let _ = crate::driver::wmi_ec::wmi_write_ec(crate::driver::wmi_ec::ADDR_TRIGGER_BYTE, tb | 0x20);
+                        }
+                    }
+                    "four_zone" | "per_key" => {
+                        if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
+                            // Unmute power (Bit 1 = 0) and clear single white (Bit 0 = 0)
+                            let target = val & !0x03;
+                            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
+                        }
+                    }
+                    "none" => {
+                        if let Some(val) = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE) {
+                            // Bit 1 = 1 (cutoff power)
+                            let target = val | 0x02;
+                            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_BACKLIGHT_WHITE, target);
+                        }
+                    }
+                    _ => {}
                 }
             }
         }

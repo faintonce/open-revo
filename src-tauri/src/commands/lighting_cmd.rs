@@ -70,10 +70,14 @@ pub fn apply_lighting_hardware_override_internal(
 ) -> Result<crate::driver::ite_lighting::LightingRuntimeStatus, String> {
     lighting_state.apply_hardware_override_and_reinit(override_cfg)?;
     let status = lighting_state.get_runtime_status();
+    let hw_info = get_keyboard_hardware_info_internal(lighting_state);
     if let Some(app) = app_handle {
         let _ = app.emit("lighting://runtime_status_changed", &status);
         let _ = app.emit("lighting://hardware_info_changed", ());
+        let _ = app.emit("lighting://topology_rehashed", &hw_info);
     }
+    // Synchronize native Slint GUI window if active
+    crate::system::slint_window::sync::sync_slint_lighting_state();
     Ok(status)
 }
 

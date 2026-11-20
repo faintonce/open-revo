@@ -143,14 +143,29 @@ export default function App() {
 
   useEffect(() => {
     if (isBldPreview) return;
-    invoke<ModelCapabilities>('get_model_capabilities')
-      .then((caps) => {
-        if (caps) {
-          realCapabilitiesRef.current = caps;
-          setCapabilities(caps);
-        }
-      })
-      .catch((err) => console.warn('Failed to load model capabilities in App:', err));
+    const fetchCaps = () => {
+      invoke<ModelCapabilities>('get_model_capabilities')
+        .then((caps) => {
+          if (caps) {
+            realCapabilitiesRef.current = caps;
+            setCapabilities(caps);
+          }
+        })
+        .catch((err) => console.warn('Failed to load model capabilities in App:', err));
+    };
+
+    fetchCaps();
+
+    let unlistenTopology: (() => void) | undefined;
+    listen('lighting://topology_rehashed', () => {
+      fetchCaps();
+    }).then((unsub) => {
+      unlistenTopology = unsub;
+    });
+
+    return () => {
+      if (unlistenTopology) unlistenTopology();
+    };
   }, [isBldPreview]);
 
   const handlePreviewFormFactor = useCallback((mode: 'real' | 'thin_light' | 'gaming') => {

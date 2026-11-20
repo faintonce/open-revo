@@ -189,10 +189,22 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
       }
     }).then((fn) => { unlistenKbBrightness = fn; });
 
+    let unlistenHwInfo: (() => void) | undefined;
+    listen('lighting://hardware_info_changed', () => {
+      fetchLighting();
+    }).then((fn) => { unlistenHwInfo = fn; });
+
+    let unlistenTopology: (() => void) | undefined;
+    listen('lighting://topology_rehashed', () => {
+      fetchLighting();
+    }).then((fn) => { unlistenTopology = fn; });
+
     return () => {
       window.removeEventListener('focus', fetchLighting);
       if (unlistenEngine) unlistenEngine();
       if (unlistenKbBrightness) unlistenKbBrightness();
+      if (unlistenHwInfo) unlistenHwInfo();
+      if (unlistenTopology) unlistenTopology();
     };
   }, []);
 

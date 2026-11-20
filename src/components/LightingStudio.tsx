@@ -150,11 +150,18 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
       }
     });
 
+    const unlistenTopologyPromise = listen('lighting://topology_rehashed', () => {
+      if (mounted) {
+        refreshHardwareAndLighting();
+      }
+    });
+
     return () => {
       mounted = false;
       unlistenPromise.then((unsub) => unsub());
       unlistenBrightnessPromise.then((unsub) => unsub());
       unlistenHwPromise.then((unsub) => unsub());
+      unlistenTopologyPromise.then((unsub) => unsub());
     };
   }, []);
 
