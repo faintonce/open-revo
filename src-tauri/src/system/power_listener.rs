@@ -97,6 +97,9 @@ fn handle_system_resume_pipeline(event_name: &str) {
         crate::system::display_tuning::init_display_tuning();
     });
 
+    // Reassert all active plugin watchers after system resume (e.g. GPU undervolt curves, battery keepers)
+    crate::system::watcher_hub::reassert_active_watchers("system_resume");
+
     let cfg = crate::system::config::load_config();
     crate::system::power::restore_ec_power_options(&cfg);
     if let Some(ec) = GLOBAL_EC.read().clone() {

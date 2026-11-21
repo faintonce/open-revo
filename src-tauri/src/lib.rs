@@ -941,6 +941,7 @@ pub fn run_tauri_runtime() {
                 crate::system::watcher_hub::init_watcher_hub(app.handle().clone());
                 crate::system::broadcast::bind_broadcast_app(app.handle().clone());
                 crate::commands::system_cmd::bootstrap_enabled_plugins();
+                crate::system::watcher_hub::trigger_startup_watchers();
             });
 
             crate::system::boot_trace::boot_log("TRAY", "System tray mounted and listeners active");

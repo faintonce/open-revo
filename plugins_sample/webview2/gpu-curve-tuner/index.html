@@ -753,8 +753,7 @@
           enabled: isEnabled,
           cooldown_ms: 5000,
           condition: {
-            type: 'power_event',
-            event: 'ac_connected'
+            type: 'startup'
           },
           actions: isEnabled ? actions : []
         };
@@ -770,7 +769,7 @@
         const hintEl = document.getElementById('statStorageHint');
         if (hintEl) {
           hintEl.textContent = isEnabled
-            ? '已保存并同步至微内核看门狗 (开机与重连自愈生效)'
+            ? '已保存并同步至微内核守护 (开机与唤醒0MB常驻生效)'
             : '已恢复出厂并同步关闭微内核看门狗';
         }
       } catch (err) {

@@ -1177,14 +1177,13 @@
         const gateVal = STATE.activeGateVal || 4;
 
         const watcherDef = {
-          id: 'battery-limit-ac-reconnect-guard',
-          name: '微内核电源重连限充断言守护 (声明式底层动作)',
+          id: 'battery-limit-startup-guard',
+          name: '微内核开机限充断言守护 (声明式底层动作)',
           plugin_id: 'battery-hardware-limit',
           enabled: isEnabled,
           cooldown_ms: 3000,
           condition: {
-            type: 'power_event',
-            event: 'ac_connected'
+            type: 'startup'
           },
           actions: [
             {
@@ -1211,6 +1210,11 @@
             every_ms: Number(STATE.keepaliveIntervalMs) || 4000
           },
           actions: [
+            {
+              action: 'raw_ec_write',
+              address: STATE.limitReg,
+              value: STATE.currentTarget
+            },
             {
               action: 'raw_ec_write',
               address: STATE.gateReg,

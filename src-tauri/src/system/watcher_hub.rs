@@ -232,6 +232,10 @@ pub enum WatcherCondition {
         #[serde(deserialize_with = "deserialize_hex_or_dec_u64")]
         every_ms: u64,
     },
+
+    /// 6. Core Lifecycle condition (runs on microkernel startup readiness and system wake-up)
+    #[serde(rename = "startup", alias = "boot", alias = "lifecycle", alias = "always")]
+    Startup,
 }
 
 pub fn deserialize_optional_hex_or_dec_u8<'de, D>(deserializer: D) -> Result<Option<u8>, D::Error>
@@ -442,15 +446,158 @@ pub fn unregister_by_plugin(plugin_id: &str) -> usize {
     removed
 }
 
-/// Load a batch of watchers from a plugin manifest
+/// Hydrate and align watcher definition with plugin's persistent config in plugin_storage.
+/// Guarantees that saved user parameters take absolute precedence before hardware execution.
+pub fn hydrate_watcher_from_plugin_storage(plugin_id: &str, def: &mut WatcherDefinition) {
+    if let Ok(storage) = crate::system::plugin_storage::get_plugin_storage(plugin_id) {
+        if storage.is_null() || !storage.is_object() {
+            return;
+        }
+
+        // 1. Battery Hardware Limit plugin hydration
+        if plugin_id == "battery-hardware-limit" {
+            let target_limit = storage.get("target_limit").and_then(|v| v.as_u64()).map(|v| v as u8);
+            let active_gate = storage.get("active_gate_val").and_then(|v| v.as_u64()).map(|v| v as u8);
+            let is_active = storage.get("is_limit_active").and_then(|v| v.as_bool());
+            let limit_reg = storage.get("limit_reg").and_then(|v| v.as_u64()).map(|v| v as u16);
+            let gate_reg = storage.get("gate_reg").and_then(|v| v.as_u64()).map(|v| v as u16);
+
+            if let Some(false) = is_active {
+                def.enabled = false;
+            } else if let Some(true) = is_active {
+                def.enabled = true;
+            }
+
+            for act in &mut def.actions {
+                if let WatcherAction::RawEcWrite { address, value } = act {
+                    if let (Some(reg), Some(target)) = (limit_reg, target_limit) {
+                        if *address == reg {
+                            *value = target;
+                        }
+                    }
+                    if let (Some(reg), Some(gate)) = (gate_reg, active_gate) {
+                        if *address == reg {
+                            *value = gate;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. GPU Curve Tuner plugin hydration
+        if plugin_id == "gpu-curve-tuner" {
+            let planned_deltas = storage.get("planned_deltas")
+                .or_else(|| storage.get("deltas"))
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|x| x.as_i64().map(|n| n as i32)).collect::<Vec<i32>>());
+
+            let target_volt = storage.get("target_volt").and_then(|v| v.as_i64()).map(|v| v as i32);
+            let target_freq = storage.get("target_freq").and_then(|v| v.as_i64()).map(|v| v as i32);
+            let active_mode = storage.get("active_mode").and_then(|v| v.as_str());
+
+            if active_mode == Some("出厂默认") {
+                def.enabled = false;
+            }
+
+            if let Some(deltas) = planned_deltas {
+                if deltas.len() >= 16 {
+                    def.actions = vec![WatcherAction::CallCommand {
+                        command: "set_gpu_vf_curve_deltas".to_string(),
+                        args: serde_json::json!({ "deltasMhz": deltas }),
+                    }];
+                }
+            } else if let (Some(v), Some(f)) = (target_volt, target_freq) {
+                def.actions = vec![WatcherAction::CallCommand {
+                    command: "set_gpu_undervolt_curve".to_string(),
+                    args: serde_json::json!({
+                        "targetVoltMv": v,
+                        "maxBoostMhz": f,
+                    }),
+                }];
+            }
+        }
+    }
+}
+
+/// Load a batch of watchers from a plugin manifest.
+/// Preserves any existing user-customized watchers loaded from custom_watchers.json.
 pub fn load_plugin_watchers(plugin_id: &str, watchers: Vec<WatcherDefinition>) {
-    unregister_by_plugin(plugin_id);
-    let count = watchers.len();
+    let mut map = get_watchers_map().lock();
+    let mut loaded_baseline = 0;
     for mut w in watchers {
         w.plugin_id = Some(plugin_id.to_string());
-        register_watcher(w);
+        hydrate_watcher_from_plugin_storage(plugin_id, &mut w);
+        if !map.contains_key(&w.id) {
+            let id = w.id.clone();
+            crate::log_info!("WATCHER_HUB", "Mounted baseline watcher '{}' [{}] for plugin '{}'", w.name, id, plugin_id);
+            map.insert(
+                id,
+                WatcherRecord {
+                    definition: w,
+                    last_triggered: None,
+                    last_ec_val: None,
+                    last_matched: false,
+                },
+            );
+            loaded_baseline += 1;
+        } else {
+            crate::log_info!("WATCHER_HUB", "Preserving user-customized persistent watcher '{}' [{}] for plugin '{}'", w.name, w.id, plugin_id);
+        }
     }
-    crate::log_info!("WATCHER_HUB", "Loaded {} declarative watchers for plugin '{}'", count, plugin_id);
+    drop(map);
+    crate::log_info!("WATCHER_HUB", "Processed manifest watchers for plugin '{}' ({} new baseline mounted)", plugin_id, loaded_baseline);
+}
+
+/// Reassert all active enabled watchers during core lifecycle milestones
+/// (such as microkernel startup readiness or system resume from sleep/hibernate).
+/// Host does not make arbitrary assumptions about power cables or external states;
+/// any enabled watcher declared by plugins is faithfully executed on startup and resume.
+pub fn reassert_active_watchers(trigger_reason: &str) {
+    crate::log_info!("WATCHER_HUB", "Microkernel lifecycle trigger: '{}'. Asserting active watchers.", trigger_reason);
+    let now = Instant::now();
+    let mut triggers: Vec<WatcherDefinition> = Vec::new();
+
+    {
+        let mut map = get_watchers_map().lock();
+        for record in map.values_mut() {
+            let opt_pid = record.definition.plugin_id.clone();
+            if let Some(pid) = opt_pid {
+                hydrate_watcher_from_plugin_storage(&pid, &mut record.definition);
+            }
+
+            if !record.definition.enabled {
+                continue;
+            }
+
+            // Foreground process and EC diff conditions are event-driven,
+            // while hardware baseline policies should be actively asserted on startup/resume.
+            let should_assert = match &record.definition.condition {
+                WatcherCondition::ForegroundProcess { .. } => false,
+                WatcherCondition::RawEcDiff { .. } => false,
+                _ => true,
+            };
+
+            if should_assert && !record.definition.actions.is_empty() {
+                record.last_triggered = Some(now);
+                triggers.push(record.definition.clone());
+            }
+        }
+    }
+
+    let count = triggers.len();
+    for def in triggers {
+        dispatch_watcher_trigger(
+            def,
+            "lifecycle_assertion",
+            serde_json::json!({ "reason": trigger_reason }),
+        );
+    }
+    crate::log_info!("WATCHER_HUB", "Dispatched {} active watchers for lifecycle '{}'.", count, trigger_reason);
+}
+
+/// Trigger baseline initialization for active watchers on system startup.
+pub fn trigger_startup_watchers() {
+    reassert_active_watchers("system_startup");
 }
 
 /// Query all active registered watchers info for frontend inspection
@@ -465,6 +612,7 @@ pub fn get_all_watchers() -> Vec<WatcherInfo> {
                 WatcherCondition::PowerEvent { .. } => "power_event",
                 WatcherCondition::RawEcDiff { .. } => "raw_ec_diff",
                 WatcherCondition::Interval { .. } => "interval",
+                WatcherCondition::Startup => "startup",
             };
             let secs_ago = r.last_triggered.map(|t| now.duration_since(t).as_secs());
             WatcherInfo {

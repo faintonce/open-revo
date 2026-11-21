@@ -26,13 +26,12 @@
   },
   "watchers": [
     {
-      "id": "battery-limit-ac-reconnect-guard",
-      "name": "微内核电源重连限充断言守护 (声明式底层动作)",
+      "id": "battery-limit-startup-guard",
+      "name": "微内核开机限充断言守护 (声明式底层动作)",
       "enabled": true,
       "cooldown_ms": 3000,
       "when": {
-        "type": "power_event",
-        "event": "ac_connected"
+        "type": "startup"
       },
       "actions": [
         {
@@ -44,6 +43,15 @@
           "action": "raw_ec_write",
           "address": "0x07C3",
           "value": 4
+        },
+        {
+          "action": "delay_ms",
+          "duration": 200
+        },
+        {
+          "action": "raw_ec_write",
+          "address": "0x07B9",
+          "value": 80
         }
       ]
     },
@@ -57,6 +65,11 @@
         "every_ms": 4000
       },
       "actions": [
+        {
+          "action": "raw_ec_write",
+          "address": "0x07B9",
+          "value": 80
+        },
         {
           "action": "raw_ec_write",
           "address": "0x07C3",
