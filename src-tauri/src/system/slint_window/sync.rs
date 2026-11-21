@@ -435,11 +435,15 @@ pub fn sync_slint_power_state() {
     if let Some(app) = app_opt {
         let ec_state: tauri::State<crate::driver::ec_bridge::SharedEcBridge> = app.state();
         let info = crate::commands::power_cmd::read_power_settings(ec_state.inner());
+        let power_input = crate::system::power::battery_input::read_power_input();
         send_slint_ipc_message(serde_json::json!({
             "action": "sync_power_settings",
             "power_mode": cfg.power_mode,
             "battery_percent": info.battery_percent,
             "is_ac_online": info.is_ac_online,
+            "adapter_text": power_input.adapter_text(),
+            "charge_power_text": charge_power_text(&power_input),
+            "battery_cycle_count": power_input.battery_cycle_count.unwrap_or(0),
             "is_dc_online": crate::commands::power_cmd::is_dc_round_plugged_in(),
             "is_thin_and_light": crate::commands::power_cmd::is_thin_and_light_or_pure_igpu(),
             "unlock_battery_limit": cfg.unlock_battery_power_limit,
@@ -463,6 +467,7 @@ pub fn sync_slint_power_state() {
     } else {
         let cfg = crate::system::config::load_config();
         let (percent, is_ac, _) = crate::commands::power_cmd::get_live_power_status();
+        let power_input = crate::system::power::battery_input::read_power_input();
         let mode = if cfg.battery_limit >= 95 {
             "long_life"
         } else if cfg.battery_limit <= 65 {
@@ -475,6 +480,9 @@ pub fn sync_slint_power_state() {
             "power_mode": cfg.power_mode,
             "battery_percent": percent,
             "is_ac_online": is_ac,
+            "adapter_text": power_input.adapter_text(),
+            "charge_power_text": charge_power_text(&power_input),
+            "battery_cycle_count": power_input.battery_cycle_count.unwrap_or(0),
             "is_dc_online": crate::commands::power_cmd::is_dc_round_plugged_in(),
             "is_thin_and_light": crate::commands::power_cmd::is_thin_and_light_or_pure_igpu(),
             "unlock_battery_limit": cfg.unlock_battery_power_limit,
@@ -1054,4 +1062,22 @@ pub fn sync_slint_power_targets(power_mode: u8) {
         "tgp_target": tgp,
         "power_target_text": text,
     }));
+}
+
+/// 充放电功率文案：正值为充电、负值为放电，|功率| < 0.3W 视为无有效读数。
+/// 文案在后端出，界面只负责显示，避免各处重复拼词。
+fn charge_power_text(info: &crate::system::power::battery_input::PowerInputInfo) -> String {
+    match info.battery_rate_watts {
+        Some(raw) => {
+            let watts = (raw.abs() * 10.0).round() / 10.0;
+            if watts < 0.3 {
+                String::new()
+            } else if raw > 0.0 {
+                format!("充电 {:.1} W", watts)
+            } else {
+                format!("放电 {:.1} W", watts)
+            }
+        }
+        None => String::new(),
+    }
 }

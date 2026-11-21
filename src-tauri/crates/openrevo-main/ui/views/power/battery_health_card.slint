@@ -5,6 +5,10 @@ export component BatteryHealthCard inherits Rectangle {
     in-out property <bool> is_ac_online: true;
     in-out property <string> battery_mode: "station"; // "long_life" | "balance" | "station"
     in-out property <int> battery_limit: 60;          // 100 | 80 | 60
+    // 供电输入信息：文案全部由后端出，界面只负责显示
+    in-out property <string> adapter_text: "";      // 例如 "适配器 230/240W（圆口）"
+    in-out property <string> charge_power_text: "";  // 例如 "充电 45.6 W" / "放电 12.3 W"，空 = 无读数
+    in-out property <int> battery_cycle_count: 0;    // 0 = 未知
 
     callback select_battery_mode(string);
 
@@ -297,12 +301,31 @@ export component BatteryHealthCard inherits Rectangle {
                         }
 
                         Text {
-                            text: root.is_ac_online ? "已连接电源适配器" : "正在使用电池供电";
+                            text: root.is_ac_online
+                                ? (root.adapter_text != "" ? root.adapter_text : "已连接电源适配器")
+                                : "正在使用电池供电";
                             font-size: 10px;
                             font-weight: 600;
                             color: root.is_ac_online ? #10b981 : #f59e0b;
                             vertical-alignment: center;
                         }
+                    }
+
+                    // 实时充放电功率（后端给文案，无读数时为空）
+                    if root.charge_power_text != "": Text {
+                        text: root.charge_power_text;
+                        font-size: 9.5px;
+                        font-weight: 600;
+                        color: AppTheme.mode_office;
+                        horizontal-alignment: center;
+                    }
+
+                    // 电池循环次数（读不到时为 0，不显示）
+                    if root.battery_cycle_count > 0: Text {
+                        text: "电池循环 " + root.battery_cycle_count + " 次";
+                        font-size: 9.5px;
+                        color: AppTheme.text_muted;
+                        horizontal-alignment: center;
                     }
                 }
             }

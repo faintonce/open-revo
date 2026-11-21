@@ -12,6 +12,16 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(ac) = val.get("is_ac_online").and_then(|v| v.as_bool()) {
                 ui.set_is_ac_online(ac);
             }
+            // 供电输入信息：文案由后端算好，界面只显示
+            if let Some(t) = val.get("adapter_text").and_then(|v| v.as_str()) {
+                ui.set_adapter_text(t.into());
+            }
+            if let Some(t) = val.get("charge_power_text").and_then(|v| v.as_str()) {
+                ui.set_charge_power_text(t.into());
+            }
+            if let Some(n) = val.get("battery_cycle_count").and_then(|v| v.as_i64()) {
+                ui.set_battery_cycle_count(n as i32);
+            }
             if let Some(dc) = val.get("is_dc_online").and_then(|v| v.as_bool()) {
                 ui.set_is_dc_online(dc);
             }
