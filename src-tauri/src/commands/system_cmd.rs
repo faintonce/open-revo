@@ -1274,9 +1274,15 @@ fn extract_attribute_value<'a>(tag: &'a str, attr_name: &str) -> Option<&'a str>
     }
 }
 
+/// Returns the authoritative plugins directory resolved by the host microkernel.
+/// Strictly points to <get_config_dir()>/plugins (%APPDATA%\OpenRevo\plugins, portable exe/data/plugins, or user-migrated custom directory).
+pub fn get_plugins_dir() -> std::path::PathBuf {
+    crate::system::config::get_config_dir().join("plugins")
+}
+
 #[tauri::command]
 pub fn open_plugins_dir() -> Result<(), String> {
-    let dir = crate::system::config::get_config_dir().join("plugins");
+    let dir = get_plugins_dir();
     let _ = std::fs::create_dir_all(&dir);
     #[cfg(target_os = "windows")]
     {
@@ -1289,31 +1295,24 @@ pub fn open_plugins_dir() -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
+    let plugins_dir = get_plugins_dir();
+    let _ = std::fs::create_dir_all(&plugins_dir);
+
     let cfg = crate::system::config::load_config();
     let mut list = Vec::new();
-    let mut seen_ids = std::collections::HashSet::new();
-    let roots = get_candidate_plugin_roots();
 
-    for plugins_dir in roots {
-        if !plugins_dir.exists() {
-            continue;
-        }
-        if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    let dir_name = entry.file_name().to_string_lossy().to_string();
-                    let manifest_path = path.join("manifest.json");
+    if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let dir_name = entry.file_name().to_string_lossy().to_string();
+                let manifest_path = path.join("manifest.json");
 
-                    if manifest_path.exists() {
-                        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                            if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
+                if manifest_path.exists() {
+                    match std::fs::read_to_string(&manifest_path) {
+                        Ok(content) => match serde_json::from_str::<RawPluginManifest>(&content) {
+                            Ok(manifest) => {
                                 let id = manifest.id.unwrap_or_else(|| dir_name.clone());
-                                if seen_ids.contains(&id) {
-                                    continue;
-                                }
-                                seen_ids.insert(id.clone());
-
                                 let raw_p_type = manifest.plugin_type.as_deref().unwrap_or("extension");
 
                                 let has_explicit_tab = manifest.tab.is_some();
@@ -1422,48 +1421,50 @@ pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
                                 }
                                 continue;
                             }
+                            Err(e) => {
+                                crate::log_warn!("PLUGIN", "Failed to parse manifest at {:?}: {}", manifest_path, e);
+                            }
+                        },
+                        Err(e) => {
+                            crate::log_warn!("PLUGIN", "Failed to read manifest at {:?}: {}", manifest_path, e);
                         }
                     }
-
-                    // If folder exists but without standard manifest
-                    if seen_ids.contains(&dir_name) {
-                        continue;
-                    }
-                    seen_ids.insert(dir_name.clone());
-                    let enabled = cfg.custom_plugin_toggles.get(&dir_name).copied().unwrap_or(true);
-                    list.push(CustomPluginItem {
-                        id: dir_name.clone(),
-                        name: dir_name.clone(),
-                        version: "0.1.0".into(),
-                        author: "本地".into(),
-                        description: "本地扩展目录 (未检测到标准 manifest.json)".into(),
-                        plugin_type: "directory".into(),
-                        enabled,
-                        dir_name,
-                        window: None,
-                        telemetry: None,
-                        entry: None,
-                        target_slot: None,
-                        slot_height: None,
-                        service: None,
-                        shortcuts: None,
-                        watchers: None,
-                        permissions: None,
-                        min_host_version: None,
-                        order: None,
-                        is_compatible: true,
-                        compatibility_notice: None,
-                        has_tab: false,
-                        has_widget: false,
-                        has_slot: false,
-                        has_service: false,
-                        has_skin: false,
-                        has_background: false,
-                        is_headless: true,
-                        tab: None,
-                        widget: None,
-                    });
                 }
+
+                // If folder exists but without standard manifest
+                let enabled = cfg.custom_plugin_toggles.get(&dir_name).copied().unwrap_or(true);
+                list.push(CustomPluginItem {
+                    id: dir_name.clone(),
+                    name: dir_name.clone(),
+                    version: "0.1.0".into(),
+                    author: "本地".into(),
+                    description: "本地扩展目录 (未检测到标准 manifest.json)".into(),
+                    plugin_type: "directory".into(),
+                    enabled,
+                    dir_name,
+                    window: None,
+                    telemetry: None,
+                    entry: None,
+                    target_slot: None,
+                    slot_height: None,
+                    service: None,
+                    shortcuts: None,
+                    watchers: None,
+                    permissions: None,
+                    min_host_version: None,
+                    order: None,
+                    is_compatible: true,
+                    compatibility_notice: None,
+                    has_tab: false,
+                    has_widget: false,
+                    has_slot: false,
+                    has_service: false,
+                    has_skin: false,
+                    has_background: false,
+                    is_headless: true,
+                    tab: None,
+                    widget: None,
+                });
             }
         }
     }
@@ -1526,20 +1527,7 @@ pub fn set_custom_plugin_enabled(id: String, enabled: bool) -> Result<bool, Stri
 }
 
 pub fn find_plugin_dir(plugin_id: &str) -> std::path::PathBuf {
-    // 1. In dev/test or portable repo environments, prioritize latest plugins_sample
-    for base_cand in [std::path::PathBuf::from("."), std::path::PathBuf::from("..")] {
-        let sample_slint = base_cand.join("plugins_sample").join("slint").join(plugin_id);
-        if sample_slint.exists() {
-            return sample_slint;
-        }
-        let sample_web = base_cand.join("plugins_sample").join("webview2").join(plugin_id);
-        if sample_web.exists() {
-            return sample_web;
-        }
-    }
-
-    // 2. Installed plugins in user config dir
-    let base = crate::system::config::get_config_dir().join("plugins");
+    let base = get_plugins_dir();
     let direct = base.join(plugin_id);
     if direct.exists() {
         return direct;
@@ -1949,121 +1937,102 @@ pub fn get_model_capabilities() -> serde_json::Value {
     })
 }
 
-/// Returns all plugin candidate search roots, prioritizing persistent user config directory
-/// and falling back to portable or repo sample paths.
-pub fn get_candidate_plugin_roots() -> Vec<std::path::PathBuf> {
-    let mut roots = Vec::new();
-    // 1. Installed plugins in user config dir (highest priority)
-    roots.push(crate::system::config::get_config_dir().join("plugins"));
-    // 2. Portable and development sample paths
-    for base in [std::path::PathBuf::from("."), std::path::PathBuf::from("..")] {
-        roots.push(base.join("plugins"));
-        roots.push(base.join("plugins_sample").join("webview2"));
-        roots.push(base.join("plugins_sample").join("slint"));
-    }
-    roots
-}
-
 /// Automatically loads shortcuts, watchers, and auto-starts services for all enabled and compatible plugins on host startup.
-/// Discovers plugins across installed APPDATA directories as well as portable sample packages.
+/// Scans the single authoritative plugin directory: <get_config_dir()>/plugins.
 pub fn bootstrap_enabled_plugins() {
-    crate::log_info!("PLUGIN", "=== Initializing Plugin Subsystem & Bootstrapping Watchers ===");
+    let plugins_dir = get_plugins_dir();
+    crate::log_info!("PLUGIN", "=== Initializing Plugin Subsystem at {:?} ===", plugins_dir);
+    if !plugins_dir.exists() {
+        crate::log_info!("PLUGIN", "Plugins directory does not exist yet at {:?}. Creating directory and skipping bootstrap.", plugins_dir);
+        let _ = std::fs::create_dir_all(&plugins_dir);
+        return;
+    }
+
     let cfg = crate::system::config::load_config();
-    let roots = get_candidate_plugin_roots();
-    let mut seen_ids = std::collections::HashSet::new();
+    let Ok(entries) = std::fs::read_dir(&plugins_dir) else {
+        crate::log_warn!("PLUGIN", "Failed to read plugins directory at {:?}", plugins_dir);
+        return;
+    };
+
     let mut total_discovered = 0;
     let mut total_bootstrapped = 0;
 
-    for root in roots {
-        if !root.exists() {
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
             continue;
         }
-        let Ok(entries) = std::fs::read_dir(&root) else {
+        let dir_name = entry.file_name().to_string_lossy().to_string();
+        let manifest_path = path.join("manifest.json");
+        if !manifest_path.exists() {
             continue;
+        }
+
+        total_discovered += 1;
+        let content = match std::fs::read_to_string(&manifest_path) {
+            Ok(c) => c,
+            Err(err) => {
+                crate::log_error!("PLUGIN", "Failed to read manifest at {:?}: {}", manifest_path, err);
+                continue;
+            }
         };
 
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_dir() {
+        let manifest: RawPluginManifest = match serde_json::from_str(&content) {
+            Ok(m) => m,
+            Err(err) => {
+                crate::log_error!("PLUGIN", "Failed to parse manifest JSON at {:?}: {}", manifest_path, err);
                 continue;
             }
-            let dir_name = entry.file_name().to_string_lossy().to_string();
-            let manifest_path = path.join("manifest.json");
-            if !manifest_path.exists() {
-                continue;
-            }
+        };
 
-            total_discovered += 1;
-            let content = match std::fs::read_to_string(&manifest_path) {
-                Ok(c) => c,
-                Err(err) => {
-                    crate::log_error!("PLUGIN", "Failed to read manifest at {:?}: {}", manifest_path, err);
-                    continue;
-                }
-            };
+        let id = manifest.id.clone().unwrap_or_else(|| dir_name.clone());
+        let enabled = cfg
+            .custom_plugin_toggles
+            .get(&id)
+            .or_else(|| cfg.custom_plugin_toggles.get(&dir_name))
+            .copied()
+            .unwrap_or(true);
+        let (is_compatible, notice) = check_version_compatibility(manifest.min_host_version.as_deref());
 
-            let manifest: RawPluginManifest = match serde_json::from_str(&content) {
-                Ok(m) => m,
-                Err(err) => {
-                    crate::log_error!("PLUGIN", "Failed to parse manifest JSON at {:?}: {}", manifest_path, err);
-                    continue;
-                }
-            };
+        crate::log_info!(
+            "PLUGIN",
+            "Discovered plugin candidate '{}' ({}) at {:?} [enabled: {}, compatible: {}]",
+            id,
+            manifest.name.as_deref().unwrap_or(&dir_name),
+            path,
+            enabled,
+            is_compatible
+        );
 
-            let id = manifest.id.clone().unwrap_or_else(|| dir_name.clone());
-            if seen_ids.contains(&id) {
-                continue;
-            }
-            seen_ids.insert(id.clone());
+        if !enabled {
+            crate::log_info!("PLUGIN", "Plugin '{}' is toggled OFF by user setting, skipping watcher mounting.", id);
+            continue;
+        }
+        if !is_compatible {
+            crate::log_warn!("PLUGIN", "Plugin '{}' skipped due to version incompatibility: {:?}", id, notice);
+            continue;
+        }
 
-            let enabled = cfg
-                .custom_plugin_toggles
-                .get(&id)
-                .or_else(|| cfg.custom_plugin_toggles.get(&dir_name))
-                .copied()
-                .unwrap_or(true);
-            let (is_compatible, notice) = check_version_compatibility(manifest.min_host_version.as_deref());
+        total_bootstrapped += 1;
+        crate::log_info!(
+            "PLUGIN",
+            "Bootstrapping plugin '{}': watchers={}, shortcuts={}, auto_start_service={}",
+            id,
+            manifest.watchers.as_ref().map(|w| w.len()).unwrap_or(0),
+            manifest.shortcuts.as_ref().map(|s| s.len()).unwrap_or(0),
+            manifest.service.as_ref().map(|s| s.auto_start).unwrap_or(false),
+        );
 
-            crate::log_info!(
-                "PLUGIN",
-                "Discovered plugin candidate '{}' ({}) at {:?} [enabled: {}, compatible: {}]",
-                id,
-                manifest.name.as_deref().unwrap_or(&dir_name),
-                path,
-                enabled,
-                is_compatible
-            );
-
-            if !enabled {
-                crate::log_info!("PLUGIN", "Plugin '{}' is toggled OFF by user setting, skipping watcher mounting.", id);
-                continue;
-            }
-            if !is_compatible {
-                crate::log_warn!("PLUGIN", "Plugin '{}' skipped due to version incompatibility: {:?}", id, notice);
-                continue;
-            }
-
-            total_bootstrapped += 1;
-            crate::log_info!(
-                "PLUGIN",
-                "Bootstrapping plugin '{}': watchers={}, shortcuts={}, auto_start_service={}",
-                id,
-                manifest.watchers.as_ref().map(|w| w.len()).unwrap_or(0),
-                manifest.shortcuts.as_ref().map(|s| s.len()).unwrap_or(0),
-                manifest.service.as_ref().map(|s| s.auto_start).unwrap_or(false),
-            );
-
-            if let Some(ref scs) = manifest.shortcuts {
-                crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
-            }
-            if let Some(ref wts) = manifest.watchers {
-                crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
-            }
-            if let Some(ref srv) = manifest.service {
-                if srv.auto_start {
-                    crate::log_info!("PLUGIN", "Auto-starting companion service for '{}'", id);
-                    let _ = crate::system::plugin_service::start_service(&id);
-                }
+        if let Some(ref scs) = manifest.shortcuts {
+            crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
+        }
+        if let Some(ref wts) = manifest.watchers {
+            crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
+        }
+        if let Some(ref srv) = manifest.service {
+            if srv.auto_start {
+                crate::log_info!("PLUGIN", "Auto-starting companion service for '{}'", id);
+                let _ = crate::system::plugin_service::start_service(&id);
             }
         }
     }

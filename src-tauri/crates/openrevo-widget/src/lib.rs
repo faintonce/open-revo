@@ -189,42 +189,26 @@ pub fn find_thread_hwnd() -> Option<HWND> {
     }
 }
 
-/// Locate plugin root directory across APPDATA, local folders, and plugins_sample
+/// Locate plugin root directory using the host microkernel's authoritative config directory
 pub fn find_plugin_dir(plugin_id: &str) -> Option<PathBuf> {
-    // 1. Check APPDATA Roaming
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        let p = PathBuf::from(appdata).join("openrevo").join("plugins").join(plugin_id);
-        if p.exists() {
-            return Some(p);
-        }
+    let base = openrevo_core::system::config::get_config_dir().join("plugins");
+    let direct = base.join(plugin_id);
+    if direct.exists() {
+        return Some(direct);
     }
 
-    // 2. Check current working directory plugins/
-    let p_curr = Path::new("plugins").join(plugin_id);
-    if p_curr.exists() {
-        return Some(p_curr);
-    }
-
-    // 3. Check sample directories
-    let p_sample_slint = Path::new("plugins_sample").join("slint").join(plugin_id);
-    if p_sample_slint.exists() {
-        return Some(p_sample_slint);
-    }
-    let p_sample_web = Path::new("plugins_sample").join("webview2").join(plugin_id);
-    if p_sample_web.exists() {
-        return Some(p_sample_web);
-    }
-
-    // 4. Executable relative directory
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            let p_exe = dir.join("plugins").join(plugin_id);
-            if p_exe.exists() {
-                return Some(p_exe);
-            }
-            let p_sample = dir.join("plugins_sample").join("slint").join(plugin_id);
-            if p_sample.exists() {
-                return Some(p_sample);
+    if let Ok(entries) = std::fs::read_dir(&base) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let manifest_path = path.join("manifest.json");
+                if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if val.get("id").and_then(|v| v.as_str()) == Some(plugin_id) {
+                            return Some(path);
+                        }
+                    }
+                }
             }
         }
     }
