@@ -215,30 +215,50 @@
 ```json
 "watchers": [
   {
-    "id": "battery-limit-ac-reconnect-guard",
-    "name": "微内核电源重连限充断言守护",
+    "id": "battery-limit-startup-guard",
+    "name": "微内核开机与电源接入自愈守护 (声明式底层动作)",
     "enabled": true,
-    "cooldown_ms": 3000,
-    "condition": {
-      "type": "power_event",
-      "event": "ac_connected"
+    "cooldown_ms": 1000,
+    "when": {
+      "type": "any",
+      "conditions": [
+        { "type": "startup" },
+        { "type": "power_event", "event": "ac_connected" }
+      ]
     },
     "actions": [
       {
-        "action": "call_command",
-        "command": "set_battery_limit",
-        "args": { "limit": 80 }
+        "action": "raw_ec_write",
+        "address": "0x07B9",
+        "value": 80
+      },
+      {
+        "action": "raw_ec_write",
+        "address": "0x07C3",
+        "value": 4
+      },
+      {
+        "action": "delay_ms",
+        "duration": 200
+      },
+      {
+        "action": "raw_ec_write",
+        "address": "0x07B9",
+        "value": 80
       }
     ]
   },
   {
-    "id": "gpu-undervolt-boot-guard",
+    "id": "gpu-undervolt-guard",
     "name": "微内核开机/重连显卡降压曲线自愈",
     "enabled": true,
-    "cooldown_ms": 5000,
-    "condition": {
-      "type": "power_event",
-      "event": "ac_connected"
+    "cooldown_ms": 2000,
+    "when": {
+      "type": "any",
+      "conditions": [
+        { "type": "startup" },
+        { "type": "power_event", "event": "ac_connected" }
+      ]
     },
     "actions": [
       {
@@ -253,7 +273,7 @@
     "name": "周期性门控断言",
     "enabled": true,
     "cooldown_ms": 0,
-    "condition": {
+    "when": {
       "type": "interval",
       "every_ms": 4000
     },
@@ -275,14 +295,17 @@
 | `name` | `string` | **必填** | 规则的人类可读名称，用于日志追踪与 OSD 提示 |
 | `enabled` | `boolean` | `true` | 是否启用该规则 |
 | `cooldown_ms` | `number` | `5000` | 触发冷却锁定时间（毫秒），防止边界临界值抖动高频触发 |
-| `when` / `condition` | `object` | **必填** | 规则触发条件判定对象（见下方条件类型表） |
+| `when` / `condition` | `object \| object[]` | **必填** | 规则触发条件判定对象或条件数组（支持复合逻辑，详见下方类型表） |
 | `actions` | `object[]` | `[]` | 触发后按顺序执行的微内核动作序列（见下方动作类型表） |
 
 #### `condition` 条件判定类型表
 | 类型 (`type`) | 字段参数 | 说明 |
 | :--- | :--- | :--- |
+| `"startup"` (别名 `"boot"`, `"lifecycle"`) | 无 | **【微内核开机就绪断言】**在系统启动引导完成、微内核硬件网关就绪时立即触发一次。解决传统软件必须打开界面才能下发硬件配置的痛点，用于开机自愈。 |
+| `"any"` (别名 `"or"`) | `conditions: object[]` | **【逻辑或多条件聚合】**子条件数组中只要**任意一个条件命中**即触发。**（官方强烈推荐）**：如同时监听开机启动与外部供电插入 `{ "type": "any", "conditions": [{ "type": "startup" }, { "type": "power_event", "event": "ac_connected" }] }`，亦可直接简写为条件数组 `when: [ ... ]`。 |
+| `"all"` (别名 `"and"`) | `conditions: object[]` | **【逻辑与多条件聚合】**子条件数组中**所有条件同时满足**时方可触发（例如：外部电源接入 AND 当前电池电量大于 80%）。 |
 | `"interval"` | `every_ms: number` | **【微内核周期定时断言】**以固定周期（毫秒，>=500ms）在后台定时触发，用于硬件心跳保活与门控自愈，无需唤醒任何前端视窗 |
-| `"power_event"` | `event: string` | **【电源拓扑事件】**支持 `"ac_connected"`（适配器插入）、`"ac_disconnected"`（拔出供电）、`"screen_on"`、`"screen_off"` |
+| `"power_event"` | `event: string` | **【电源拓扑与屏幕事件】**支持 `"ac_connected"`（适配器插入）、`"ac_disconnected"`（拔出供电）、`"screen_on"`、`"screen_off"` |
 | `"telemetry"` | `power_mode`, `power_mode_in`, `cpu_temp_gt/gte/lt`, `gpu_temp_gt/gte`, `is_dc_online`, `fan_boost`, `battery_level_gt/gte/lt/lte`, `is_charging`, `is_ac_online` | **【动态硬件遥测条件】**当微内核硬件遥测采样满足设定阈值时触发 |
 | `"foreground_process"`| `targets: string[]`, `trigger_on: "enter" \| "exit" \| "both"` | **【前台进程感知】**当匹配的游戏或应用程序进程进入或退出前台焦点时触发 |
 | `"raw_ec_diff"` | `address: u16 \| string`, `mask?: u8 \| string` | **【底层寄存器值变动追踪】**监听指定 EC 寄存器指定掩码位发生跳变时触发 |

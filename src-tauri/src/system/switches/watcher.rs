@@ -319,6 +319,11 @@ pub fn start_hardware_state_watcher(
                             use tauri::Emitter;
                             let _ = a.emit("dc-status-changed", is_dc);
                         }
+                        if is_dc {
+                            crate::system::watcher_hub::notify_power_event("ac_connected");
+                        } else {
+                            crate::system::watcher_hub::notify_power_event("ac_disconnected");
+                        }
                     }
                 }
             } else {

@@ -62,26 +62,32 @@
     },
     {
       "id": "battery_limit_guard",
-      "name": "适配器重连自动自愈80%充电上限",
+      "name": "微内核开机与电源接入自愈80%充电上限",
       "enabled": true,
-      "cooldown_ms": 3000,
+      "cooldown_ms": 1000,
       "when": {
-        "type": "power_event",
-        "event": "ac_connected"
+        "type": "any",
+        "conditions": [
+          { "type": "startup" },
+          { "type": "power_event", "event": "ac_connected" }
+        ]
       },
       "actions": [
         { "action": "call_command", "command": "set_battery_limit", "args": { "limit": 80 } },
-        { "action": "notify_osd", "title": "电池健康守护", "message": "电源已连接，硬件限充已锁定在 80%" }
+        { "action": "notify_osd", "title": "电池健康守护", "message": "开机/电源接入：硬件限充已自愈锁定在 80%" }
       ]
     },
     {
       "id": "gpu_undervolt_boot_guard",
-      "name": "开机/重连静默下发显卡降压超频曲线",
+      "name": "开机/电源接入静默下发显卡降压超频曲线",
       "enabled": true,
-      "cooldown_ms": 5000,
+      "cooldown_ms": 2000,
       "when": {
-        "type": "power_event",
-        "event": "ac_connected"
+        "type": "any",
+        "conditions": [
+          { "type": "startup" },
+          { "type": "power_event", "event": "ac_connected" }
+        ]
       },
       "actions": [
         { "action": "call_command", "command": "set_gpu_undervolt_curve", "args": { "targetVoltMv": 875, "maxBoostMhz": 2450 } }

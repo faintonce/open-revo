@@ -236,6 +236,207 @@ pub enum WatcherCondition {
     /// 6. Core Lifecycle condition (runs on microkernel startup readiness and system wake-up)
     #[serde(rename = "startup", alias = "boot", alias = "lifecycle", alias = "always")]
     Startup,
+
+    /// 7. Composite Any condition (Logical OR: fires if ANY child condition matches/triggers)
+    #[serde(rename = "any", alias = "or")]
+    Any {
+        conditions: Vec<WatcherCondition>,
+    },
+
+    /// 8. Composite All condition (Logical AND: fires if ALL child conditions match)
+    #[serde(rename = "all", alias = "and")]
+    All {
+        conditions: Vec<WatcherCondition>,
+    },
+}
+
+impl WatcherCondition {
+    pub fn condition_type_str(&self) -> String {
+        match self {
+            WatcherCondition::Telemetry { .. } => "telemetry".to_string(),
+            WatcherCondition::ForegroundProcess { .. } => "foreground_process".to_string(),
+            WatcherCondition::PowerEvent { .. } => "power_event".to_string(),
+            WatcherCondition::RawEcDiff { .. } => "raw_ec_diff".to_string(),
+            WatcherCondition::Interval { .. } => "interval".to_string(),
+            WatcherCondition::Startup => "startup".to_string(),
+            WatcherCondition::Any { conditions } => {
+                let inner = conditions.iter().map(|c| c.condition_type_str()).collect::<Vec<_>>().join("|");
+                format!("any({})", inner)
+            }
+            WatcherCondition::All { conditions } => {
+                let inner = conditions.iter().map(|c| c.condition_type_str()).collect::<Vec<_>>().join("&");
+                format!("all({})", inner)
+            }
+        }
+    }
+
+    pub fn matches_startup(&self) -> bool {
+        match self {
+            WatcherCondition::Startup => true,
+            WatcherCondition::Any { conditions } => conditions.iter().any(|c| c.matches_startup()),
+            WatcherCondition::All { conditions } => conditions.iter().all(|c| c.matches_startup()),
+            _ => false,
+        }
+    }
+
+    pub fn matches_power_event(&self, event_name: &str) -> bool {
+        match self {
+            WatcherCondition::PowerEvent { event } => event.eq_ignore_ascii_case(event_name),
+            WatcherCondition::Any { conditions } => conditions.iter().any(|c| c.matches_power_event(event_name)),
+            WatcherCondition::All { conditions } => conditions.iter().any(|c| c.matches_power_event(event_name)),
+            _ => false,
+        }
+    }
+
+    pub fn should_assert_on_lifecycle(&self) -> bool {
+        match self {
+            WatcherCondition::ForegroundProcess { .. } => false,
+            WatcherCondition::RawEcDiff { .. } => false,
+            WatcherCondition::Any { conditions } => conditions.iter().any(|c| c.should_assert_on_lifecycle()),
+            WatcherCondition::All { conditions } => conditions.iter().all(|c| c.should_assert_on_lifecycle()),
+            _ => true,
+        }
+    }
+
+    pub fn has_foreground_process(&self) -> bool {
+        match self {
+            WatcherCondition::ForegroundProcess { .. } => true,
+            WatcherCondition::Any { conditions } | WatcherCondition::All { conditions } => {
+                conditions.iter().any(|c| c.has_foreground_process())
+            }
+            _ => false,
+        }
+    }
+
+    pub fn has_raw_ec_diff(&self) -> bool {
+        match self {
+            WatcherCondition::RawEcDiff { .. } => true,
+            WatcherCondition::Any { conditions } | WatcherCondition::All { conditions } => {
+                conditions.iter().any(|c| c.has_raw_ec_diff())
+            }
+            _ => false,
+        }
+    }
+
+    pub fn has_interval(&self) -> bool {
+        match self {
+            WatcherCondition::Interval { .. } => true,
+            WatcherCondition::Any { conditions } | WatcherCondition::All { conditions } => {
+                conditions.iter().any(|c| c.has_interval())
+            }
+            _ => false,
+        }
+    }
+
+    pub fn get_min_interval_ms(&self) -> Option<u64> {
+        match self {
+            WatcherCondition::Interval { every_ms } => Some(*every_ms),
+            WatcherCondition::Any { conditions } | WatcherCondition::All { conditions } => {
+                conditions.iter().filter_map(|c| c.get_min_interval_ms()).min()
+            }
+            _ => None,
+        }
+    }
+
+    pub fn has_telemetry(&self) -> bool {
+        match self {
+            WatcherCondition::Telemetry { .. } => true,
+            WatcherCondition::Any { conditions } | WatcherCondition::All { conditions } => {
+                conditions.iter().any(|c| c.has_telemetry())
+            }
+            _ => false,
+        }
+    }
+
+    pub fn needs_gpu_sensor(&self) -> bool {
+        match self {
+            WatcherCondition::Telemetry { gpu_temp_gt, gpu_temp_gte, .. } => {
+                gpu_temp_gt.is_some() || gpu_temp_gte.is_some()
+            }
+            WatcherCondition::Any { conditions } | WatcherCondition::All { conditions } => {
+                conditions.iter().any(|c| c.needs_gpu_sensor())
+            }
+            _ => false,
+        }
+    }
+
+    pub fn matches_telemetry(&self, state: &HardwareState) -> bool {
+        match self {
+            WatcherCondition::Telemetry {
+                power_mode,
+                power_mode_in,
+                cpu_temp_gt,
+                cpu_temp_gte,
+                cpu_temp_lt,
+                gpu_temp_gt,
+                gpu_temp_gte,
+                is_dc_online,
+                fan_boost,
+                battery_level_gt,
+                battery_level_gte,
+                battery_level_lt,
+                battery_level_lte,
+                is_charging,
+                is_ac_online,
+            } => {
+                let mut matched = true;
+                if let Some(pm) = power_mode { if state.power_mode != *pm { matched = false; } }
+                if let Some(list) = power_mode_in { if !list.contains(&state.power_mode) { matched = false; } }
+                if let Some(t) = cpu_temp_gt { if state.cpu_temp <= *t { matched = false; } }
+                if let Some(t) = cpu_temp_gte { if state.cpu_temp < *t { matched = false; } }
+                if let Some(t) = cpu_temp_lt { if state.cpu_temp >= *t { matched = false; } }
+                if let Some(t) = gpu_temp_gt { if state.gpu_temp <= *t { matched = false; } }
+                if let Some(t) = gpu_temp_gte { if state.gpu_temp < *t { matched = false; } }
+                if let Some(dc) = is_dc_online { if state.is_dc_online != *dc { matched = false; } }
+                if let Some(fb) = fan_boost { if state.fan_boost != *fb { matched = false; } }
+                if let Some(t) = battery_level_gt { if state.battery_level <= *t { matched = false; } }
+                if let Some(t) = battery_level_gte { if state.battery_level < *t { matched = false; } }
+                if let Some(t) = battery_level_lt { if state.battery_level >= *t { matched = false; } }
+                if let Some(t) = battery_level_lte { if state.battery_level > *t { matched = false; } }
+                if let Some(ch) = is_charging { if state.is_charging != *ch { matched = false; } }
+                if let Some(ac) = is_ac_online { if state.is_ac_online != *ac { matched = false; } }
+                matched
+            }
+            WatcherCondition::Any { conditions } => conditions.iter().any(|c| c.matches_telemetry(state)),
+            WatcherCondition::All { conditions } => conditions.iter().all(|c| c.matches_telemetry(state)),
+            _ => false,
+        }
+    }
+
+    pub fn matches_foreground_process(&self, prev_proc: &str, curr_proc: &str) -> bool {
+        match self {
+            WatcherCondition::ForegroundProcess { targets, trigger_on } => {
+                let mode = trigger_on.unwrap_or(ProcessTriggerMode::Enter);
+                let matched_curr = targets.iter().any(|t| t.to_lowercase() == curr_proc);
+                let matched_prev = targets.iter().any(|t| t.to_lowercase() == prev_proc);
+                match mode {
+                    ProcessTriggerMode::Enter => matched_curr && !matched_prev,
+                    ProcessTriggerMode::Exit => !matched_curr && matched_prev,
+                    ProcessTriggerMode::Both => (matched_curr && !matched_prev) || (!matched_curr && matched_prev),
+                }
+            }
+            WatcherCondition::Any { conditions } => conditions.iter().any(|c| c.matches_foreground_process(prev_proc, curr_proc)),
+            WatcherCondition::All { conditions } => conditions.iter().all(|c| c.matches_foreground_process(prev_proc, curr_proc)),
+            _ => false,
+        }
+    }
+}
+
+pub fn deserialize_watcher_condition<'de, D>(deserializer: D) -> Result<WatcherCondition, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ConditionHelper {
+        Single(WatcherCondition),
+        List(Vec<WatcherCondition>),
+    }
+
+    match ConditionHelper::deserialize(deserializer)? {
+        ConditionHelper::Single(c) => Ok(c),
+        ConditionHelper::List(list) => Ok(WatcherCondition::Any { conditions: list }),
+    }
 }
 
 pub fn deserialize_optional_hex_or_dec_u8<'de, D>(deserializer: D) -> Result<Option<u8>, D::Error>
@@ -315,7 +516,7 @@ pub struct WatcherDefinition {
     pub enabled: bool,
     #[serde(default = "default_cooldown")]
     pub cooldown_ms: u64,
-    #[serde(alias = "when")]
+    #[serde(alias = "when", deserialize_with = "deserialize_watcher_condition")]
     pub condition: WatcherCondition,
     #[serde(default)]
     pub actions: Vec<WatcherAction>,
@@ -406,7 +607,7 @@ fn register_watcher_internal(def: WatcherDefinition, persist: bool) -> bool {
         None => "WATCHER_HUB".to_string(),
     };
     crate::log_info!(&mod_tag, "Registered watcher '{}' [{}]", def.name, id);
-    let is_startup = def.enabled && matches!(def.condition, WatcherCondition::Startup);
+    let is_startup = def.enabled && def.condition.matches_startup();
     let def_to_trigger = if is_startup { Some(def.clone()) } else { None };
     map.insert(
         id,
@@ -597,11 +798,7 @@ pub fn reassert_active_watchers(trigger_reason: &str) {
 
             // Foreground process and EC diff conditions are event-driven,
             // while hardware baseline policies should be actively asserted on startup/resume.
-            let should_assert = match &record.definition.condition {
-                WatcherCondition::ForegroundProcess { .. } => false,
-                WatcherCondition::RawEcDiff { .. } => false,
-                _ => true,
-            };
+            let should_assert = record.definition.condition.should_assert_on_lifecycle();
 
             if should_assert && !record.definition.actions.is_empty() {
                 record.last_triggered = Some(now);
@@ -643,14 +840,7 @@ pub fn get_all_watchers() -> Vec<WatcherInfo> {
     let now = Instant::now();
     map.values()
         .map(|r| {
-            let cond_type = match &r.definition.condition {
-                WatcherCondition::Telemetry { .. } => "telemetry",
-                WatcherCondition::ForegroundProcess { .. } => "foreground_process",
-                WatcherCondition::PowerEvent { .. } => "power_event",
-                WatcherCondition::RawEcDiff { .. } => "raw_ec_diff",
-                WatcherCondition::Interval { .. } => "interval",
-                WatcherCondition::Startup => "startup",
-            };
+            let cond_type = r.definition.condition.condition_type_str();
             let secs_ago = r.last_triggered.map(|t| now.duration_since(t).as_secs());
             WatcherInfo {
                 id: r.definition.id.clone(),
@@ -658,7 +848,7 @@ pub fn get_all_watchers() -> Vec<WatcherInfo> {
                 plugin_id: r.definition.plugin_id.clone(),
                 enabled: r.definition.enabled,
                 cooldown_ms: r.definition.cooldown_ms,
-                condition_type: cond_type.to_string(),
+                condition_type: cond_type,
                 action_count: r.definition.actions.len(),
                 last_triggered_secs_ago: secs_ago,
             }
@@ -670,7 +860,7 @@ pub fn get_all_watchers() -> Vec<WatcherInfo> {
 pub fn has_active_telemetry_watchers() -> bool {
     let map = get_watchers_map().lock();
     map.values().any(|r| {
-        r.definition.enabled && matches!(r.definition.condition, WatcherCondition::Telemetry { .. })
+        r.definition.enabled && r.definition.condition.has_telemetry()
     })
 }
 
@@ -681,11 +871,7 @@ pub fn should_query_gpu_for_watchers() -> bool {
         if !r.definition.enabled {
             return false;
         }
-        if let WatcherCondition::Telemetry { gpu_temp_gt, gpu_temp_gte, .. } = &r.definition.condition {
-            gpu_temp_gt.is_some() || gpu_temp_gte.is_some()
-        } else {
-            false
-        }
+        r.definition.condition.needs_gpu_sensor()
     })
 }
 
@@ -701,125 +887,28 @@ pub fn evaluate_telemetry_watchers(state: &HardwareState) {
                 continue;
             }
 
-            if let WatcherCondition::Telemetry {
-                power_mode,
-                power_mode_in,
-                cpu_temp_gt,
-                cpu_temp_gte,
-                cpu_temp_lt,
-                gpu_temp_gt,
-                gpu_temp_gte,
-                is_dc_online,
-                fan_boost,
-                battery_level_gt,
-                battery_level_gte,
-                battery_level_lt,
-                battery_level_lte,
-                is_charging,
-                is_ac_online,
-            } = &record.definition.condition
-            {
-                let mut matched = true;
+            if record.definition.condition.matches_telemetry(state) {
+                let can_trigger = match record.last_triggered {
+                    None => true,
+                    Some(last) => now.duration_since(last) >= Duration::from_millis(record.definition.cooldown_ms),
+                };
 
-                if let Some(pm) = power_mode {
-                    if state.power_mode != *pm {
-                        matched = false;
-                    }
+                if can_trigger {
+                    record.last_triggered = Some(now);
+                    record.last_matched = true;
+                    triggers.push((
+                        record.definition.clone(),
+                        serde_json::json!({
+                            "cpu_temp": state.cpu_temp,
+                            "gpu_temp": state.gpu_temp,
+                            "power_mode": state.power_mode,
+                            "fan_boost": state.fan_boost,
+                            "is_dc_online": state.is_dc_online
+                        }),
+                    ));
                 }
-                if let Some(list) = power_mode_in {
-                    if !list.contains(&state.power_mode) {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = cpu_temp_gt {
-                    if state.cpu_temp <= *t {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = cpu_temp_gte {
-                    if state.cpu_temp < *t {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = cpu_temp_lt {
-                    if state.cpu_temp >= *t {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = gpu_temp_gt {
-                    if state.gpu_temp <= *t {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = gpu_temp_gte {
-                    if state.gpu_temp < *t {
-                        matched = false;
-                    }
-                }
-                if let Some(dc) = is_dc_online {
-                    if state.is_dc_online != *dc {
-                        matched = false;
-                    }
-                }
-                if let Some(fb) = fan_boost {
-                    if state.fan_boost != *fb {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = battery_level_gt {
-                    if state.battery_level <= *t {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = battery_level_gte {
-                    if state.battery_level < *t {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = battery_level_lt {
-                    if state.battery_level >= *t {
-                        matched = false;
-                    }
-                }
-                if let Some(t) = battery_level_lte {
-                    if state.battery_level > *t {
-                        matched = false;
-                    }
-                }
-                if let Some(ch) = is_charging {
-                    if state.is_charging != *ch {
-                        matched = false;
-                    }
-                }
-                if let Some(ac) = is_ac_online {
-                    if state.is_ac_online != *ac {
-                        matched = false;
-                    }
-                }
-
-                if matched {
-                    let can_trigger = match record.last_triggered {
-                        None => true,
-                        Some(last) => now.duration_since(last) >= Duration::from_millis(record.definition.cooldown_ms),
-                    };
-
-                    if can_trigger {
-                        record.last_triggered = Some(now);
-                        record.last_matched = true;
-                        triggers.push((
-                            record.definition.clone(),
-                            serde_json::json!({
-                                "cpu_temp": state.cpu_temp,
-                                "gpu_temp": state.gpu_temp,
-                                "power_mode": state.power_mode,
-                                "fan_boost": state.fan_boost,
-                                "is_dc_online": state.is_dc_online
-                            }),
-                        ));
-                    }
-                } else {
-                    record.last_matched = false;
-                }
+            } else {
+                record.last_matched = false;
             }
         }
     }
@@ -840,16 +929,14 @@ pub fn notify_power_event(event_name: &str) {
             if !record.definition.enabled {
                 continue;
             }
-            if let WatcherCondition::PowerEvent { event } = &record.definition.condition {
-                if event.eq_ignore_ascii_case(event_name) {
-                    let can_trigger = match record.last_triggered {
-                        None => true,
-                        Some(last) => now.duration_since(last) >= Duration::from_millis(record.definition.cooldown_ms),
-                    };
-                    if can_trigger {
-                        record.last_triggered = Some(now);
-                        triggers.push(record.definition.clone());
-                    }
+            if record.definition.condition.matches_power_event(event_name) {
+                let can_trigger = match record.last_triggered {
+                    None => true,
+                    Some(last) => now.duration_since(last) >= Duration::from_millis(record.definition.cooldown_ms),
+                };
+                if can_trigger {
+                    record.last_triggered = Some(now);
+                    triggers.push(record.definition.clone());
                 }
             }
         }
@@ -865,7 +952,11 @@ pub fn notify_power_event(event_name: &str) {
 }
 
 /// Execute watcher actions and broadcast events asynchronously
-pub fn dispatch_watcher_trigger(def: WatcherDefinition, condition_type: &'static str, details: serde_json::Value) {
+pub fn dispatch_watcher_trigger(mut def: WatcherDefinition, condition_type: &'static str, details: serde_json::Value) {
+    let opt_pid = def.plugin_id.clone();
+    if let Some(pid) = opt_pid {
+        hydrate_watcher_from_plugin_storage(&pid, &mut def);
+    }
     let mod_tag = match &def.plugin_id {
         Some(pid) => format!("PLUGIN:{}:WATCHER", pid),
         None => "WATCHER_HUB".to_string(),
@@ -1039,9 +1130,9 @@ fn start_background_process_watcher() {
                 // Check if any watchers need process, EC diff or interval scanning
                 let (has_proc_watchers, has_ec_watchers, has_interval_watchers) = {
                     let map = get_watchers_map().lock();
-                    let p = map.values().any(|r| r.definition.enabled && matches!(r.definition.condition, WatcherCondition::ForegroundProcess { .. }));
-                    let e = map.values().any(|r| r.definition.enabled && matches!(r.definition.condition, WatcherCondition::RawEcDiff { .. }));
-                    let i = map.values().any(|r| r.definition.enabled && matches!(r.definition.condition, WatcherCondition::Interval { .. }));
+                    let p = map.values().any(|r| r.definition.enabled && r.definition.condition.has_foreground_process());
+                    let e = map.values().any(|r| r.definition.enabled && r.definition.condition.has_raw_ec_diff());
+                    let i = map.values().any(|r| r.definition.enabled && r.definition.condition.has_interval());
                     (p, e, i)
                 };
 
@@ -1086,8 +1177,8 @@ fn evaluate_interval_watchers() {
             if !record.definition.enabled {
                 continue;
             }
-            if let WatcherCondition::Interval { every_ms } = &record.definition.condition {
-                let interval_dur = Duration::from_millis((*every_ms).max(500));
+            if let Some(every_ms) = record.definition.condition.get_min_interval_ms() {
+                let interval_dur = Duration::from_millis(every_ms.max(500));
                 let should_fire = match record.last_triggered {
                     None => true,
                     Some(last) => now.duration_since(last) >= interval_dur,
@@ -1119,33 +1210,21 @@ fn evaluate_foreground_process_change(prev_proc: &str, curr_proc: &str) {
             if !record.definition.enabled {
                 continue;
             }
-            if let WatcherCondition::ForegroundProcess { targets, trigger_on } = &record.definition.condition {
-                let mode = trigger_on.unwrap_or(ProcessTriggerMode::Enter);
-                let matched_curr = targets.iter().any(|t| t.to_lowercase() == curr_proc);
-                let matched_prev = targets.iter().any(|t| t.to_lowercase() == prev_proc);
-
-                let should_fire = match mode {
-                    ProcessTriggerMode::Enter => matched_curr && !matched_prev,
-                    ProcessTriggerMode::Exit => !matched_curr && matched_prev,
-                    ProcessTriggerMode::Both => (matched_curr && !matched_prev) || (!matched_curr && matched_prev),
+            if record.definition.condition.matches_foreground_process(prev_proc, curr_proc) {
+                let can_trigger = match record.last_triggered {
+                    None => true,
+                    Some(last) => now.duration_since(last) >= Duration::from_millis(record.definition.cooldown_ms),
                 };
-
-                if should_fire {
-                    let can_trigger = match record.last_triggered {
-                        None => true,
-                        Some(last) => now.duration_since(last) >= Duration::from_millis(record.definition.cooldown_ms),
-                    };
-                    if can_trigger {
-                        record.last_triggered = Some(now);
-                        triggers.push((
-                            record.definition.clone(),
-                            serde_json::json!({
-                                "process": curr_proc,
-                                "previous_process": prev_proc,
-                                "transition": if matched_curr { "enter" } else { "exit" }
-                            }),
-                        ));
-                    }
+                if can_trigger {
+                    record.last_triggered = Some(now);
+                    triggers.push((
+                        record.definition.clone(),
+                        serde_json::json!({
+                            "process": curr_proc,
+                            "previous_process": prev_proc,
+                            "transition": "process_match"
+                        }),
+                    ));
                 }
             }
         }

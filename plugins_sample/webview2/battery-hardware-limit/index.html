@@ -692,7 +692,7 @@
         <div class="header-title-box">
           <h1>
             电池硬件限充守护者
-            <span class="header-badge" id="badgeVersion">v2.5.0 Pin-Safe</span>
+
           </h1>
           <div class="header-desc">
             底层硬件级截断充电回路 · 自适应 0x04/0x05 门控 · 持续常驻心跳锁定 · 彻底杜绝电池鼓包与过充
@@ -1178,12 +1178,16 @@
 
         const watcherDef = {
           id: 'battery-limit-startup-guard',
-          name: '微内核开机限充断言守护 (声明式底层动作)',
+          name: '微内核开机与电源接入自愈守护 (声明式底层动作)',
           plugin_id: 'battery-hardware-limit',
           enabled: isEnabled,
-          cooldown_ms: 3000,
+          cooldown_ms: 1000,
           condition: {
-            type: 'startup'
+            type: 'any',
+            conditions: [
+              { type: 'startup' },
+              { type: 'power_event', event: 'ac_connected' }
+            ]
           },
           actions: [
             {

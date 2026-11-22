@@ -244,10 +244,17 @@ type ShortcutAction =
 }
 ```
 
-### 3. 支持的 5 大监听条件类型 (`WatcherCondition`)：
-1. **`interval` (微内核后台周期定时断言，0 Webview 依赖)**：
+### 3. 支持的 8 大监听与复合条件类型 (`WatcherCondition`)：
+1. **`startup` (微内核开机就绪断言，别名 `boot`, `lifecycle`)**：
+   * 在控制台启动引导完成、硬件网关初次就绪时立即下发一次。彻底免去用户每次开机必须点开插件界面才能触发配置的痛点，0MB 常驻原生断言。
+2. **`any` (逻辑或复合条件，别名 `or`)**：
+   * `conditions`: 条件数组（如 `[{ "type": "startup" }, { "type": "power_event", "event": "ac_connected" }]`）。
+   * **【官方强烈推荐】**：子条件中**任意一个触发即执行动作**，适用于“开机断言 + 拔插适配器自愈 + 睡眠唤醒自愈”全场景，同一套动作序列只需声明一份！在清单中亦支持直接写数组 `when: [ ... ]`。
+3. **`all` (逻辑与复合条件，别名 `and`)**：
+   * `conditions`: 条件数组。所有子条件必须**同时满足**时方可触发（例如：插入充电器 AND 电池电量 > 80%）。
+4. **`interval` (微内核后台周期定时断言，0 Webview 依赖)**：
    * `every_ms`: 周期执行间隔（毫秒，>=500ms），在内核后台持续调度硬件自愈断言与巡检。
-2. **`telemetry` (硬件遥测阈值与状态)**：
+5. **`telemetry` (硬件遥测阈值与状态)**：
    * `power_mode`: 指定特定性能模式（如 `4`）；
    * `power_mode_in`: 指定模式数组（如 `[2, 4]`）；
    * `cpu_temp_gt` / `cpu_temp_gte` / `cpu_temp_lt`: CPU 结温比较阈值；
@@ -256,17 +263,18 @@ type ShortcutAction =
    * `is_charging`: 是否处于充电态；
    * `is_ac_online`: 外部供电适配器是否在线；
    * `fan_boost`: 强冷是否开启。
-3. **`foreground_process` (前台进程与游戏追踪)**：
+6. **`foreground_process` (前台进程与游戏追踪)**：
    * `targets`: 关注的目标进程名列表（如 `["b1.exe", "cyberpunk2077.exe"]`）；
    * `trigger_on`: 触发时机：`"enter"`（切换到前台时）、`"exit"`（切出前台时）或 `"both"`。
-4. **`power_event` (电源与系统边沿事件)**：
+7. **`power_event` (电源与系统边沿事件)**：
    * `event`: `"ac_connected"`（插入充电器）、`"ac_disconnected"`（拔出充电器/走电池）、`"screen_off"`、`"screen_on"`。
-5. **`raw_ec_diff` (受控 EC 寄存器差量监控)**：
+8. **`raw_ec_diff` (受控 EC 寄存器差量监控)**：
    * `address`: 目标物理地址（支持十进制整数或十六进制字符串如 `"0x0740"`）；
    * `mask`: 可选位掩码，仅关注特定位段变化；
    * 仅在数值发生实际跳变时触发。
 
 ### 4. 支持的执行动作类型 (`WatcherAction`)：
+* **`call_command`** / **`invoke_command`**：`{ "action": "call_command", "command": "...", "args": { ... } }`（直接调用宿主全部 IPC 命令，前端调什么这里填什么，全自动下发）
 * **`set_battery_limit`**：`{ "action": "set_battery_limit", "limit": 1..100 }`（安全调节底层电池充电上限，微内核底层执行门控锁定与状态对齐）
 * **`set_power_mode`**：`{ "action": "set_power_mode", "mode": 1 | 2 | 3 | 4 }`
 * **`set_fan_boost`**：`{ "action": "set_fan_boost", "enable": boolean }`
@@ -283,6 +291,11 @@ type ShortcutAction =
 * **`invoke('trigger_watcher_manual', { id: string }) -> boolean`**：手动模拟触发；
 * **沙盒桥调用与开机自启动持久化**：
   在 Tab、Slot 或桌面挂件中均可直接通过 `window.OpenRevo.registerWatcher(...)` 或 `window.parent.__OPENREVO_BRIDGE__.registerWatcher(...)` 注册。
+  微内核会自动将动态规则持久化落盘至 `custom_watchers.json`，宿主启动时自动重载入微内核，**无需用户手动进入插件页面即可开机常驻生效**！通过 `unregisterWatcher(id)` 注销时自动从持久化清单移除。
+* **统一宿主日志与调试支持**：
+  插件前端严禁自行在插件目录创建额外日志文件破坏便携性，统一直接调用宿主日志 API：
+  * `window.OpenRevo.log(msg)` / `window.OpenRevo.logWarn(msg)` / `window.OpenRevo.logError(msg)`
+  * 宿主会将日志打上 `[PLUGIN:<plugin_id>]` 标签并写入系统 `open-revo.log`。在设置面板开启 `FILTER [plugin]` 日志过滤即可实时查看全部插件的看门狗触发、动作执行与自愈心跳！
   微内核会自动将动态规则持久化落盘至 `custom_watchers.json`，宿主启动时自动重载入微内核，**无需用户手动进入插件页面即可开机常驻生效**！通过 `unregisterWatcher(id)` 注销时自动从持久化清单移除。
 
 ## 15. 遥测消费动态注册与全域广播 IPC (Telemetry Consumer & Global Broadcast)

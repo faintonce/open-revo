@@ -748,12 +748,16 @@
         const isEnabled = actions.length > 0;
         const watcherDef = {
           id: 'gpu-undervolt-guard',
-          name: '微内核显卡降压超频自愈守护',
+          name: '微内核显卡降压超频自愈守护 (开机与电源接入)',
           plugin_id: PLUGIN_ID,
           enabled: isEnabled,
-          cooldown_ms: 5000,
+          cooldown_ms: 2000,
           condition: {
-            type: 'startup'
+            type: 'any',
+            conditions: [
+              { type: 'startup' },
+              { type: 'power_event', event: 'ac_connected' }
+            ]
           },
           actions: isEnabled ? actions : []
         };
