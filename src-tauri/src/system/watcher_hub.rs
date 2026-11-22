@@ -401,7 +401,11 @@ pub fn register_watcher(def: WatcherDefinition) -> bool {
 fn register_watcher_internal(def: WatcherDefinition, persist: bool) -> bool {
     let mut map = get_watchers_map().lock();
     let id = def.id.clone();
-    crate::log_info!("WATCHER_HUB", "Registered watcher '{}' [{}] for plugin '{:?}'", def.name, id, def.plugin_id);
+    let mod_tag = match &def.plugin_id {
+        Some(pid) => format!("PLUGIN:{}:WATCHER", pid),
+        None => "WATCHER_HUB".to_string(),
+    };
+    crate::log_info!(&mod_tag, "Registered watcher '{}' [{}]", def.name, id);
     let is_startup = def.enabled && matches!(def.condition, WatcherCondition::Startup);
     let def_to_trigger = if is_startup { Some(def.clone()) } else { None };
     map.insert(
@@ -418,7 +422,7 @@ fn register_watcher_internal(def: WatcherDefinition, persist: bool) -> bool {
         save_persistent_custom_watchers();
     }
     if let Some(d) = def_to_trigger {
-        crate::log_info!("WATCHER", "Executing newly registered startup watcher '{}' [{}]", d.name, d.id);
+        crate::log_info!(&mod_tag, "Executing newly registered startup watcher '{}' [{}]", d.name, d.id);
         dispatch_watcher_trigger(d, "startup", serde_json::json!({ "event": "startup_registered" }));
     }
     true
@@ -543,6 +547,7 @@ pub fn hydrate_watcher_from_plugin_storage(plugin_id: &str, def: &mut WatcherDef
 /// Load a batch of watchers from a plugin manifest.
 /// Preserves any existing user-customized watchers loaded from custom_watchers.json.
 pub fn load_plugin_watchers(plugin_id: &str, watchers: Vec<WatcherDefinition>) {
+    let mod_tag = format!("PLUGIN:{}:WATCHER", plugin_id);
     let mut map = get_watchers_map().lock();
     let mut loaded_baseline = 0;
     for mut w in watchers {
@@ -550,7 +555,7 @@ pub fn load_plugin_watchers(plugin_id: &str, watchers: Vec<WatcherDefinition>) {
         hydrate_watcher_from_plugin_storage(plugin_id, &mut w);
         if !map.contains_key(&w.id) {
             let id = w.id.clone();
-            crate::log_info!("WATCHER_HUB", "Mounted baseline watcher '{}' [{}] for plugin '{}'", w.name, id, plugin_id);
+            crate::log_info!(&mod_tag, "Mounted baseline watcher '{}' [{}]", w.name, id);
             map.insert(
                 id,
                 WatcherRecord {
@@ -562,11 +567,11 @@ pub fn load_plugin_watchers(plugin_id: &str, watchers: Vec<WatcherDefinition>) {
             );
             loaded_baseline += 1;
         } else {
-            crate::log_info!("WATCHER_HUB", "Preserving user-customized persistent watcher '{}' [{}] for plugin '{}'", w.name, w.id, plugin_id);
+            crate::log_info!(&mod_tag, "Preserving user-customized persistent watcher '{}' [{}]", w.name, w.id);
         }
     }
     drop(map);
-    crate::log_info!("WATCHER_HUB", "Processed manifest watchers for plugin '{}' ({} new baseline mounted)", plugin_id, loaded_baseline);
+    crate::log_info!(&mod_tag, "Processed manifest watchers ({} new baseline mounted)", loaded_baseline);
 }
 
 /// Reassert all active enabled watchers during core lifecycle milestones
@@ -607,6 +612,17 @@ pub fn reassert_active_watchers(trigger_reason: &str) {
 
     let count = triggers.len();
     for def in triggers {
+        let tag = match &def.plugin_id {
+            Some(pid) => format!("PLUGIN:{}:WATCHER", pid),
+            None => "WATCHER_HUB".to_string(),
+        };
+        crate::log_info!(
+            &tag,
+            "Asserting active watcher '{}' [{}] on lifecycle '{}'",
+            def.name,
+            def.id,
+            trigger_reason
+        );
         dispatch_watcher_trigger(
             def,
             "lifecycle_assertion",
@@ -850,10 +866,15 @@ pub fn notify_power_event(event_name: &str) {
 
 /// Execute watcher actions and broadcast events asynchronously
 pub fn dispatch_watcher_trigger(def: WatcherDefinition, condition_type: &'static str, details: serde_json::Value) {
+    let mod_tag = match &def.plugin_id {
+        Some(pid) => format!("PLUGIN:{}:WATCHER", pid),
+        None => "WATCHER_HUB".to_string(),
+    };
     crate::log_info!(
-        "WATCHER_HUB",
-        "Watcher '{}' triggered (condition: {}) with {} actions",
+        &mod_tag,
+        "Watcher '{}' [{}] triggered (condition: {}) with {} actions",
         def.name,
+        def.id,
         condition_type,
         def.actions.len()
     );
@@ -901,25 +922,29 @@ fn detect_active_raw_protocol() -> crate::system::raw_gateway::RawEcProtocol {
 }
 
 fn execute_single_action(act: &WatcherAction, watcher_name: &str, plugin_id: Option<&str>) {
+    let mod_tag = match plugin_id {
+        Some(pid) => format!("PLUGIN:{}:ACT", pid),
+        None => "WATCHER_ACT".to_string(),
+    };
     match act {
         WatcherAction::CallCommand { command, args } => {
             let pid = plugin_id.unwrap_or("watcher_hub");
-            crate::log_info!("WATCHER_ACT", "[{}] Universal IPC Call: '{}' from plugin '{}' args={:?}", watcher_name, command, pid, args);
+            crate::log_info!(&mod_tag, "[{}] Universal IPC Call: '{}' args={:?}", watcher_name, command, args);
             let cmd_str = command.clone();
             let args_val = args.clone();
             let pid_str = pid.to_string();
             tauri::async_runtime::block_on(async move {
                 if let Err(e) = crate::system::native_wry::ipc::dispatch_plugin_ipc(&pid_str, &cmd_str, args_val).await {
-                    crate::log_warn!("WATCHER_ACT", "[{}] Universal IPC Call '{}' failed: {}", watcher_name, cmd_str, e);
+                    crate::log_warn!(&mod_tag, "[{}] Universal IPC Call '{}' failed: {}", watcher_name, cmd_str, e);
                 }
             });
         }
         WatcherAction::SetPowerMode { mode } => {
-            crate::log_info!("WATCHER_ACT", "[{}] Setting power mode to {}", watcher_name, mode);
+            crate::log_info!(&mod_tag, "[{}] Setting power mode to {}", watcher_name, mode);
             crate::system::power_mode::apply_full_power_mode(*mode);
         }
         WatcherAction::SetFanBoost { enable } => {
-            crate::log_info!("WATCHER_ACT", "[{}] Setting fan boost to {}", watcher_name, enable);
+            crate::log_info!(&mod_tag, "[{}] Setting fan boost to {}", watcher_name, enable);
             let hal = crate::hal::get_hardware_driver();
             let mut cfg = crate::system::config::load_config();
             if hal.set_fan_boost(*enable).is_ok() {
@@ -933,28 +958,28 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str, plugin_id: Opt
             }
         }
         WatcherAction::SetBatteryLimit { limit } => {
-            crate::log_info!("WATCHER_ACT", "[{}] Setting battery limit to {}%", watcher_name, limit);
+            crate::log_info!(&mod_tag, "[{}] Setting battery limit to {}%", watcher_name, limit);
             let ec = crate::driver::ec_bridge::get_global_ec();
             ec.lock().set_battery_limit(*limit);
         }
         WatcherAction::DelayMs { duration } => {
-            crate::log_debug!("WATCHER_ACT", "[{}] Delaying for {} ms", watcher_name, duration);
+            crate::log_debug!(&mod_tag, "[{}] Delaying for {} ms", watcher_name, duration);
             std::thread::sleep(Duration::from_millis(*duration));
         }
         WatcherAction::RawEcWrite { address, value } => {
-            crate::log_info!("WATCHER_ACT", "[{}] Raw EC Write 0x{:04X} = 0x{:02X}", watcher_name, address, value);
+            crate::log_info!(&mod_tag, "[{}] Raw EC Write 0x{:04X} = 0x{:02X}", watcher_name, address, value);
             let req = crate::system::raw_gateway::RawEcWriteRequest {
                 protocol: detect_active_raw_protocol(),
                 address: *address,
                 value: *value,
             };
             if let Err(e) = crate::system::raw_gateway::execute_raw_write(req) {
-                crate::log_warn!("WATCHER_ACT", "[{}] Raw EC write failed: {}", watcher_name, e);
+                crate::log_warn!(&mod_tag, "[{}] Raw EC write failed: {}", watcher_name, e);
             }
         }
         WatcherAction::RawEcModifyMask { address, mask, value } => {
             if let Err(e) = crate::system::raw_gateway::shield::validate_write_operation(*address, 0) {
-                crate::log_warn!("WATCHER_ACT", "[{}] Blast shield blocked EC modify on 0x{:04X}: {}", watcher_name, address, e);
+                crate::log_warn!(&mod_tag, "[{}] Blast shield blocked EC modify on 0x{:04X}: {}", watcher_name, address, e);
                 return;
             }
             let proto = detect_active_raw_protocol();
@@ -964,7 +989,7 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str, plugin_id: Opt
             };
             if let Ok(cur) = crate::system::raw_gateway::execute_raw_read(read_req) {
                 let next = if *value { cur | mask } else { cur & !mask };
-                crate::log_info!("WATCHER_ACT", "[{}] Modifying EC 0x{:04X} mask 0x{:02X} (val: {}): 0x{:02X} -> 0x{:02X} via {:?}", watcher_name, address, mask, value, cur, next, proto);
+                crate::log_info!(&mod_tag, "[{}] Modifying EC 0x{:04X} mask 0x{:02X} (val: {}): 0x{:02X} -> 0x{:02X} via {:?}", watcher_name, address, mask, value, cur, next, proto);
                 let write_req = crate::system::raw_gateway::RawEcWriteRequest {
                     protocol: proto,
                     address: *address,
@@ -972,7 +997,7 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str, plugin_id: Opt
                 };
                 let _ = crate::system::raw_gateway::execute_raw_write(write_req);
             } else {
-                crate::log_warn!("WATCHER_ACT", "[{}] Failed to read EC 0x{:04X} for bitmask modification", watcher_name, address);
+                crate::log_warn!(&mod_tag, "[{}] Failed to read EC 0x{:04X} for bitmask modification", watcher_name, address);
             }
         }
         WatcherAction::PluginEvent { event_name, payload } => {
