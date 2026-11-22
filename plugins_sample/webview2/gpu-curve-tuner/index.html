@@ -980,14 +980,14 @@
       }
 
       const currentPoints = STATE.vfPoints;
-      // Stock baseline = freq_mhz - delta_mhz
-      const stockFreqAtTarget = currentPoints[targetIdx].freq_mhz - (currentPoints[targetIdx].delta_mhz || 0);
+      // Stock baseline = freq_mhz (NVIDIA GetVfCurveStatus inherently returns factory stock base curve)
+      const stockFreqAtTarget = currentPoints[targetIdx].freq_mhz;
       const targetDelta = Math.max(DELTA_MIN, Math.min(DELTA_MAX, targetFreq - stockFreqAtTarget));
       const actualTargetFreq = stockFreqAtTarget + targetDelta;
 
       const newDeltas = new Array(currentPoints.length).fill(0);
       for (let i = 1; i < currentPoints.length; i++) {
-        const stockFreq = currentPoints[i].freq_mhz - (currentPoints[i].delta_mhz || 0);
+        const stockFreq = currentPoints[i].freq_mhz;
         if (i <= targetIdx) {
           // Low-voltage ascending region: elevate by targetDelta
           newDeltas[i] = targetDelta;
@@ -999,9 +999,9 @@
       }
 
       // Monotonic sanity check (Strictly non-decreasing guard)
-      let prevFreq = (currentPoints[0].freq_mhz - (currentPoints[0].delta_mhz || 0)) + newDeltas[0];
+      let prevFreq = currentPoints[0].freq_mhz + newDeltas[0];
       for (let i = 1; i < currentPoints.length; i++) {
-        const stockFreq = currentPoints[i].freq_mhz - (currentPoints[i].delta_mhz || 0);
+        const stockFreq = currentPoints[i].freq_mhz;
         const effFreq = stockFreq + newDeltas[i];
         if (effFreq < prevFreq) {
           newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, prevFreq - stockFreq));
@@ -1018,7 +1018,7 @@
     function getStockFreq(idx) {
       if (!STATE.vfPoints || !STATE.vfPoints[idx]) return 0;
       const p = STATE.vfPoints[idx];
-      return p.freq_mhz - (p.delta_mhz || 0);
+      return p.freq_mhz;
     }
 
     function getEffFreq(idx) {

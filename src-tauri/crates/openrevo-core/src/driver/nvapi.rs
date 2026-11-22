@@ -548,13 +548,13 @@ pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Resul
         }
     }
 
-    let stock_freq_at_target = current_points[target_idx].freq_mhz - current_points[target_idx].delta_mhz;
+    let stock_freq_at_target = current_points[target_idx].freq_mhz;
     let target_delta = (max_boost_mhz - stock_freq_at_target).clamp(-1000, 1000);
     let actual_target_freq = stock_freq_at_target + target_delta;
 
     let mut new_deltas = vec![0i32; current_points.len()];
     for i in 1..current_points.len() {
-        let stock_freq = current_points[i].freq_mhz - current_points[i].delta_mhz;
+        let stock_freq = current_points[i].freq_mhz;
         if i <= target_idx {
             // Ascending region: lift curve by target_delta
             new_deltas[i] = target_delta;
@@ -566,9 +566,9 @@ pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Resul
     }
 
     // Monotonicity Sanity Guard (Strictly non-decreasing)
-    let mut prev_freq = current_points[0].freq_mhz - current_points[0].delta_mhz;
+    let mut prev_freq = current_points[0].freq_mhz + new_deltas[0];
     for i in 1..current_points.len() {
-        let stock_freq = current_points[i].freq_mhz - current_points[i].delta_mhz;
+        let stock_freq = current_points[i].freq_mhz;
         let eff_freq = stock_freq + new_deltas[i];
         if eff_freq < prev_freq {
             new_deltas[i] = (prev_freq - stock_freq).clamp(-1000, 1000);
