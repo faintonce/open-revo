@@ -576,7 +576,7 @@
         <button class="preset-btn" onclick="applyPreset(850, 2250, '极致低温 (850mV)')">
           ❄️ 极致低温 (850mV @ 2250MHz)
         </button>
-        <button class="preset-btn active" onclick="applyPreset(875, 2450, '黄金甜点 (875mV)')">
+        <button class="preset-btn" onclick="applyPreset(875, 2450, '黄金甜点 (875mV)')">
           ⚡ 黄金甜点 (875mV @ 2450MHz)
         </button>
         <button class="preset-btn" onclick="applyPreset(900, 2600, '极客能效 (900mV)')">
@@ -821,6 +821,7 @@
           document.getElementById('inputTargetFreq').value = STATE.targetFreq;
           document.getElementById('statModeText').textContent = STATE.activeMode;
           document.getElementById('statStorageHint').textContent = '已恢复 plugin_storage 方案';
+          updatePresetButtons(STATE.activeMode);
           refreshSnapshotButton();
 
           log(`[*] 成功从 plugin_storage 恢复持久化方案: ${STATE.activeMode} (${STATE.targetVolt}mV @ ${STATE.targetFreq}MHz)`);
@@ -931,16 +932,22 @@
       document.getElementById('statMemOffset').textContent = (STATE.memOffset >= 0 ? '+' : '') + STATE.memOffset + ' MHz';
     }
 
+    // --- Preset Buttons State Helper ---
+    function updatePresetButtons(activeLabel) {
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        if (activeLabel && btn.textContent.includes(activeLabel)) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
     // --- Automatic Undervolt Calculation (Stock-Baseline Idempotent Algorithm) ---
     function applyPreset(volt, freq, label) {
       document.getElementById('inputTargetVolt').value = volt;
       document.getElementById('inputTargetFreq').value = freq;
-      
-      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
-      if (window.event && window.event.currentTarget) {
-        window.event.currentTarget.classList.add('active');
-      }
-
+      updatePresetButtons(label);
       calculatePlannedCurve(volt, freq, label);
     }
 
@@ -951,7 +958,7 @@
         log('[-] 请输入合法的目标电压与目标频率');
         return;
       }
-      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+      updatePresetButtons(null);
       calculatePlannedCurve(v, f, `自定义 (${v}mV @ ${f}MHz)`);
     }
 
@@ -1238,6 +1245,7 @@
       if (g && g.canvas) g.canvas.classList.remove('dragging');
 
       if (drag.moved && idx >= 1) {
+        updatePresetButtons(null);
         STATE.activeMode = '手动微调方案';
         document.getElementById('statModeText').textContent = STATE.activeMode;
         const p = STATE.vfPoints[idx];
@@ -1249,7 +1257,6 @@
           STATE.targetFreq = effF;
           document.getElementById('inputTargetVolt').value = STATE.targetVolt;
           document.getElementById('inputTargetFreq').value = STATE.targetFreq;
-          document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
         }
 
         const modeDesc = isShift ? 'Shift 右侧水平削平锁频' : '单点微调';
@@ -1279,6 +1286,7 @@
       ensurePlannedDeltas();
       pushUndo();
       STATE.plannedDeltas[idx] = 0;
+      updatePresetButtons(null);
       STATE.activeMode = '手动微调方案';
       document.getElementById('statModeText').textContent = STATE.activeMode;
       readout(idx);
@@ -1326,6 +1334,7 @@
       if (typeof STATE.savedSnapshot.target_freq === 'number') STATE.targetFreq = STATE.savedSnapshot.target_freq;
       document.getElementById('inputTargetVolt').value = STATE.targetVolt;
       document.getElementById('inputTargetFreq').value = STATE.targetFreq;
+      updatePresetButtons(null);
       STATE.activeMode = '快照方案';
       document.getElementById('statModeText').textContent = STATE.activeMode;
       drawCurve();
@@ -1337,6 +1346,7 @@
       if (STATE.vfPoints && STATE.vfPoints.length > 0) {
         pushUndo();
         STATE.plannedDeltas = STATE.vfPoints.map(p => p.delta_mhz || 0);
+        updatePresetButtons(null);
         STATE.activeMode = '硬件实时曲线';
         document.getElementById('statModeText').textContent = STATE.activeMode;
         drawCurve();
@@ -1588,6 +1598,7 @@
         STATE.plannedDeltas = null;
         STATE.coreOffset = 0;
         STATE.memOffset = 0;
+        updatePresetButtons(null);
         STATE.activeMode = '出厂默认';
         document.getElementById('statModeText').textContent = '出厂默认';
         log('[✓] 显卡已成功恢复出厂 stock 状态！');
