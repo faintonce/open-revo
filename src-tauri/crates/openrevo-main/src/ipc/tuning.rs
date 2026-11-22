@@ -25,6 +25,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(preset) = val.get("active_preset_name").and_then(|v| v.as_str()) {
                 ui.set_active_preset_name(preset.into());
             }
+            if let Some(is_builtin) = val.get("active_preset_is_builtin").and_then(|v| v.as_bool()) {
+                ui.set_active_preset_is_builtin(is_builtin);
+            }
             if let Some(names_arr) = val.get("preset_names").and_then(|v| v.as_array()) {
                 let names: Vec<slint::SharedString> = names_arr.iter().filter_map(|x| x.as_str().map(|s| s.into())).collect();
                 if !names.is_empty() {

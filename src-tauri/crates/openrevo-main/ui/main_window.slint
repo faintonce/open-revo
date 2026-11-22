@@ -154,6 +154,7 @@ export component MainWindow inherits Window {
 
     // Custom Tuning Profile & Hardware Params
     in-out property <string> active_preset_name: "均衡电竞";
+    in-out property <bool> active_preset_is_builtin: false;
     in-out property <[string]> preset_ids: ["preset_office", "preset_balanced", "preset_turbo"];
     in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
     in-out property <int> temp_wall: 95;
@@ -227,7 +228,7 @@ export component MainWindow inherits Window {
     callback tuning_select_preset(string);
     callback tuning_create_preset();
     callback tuning_reset_preset();
-    callback tuning_rename_preset();
+    callback tuning_rename_preset(string);
     callback tuning_export_preset();
     callback tuning_import_preset();
     callback tuning_open_preset_dir();
@@ -916,6 +917,7 @@ export component MainWindow inherits Window {
 
         // Tuning Props
         active_preset_name <=> root.active_preset_name;
+        active_preset_is_builtin <=> root.active_preset_is_builtin;
         preset_ids <=> root.preset_ids;
         preset_names <=> root.preset_names;
         temp_wall <=> root.temp_wall;
@@ -991,7 +993,7 @@ export component MainWindow inherits Window {
         tuning_select_preset(id) => { root.tuning_select_preset(id); }
         tuning_create_preset => { root.tuning_create_preset(); }
         tuning_reset_preset => { root.tuning_reset_preset(); }
-        tuning_rename_preset => { root.tuning_rename_preset(); }
+        tuning_rename_preset(name) => { root.tuning_rename_preset(name); }
         tuning_export_preset => { root.tuning_export_preset(); }
         tuning_import_preset => { root.tuning_import_preset(); }
         tuning_open_preset_dir => { root.tuning_open_preset_dir(); }

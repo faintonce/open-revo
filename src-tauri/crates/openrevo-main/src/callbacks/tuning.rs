@@ -20,8 +20,8 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_reset_preset(move || {
         ipc::send_action_to_host("tuning_reset_preset", serde_json::json!({}));
     });
-    window.on_tuning_rename_preset(move || {
-        ipc::send_action_to_host("tuning_rename_preset", serde_json::json!({}));
+    window.on_tuning_rename_preset(move |new_name| {
+        ipc::send_action_to_host("tuning_rename_preset", serde_json::json!({ "new_name": new_name.as_str() }));
     });
     window.on_tuning_export_preset(move || {
         ipc::send_action_to_host("tuning_export_preset", serde_json::json!({}));

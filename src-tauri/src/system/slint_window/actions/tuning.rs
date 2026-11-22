@@ -441,10 +441,21 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             let cfg = crate::system::config::load_config();
             let active_id = super::super::sync::active_profile_id_or_default(&cfg);
             if let Some(new_name) = val.get("new_name").and_then(|v| v.as_str()) {
-                let _ = crate::commands::tuning_cmd::rename_profile_preset(active_id, new_name.to_string());
-                sync_slint_tuning_state();
+                let trimmed = new_name.trim();
+                if !trimmed.is_empty() {
+                    match crate::commands::tuning_cmd::rename_profile_preset(active_id.clone(), trimmed.to_string()) {
+                        Ok(renamed) => {
+                            crate::log_info!("TUNING_RENAME", "Successfully renamed preset {} to {}", active_id, renamed.name);
+                        }
+                        Err(e) => {
+                            crate::log_warn!("TUNING_RENAME", "Failed to rename preset {}: {}", active_id, e);
+                        }
+                    }
+                    sync_slint_tuning_state();
+                    sync_slint_display_state();
+                }
             } else {
-                crate::log_info!("SLINT_MAIN", "tuning_rename_preset called for active preset: {}", active_id);
+                crate::log_info!("SLINT_MAIN", "tuning_rename_preset called without new_name for active preset: {}", active_id);
             }
             true
         }

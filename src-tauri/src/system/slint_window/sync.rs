@@ -154,6 +154,7 @@ pub fn sync_slint_tuning_state() {
     let current_preset = presets.iter().find(|p| p.id == active_id).cloned().or_else(|| presets.first().cloned());
     let profile = current_preset.as_ref().map(|p| &p.profile).unwrap_or(&cfg.custom_profile);
     let preset_name = current_preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "静音狂暴".to_string());
+    let is_builtin = current_preset.as_ref().map(|p| p.is_builtin).unwrap_or_else(|| active_id.starts_with("preset_"));
 
     let single_fan_channel = manifest.as_ref()
         .map(|m| !m.capabilities.fan_independent_channels)
@@ -252,6 +253,7 @@ pub fn sync_slint_tuning_state() {
         "cpu_supports_fppt": cpu_supports_fppt,
         "is_bld": is_bld,
         "active_preset_name": preset_name,
+        "active_preset_is_builtin": is_builtin,
         "preset_ids": preset_ids,
         "preset_names": preset_names,
         "temp_wall": clamped_temp_wall,

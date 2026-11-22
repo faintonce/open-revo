@@ -94,6 +94,9 @@ export component DashboardCustomTuningView inherits Rectangle {
 
     // Presets
     in-out property <string> active_preset_name: "均衡电竞";
+    in-out property <bool> active_preset_is_builtin: false;
+    in-out property <bool> show_rename_modal: false;
+    in-out property <string> rename_input_name: "";
     in-out property <[string]> preset_ids: ["preset_office", "preset_balanced", "preset_turbo"];
     in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
     in-out property <bool> show_preset_menu: false;
@@ -103,7 +106,7 @@ export component DashboardCustomTuningView inherits Rectangle {
     callback select_preset(string);
     callback create_preset();
     callback reset_preset();
-    callback rename_preset();
+    callback rename_preset(string);
     callback export_preset();
     callback import_preset();
     callback open_preset_dir();
@@ -319,14 +322,23 @@ export component DashboardCustomTuningView inherits Rectangle {
                     width: 24px;
                     height: 26px;
                     border-radius: AppTheme.radius_xs;
-                    background: AppTheme.surface_pill;
+                    background: (!root.active_preset_is_builtin && t_edit.has-hover) ? #c084fc25 : AppTheme.surface_pill;
                     border-width: 1px;
-                    border-color: AppTheme.border_medium;
-                    TouchArea { mouse-cursor: pointer; clicked => { root.rename_preset(); } }
+                    border-color: (!root.active_preset_is_builtin && t_edit.has-hover) ? #c084fc : AppTheme.border_medium;
+                    t_edit := TouchArea {
+                        mouse-cursor: root.active_preset_is_builtin ? default : pointer;
+                        clicked => {
+                            if (!root.active_preset_is_builtin) {
+                                root.show_preset_menu = false;
+                                root.rename_input_name = root.active_preset_name;
+                                root.show_rename_modal = true;
+                            }
+                        }
+                    }
                     Image {
                         source: @image-url("../../assets/icons/edit.svg");
                         width: 12px; height: 12px;
-                        colorize: AppTheme.text_secondary;
+                        colorize: root.active_preset_is_builtin ? AppTheme.border_highlight : (t_edit.has-hover ? #c084fc : AppTheme.text_secondary);
                         horizontal-alignment: center; vertical-alignment: center;
                     }
                 }
@@ -387,14 +399,21 @@ export component DashboardCustomTuningView inherits Rectangle {
                     width: 24px;
                     height: 26px;
                     border-radius: AppTheme.radius_xs;
-                    background: AppTheme.surface_pill;
+                    background: (!root.active_preset_is_builtin && t_del.has-hover) ? #f43f5e25 : AppTheme.surface_pill;
                     border-width: 1px;
-                    border-color: AppTheme.border_medium;
-                    TouchArea { mouse-cursor: pointer; clicked => { root.delete_preset(); } }
+                    border-color: (!root.active_preset_is_builtin && t_del.has-hover) ? #f43f5e : AppTheme.border_medium;
+                    t_del := TouchArea {
+                        mouse-cursor: root.active_preset_is_builtin ? default : pointer;
+                        clicked => {
+                            if (!root.active_preset_is_builtin) {
+                                root.delete_preset();
+                            }
+                        }
+                    }
                     Image {
                         source: @image-url("../../assets/icons/trash.svg");
                         width: 12px; height: 12px;
-                        colorize: #f43f5e;
+                        colorize: root.active_preset_is_builtin ? AppTheme.border_highlight : (t_del.has-hover ? #f43f5e : #f43f5ecc);
                         horizontal-alignment: center; vertical-alignment: center;
                     }
                 }
@@ -639,6 +658,165 @@ export component DashboardCustomTuningView inherits Rectangle {
                             font-size: 10.5px;
                             font-weight: name == root.active_preset_name ? 700 : 500;
                             color: name == root.active_preset_name ? AppTheme.text_primary : AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Top-level Overlay for Rename Preset Modal Dialog
+    if root.show_rename_modal: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000aa;
+
+        // Dismiss backdrop (点击空白区域取消)
+        TouchArea {
+            clicked => {
+                root.show_rename_modal = false;
+            }
+        }
+
+        // Modal Dialog Card
+        Rectangle {
+            width: Math.min(parent.width - 40px, 360px);
+            height: 180px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: AppTheme.is_light ? #ffffff : #111726;
+            border-radius: AppTheme.radius_md;
+            border-width: 1px;
+            border-color: #818cf855;
+            clip: true;
+
+            // Block clicks from propagating to backdrop
+            TouchArea { }
+
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+                alignment: space-between;
+
+                // Header
+                HorizontalLayout {
+                    spacing: 10px;
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: AppTheme.radius_xs;
+                        background: #818cf820;
+                        border-width: 1px;
+                        border-color: #818cf860;
+                        Image {
+                            source: @image-url("../../assets/icons/edit.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: #818cf8;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+                        Text {
+                            text: "重命名调校方案";
+                            font-size: 14px;
+                            font-weight: 800;
+                            color: AppTheme.text_primary;
+                        }
+                        Text {
+                            text: "请输入新的方案名称（最多16字）";
+                            font-size: 11px;
+                            color: AppTheme.text_muted;
+                        }
+                    }
+                }
+
+                // Input Box
+                Rectangle {
+                    height: 34px;
+                    border-radius: AppTheme.radius_xs;
+                    background: AppTheme.surface_sunken;
+                    border-width: 1px;
+                    border-color: inp_rename.has-focus ? #818cf8 : AppTheme.border_medium;
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+
+                        inp_rename := TextInput {
+                            text: root.rename_input_name;
+                            font-size: 12px;
+                            color: AppTheme.text_primary;
+                            vertical-alignment: center;
+                            single-line: true;
+                            edited => {
+                                root.rename_input_name = inp_rename.text;
+                            }
+                            accepted => {
+                                if (root.rename_input_name != "") {
+                                    root.show_rename_modal = false;
+                                    root.rename_preset(root.rename_input_name);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Action Buttons
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+
+                    // Cancel
+                    Rectangle {
+                        width: 72px;
+                        height: 28px;
+                        border-radius: AppTheme.radius_xs;
+                        background: t_m_cancel.has-hover ? AppTheme.surface_card_hover : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_medium;
+                        t_m_cancel := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.show_rename_modal = false;
+                            }
+                        }
+                        Text {
+                            text: "取消";
+                            font-size: 11px;
+                            color: AppTheme.text_secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Confirm
+                    Rectangle {
+                        width: 72px;
+                        height: 28px;
+                        border-radius: AppTheme.radius_xs;
+                        background: root.rename_input_name == "" ? #6366f140 : (t_m_ok.has-hover ? #4f46e5 : #6366f1);
+                        border-width: 1px;
+                        border-color: root.rename_input_name == "" ? transparent : #818cf8;
+                        t_m_ok := TouchArea {
+                            mouse-cursor: root.rename_input_name == "" ? default : pointer;
+                            clicked => {
+                                if (root.rename_input_name != "") {
+                                    root.show_rename_modal = false;
+                                    root.rename_preset(root.rename_input_name);
+                                }
+                            }
+                        }
+                        Text {
+                            text: "确定";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.rename_input_name == "" ? #94a3b8 : #ffffff;
+                            horizontal-alignment: center;
                             vertical-alignment: center;
                         }
                     }
