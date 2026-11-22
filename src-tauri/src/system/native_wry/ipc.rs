@@ -276,6 +276,27 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             let list = crate::system::watcher_hub::get_all_watchers();
             serde_json::to_value(list).map_err(|e| e.to_string())
         }
+        "set_plugin_watchers" => {
+            let target_pid = args.get("pluginId")
+                .or_else(|| args.get("plugin_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(plugin_id)
+                .to_string();
+            let watchers_val = args.get("watchers").cloned().unwrap_or(args);
+            let watchers: Vec<crate::system::watcher_hub::WatcherDefinition> = serde_json::from_value(watchers_val)
+                .map_err(|e| format!("Invalid WatcherDefinition array: {}", e))?;
+            let res = crate::system::watcher_hub::set_plugin_watchers_runtime(&target_pid, watchers)?;
+            Ok(Value::Bool(res))
+        }
+        "get_plugin_watchers" => {
+            let target_pid = args.get("pluginId")
+                .or_else(|| args.get("plugin_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(plugin_id)
+                .to_string();
+            let watchers = crate::system::watcher_hub::load_plugin_watchers_from_storage(&target_pid).unwrap_or_default();
+            serde_json::to_value(watchers).map_err(|e| e.to_string())
+        }
 
         // Plugin Companion Services & Enablement Management
         "start_plugin_service" => {

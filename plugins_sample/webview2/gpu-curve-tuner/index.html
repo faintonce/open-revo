@@ -745,37 +745,42 @@
           });
         }
 
-        const isEnabled = actions.length > 0;
-        const watcherDef = {
-          id: 'gpu-undervolt-guard',
-          name: '微内核显卡降压超频自愈守护 (开机与电源接入)',
-          plugin_id: PLUGIN_ID,
-          enabled: isEnabled,
-          cooldown_ms: 2000,
-          condition: {
-            type: 'any',
-            conditions: [
-              { type: 'startup' },
-              { type: 'power_event', event: 'ac_connected' }
-            ]
-          },
-          actions: isEnabled ? actions : []
-        };
+        const isEnabled = actions.length > 0 && STATE.activeMode !== '出厂默认';
+        const watchers = [];
 
-        if (window.OpenRevo && typeof window.OpenRevo.registerWatcher === 'function') {
-          await window.OpenRevo.registerWatcher(watcherDef);
-        } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.registerWatcher === 'function') {
-          await window.parent.__OPENREVO_BRIDGE__.registerWatcher(watcherDef);
+        if (isEnabled) {
+          watchers.push({
+            id: 'gpu-undervolt-guard',
+            name: '微内核显卡降压超频自愈守护 (开机与电源接入)',
+            plugin_id: PLUGIN_ID,
+            enabled: true,
+            cooldown_ms: 2000,
+            when: {
+              type: 'any',
+              conditions: [
+                { type: 'startup' },
+                { type: 'power_event', event: 'ac_connected' }
+              ]
+            },
+            actions: actions
+          });
+        }
+
+        if (window.OpenRevo && typeof window.OpenRevo.setPluginWatchers === 'function') {
+          await window.OpenRevo.setPluginWatchers(PLUGIN_ID, watchers);
+        } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.setPluginWatchers === 'function') {
+          await window.parent.__OPENREVO_BRIDGE__.setPluginWatchers(PLUGIN_ID, watchers);
         } else {
-          await rpc('register_custom_watcher', { watcher: watcherDef }).catch(() => {});
+          await rpc('set_plugin_watchers', { pluginId: PLUGIN_ID, watchers });
         }
 
         const hintEl = document.getElementById('statStorageHint');
         if (hintEl) {
           hintEl.textContent = isEnabled
-            ? '已保存并同步至微内核守护 (开机与唤醒0MB常驻生效)'
+            ? '已保存并同步至微内核沙盒 (开机与唤醒0MB常驻生效)'
             : '已恢复出厂并同步关闭微内核看门狗';
         }
+        console.log('[WatcherSync] 成功原子化同步显卡 Watcher 至微内核沙盒:', watchers);
       } catch (err) {
         console.warn('[WatcherSync] 同步 Watcher 到宿主事件中心失败:', err);
       }

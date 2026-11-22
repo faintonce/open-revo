@@ -21,6 +21,10 @@ fn default_cooldown() -> u64 {
     5000 // 5 seconds default cooldown between triggers
 }
 
+fn default_pulse_delay() -> u64 {
+    200 // 200ms default pulse hold duration
+}
+
 /// Helper deserializer to parse u16 from either an integer or hex/dec string (e.g. 1873, "0x0751", "751", "1873")
 pub fn deserialize_hex_or_dec_u16<'de, D>(deserializer: D) -> Result<u16, D::Error>
 where
@@ -292,6 +296,8 @@ impl WatcherCondition {
         match self {
             WatcherCondition::ForegroundProcess { .. } => false,
             WatcherCondition::RawEcDiff { .. } => false,
+            // Periodic interval watchers must NOT fire as one-off startup assertions to avoid racing with startup guards
+            WatcherCondition::Interval { .. } => false,
             WatcherCondition::Any { conditions } => conditions.iter().any(|c| c.should_assert_on_lifecycle()),
             WatcherCondition::All { conditions } => conditions.iter().all(|c| c.should_assert_on_lifecycle()),
             _ => true,
@@ -484,6 +490,19 @@ pub enum WatcherAction {
         value: u8,
     },
 
+    /// Native pulse write: write active value -> delay -> write restore value (e.g. 1 -> 200ms -> 0)
+    #[serde(rename = "pulse_write")]
+    PulseWrite {
+        #[serde(deserialize_with = "deserialize_hex_or_dec_u16")]
+        address: u16,
+        #[serde(deserialize_with = "deserialize_hex_or_dec_u8")]
+        active: u8,
+        #[serde(deserialize_with = "deserialize_hex_or_dec_u8")]
+        restore: u8,
+        #[serde(default = "default_pulse_delay", deserialize_with = "deserialize_hex_or_dec_u64")]
+        delay_ms: u64,
+    },
+
     #[serde(rename = "raw_ec_modify_mask")]
     RawEcModifyMask {
         #[serde(deserialize_with = "deserialize_hex_or_dec_u16")]
@@ -558,7 +577,7 @@ pub fn init_watcher_hub(app: AppHandle) {
     let cell = GLOBAL_APP.get_or_init(|| Mutex::new(None));
     *cell.lock() = Some(app);
     load_persistent_custom_watchers();
-    start_background_process_watcher();
+    ensure_background_watcher_started();
 }
 
 fn get_custom_watchers_file_path() -> std::path::PathBuf {
@@ -657,106 +676,89 @@ pub fn unregister_by_plugin(plugin_id: &str) -> usize {
     removed
 }
 
-/// Hydrate and align watcher definition with plugin's persistent config in plugin_storage.
-/// Guarantees that saved user parameters take absolute precedence before hardware execution.
-pub fn hydrate_watcher_from_plugin_storage(plugin_id: &str, def: &mut WatcherDefinition) {
-    if let Ok(storage) = crate::system::plugin_storage::get_plugin_storage(plugin_id) {
-        if storage.is_null() || !storage.is_object() {
-            return;
-        }
+fn get_plugin_watchers_storage_path(plugin_id: &str) -> Result<std::path::PathBuf, String> {
+    let dir = crate::system::plugin_storage::get_plugin_storage_dir(plugin_id)?;
+    Ok(dir.join("watchers.json"))
+}
 
-        // 1. Battery Hardware Limit plugin hydration
-        if plugin_id == "battery-hardware-limit" {
-            let target_limit = storage.get("target_limit").and_then(|v| v.as_u64()).map(|v| v as u8);
-            let active_gate = storage.get("active_gate_val").and_then(|v| v.as_u64()).map(|v| v as u8);
-            let is_active = storage.get("is_limit_active").and_then(|v| v.as_bool());
-            let parse_u16 = |v: Option<&serde_json::Value>| -> Option<u16> {
-                let val = v?;
-                if let Some(n) = val.as_u64() {
-                    Some(n as u16)
-                } else if let Some(s) = val.as_str() {
-                    let trimmed = s.trim();
-                    if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
-                        u16::from_str_radix(&trimmed[2..], 16).ok()
-                    } else {
-                        trimmed.parse::<u16>().ok()
-                    }
-                } else {
-                    None
-                }
-            };
-            let limit_reg = parse_u16(storage.get("limit_reg"));
-            let gate_reg = parse_u16(storage.get("gate_reg"));
+pub fn load_plugin_watchers_from_storage(plugin_id: &str) -> Option<Vec<WatcherDefinition>> {
+    let path = get_plugin_watchers_storage_path(plugin_id).ok()?;
+    if !path.exists() {
+        return None;
+    }
+    let content = std::fs::read_to_string(&path).ok()?;
+    serde_json::from_str::<Vec<WatcherDefinition>>(&content).ok()
+}
 
-            if let Some(false) = is_active {
-                def.enabled = false;
-            } else if let Some(true) = is_active {
-                def.enabled = true;
+pub fn save_plugin_watchers_to_storage(plugin_id: &str, watchers: &[WatcherDefinition]) -> Result<(), String> {
+    let path = get_plugin_watchers_storage_path(plugin_id)?;
+    let json = serde_json::to_string_pretty(watchers).map_err(|e| format!("序列化 Watcher 规则失败: {}", e))?;
+    std::fs::write(&path, json).map_err(|e| format!("写入 Watcher 配置文件失败: {}", e))?;
+    Ok(())
+}
+
+/// Dynamically update runtime watchers for a specific plugin and persist to its private sandbox.
+/// Immediately unregisters previous watchers, mounts the new rules, and triggers startup watchers if applicable.
+pub fn set_plugin_watchers_runtime(plugin_id: &str, watchers: Vec<WatcherDefinition>) -> Result<bool, String> {
+    let mod_tag = format!("PLUGIN:{}:WATCHER", plugin_id);
+    let mut normalized_watchers = watchers;
+    for w in &mut normalized_watchers {
+        w.plugin_id = Some(plugin_id.to_string());
+    }
+
+    save_plugin_watchers_to_storage(plugin_id, &normalized_watchers)?;
+    unregister_by_plugin(plugin_id);
+
+    let count = normalized_watchers.len();
+    let mut startup_triggers = Vec::new();
+    {
+        let mut map = get_watchers_map().lock();
+        for w in normalized_watchers {
+            let id = w.id.clone();
+            let is_startup = w.enabled && w.condition.matches_startup();
+            if is_startup {
+                startup_triggers.push(w.clone());
             }
-
-            for act in &mut def.actions {
-                if let WatcherAction::RawEcWrite { address, value } = act {
-                    if let (Some(reg), Some(target)) = (limit_reg, target_limit) {
-                        if *address == reg {
-                            *value = target;
-                        }
-                    }
-                    if let (Some(reg), Some(gate)) = (gate_reg, active_gate) {
-                        if *address == reg {
-                            *value = gate;
-                        }
-                    }
-                }
-            }
-        }
-
-        // 2. GPU Curve Tuner plugin hydration
-        if plugin_id == "gpu-curve-tuner" {
-            let planned_deltas = storage.get("planned_deltas")
-                .or_else(|| storage.get("deltas"))
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|x| x.as_i64().map(|n| n as i32)).collect::<Vec<i32>>());
-
-            let target_volt = storage.get("target_volt").and_then(|v| v.as_i64()).map(|v| v as i32);
-            let target_freq = storage.get("target_freq").and_then(|v| v.as_i64()).map(|v| v as i32);
-            let active_mode = storage.get("active_mode").and_then(|v| v.as_str());
-
-            if active_mode == Some("出厂默认") {
-                def.enabled = false;
-            }
-
-            if let Some(deltas) = planned_deltas {
-                if deltas.len() >= 16 {
-                    def.actions = vec![WatcherAction::CallCommand {
-                        command: "set_gpu_vf_curve_deltas".to_string(),
-                        args: serde_json::json!({ "deltasMhz": deltas }),
-                    }];
-                }
-            } else if let (Some(v), Some(f)) = (target_volt, target_freq) {
-                def.actions = vec![WatcherAction::CallCommand {
-                    command: "set_gpu_undervolt_curve".to_string(),
-                    args: serde_json::json!({
-                        "targetVoltMv": v,
-                        "maxBoostMhz": f,
-                    }),
-                }];
-            }
+            map.insert(
+                id,
+                WatcherRecord {
+                    definition: w,
+                    last_triggered: None,
+                    last_ec_val: None,
+                    last_matched: false,
+                },
+            );
         }
     }
+
+    crate::log_info!(&mod_tag, "Set {} runtime watchers in sandbox and mounted into microkernel", count);
+    for w in startup_triggers {
+        crate::log_info!(&mod_tag, "Immediately triggering startup watcher '{}' [{}] after runtime update", w.name, w.id);
+        dispatch_watcher_trigger(w, "startup", serde_json::json!({ "event": "runtime_updated" }));
+    }
+    Ok(true)
 }
 
 /// Load a batch of watchers from a plugin manifest.
-/// Preserves any existing user-customized watchers loaded from custom_watchers.json.
-pub fn load_plugin_watchers(plugin_id: &str, watchers: Vec<WatcherDefinition>) {
+/// Precedence contract:
+/// 1. If plugin_storage/<plugin_id>/watchers.json exists, load those custom rules (user settings).
+/// 2. Otherwise, mount baseline watchers from manifest.json (headless or out-of-the-box defaults).
+pub fn load_plugin_watchers(plugin_id: &str, manifest_watchers: Vec<WatcherDefinition>) {
     let mod_tag = format!("PLUGIN:{}:WATCHER", plugin_id);
+    let watchers_to_load = if let Some(saved) = load_plugin_watchers_from_storage(plugin_id) {
+        crate::log_info!(&mod_tag, "Loaded {} custom watchers from plugin storage sandbox", saved.len());
+        saved
+    } else {
+        manifest_watchers
+    };
+
     let mut map = get_watchers_map().lock();
     let mut loaded_baseline = 0;
-    for mut w in watchers {
+    for mut w in watchers_to_load {
         w.plugin_id = Some(plugin_id.to_string());
-        hydrate_watcher_from_plugin_storage(plugin_id, &mut w);
         if !map.contains_key(&w.id) {
             let id = w.id.clone();
-            crate::log_info!(&mod_tag, "Mounted baseline watcher '{}' [{}]", w.name, id);
+            crate::log_info!(&mod_tag, "Mounted watcher '{}' [{}]", w.name, id);
             map.insert(
                 id,
                 WatcherRecord {
@@ -768,11 +770,11 @@ pub fn load_plugin_watchers(plugin_id: &str, watchers: Vec<WatcherDefinition>) {
             );
             loaded_baseline += 1;
         } else {
-            crate::log_info!(&mod_tag, "Preserving user-customized persistent watcher '{}' [{}]", w.name, w.id);
+            crate::log_info!(&mod_tag, "Watcher '{}' [{}] already present, skipping duplicate mount", w.name, w.id);
         }
     }
     drop(map);
-    crate::log_info!(&mod_tag, "Processed manifest watchers ({} new baseline mounted)", loaded_baseline);
+    crate::log_info!(&mod_tag, "Processed plugin watchers ({} mounted)", loaded_baseline);
 }
 
 /// Reassert all active enabled watchers during core lifecycle milestones
@@ -787,11 +789,6 @@ pub fn reassert_active_watchers(trigger_reason: &str) {
     {
         let mut map = get_watchers_map().lock();
         for record in map.values_mut() {
-            let opt_pid = record.definition.plugin_id.clone();
-            if let Some(pid) = opt_pid {
-                hydrate_watcher_from_plugin_storage(&pid, &mut record.definition);
-            }
-
             if !record.definition.enabled {
                 continue;
             }
@@ -831,6 +828,7 @@ pub fn reassert_active_watchers(trigger_reason: &str) {
 
 /// Trigger baseline initialization for active watchers on system startup.
 pub fn trigger_startup_watchers() {
+    ensure_background_watcher_started();
     reassert_active_watchers("system_startup");
 }
 
@@ -952,11 +950,7 @@ pub fn notify_power_event(event_name: &str) {
 }
 
 /// Execute watcher actions and broadcast events asynchronously
-pub fn dispatch_watcher_trigger(mut def: WatcherDefinition, condition_type: &'static str, details: serde_json::Value) {
-    let opt_pid = def.plugin_id.clone();
-    if let Some(pid) = opt_pid {
-        hydrate_watcher_from_plugin_storage(&pid, &mut def);
-    }
+pub fn dispatch_watcher_trigger(def: WatcherDefinition, condition_type: &'static str, details: serde_json::Value) {
     let mod_tag = match &def.plugin_id {
         Some(pid) => format!("PLUGIN:{}:WATCHER", pid),
         None => "WATCHER_HUB".to_string(),
@@ -1068,6 +1062,33 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str, plugin_id: Opt
                 crate::log_warn!(&mod_tag, "[{}] Raw EC write failed: {}", watcher_name, e);
             }
         }
+        WatcherAction::PulseWrite { address, active, restore, delay_ms } => {
+            crate::log_info!(
+                &mod_tag,
+                "[{}] Pulse EC Write 0x{:04X} active=0x{:02X} -> sleep {}ms -> restore=0x{:02X}",
+                watcher_name,
+                address,
+                active,
+                delay_ms,
+                restore
+            );
+            let proto = detect_active_raw_protocol();
+            if let Err(e) = crate::system::raw_gateway::execute_raw_write(crate::system::raw_gateway::RawEcWriteRequest {
+                protocol: proto,
+                address: *address,
+                value: *active,
+            }) {
+                crate::log_warn!(&mod_tag, "[{}] Pulse EC write active failed: {}", watcher_name, e);
+            }
+            std::thread::sleep(Duration::from_millis(*delay_ms));
+            if let Err(e) = crate::system::raw_gateway::execute_raw_write(crate::system::raw_gateway::RawEcWriteRequest {
+                protocol: proto,
+                address: *address,
+                value: *restore,
+            }) {
+                crate::log_warn!(&mod_tag, "[{}] Pulse EC write restore failed: {}", watcher_name, e);
+            }
+        }
         WatcherAction::RawEcModifyMask { address, mask, value } => {
             if let Err(e) = crate::system::raw_gateway::shield::validate_write_operation(*address, 0) {
                 crate::log_warn!(&mod_tag, "[{}] Blast shield blocked EC modify on 0x{:04X}: {}", watcher_name, address, e);
@@ -1109,7 +1130,7 @@ fn execute_single_action(act: &WatcherAction, watcher_name: &str, plugin_id: Opt
 }
 
 /// Lightweight thread watching foreground application process & raw EC diffs
-fn start_background_process_watcher() {
+pub fn ensure_background_watcher_started() {
     if PROCESS_WATCHER_RUNNING.swap(true, Ordering::SeqCst) {
         return;
     }

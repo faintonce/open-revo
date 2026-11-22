@@ -398,7 +398,9 @@ pub fn toggle_oem_service(
             {
                 let ec = ec_clone.lock();
                 ec.set_power_mode(effective_mode);
-                ec.set_battery_limit(cfg_clone.battery_limit);
+                if cfg_clone.battery_limit < 95 || cfg_clone.battery_hardware_limit_enabled {
+                    ec.set_battery_limit(cfg_clone.battery_limit);
+                }
             }
             if let Some(v) = crate::driver::wmi_ec::wmi_read_ec(crate::driver::wmi_ec::ADDR_AC_RECOVERY) {
                 let mut new_v = if cfg_clone.ac_recovery_enabled { v | crate::driver::wmi_ec::AC_RECOVERY_BITMASK } else { v & !crate::driver::wmi_ec::AC_RECOVERY_BITMASK };
@@ -2087,6 +2089,22 @@ pub fn emit_plugin_broadcast(app: tauri::AppHandle, event: String, payload: serd
     crate::system::native_wry::broadcast_event(&event, &payload);
     Ok(())
 }
+
+#[tauri::command]
+pub async fn set_plugin_watchers(
+    plugin_id: String,
+    watchers: Vec<crate::system::watcher_hub::WatcherDefinition>,
+) -> Result<bool, String> {
+    crate::system::watcher_hub::set_plugin_watchers_runtime(&plugin_id, watchers)
+}
+
+#[tauri::command]
+pub async fn get_plugin_watchers(
+    plugin_id: String,
+) -> Result<Vec<crate::system::watcher_hub::WatcherDefinition>, String> {
+    Ok(crate::system::watcher_hub::load_plugin_watchers_from_storage(&plugin_id).unwrap_or_default())
+}
+
 
 
 

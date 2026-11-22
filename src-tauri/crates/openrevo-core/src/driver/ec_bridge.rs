@@ -429,9 +429,9 @@ impl EcBridge {
 
             let down_limit = if limit > 5 { limit - 5 } else { limit };
 
-            // 0. Auto-restore platform ID: ensure platform identity is clean and restored (prevents keyboard mapping issues)
+            // 0. Auto-restore platform ID: only restore factory platform ID when limit is fully disabled (>= 95)
             let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
-            if !is_declarative {
+            if !is_declarative && limit >= 95 {
                 let cur_id = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID).unwrap_or(0x07);
                 let restore_id = if cur_id == 0x04 || cur_id == 0x05 { 0x07 } else { cur_id };
                 wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restore_id);

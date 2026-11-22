@@ -479,6 +479,7 @@ fn run_slint_pure_daemon() {
     crate::system::telemetry::start_telemetry_loop(None, ec_for_telemetry, gpu_for_telemetry);
 
     // 14. Watcher Hub & Enabled Plugins Bootstrap
+    crate::system::watcher_hub::ensure_background_watcher_started();
     crate::commands::system_cmd::bootstrap_enabled_plugins();
 
     // 15. Autostart Alignment
@@ -761,6 +762,8 @@ pub fn run_tauri_runtime() {
             commands::system_cmd::register_telemetry_consumer,
             commands::system_cmd::unregister_telemetry_consumer,
             commands::system_cmd::emit_plugin_broadcast,
+            commands::system_cmd::set_plugin_watchers,
+            commands::system_cmd::get_plugin_watchers,
             commands::system_cmd::load_plugin_theme_css,
             commands::system_cmd::set_active_skin,
             commands::system_cmd::get_active_skin,

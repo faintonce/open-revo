@@ -1166,77 +1166,107 @@
     }
 
     async function syncWatcherToHost() {
-      // 官方范式教学：
-      // 1. 基线开机守护规则必须且应当在 manifest.json 的 watchers 中进行声明式定义；
-      //    微内核在系统启动引导时（bootstrap_enabled_plugins）会自动扫描并挂载，
-      //    实现 0MB Webview 内存占用的原生后台持久守护。
-      // 2. 当用户在 UI 界面调整了限充百分比（如滑动为 60%）时，前端通过微内核通用的
-      //    raw_ec_write 纯底层动作动态同步看门狗定义，绝不依赖任何宿主私有方法！
+      // 官方原子化守护架构范式：
+      // 1. 前端是业务编译器：根据当前探测的寄存器和用户选择的工作模式（脉冲存储法 vs 持续锁定法），
+      //    编译为标准通用 Watcher 流水线规则。
+      // 2. 调用通用的 set_plugin_watchers，微内核自动落盘至插件沙盒 plugin_storage/battery-hardware-limit/watchers.json，
+      //    并立即在运行态热更新生效。
+      // 3. 开机无需启动前端，微内核启动时直接从沙盒加载已编译好的 watchers.json 脱水运行！
       try {
         const isEnabled = Boolean(STATE.isLimitActive) && STATE.currentTarget < 100;
         const gateVal = STATE.activeGateVal || 4;
+        const watchers = [];
 
-        const watcherDef = {
-          id: 'battery-limit-startup-guard',
-          name: '微内核开机与电源接入自愈守护 (声明式底层动作)',
-          plugin_id: 'battery-hardware-limit',
-          enabled: isEnabled,
-          cooldown_ms: 1000,
-          condition: {
-            type: 'any',
-            conditions: [
-              { type: 'startup' },
-              { type: 'power_event', event: 'ac_connected' }
-            ]
-          },
-          actions: [
-            {
-              action: 'raw_ec_write',
-              address: STATE.limitReg,
-              value: STATE.currentTarget
-            },
-            {
-              action: 'raw_ec_write',
-              address: STATE.gateReg,
-              value: gateVal
-            }
-          ]
-        };
+        if (isEnabled) {
+          if (STATE.mode === 'pulse') {
+            // 模式 A：脉冲存储法 (事件驱动触发，采用原生 pulse_write 复合原子动作)
+            watchers.push({
+              id: 'battery-limit-pulse-guard',
+              name: '电池脉冲锁存守护 (事件驱动)',
+              plugin_id: 'battery-hardware-limit',
+              enabled: true,
+              cooldown_ms: 1000,
+              when: {
+                type: 'any',
+                conditions: [
+                  { type: 'startup' },
+                  { type: 'power_event', event: 'ac_connected' }
+                ]
+              },
+              actions: [
+                {
+                  action: 'raw_ec_write',
+                  address: STATE.limitReg,
+                  value: STATE.currentTarget
+                },
+                {
+                  action: 'pulse_write',
+                  address: STATE.gateReg,
+                  active: gateVal,
+                  restore: 0,
+                  delay_ms: Number(STATE.pulseHoldMs) || 200
+                }
+              ]
+            });
+          } else {
+            // 模式 B：持续锁定法 (开机设定上限 + 周期性门控心跳)
+            watchers.push({
+              id: 'battery-limit-startup-guard',
+              name: '微内核开机与电源接入基线设定',
+              plugin_id: 'battery-hardware-limit',
+              enabled: true,
+              cooldown_ms: 1000,
+              when: {
+                type: 'any',
+                conditions: [
+                  { type: 'startup' },
+                  { type: 'power_event', event: 'ac_connected' }
+                ]
+              },
+              actions: [
+                {
+                  action: 'raw_ec_write',
+                  address: STATE.limitReg,
+                  value: STATE.currentTarget
+                },
+                {
+                  action: 'raw_ec_write',
+                  address: STATE.gateReg,
+                  value: gateVal
+                }
+              ]
+            });
 
-        const keepaliveWatcherDef = {
-          id: 'battery-limit-gate-keepalive',
-          name: '门控持续保持心跳 (Pin & Keep-Alive)',
-          plugin_id: 'battery-hardware-limit',
-          enabled: isEnabled && STATE.mode === 'pin',
-          cooldown_ms: 0,
-          condition: {
-            type: 'interval',
-            every_ms: Number(STATE.keepaliveIntervalMs) || 4000
-          },
-          actions: [
-            {
-              action: 'raw_ec_write',
-              address: STATE.limitReg,
-              value: STATE.currentTarget
-            },
-            {
-              action: 'raw_ec_write',
-              address: STATE.gateReg,
-              value: gateVal
-            }
-          ]
-        };
-
-        if (window.OpenRevo && typeof window.OpenRevo.registerWatcher === 'function') {
-          await window.OpenRevo.registerWatcher(watcherDef);
-          await window.OpenRevo.registerWatcher(keepaliveWatcherDef);
-        } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.registerWatcher === 'function') {
-          await window.parent.__OPENREVO_BRIDGE__.registerWatcher(watcherDef);
-          await window.parent.__OPENREVO_BRIDGE__.registerWatcher(keepaliveWatcherDef);
-        } else {
-          await rpc('register_custom_watcher', { watcher: watcherDef }).catch(() => { });
-          await rpc('register_custom_watcher', { watcher: keepaliveWatcherDef }).catch(() => { });
+            watchers.push({
+              id: 'battery-limit-gate-keepalive',
+              name: '门控持续保持心跳 (Pin & Keep-Alive)',
+              plugin_id: 'battery-hardware-limit',
+              enabled: true,
+              cooldown_ms: 0,
+              when: {
+                type: 'interval',
+                every_ms: Number(STATE.keepaliveIntervalMs) || 4000
+              },
+              actions: [
+                {
+                  action: 'raw_ec_write',
+                  address: STATE.gateReg,
+                  value: gateVal
+                }
+              ]
+            });
+          }
         }
+
+        // 统一提交给微内核
+        if (window.OpenRevo && typeof window.OpenRevo.setPluginWatchers === 'function') {
+          await window.OpenRevo.setPluginWatchers('battery-hardware-limit', watchers);
+        } else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.setPluginWatchers === 'function') {
+          await window.parent.__OPENREVO_BRIDGE__.setPluginWatchers('battery-hardware-limit', watchers);
+        } else {
+          await rpc('set_plugin_watchers', { pluginId: 'battery-hardware-limit', watchers });
+        }
+        console.log('[BatteryLimit] 成功原子化同步 Watcher 规则至微内核沙盒:', watchers);
       } catch (e) {
         console.warn('[BatteryLimit] 同步 Watcher 到宿主事件中心失败:', e);
       }
