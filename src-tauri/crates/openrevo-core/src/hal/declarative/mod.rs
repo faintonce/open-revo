@@ -17,7 +17,7 @@ const BUILTIN_JIAOLONG_16_BLD: &str = include_str!("../../../../../resources/dri
 static CACHED_MANIFEST: std::sync::OnceLock<Option<ModelManifest>> = std::sync::OnceLock::new();
 
 /// Attempts to find and parse a matching declarative model manifest for the current computer.
-/// Checks external `%APPDATA%\OpenRevo\plugins\drivers\` first, then falls back to built-in drivers.
+/// Checks external `<config_dir>\plugins\drivers\` first, then falls back to built-in drivers.
 /// The result is cached statically to prevent repetitive disk/registry queries and log spamming.
 pub fn load_matched_manifest() -> Option<ModelManifest> {
     CACHED_MANIFEST
@@ -62,30 +62,27 @@ fn load_matched_manifest_internal() -> Option<ModelManifest> {
             let sys_prod = read_reg(w!("SystemProductName"));
             unsafe { let _ = RegCloseKey(hkey); }
 
-            // 1. Check external driver plugins in %APPDATA%\OpenRevo\plugins\drivers\
-            if let Ok(appdata) = std::env::var("APPDATA") {
-                let drivers_dir = std::path::PathBuf::from(appdata)
-                    .join("OpenRevo")
-                    .join("plugins")
-                    .join("drivers");
+            // 1. Check external driver plugins in <config_dir>\plugins\drivers\
+            let drivers_dir = crate::system::config::get_config_dir()
+                .join("plugins")
+                .join("drivers");
 
-                if drivers_dir.exists() {
-                    if let Ok(entries) = std::fs::read_dir(drivers_dir) {
-                        for entry in entries.flatten() {
-                            let path = entry.path();
-                            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                                if let Ok(content) = std::fs::read_to_string(&path) {
-                                    if let Ok(manifest) = serde_json::from_str::<ModelManifest>(&content) {
-                                        if manifest.matches_dmi(&board, &sys_prod) {
-                                            crate::log_info!(
-                                                "DECLARATIVE_LOADER",
-                                                "Matched external driver plugin: {} ({}) for board '{}'",
-                                                manifest.name,
-                                                manifest.id,
-                                                board
-                                            );
-                                            return Some(manifest);
-                                        }
+            if drivers_dir.exists() {
+                if let Ok(entries) = std::fs::read_dir(&drivers_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                if let Ok(manifest) = serde_json::from_str::<ModelManifest>(&content) {
+                                    if manifest.matches_dmi(&board, &sys_prod) {
+                                        crate::log_info!(
+                                            "DECLARATIVE_LOADER",
+                                            "Matched external driver plugin: {} ({}) for board '{}'",
+                                            manifest.name,
+                                            manifest.id,
+                                            board
+                                        );
+                                        return Some(manifest);
                                     }
                                 }
                             }
