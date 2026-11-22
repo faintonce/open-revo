@@ -1289,168 +1289,181 @@ pub fn open_plugins_dir() -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_custom_plugins() -> Result<Vec<CustomPluginItem>, String> {
-    let plugins_dir = crate::system::config::get_config_dir().join("plugins");
-    let _ = std::fs::create_dir_all(&plugins_dir);
-
     let cfg = crate::system::config::load_config();
     let mut list = Vec::new();
+    let mut seen_ids = std::collections::HashSet::new();
+    let roots = get_candidate_plugin_roots();
 
-    if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                let dir_name = entry.file_name().to_string_lossy().to_string();
-                let manifest_path = path.join("manifest.json");
+    for plugins_dir in roots {
+        if !plugins_dir.exists() {
+            continue;
+        }
+        if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let dir_name = entry.file_name().to_string_lossy().to_string();
+                    let manifest_path = path.join("manifest.json");
 
-                if manifest_path.exists() {
-                    if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                        if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
-                            let id = manifest.id.unwrap_or_else(|| dir_name.clone());
-                            let raw_p_type = manifest.plugin_type.as_deref().unwrap_or("extension");
+                    if manifest_path.exists() {
+                        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                            if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
+                                let id = manifest.id.unwrap_or_else(|| dir_name.clone());
+                                if seen_ids.contains(&id) {
+                                    continue;
+                                }
+                                seen_ids.insert(id.clone());
 
-                            let has_explicit_tab = manifest.tab.is_some();
-                            let has_explicit_widget = manifest.widget.is_some();
+                                let raw_p_type = manifest.plugin_type.as_deref().unwrap_or("extension");
 
-                            let has_skin = raw_p_type.eq_ignore_ascii_case("skin") || manifest.theme_css.is_some();
-                            let has_background = raw_p_type.eq_ignore_ascii_case("background") || manifest.background_css.is_some() || manifest.image.is_some();
-                            let has_slot = raw_p_type.eq_ignore_ascii_case("slot") || manifest.target_slot.is_some();
-                            let has_service = manifest.service.is_some();
+                                let has_explicit_tab = manifest.tab.is_some();
+                                let has_explicit_widget = manifest.widget.is_some();
 
-                            let has_widget = has_explicit_widget || (raw_p_type.eq_ignore_ascii_case("widget") && !has_explicit_tab);
-                            let has_tab = has_explicit_tab || raw_p_type.eq_ignore_ascii_case("tab") || (manifest.entry.is_some() && !has_widget && !has_slot && !has_skin && !has_background);
-                            let is_headless = !has_tab && !has_widget && !has_slot && !has_skin && !has_background;
+                                let has_skin = raw_p_type.eq_ignore_ascii_case("skin") || manifest.theme_css.is_some();
+                                let has_background = raw_p_type.eq_ignore_ascii_case("background") || manifest.background_css.is_some() || manifest.image.is_some();
+                                let has_slot = raw_p_type.eq_ignore_ascii_case("slot") || manifest.target_slot.is_some();
+                                let has_service = manifest.service.is_some();
 
-                            let plugin_type = if has_skin {
-                                "skin".to_string()
-                            } else if has_background {
-                                "background".to_string()
-                            } else if has_tab && has_widget {
-                                "app".to_string()
-                            } else if has_widget {
-                                "widget".to_string()
-                            } else if has_tab {
-                                "tab".to_string()
-                            } else if has_slot {
-                                "slot".to_string()
-                            } else {
-                                "service".to_string()
-                            };
+                                let has_widget = has_explicit_widget || (raw_p_type.eq_ignore_ascii_case("widget") && !has_explicit_tab);
+                                let has_tab = has_explicit_tab || raw_p_type.eq_ignore_ascii_case("tab") || (manifest.entry.is_some() && !has_widget && !has_slot && !has_skin && !has_background);
+                                let is_headless = !has_tab && !has_widget && !has_slot && !has_skin && !has_background;
 
-                            let tab_cfg = manifest.tab.clone().or_else(|| {
-                                if has_tab {
-                                    Some(PluginTabConfig {
-                                        entry: manifest.entry.clone(),
-                                        plugin_type: manifest.plugin_type.clone(),
-                                        title: manifest.name.clone(),
-                                        icon: None,
-                                    })
+                                let plugin_type = if has_skin {
+                                    "skin".to_string()
+                                } else if has_background {
+                                    "background".to_string()
+                                } else if has_tab && has_widget {
+                                    "app".to_string()
+                                } else if has_widget {
+                                    "widget".to_string()
+                                } else if has_tab {
+                                    "tab".to_string()
+                                } else if has_slot {
+                                    "slot".to_string()
                                 } else {
-                                    None
-                                }
-                            });
+                                    "service".to_string()
+                                };
 
-                            let widget_cfg = manifest.widget.clone().or_else(|| {
-                                if has_widget {
-                                    Some(PluginWidgetConfig {
-                                        entry: manifest.entry.clone(),
-                                        plugin_type: manifest.plugin_type.clone(),
-                                        window: manifest.window.clone(),
-                                    })
+                                let tab_cfg = manifest.tab.clone().or_else(|| {
+                                    if has_tab {
+                                        Some(PluginTabConfig {
+                                            entry: manifest.entry.clone(),
+                                            plugin_type: manifest.plugin_type.clone(),
+                                            title: manifest.name.clone(),
+                                            icon: None,
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                });
+
+                                let widget_cfg = manifest.widget.clone().or_else(|| {
+                                    if has_widget {
+                                        Some(PluginWidgetConfig {
+                                            entry: manifest.entry.clone(),
+                                            plugin_type: manifest.plugin_type.clone(),
+                                            window: manifest.window.clone(),
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                });
+
+                                let (is_compatible, compatibility_notice) = check_version_compatibility(manifest.min_host_version.as_deref());
+                                let enabled = if !is_compatible {
+                                    false
+                                } else if plugin_type == "skin" {
+                                    cfg.active_skin.as_ref() == Some(&id)
+                                } else if plugin_type == "background" {
+                                    cfg.active_background.as_ref() == Some(&id)
                                 } else {
-                                    None
-                                }
-                            });
+                                    cfg.custom_plugin_toggles.get(&id).copied().unwrap_or(true)
+                                };
 
-                            let (is_compatible, compatibility_notice) = check_version_compatibility(manifest.min_host_version.as_deref());
-                            let enabled = if !is_compatible {
-                                false
-                            } else if plugin_type == "skin" {
-                                cfg.active_skin.as_ref() == Some(&id)
-                            } else if plugin_type == "background" {
-                                cfg.active_background.as_ref() == Some(&id)
-                            } else {
-                                cfg.custom_plugin_toggles.get(&id).copied().unwrap_or(true)
-                            };
-
-                            list.push(CustomPluginItem {
-                                id: id.clone(),
-                                name: manifest.name.unwrap_or_else(|| dir_name.clone()),
-                                version: manifest.version.unwrap_or_else(|| "1.0.0".into()),
-                                author: manifest.author.unwrap_or_else(|| "第三方开发者".into()),
-                                description: manifest.description.unwrap_or_else(|| "无插件描述".into()),
-                                plugin_type,
-                                enabled,
-                                dir_name: dir_name.clone(),
-                                window: manifest.window,
-                                telemetry: manifest.telemetry,
-                                entry: manifest.entry,
-                                target_slot: manifest.target_slot,
-                                slot_height: manifest.slot_height,
-                                service: manifest.service,
-                                shortcuts: manifest.shortcuts.clone(),
-                                watchers: manifest.watchers.clone(),
-                                permissions: manifest.permissions.clone(),
-                                min_host_version: manifest.min_host_version.clone(),
-                                order: manifest.order,
-                                is_compatible,
-                                compatibility_notice,
-                                has_tab,
-                                has_widget,
-                                has_slot,
-                                has_service,
-                                has_skin,
-                                has_background,
-                                is_headless,
-                                tab: tab_cfg,
-                                widget: widget_cfg,
-                            });
-                            if enabled && is_compatible {
-                                if let Some(ref scs) = manifest.shortcuts {
-                                    crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
+                                list.push(CustomPluginItem {
+                                    id: id.clone(),
+                                    name: manifest.name.unwrap_or_else(|| dir_name.clone()),
+                                    version: manifest.version.unwrap_or_else(|| "1.0.0".into()),
+                                    author: manifest.author.unwrap_or_else(|| "第三方开发者".into()),
+                                    description: manifest.description.unwrap_or_else(|| "无插件描述".into()),
+                                    plugin_type,
+                                    enabled,
+                                    dir_name: dir_name.clone(),
+                                    window: manifest.window,
+                                    telemetry: manifest.telemetry,
+                                    entry: manifest.entry,
+                                    target_slot: manifest.target_slot,
+                                    slot_height: manifest.slot_height,
+                                    service: manifest.service,
+                                    shortcuts: manifest.shortcuts.clone(),
+                                    watchers: manifest.watchers.clone(),
+                                    permissions: manifest.permissions.clone(),
+                                    min_host_version: manifest.min_host_version.clone(),
+                                    order: manifest.order,
+                                    is_compatible,
+                                    compatibility_notice,
+                                    has_tab,
+                                    has_widget,
+                                    has_slot,
+                                    has_service,
+                                    has_skin,
+                                    has_background,
+                                    is_headless,
+                                    tab: tab_cfg,
+                                    widget: widget_cfg,
+                                });
+                                if enabled && is_compatible {
+                                    if let Some(ref scs) = manifest.shortcuts {
+                                        crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
+                                    }
+                                    if let Some(ref wts) = manifest.watchers {
+                                        crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
+                                    }
                                 }
-                                if let Some(ref wts) = manifest.watchers {
-                                    crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
-                                }
+                                continue;
                             }
-                            continue;
                         }
                     }
-                }
 
-                // If folder exists but without standard manifest
-                let enabled = cfg.custom_plugin_toggles.get(&dir_name).copied().unwrap_or(true);
-                list.push(CustomPluginItem {
-                    id: dir_name.clone(),
-                    name: dir_name.clone(),
-                    version: "0.1.0".into(),
-                    author: "本地".into(),
-                    description: "本地扩展目录 (未检测到标准 manifest.json)".into(),
-                    plugin_type: "directory".into(),
-                    enabled,
-                    dir_name,
-                    window: None,
-                    telemetry: None,
-                    entry: None,
-                    target_slot: None,
-                    slot_height: None,
-                    service: None,
-                    shortcuts: None,
-                    watchers: None,
-                    permissions: None,
-                    min_host_version: None,
-                    order: None,
-                    is_compatible: true,
-                    compatibility_notice: None,
-                    has_tab: false,
-                    has_widget: false,
-                    has_slot: false,
-                    has_service: false,
-                    has_skin: false,
-                    has_background: false,
-                    is_headless: true,
-                    tab: None,
-                    widget: None,
-                });
+                    // If folder exists but without standard manifest
+                    if seen_ids.contains(&dir_name) {
+                        continue;
+                    }
+                    seen_ids.insert(dir_name.clone());
+                    let enabled = cfg.custom_plugin_toggles.get(&dir_name).copied().unwrap_or(true);
+                    list.push(CustomPluginItem {
+                        id: dir_name.clone(),
+                        name: dir_name.clone(),
+                        version: "0.1.0".into(),
+                        author: "本地".into(),
+                        description: "本地扩展目录 (未检测到标准 manifest.json)".into(),
+                        plugin_type: "directory".into(),
+                        enabled,
+                        dir_name,
+                        window: None,
+                        telemetry: None,
+                        entry: None,
+                        target_slot: None,
+                        slot_height: None,
+                        service: None,
+                        shortcuts: None,
+                        watchers: None,
+                        permissions: None,
+                        min_host_version: None,
+                        order: None,
+                        is_compatible: true,
+                        compatibility_notice: None,
+                        has_tab: false,
+                        has_widget: false,
+                        has_slot: false,
+                        has_service: false,
+                        has_skin: false,
+                        has_background: false,
+                        is_headless: true,
+                        tab: None,
+                        widget: None,
+                    });
+                }
             }
         }
     }
@@ -1936,52 +1949,151 @@ pub fn get_model_capabilities() -> serde_json::Value {
     })
 }
 
-/// Automatically loads shortcuts, watchers, and auto-starts services for all enabled and compatible plugins on host startup
-pub fn bootstrap_enabled_plugins() {
-    let cfg = crate::system::config::load_config();
-    let plugins_dir = crate::system::config::get_config_dir().join("plugins");
-    if !plugins_dir.exists() {
-        return;
+/// Returns all plugin candidate search roots, prioritizing persistent user config directory
+/// and falling back to portable or repo sample paths.
+pub fn get_candidate_plugin_roots() -> Vec<std::path::PathBuf> {
+    let mut roots = Vec::new();
+    // 1. Installed plugins in user config dir (highest priority)
+    roots.push(crate::system::config::get_config_dir().join("plugins"));
+    // 2. Portable and development sample paths
+    for base in [std::path::PathBuf::from("."), std::path::PathBuf::from("..")] {
+        roots.push(base.join("plugins"));
+        roots.push(base.join("plugins_sample").join("webview2"));
+        roots.push(base.join("plugins_sample").join("slint"));
     }
+    roots
+}
 
-    if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+/// Automatically loads shortcuts, watchers, and auto-starts services for all enabled and compatible plugins on host startup.
+/// Discovers plugins across installed APPDATA directories as well as portable sample packages.
+pub fn bootstrap_enabled_plugins() {
+    crate::log_info!("PLUGIN", "=== Initializing Plugin Subsystem & Bootstrapping Watchers ===");
+    let cfg = crate::system::config::load_config();
+    let roots = get_candidate_plugin_roots();
+    let mut seen_ids = std::collections::HashSet::new();
+    let mut total_discovered = 0;
+    let mut total_bootstrapped = 0;
+
+    for root in roots {
+        if !root.exists() {
+            continue;
+        }
+        let Ok(entries) = std::fs::read_dir(&root) else {
+            continue;
+        };
+
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() {
-                let dir_name = entry.file_name().to_string_lossy().to_string();
-                let manifest_path = path.join("manifest.json");
-                if manifest_path.exists() {
-                    if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                        if let Ok(manifest) = serde_json::from_str::<RawPluginManifest>(&content) {
-                            let id = manifest.id.unwrap_or_else(|| dir_name.clone());
-                            let enabled = cfg
-                                .custom_plugin_toggles
-                                .get(&id)
-                                .or_else(|| cfg.custom_plugin_toggles.get(&dir_name))
-                                .copied()
-                                .unwrap_or(true);
-                            let (is_compatible, _) = check_version_compatibility(manifest.min_host_version.as_deref());
-                            if enabled && is_compatible {
-                                crate::log_info!("PLUGIN", "Bootstrapping enabled plugin '{}'", id);
-                                if let Some(ref scs) = manifest.shortcuts {
-                                    crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
-                                }
-                                if let Some(ref wts) = manifest.watchers {
-                                    crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
-                                }
-                                if let Some(ref srv) = manifest.service {
-                                    if srv.auto_start {
-                                        crate::log_info!("PLUGIN", "Auto-starting companion service for '{}'", id);
-                                        let _ = crate::system::plugin_service::start_service(&id);
-                                    }
-                                }
-                            }
-                        }
-                    }
+            if !path.is_dir() {
+                continue;
+            }
+            let dir_name = entry.file_name().to_string_lossy().to_string();
+            let manifest_path = path.join("manifest.json");
+            if !manifest_path.exists() {
+                continue;
+            }
+
+            total_discovered += 1;
+            let content = match std::fs::read_to_string(&manifest_path) {
+                Ok(c) => c,
+                Err(err) => {
+                    crate::log_error!("PLUGIN", "Failed to read manifest at {:?}: {}", manifest_path, err);
+                    continue;
+                }
+            };
+
+            let manifest: RawPluginManifest = match serde_json::from_str(&content) {
+                Ok(m) => m,
+                Err(err) => {
+                    crate::log_error!("PLUGIN", "Failed to parse manifest JSON at {:?}: {}", manifest_path, err);
+                    continue;
+                }
+            };
+
+            let id = manifest.id.clone().unwrap_or_else(|| dir_name.clone());
+            if seen_ids.contains(&id) {
+                continue;
+            }
+            seen_ids.insert(id.clone());
+
+            let enabled = cfg
+                .custom_plugin_toggles
+                .get(&id)
+                .or_else(|| cfg.custom_plugin_toggles.get(&dir_name))
+                .copied()
+                .unwrap_or(true);
+            let (is_compatible, notice) = check_version_compatibility(manifest.min_host_version.as_deref());
+
+            crate::log_info!(
+                "PLUGIN",
+                "Discovered plugin candidate '{}' ({}) at {:?} [enabled: {}, compatible: {}]",
+                id,
+                manifest.name.as_deref().unwrap_or(&dir_name),
+                path,
+                enabled,
+                is_compatible
+            );
+
+            if !enabled {
+                crate::log_info!("PLUGIN", "Plugin '{}' is toggled OFF by user setting, skipping watcher mounting.", id);
+                continue;
+            }
+            if !is_compatible {
+                crate::log_warn!("PLUGIN", "Plugin '{}' skipped due to version incompatibility: {:?}", id, notice);
+                continue;
+            }
+
+            total_bootstrapped += 1;
+            crate::log_info!(
+                "PLUGIN",
+                "Bootstrapping plugin '{}': watchers={}, shortcuts={}, auto_start_service={}",
+                id,
+                manifest.watchers.as_ref().map(|w| w.len()).unwrap_or(0),
+                manifest.shortcuts.as_ref().map(|s| s.len()).unwrap_or(0),
+                manifest.service.as_ref().map(|s| s.auto_start).unwrap_or(false),
+            );
+
+            if let Some(ref scs) = manifest.shortcuts {
+                crate::system::shortcuts::load_plugin_shortcuts(&id, scs.clone());
+            }
+            if let Some(ref wts) = manifest.watchers {
+                crate::system::watcher_hub::load_plugin_watchers(&id, wts.clone());
+            }
+            if let Some(ref srv) = manifest.service {
+                if srv.auto_start {
+                    crate::log_info!("PLUGIN", "Auto-starting companion service for '{}'", id);
+                    let _ = crate::system::plugin_service::start_service(&id);
                 }
             }
         }
     }
+
+    crate::log_info!(
+        "PLUGIN",
+        "Plugin scanning completed. Discovered: {}, Bootstrapped: {}. Triggering startup watchers...",
+        total_discovered,
+        total_bootstrapped
+    );
+
+    // Trigger all Startup-condition watchers now that microkernel and plugins are ready
+    crate::system::watcher_hub::trigger_startup_watchers();
+    crate::log_info!("PLUGIN", "=== Plugin Subsystem Bootstrap Finished ===");
+}
+
+#[tauri::command]
+pub fn plugin_log(plugin_id: String, level: String, message: String, tag: Option<String>) -> Result<(), String> {
+    let lvl = level.to_uppercase();
+    let mod_name = match tag {
+        Some(ref t) if !t.is_empty() => format!("PLUGIN:{}:{}", plugin_id, t),
+        _ => format!("PLUGIN:{}", plugin_id),
+    };
+    match lvl.as_str() {
+        "DEBUG" => crate::log_debug!(&mod_name, "{}", message),
+        "WARN" => crate::log_warn!(&mod_name, "{}", message),
+        "ERROR" => crate::log_error!(&mod_name, "{}", message),
+        _ => crate::log_info!(&mod_name, "{}", message),
+    }
+    Ok(())
 }
 
 #[tauri::command]

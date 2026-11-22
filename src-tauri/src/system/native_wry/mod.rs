@@ -303,6 +303,18 @@ pub fn get_bridge_script(plugin_id: &str) -> String {
         all[key] = val;
         return await callRpc("set_plugin_storage", { pluginId: pluginId, data: all });
       }
+    },
+    log: function(msg, tag) {
+      return callRpc("plugin_log", { pluginId: pluginId, level: "INFO", message: String(msg), tag: tag || "" });
+    },
+    logWarn: function(msg, tag) {
+      return callRpc("plugin_log", { pluginId: pluginId, level: "WARN", message: String(msg), tag: tag || "" });
+    },
+    logError: function(msg, tag) {
+      return callRpc("plugin_log", { pluginId: pluginId, level: "ERROR", message: String(msg), tag: tag || "" });
+    },
+    logDebug: function(msg, tag) {
+      return callRpc("plugin_log", { pluginId: pluginId, level: "DEBUG", message: String(msg), tag: tag || "" });
     }
   };
 

@@ -402,6 +402,8 @@ fn register_watcher_internal(def: WatcherDefinition, persist: bool) -> bool {
     let mut map = get_watchers_map().lock();
     let id = def.id.clone();
     crate::log_info!("WATCHER_HUB", "Registered watcher '{}' [{}] for plugin '{:?}'", def.name, id, def.plugin_id);
+    let is_startup = def.enabled && matches!(def.condition, WatcherCondition::Startup);
+    let def_to_trigger = if is_startup { Some(def.clone()) } else { None };
     map.insert(
         id,
         WatcherRecord {
@@ -414,6 +416,10 @@ fn register_watcher_internal(def: WatcherDefinition, persist: bool) -> bool {
     drop(map);
     if persist {
         save_persistent_custom_watchers();
+    }
+    if let Some(d) = def_to_trigger {
+        crate::log_info!("WATCHER", "Executing newly registered startup watcher '{}' [{}]", d.name, d.id);
+        dispatch_watcher_trigger(d, "startup", serde_json::json!({ "event": "startup_registered" }));
     }
     true
 }
@@ -459,8 +465,23 @@ pub fn hydrate_watcher_from_plugin_storage(plugin_id: &str, def: &mut WatcherDef
             let target_limit = storage.get("target_limit").and_then(|v| v.as_u64()).map(|v| v as u8);
             let active_gate = storage.get("active_gate_val").and_then(|v| v.as_u64()).map(|v| v as u8);
             let is_active = storage.get("is_limit_active").and_then(|v| v.as_bool());
-            let limit_reg = storage.get("limit_reg").and_then(|v| v.as_u64()).map(|v| v as u16);
-            let gate_reg = storage.get("gate_reg").and_then(|v| v.as_u64()).map(|v| v as u16);
+            let parse_u16 = |v: Option<&serde_json::Value>| -> Option<u16> {
+                let val = v?;
+                if let Some(n) = val.as_u64() {
+                    Some(n as u16)
+                } else if let Some(s) = val.as_str() {
+                    let trimmed = s.trim();
+                    if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
+                        u16::from_str_radix(&trimmed[2..], 16).ok()
+                    } else {
+                        trimmed.parse::<u16>().ok()
+                    }
+                } else {
+                    None
+                }
+            };
+            let limit_reg = parse_u16(storage.get("limit_reg"));
+            let gate_reg = parse_u16(storage.get("gate_reg"));
 
             if let Some(false) = is_active {
                 def.enabled = false;

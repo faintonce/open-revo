@@ -1253,6 +1253,11 @@
       const time = new Date().toTimeString().split(' ')[0];
       box.textContent += `\n[${time}] ${msg}`;
       box.scrollTop = box.scrollHeight;
+      try {
+        if (window.OpenRevo && typeof window.OpenRevo.log === 'function') {
+          window.OpenRevo.log(msg, 'UI');
+        }
+      } catch (_) { }
     }
 
     function showToast(msg) {

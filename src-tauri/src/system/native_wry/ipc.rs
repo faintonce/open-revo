@@ -371,6 +371,31 @@ pub async fn dispatch_plugin_ipc(plugin_id: &str, cmd: &str, args: Value) -> Res
             }))
         }
 
+        // Plugin Diagnostics & Host Centralized Logging
+        "plugin_log" | "log" => {
+            let target_pid = args
+                .get("pluginId")
+                .or_else(|| args.get("plugin_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(plugin_id);
+            let level = args
+                .get("level")
+                .and_then(|v| v.as_str())
+                .unwrap_or("INFO");
+            let message = args
+                .get("message")
+                .or_else(|| args.get("msg"))
+                .or_else(|| args.get("content"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let tag = args
+                .get("tag")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            crate::commands::system_cmd::plugin_log(target_pid.to_string(), level.to_string(), message.to_string(), tag)?;
+            Ok(Value::Bool(true))
+        }
+
         // AI Gateway & Hub APIs (Native Wry / Slint host compatibility)
         "ai_get_config" => {
             let cfg = crate::commands::ai_cmd::ai_get_config()?;

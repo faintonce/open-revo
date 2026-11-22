@@ -757,6 +757,7 @@ pub fn run_tauri_runtime() {
             commands::hardware_cmd::set_plugin_enabled_unified,
             commands::hardware_cmd::uninstall_plugin,
             commands::hardware_cmd::install_plugin_from_url,
+            commands::system_cmd::plugin_log,
             commands::system_cmd::register_telemetry_consumer,
             commands::system_cmd::unregister_telemetry_consumer,
             commands::system_cmd::emit_plugin_broadcast,
