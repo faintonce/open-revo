@@ -736,8 +736,12 @@ impl GpuBridge {
                             if let Ok(m) = parts[2].parse::<u32>() {
                                 inner.mem_freq.store(m, Ordering::SeqCst);
                             }
-                            if let Ok(t) = parts[3].parse::<u32>() {
-                                inner.temp.store(t, Ordering::SeqCst);
+                            // Newer NVIDIA drivers report fractional temps (e.g. "58.28"), never parse as u32
+                            if let Ok(t) = parts[3].parse::<f32>() {
+                                let rounded = t.round();
+                                if rounded > 0.0 && rounded < 150.0 {
+                                    inner.temp.store(rounded as u32, Ordering::SeqCst);
+                                }
                             }
                             if let Ok(u) = parts[4].parse::<u32>() {
                                 inner.usage.store(u, Ordering::SeqCst);
