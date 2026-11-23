@@ -183,23 +183,32 @@ impl EcBridge {
                             c.gpu_fan_rpm = gpu_rpm;
                         }
 
-                        // 5. Battery Gate Watchdog: Protect platform override from accidental drop (Tongfang platforms only)
+                        // 5. Battery Gate Watchdog: Protect the gate from accidental drop (Tongfang platforms only)
                         if now >= c.battery_limit_cooldown_until {
                             let cfg_snap = crate::system::config::load_config();
                             if crate::hal::declarative::load_matched_manifest().is_none() && cfg_snap.battery_hardware_limit_enabled && c.battery_limit < 95 {
-                                if let Some(cur_plat_id) = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID) {
-                                    if cur_plat_id != 0x04 {
-                                        crate::log_warn!(
-                                            "EC_WATCHDOG",
-                                            "Battery hardware gate dropped (platform code 0x{:02X})! Auto-healing platform override...",
-                                            cur_plat_id
-                                        );
+                                // Judge the gate by its hardware indicator bit instead of the
+                                // PLATFORM byte: when the gate is held via the ROMID override
+                                // key (see apply_battery_limit_with_override), PLATFORM_REAL_ID
+                                // legitimately stays at its factory value.
+                                let gate_open = wmi_ec::wmi_read_ec(wmi_ec::ADDR_BATTERY_GATE_STATUS)
+                                    .map(|v| v & wmi_ec::BATTERY_GATE_ACTIVE_BIT != 0)
+                                    .unwrap_or(true);
+                                if !gate_open {
+                                    crate::log_warn!(
+                                        "EC_WATCHDOG",
+                                        "Battery hardware gate dropped (indicator bit clear)! Auto-healing gate override..."
+                                    );
+                                    let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, 0x04);
+                                    let reopened = wmi_ec::wmi_read_ec(wmi_ec::ADDR_BATTERY_GATE_STATUS)
+                                        .map(|v| v & wmi_ec::BATTERY_GATE_ACTIVE_BIT != 0)
+                                        .unwrap_or(false);
+                                    if !reopened {
                                         let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_UP, c.battery_limit);
-                                        let down = if c.battery_limit > 5 { c.battery_limit - 5 } else { c.battery_limit };
-                                        let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_DOWN, down);
                                     }
+                                    let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_UP, c.battery_limit);
+                                    let down = if c.battery_limit > 5 { c.battery_limit - 5 } else { c.battery_limit };
+                                    let _ = wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_LIMIT_DOWN, down);
                                 }
                             }
                         }
@@ -393,18 +402,35 @@ impl EcBridge {
 
             let down_limit = if limit > 5 { limit - 5 } else { limit };
 
-            // 0. Platform4 Gate method (for legacy gaming chassis without manifest):
-            //    Only apply platform spoofing on non-declarative gaming platforms
+            // 0. Battery gate method (for legacy gaming chassis without manifest):
+            //    Only apply gate keys on non-declarative gaming platforms.
+            //    Preferred key: BATTERY_PLATFORM_OVERRIDE (ROMID[0]) = 4. The gate
+            //    predicate state_is() accepts the override register as an equivalent
+            //    operand, and on newer Uniwill ECs (2023+ builds, e.g. MECHREVO
+            //    Yaoshi/Jiaolong series) spoofing PLATFORM_REAL_ID = 4 additionally
+            //    switches the EC product table, which remaps Fn hotkeys (Fn+F5 turns
+            //    into mic mute). The override key opens the same gate while leaving
+            //    the product-table selector untouched. Verify via the GATE_STATUS
+            //    indicator bit and fall back to the legacy platform spoof only when
+            //    the preferred key did not open the gate.
             let is_declarative = crate::hal::declarative::load_matched_manifest().is_some();
             if !is_declarative {
+                let gate_open = || {
+                    wmi_ec::wmi_read_ec(wmi_ec::ADDR_BATTERY_GATE_STATUS)
+                        .map(|v| v & wmi_ec::BATTERY_GATE_ACTIVE_BIT != 0)
+                        .unwrap_or(false)
+                };
                 if hardware_override && limit < 95 {
-                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
+                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, 0x04);
+                    if !gate_open() {
+                        wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, 0x04);
+                    }
                 } else {
                     let cur_id = wmi_ec::wmi_read_ec(wmi_ec::ADDR_PLATFORM_REAL_ID).unwrap_or(0x07);
                     let restore_id = if cur_id == 0x04 || cur_id == 0x05 { 0x07 } else { cur_id };
                     wmi_ec::wmi_write_ec(wmi_ec::ADDR_PLATFORM_REAL_ID, restore_id);
+                    wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
                 }
-                wmi_ec::wmi_write_ec(wmi_ec::ADDR_BATTERY_PLATFORM_OVERRIDE, wmi_ec::BATTERY_OVERRIDE_RESET_VALUE);
             }
 
             // 1. First write cut-off thresholds (Upper, Lower)
