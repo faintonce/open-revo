@@ -74,8 +74,33 @@ fn dispatch_acpi_event(
     last_switch_time: &mut Instant,
     last_brightness_time: &mut Instant,
     last_fan_boost_time: &mut Instant,
+    last_touchpad_time: &mut Instant,
 ) {
     match code {
+        183 => {
+            // Fn+F5: touchpad toggle. On 2023+ Uniwill EC builds the battery-gate
+            // predicate also switches the EC product table, which re-emits Fn+F5 as
+            // this code while the gate is held open for hardware charge limiting
+            // (the plain PTP-hotkey path only exists with the gate closed). Claim
+            // the code and run the exact UI toggle path (EC bit + AdminFlows + PTP
+            // registry are all synced by set_switch).
+            if last_touchpad_time.elapsed() >= Duration::from_millis(400) {
+                *last_touchpad_time = Instant::now();
+                let enable = !crate::system::config::load_config().touchpad_enabled;
+                match crate::system::switches::set_switch("touchpad", enable) {
+                    Ok(_) => crate::log_info!(
+                        "WMI_LISTENER",
+                        "Fn+F5 hotkey (183) received! Touchpad toggled to {}",
+                        enable
+                    ),
+                    Err(e) => crate::log_warn!(
+                        "WMI_LISTENER",
+                        "Fn+F5 hotkey (183) touchpad toggle failed: {}",
+                        e
+                    ),
+                }
+            }
+        }
         176 | 192 | 201 => {
             // QKEY_MODESWITCH / OSD_FanModeSwitch (176) / SC_SwitchOC (192) / SC_CustomMode (201)
             if last_switch_time.elapsed() >= Duration::from_millis(500) {
@@ -254,6 +279,7 @@ pub fn start_wmi_event_listener(app_handle: AppHandle, ec_bridge: SharedEcBridge
 
             let mut last_switch_time = Instant::now() - Duration::from_secs(10);
             let mut last_brightness_time = Instant::now() - Duration::from_secs(10);
+            let mut last_touchpad_time = Instant::now() - Duration::from_secs(10);
             let mut last_fan_boost_time = Instant::now() - Duration::from_secs(10);
             let mut consecutive_failures = 0u32;
 
@@ -343,6 +369,7 @@ pub fn start_wmi_event_listener(app_handle: AppHandle, ec_bridge: SharedEcBridge
                                             &mut last_switch_time,
                                             &mut last_brightness_time,
                                             &mut last_fan_boost_time,
+                                            &mut last_touchpad_time,
                                         );
                                     }
                                 }
