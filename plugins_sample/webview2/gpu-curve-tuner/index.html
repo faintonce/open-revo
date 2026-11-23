@@ -672,6 +672,7 @@
       coreOffset: 0,
       memOffset: 0,
       vfPoints: [],
+      stockBaseline: null, // Pristine factory baseline [{ volt_mv, freq_mhz }] protected from mutation
       plannedDeltas: null,
       targetVolt: 875,
       targetFreq: 2450,
@@ -809,6 +810,10 @@
           if (typeof stored.target_freq === 'number') STATE.targetFreq = stored.target_freq;
           if (typeof stored.active_mode === 'string') STATE.activeMode = stored.active_mode;
           
+          if (Array.isArray(stored.stock_baseline) && stored.stock_baseline.length > 0) {
+            STATE.stockBaseline = stored.stock_baseline;
+          }
+
           const rawDeltas = Array.isArray(stored.planned_deltas) ? stored.planned_deltas : (Array.isArray(stored.deltas) ? stored.deltas : null);
           if (rawDeltas) STATE.plannedDeltas = rawDeltas.slice();
 
@@ -832,7 +837,8 @@
       }
     }
 
-    async function savePluginStorage() {
+    async function savePluginStorage(options = {}) {
+      const { syncWatcher = false } = options;
       const config = {
         schema: 2,
         target_volt: STATE.targetVolt,
@@ -842,6 +848,7 @@
         active_mode: STATE.activeMode,
         planned_deltas: STATE.plannedDeltas,
         deltas: STATE.plannedDeltas,
+        stock_baseline: STATE.stockBaseline,
         saved_snapshot: STATE.savedSnapshot,
         updated_at: new Date().toISOString()
       };
@@ -853,16 +860,16 @@
       try {
         if (window.OpenRevo && window.OpenRevo.storage && typeof window.OpenRevo.storage.set === 'function') {
           await window.OpenRevo.storage.set(config);
-          await syncWatcherToHost();
+          if (syncWatcher) await syncWatcherToHost();
           return;
         }
         if (window.parent && window.parent.__OPENREVO_BRIDGE__ && window.parent.__OPENREVO_BRIDGE__.storage) {
           await window.parent.__OPENREVO_BRIDGE__.storage.set(config);
-          await syncWatcherToHost();
+          if (syncWatcher) await syncWatcherToHost();
           return;
         }
         await rpc('set_plugin_storage', { pluginId: PLUGIN_ID, data: config });
-        await syncWatcherToHost();
+        if (syncWatcher) await syncWatcherToHost();
       } catch (e) {
         console.warn('[Storage] Save failed:', e);
       }
@@ -884,6 +891,18 @@
         STATE.coreOffset = info.core_offset_mhz || 0;
         STATE.memOffset = info.mem_offset_mhz || 0;
         STATE.vfPoints = info.vf_points || [];
+
+        // 捕获并严密保护纯净出厂基准线 (Stock Baseline Cache)
+        const isCleanStock = STATE.vfPoints.length > 0 && STATE.vfPoints.every(p => (p.delta_mhz || 0) === 0);
+        if (STATE.vfPoints.length > 0) {
+          if (isCleanStock || !STATE.stockBaseline || STATE.stockBaseline.length !== STATE.vfPoints.length) {
+            STATE.stockBaseline = STATE.vfPoints.map(p => ({
+              volt_mv: p.volt_mv,
+              freq_mhz: isCleanStock ? p.freq_mhz : Math.max(0, p.freq_mhz - (p.delta_mhz || 0))
+            }));
+            savePluginStorage({ syncWatcher: false });
+          }
+        }
 
         // If no planned curve, synchronize from current physical curve or calculate from active preset
         if (!STATE.plannedDeltas && STATE.vfPoints.length > 0) {
@@ -976,54 +995,71 @@
 
       pushUndo();
 
-      // Find target anchor closest to target voltage
+      const count = STATE.vfPoints.length;
+      // 1. 查找电压最接近目标电压的硬件锚点（优先参考纯净出厂基准）
       let targetIdx = 0;
       let minDiff = 999999;
-      for (let i = 0; i < STATE.vfPoints.length; i++) {
-        const diff = Math.abs(STATE.vfPoints[i].volt_mv - targetVolt);
+      for (let i = 0; i < count; i++) {
+        const v = (STATE.stockBaseline && STATE.stockBaseline[i]) ? STATE.stockBaseline[i].volt_mv : STATE.vfPoints[i].volt_mv;
+        const diff = Math.abs(v - targetVolt);
         if (diff < minDiff) {
           minDiff = diff;
           targetIdx = i;
         }
       }
 
-      const currentPoints = STATE.vfPoints;
-      // Stock baseline = freq_mhz - delta_mhz
-      const stockFreqAtTarget = currentPoints[targetIdx].freq_mhz - (currentPoints[targetIdx].delta_mhz || 0);
+      // 2. 基于纯净出厂基准计算目标增量 targetDelta
+      const stockFreqAtTarget = getStockFreq(targetIdx);
       const targetDelta = Math.max(DELTA_MIN, Math.min(DELTA_MAX, targetFreq - stockFreqAtTarget));
       const actualTargetFreq = stockFreqAtTarget + targetDelta;
 
-      const newDeltas = new Array(currentPoints.length).fill(0);
-      for (let i = 1; i < currentPoints.length; i++) {
-        const stockFreq = currentPoints[i].freq_mhz - (currentPoints[i].delta_mhz || 0);
+      const newDeltas = new Array(count).fill(0);
+      for (let i = 1; i < count; i++) {
+        const stockFreq = getStockFreq(i);
         if (i <= targetIdx) {
-          // Low-voltage ascending region: elevate by targetDelta
+          // 低压爬升段：统一抬升 targetDelta，让能效曲线平滑上移
           newDeltas[i] = targetDelta;
         } else {
-          // Flattened undervolt region: clamp flat to actualTargetFreq
+          // 削平锁频段：严格锁平在 targetFreq（即 actualTargetFreq）
           const deltaToFlat = actualTargetFreq - stockFreq;
           newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, deltaToFlat));
         }
       }
 
-      // Monotonic sanity check (Strictly non-decreasing guard)
-      let prevFreq = (currentPoints[0].freq_mhz - (currentPoints[0].delta_mhz || 0)) + newDeltas[0];
-      for (let i = 1; i < currentPoints.length; i++) {
-        const stockFreq = currentPoints[i].freq_mhz - (currentPoints[i].delta_mhz || 0);
-        const effFreq = stockFreq + newDeltas[i];
+      // 3. 严格单调性守护与削平段双重加固：
+      // (a) 低压段 (1 到 targetIdx): 保证频率单调不降，且任何点绝不允许超过 actualTargetFreq，杜绝局部尖峰污染后续平线
+      let prevFreq = getStockFreq(0) + newDeltas[0];
+      for (let i = 1; i <= targetIdx; i++) {
+        const stockFreq = getStockFreq(i);
+        let effFreq = stockFreq + newDeltas[i];
         if (effFreq < prevFreq) {
           newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, prevFreq - stockFreq));
+          effFreq = stockFreq + newDeltas[i];
         }
-        prevFreq = stockFreq + newDeltas[i];
+        if (effFreq > actualTargetFreq) {
+          newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, actualTargetFreq - stockFreq));
+          effFreq = stockFreq + newDeltas[i];
+        }
+        prevFreq = effFreq;
+      }
+
+      // (b) 削平锁频段 (targetIdx 到 count - 1): 强制每个锚点的生效频率绝对等于 actualTargetFreq
+      for (let i = targetIdx; i < count; i++) {
+        const stockFreq = getStockFreq(i);
+        newDeltas[i] = Math.max(DELTA_MIN, Math.min(DELTA_MAX, actualTargetFreq - stockFreq));
       }
 
       STATE.plannedDeltas = newDeltas;
-      log(`[✓] 已计算曲线方案 [${label}]: 低压段抬升 ${targetDelta >= 0 ? '+' : ''}${targetDelta}MHz, 超出 ${currentPoints[targetIdx].volt_mv}mV 后强制削平锁频至 ${actualTargetFreq}MHz.`);
+      const targetVoltMv = (STATE.stockBaseline && STATE.stockBaseline[targetIdx]) ? STATE.stockBaseline[targetIdx].volt_mv : STATE.vfPoints[targetIdx].volt_mv;
+      log(`[✓] 已计算曲线方案 [${label}]: 低压段抬升 ${targetDelta >= 0 ? '+' : ''}${targetDelta}MHz, 超出 ${targetVoltMv}mV 后强制削平锁频至 ${actualTargetFreq}MHz.`);
       drawCurve();
     }
 
     // --- Math & Frequency Helpers ---
     function getStockFreq(idx) {
+      if (STATE.stockBaseline && STATE.stockBaseline[idx]) {
+        return STATE.stockBaseline[idx].freq_mhz;
+      }
       if (!STATE.vfPoints || !STATE.vfPoints[idx]) return 0;
       const p = STATE.vfPoints[idx];
       return p.freq_mhz - (p.delta_mhz || 0);
@@ -1262,7 +1298,7 @@
 
         const modeDesc = isShift ? 'Shift 右侧水平削平锁频' : '单点微调';
         log(`[✎] ${modeDesc}: 锚点 #${idx} (${p.volt_mv}mV) 调整为 ${effF}MHz (点击「一键写入」下发生效)`);
-        savePluginStorage();
+        savePluginStorage({ syncWatcher: false });
       } else {
         // Did not actually move, pop redundant undo snapshot
         STATE.undoStack.pop();
@@ -1293,7 +1329,7 @@
       readout(idx);
       drawCurve();
       log(`[⟲] 锚点 #${idx} (${STATE.vfPoints[idx].volt_mv}mV) 偏移已归零`);
-      savePluginStorage();
+      savePluginStorage({ syncWatcher: false });
     }
 
     // --- Manual Snapshot Archive & Hardware Reload ---
@@ -1315,7 +1351,7 @@
         target_freq: STATE.targetFreq,
         saved_at: new Date().toISOString()
       };
-      savePluginStorage();
+      savePluginStorage({ syncWatcher: false });
       refreshSnapshotButton();
       log(`[💾] 已将当前 ${STATE.plannedDeltas.length} 锚点曲线存入本地独立快照！`);
     }
@@ -1556,7 +1592,7 @@
           memOffsetMhz: STATE.memOffset
         });
         log('[✓] 基础频率偏移已成功写入物理显卡生效！');
-        await savePluginStorage();
+        await savePluginStorage({ syncWatcher: true });
         refreshHardwareInfo();
       } catch (err) {
         log(`[-] 写入时钟偏移失败: ${err.message || err}`);
@@ -1585,7 +1621,7 @@
         }
 
         log('🎉 恭喜！免小飞机降压曲线已全量下发至显卡驱动生效！');
-        await savePluginStorage();
+        await savePluginStorage({ syncWatcher: true });
         refreshHardwareInfo();
       } catch (err) {
         log(`[-] 写入显卡调优失败: ${err.message || err}`);
@@ -1602,8 +1638,19 @@
         updatePresetButtons(null);
         STATE.activeMode = '出厂默认';
         document.getElementById('statModeText').textContent = '出厂默认';
+
+        // 刷新干净状态并重新校准纯净出厂基准
+        const info = await rpc('get_gpu_tuning_info');
+        if (info && info.vf_points && info.vf_points.length > 0) {
+          STATE.vfPoints = info.vf_points;
+          STATE.stockBaseline = info.vf_points.map(p => ({
+            volt_mv: p.volt_mv,
+            freq_mhz: p.freq_mhz
+          }));
+        }
+
         log('[✓] 显卡已成功恢复出厂 stock 状态！');
-        await savePluginStorage();
+        await savePluginStorage({ syncWatcher: true });
         refreshHardwareInfo();
       } catch (err) {
         log(`[-] 恢复出厂设置失败: ${err.message || err}`);
@@ -1624,7 +1671,7 @@
       document.getElementById('memValBadge').textContent = (memMhz >= 0 ? '+' : '') + memMhz + ' MHz';
 
       log(`[⟳] 接收到宿主时钟变更广播: Core=${coreMhz >= 0 ? '+' : ''}${coreMhz}MHz, Mem=${memMhz >= 0 ? '+' : ''}${memMhz}MHz，界面已自动镜像同步。`);
-      savePluginStorage();
+      savePluginStorage({ syncWatcher: false });
     }
 
     // --- Host Telemetry Listener ---

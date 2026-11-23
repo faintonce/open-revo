@@ -565,15 +565,24 @@ pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Resul
         }
     }
 
-    // Monotonicity Sanity Guard (Strictly non-decreasing)
+    // Monotonicity Sanity Guard (Strictly non-decreasing for ascending region, and strictly clamp flat for target region)
     let mut prev_freq = current_points[0].freq_mhz - current_points[0].delta_mhz;
-    for i in 1..current_points.len() {
+    for i in 1..=target_idx {
         let stock_freq = current_points[i].freq_mhz - current_points[i].delta_mhz;
-        let eff_freq = stock_freq + new_deltas[i];
+        let mut eff_freq = stock_freq + new_deltas[i];
         if eff_freq < prev_freq {
             new_deltas[i] = (prev_freq - stock_freq).clamp(-1000, 1000);
+            eff_freq = stock_freq + new_deltas[i];
         }
-        prev_freq = stock_freq + new_deltas[i];
+        if eff_freq > actual_target_freq {
+            new_deltas[i] = (actual_target_freq - stock_freq).clamp(-1000, 1000);
+            eff_freq = stock_freq + new_deltas[i];
+        }
+        prev_freq = eff_freq;
+    }
+    for i in target_idx..current_points.len() {
+        let stock_freq = current_points[i].freq_mhz - current_points[i].delta_mhz;
+        new_deltas[i] = (actual_target_freq - stock_freq).clamp(-1000, 1000);
     }
 
     set_gpu_vf_curve_deltas(&new_deltas)
