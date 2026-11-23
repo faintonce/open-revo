@@ -8,16 +8,45 @@
 > 2. **后台节流失效**：Windows 与 Chromium 会自动将不可见窗口的定时器强行节流冻结，导致切模逻辑经常失效或严重滞后；
 > 3. **唤醒独显功耗爆炸**：挂件前端轮询不当会强制唤醒本处于 D3Cold 深睡的 NVIDIA 独立显卡。
 >
-> **官方终极解法**：借助 OpenRevo 微内核内建的 **Universal Watcher & Trigger Hub**，实现纯声明式规则监控。**0 MB 内存、0 额外视窗、0 代码死循环，由宿主内核在无锁遥测心跳中统一调度！**
+> **官方终极解法**：借助 OpenRevo 微内核内建的 **Universal Watcher & Trigger Hub**，实现纯声明式规则监控。**0 MB 内存、0 额外视窗、0 代码死循环，由宿主微内核在无锁遥测心跳与系统事件中统一调度！**
 
-## 1. 极简项目结构
-一个纯自动化规则插件，**根目录下只需一个 `manifest.json` 文件**，连 HTML、CSS、JS 都完全不需要写：
+---
+
+## 1. 架构总览：两级配置加载与沙盒优先级体系
+
+在 OpenRevo 0.9.8+ 体系中，微内核彻底解耦了对任何特定业务插件的硬编码水合（Hydration），升级为**完全通用、沙盒隔离的声明式原子工作流**。
+
+看门狗加载严格遵循 **两级沙盒优先级（Sandbox Precedence）** 机制：
+
+```text
+               宿主冷启动 / 插件热启用
+                          │
+                          ▼
+    是否存在沙盒配置文件 plugin_storage/<id>/watchers.json？
+                 ├── 是 ──► [用户优先] 加载沙盒自定义规则（若内容为 [] 则表示用户主动关闭守护）
+                 └── 否 ──► [出厂后备] 读取插件根目录 manifest.json 中声明的 watchers
+                          │
+                          ▼
+             注入微内核 WatcherHub 调度引擎
+        (开机引导、电源事件、遥测心跳、周期性保持)
+```
+
+这意味着：
+- **无头插件（Headless Service）**：只需写好 `manifest.json`，宿主开机直接读取生效，永不启动任何 Web 视窗；
+- **富前端插件（Interactive UI）**：用户在界面调整参数后，通过 SDK 动态提交看门狗，宿主自动持久化到该插件的 `plugin_storage` 沙盒并即刻热重载，开机自启动时优先恢复用户的最新配置。
+
+---
+
+## 2. 模式 A：纯无头插件 (Headless Watcher Service)
+
+如果开发者对自己的机型底层寄存器或触发逻辑非常熟悉，根本不需要任何前端 UI 调节界面，**根目录下只需一个 `manifest.json` 文件**，连 HTML、CSS、JS 都完全不需要写：
+
 ```text
 %APPDATA%\OpenRevo\plugins\mode4-fan-unblocker\
 └── manifest.json
 ```
 
-## 2. 清单配置 (`manifest.json`)
+### 清单配置范例 (`manifest.json`)
 ```json
 {
   "id": "mode4-fan-unblocker",
@@ -26,7 +55,7 @@
   "author": "OpenRevo Community",
   "description": "监控结温并在进入自定义模式且>=55℃时自动执行安全切模与EC状态字刷新。",
   "plugin_type": "service",
-  "min_host_version": "0.9.3",
+  "min_host_version": "0.9.8",
   "watchers": [
     {
       "id": "unblock_751_bit4",
@@ -61,8 +90,8 @@
       ]
     },
     {
-      "id": "battery_limit_guard",
-      "name": "微内核开机与电源接入自愈80%充电上限",
+      "id": "battery_limit_pulse_guard",
+      "name": "开机与插电硬件脉冲触发电池限充",
       "enabled": true,
       "cooldown_ms": 1000,
       "when": {
@@ -73,24 +102,14 @@
         ]
       },
       "actions": [
-        { "action": "call_command", "command": "set_battery_limit", "args": { "limit": 80 } },
-        { "action": "notify_osd", "title": "电池健康守护", "message": "开机/电源接入：硬件限充已自愈锁定在 80%" }
-      ]
-    },
-    {
-      "id": "gpu_undervolt_boot_guard",
-      "name": "开机/电源接入静默下发显卡降压超频曲线",
-      "enabled": true,
-      "cooldown_ms": 2000,
-      "when": {
-        "type": "any",
-        "conditions": [
-          { "type": "startup" },
-          { "type": "power_event", "event": "ac_connected" }
-        ]
-      },
-      "actions": [
-        { "action": "call_command", "command": "set_gpu_undervolt_curve", "args": { "targetVoltMv": 875, "maxBoostMhz": 2450 } }
+        {
+          "action": "pulse_write",
+          "address": "0x07B4",
+          "active": "0x02",
+          "restore": "0x00",
+          "delay_ms": 150
+        },
+        { "action": "notify_osd", "title": "电池健康守护", "message": "开机/电源接入：硬件限充脉冲触发成功" }
       ]
     },
     {
@@ -110,14 +129,105 @@
 }
 ```
 
-## 3. 核心机制优势解析
-* **万能 IPC 命令分发 (`call_command`)**：动作支持通用的 `call_command`（别名 `invoke_command`），直接反射调用 OpenRevo 全量宿主 IPC 命令（如 `set_battery_limit`、`set_gpu_undervolt_curve`、`set_gpu_clock_offsets`、`set_fan_boost` 等）。插件开发者零 Rust 修改成本，前端调什么命令这里就填什么，全自动开机静默调度；
-* **`cooldown_ms` 防抖冷却**：规则命中后进入冷却锁，防止温度在临界线抖动时引发高频重复触发与硬件冲突；
-* **地址与掩码语法宽容**：`address` 与 `mask` 既支持字符串十六进制（`"0x0751"`、`"0x10"`），也支持十进制数字（`1873`、`16`）；
-* **宿主生命周期全托管**：在宿主【插件】列表中启用该插件即刻注入微内核总线开始看门狗监控；关闭插件时自动全量卸载，不留任何残留副作用；
-* **微内核后台周期断言 (`interval`) 与电源事件**：支持无需 Webview 的毫秒级原生定时调度与电源插拔事件感知，彻底解决前端 `setInterval` 因切页卸载或后台节流导致的守护失效；
-* **动态注册全自动持久化 (`custom_watchers.json`)**：若插件在前端通过 `window.OpenRevo.registerWatcher(...)` 动态注册或更新规则，微内核会自动持久化存储。控制台重启时由内核自动加载恢复，**完全无需用户手动点进插件即可开机自启动生效**；
-* **版本兼容守护 (`min_host_version`)**：声明 `"min_host_version": "0.9.3"`，若旧版宿主尝试加载，界面将明确亮起警告徽章并安全拦截，引导用户升级。
+---
+
+## 3. 模式 B：富前端交互 + 动态守护同步 (Interactive UI + Dynamic Watcher)
+
+对于需要可视化调整曲线、设置目标数值（如电池限充百分比、显卡降压 V/F 目标频率）的插件，**前端不仅负责渲染交互，还充当看门狗规则的“编译器”**。
+
+### 工作流流程
+1. **用户交互**：用户在 Webview 控制面板中调整滑块或输入框（例如电池限充 80%，或显卡 850mV@2250MHz）；
+2. **动态编译并同步**：用户点击“保存/应用”时，前端组装对应的 `watchers` 规则列表，调用宿主 API 下发；
+3. **微内核持久化与热生效**：宿主直接写入 `plugin_storage/<plugin_id>/watchers.json` 并立即在当前运行的 `WatcherHub` 中生效；
+4. **关闭守护**：用户若在界面选择“关闭守护”，前端下发空数组 `[]`。宿主在沙盒落盘空规则，开机时精准识别为“用户已主动关闭”，绝不会误恢复 `manifest.json` 的出厂预设。
+
+### 前端调用代码范例 (`index.html`)
+
+```javascript
+// 组装业务规则
+const watchers = [
+  {
+    id: 'gpu-undervolt-guard',
+    name: '微内核显卡降压自愈守护 (开机与电源接入)',
+    plugin_id: 'gpu-curve-tuner',
+    enabled: true,
+    cooldown_ms: 2000,
+    when: {
+      type: 'any',
+      conditions: [
+        { type: 'startup' },
+        { type: 'power_event', event: 'ac_connected' }
+      ]
+    },
+    actions: [
+      {
+        action: 'call_command',
+        command: 'set_gpu_undervolt_curve',
+        args: {
+          targetVoltMv: 850,
+          maxBoostMhz: 2250
+        }
+      }
+    ]
+  }
+];
+
+// 统一提交看门狗 (优先使用 window.OpenRevo SDK，兼容微前端与原生 Tauri)
+if (window.OpenRevo && typeof window.OpenRevo.setPluginWatchers === 'function') {
+  await window.OpenRevo.setPluginWatchers('gpu-curve-tuner', watchers);
+} else if (window.parent && window.parent.__OPENREVO_BRIDGE__ && typeof window.parent.__OPENREVO_BRIDGE__.setPluginWatchers === 'function') {
+  await window.parent.__OPENREVO_BRIDGE__.setPluginWatchers('gpu-curve-tuner', watchers);
+} else {
+  // 原生 Tauri IPC 调用
+  await window.__TAURI__.core.invoke('set_plugin_watchers', {
+    pluginId: 'gpu-curve-tuner',
+    watchers: watchers
+  });
+}
+```
+
+---
+
+## 4. 完整的原子动作集 (Watcher Actions Reference)
+
+微内核原生内置了丰富的通用原子动作，自由组合即可满足各类复杂控制需求：
+
+| 动作类型 (`action`) | 必填参数 | 说明 |
+| :--- | :--- | :--- |
+| `call_command` (或 `invoke_command`) | `command: string`<br>`args: object` (可选) | **全能命令反射**。直接调用任意 OpenRevo 宿主命令（如 `set_power_mode`, `set_battery_limit`, `set_gpu_undervolt_curve`, `set_gpu_clock_offsets`, `set_fan_boost` 等）。 |
+| `pulse_write` | `address: string \| number`<br>`active: string \| number`<br>`restore: string \| number`<br>`delay_ms: number` (可选，默认 150) | **原生硬件脉冲写入**。宿主原子化执行：写有效值 -> 毫秒延时 -> 写恢复值。专为脉冲型限电、EC 中断触发设计，完全免除前端 `setTimeout` 延迟风险。 |
+| `raw_ec_write` | `address: string \| number`<br>`value: string \| number` | 写入单个 EC 字节。支持十进制与十六进制（`"0x07C3"`）。 |
+| `raw_ec_modify_mask` | `address: string \| number`<br>`mask: string \| number`<br>`value: boolean` | 掩码位置位或清零。`value: true` 置位，`value: false` 清零。 |
+| `set_power_mode` | `mode: number` (1~4) | 切换性能模式（1: 安静, 2: 均衡, 3: 狂暴, 4: 自定义）。 |
+| `delay_ms` | `duration: number` | 微内核级原生挂起延时（毫秒）。用于多步时序操作之间的间隔。 |
+| `notify_osd` | `title: string`<br>`message: string` | 弹出系统右上角轻量 OSD 提示。 |
+
+---
+
+## 5. 触发条件集 (Watcher Conditions Reference)
+
+| 触发器类型 (`when.type`) | 参数配置 | 触发时机 |
+| :--- | :--- | :--- |
+| `startup` | *(无)* | 宿主冷启动引导初始化完成时触发一次。 |
+| `power_event` | `event: "ac_connected" \| "battery"` | 电源状态改变（适配器插入接入 AC 或拔下切电池）时触发。 |
+| `interval` | `every_ms: number` (>= 500) | 微内核无锁后台定时器周期性执行。适用于需要持续防篡改的心跳门控。 |
+| `telemetry` | `power_mode`, `cpu_temp_gte`, `gpu_temp_gte`, `cpu_temp_lte`, `gpu_temp_lte` | 遥测心跳监控。当机身温度或模式满足复合逻辑条件时触发。 |
+| `foreground_process` | `targets: string[]`<br>`trigger_on: "enter" \| "exit"` | 前台应用感知。当特定进程（如游戏、渲染器）获得焦点或退出时触发。 |
+| `any` | `conditions: Condition[]` | 逻辑“或”。数组中任意一个子条件达成即触发。常用于 `[startup, ac_connected]` 开机与电源联动自愈。 |
+| `all` | `conditions: Condition[]` | 逻辑“与”。所有子条件必须全部满足才触发。 |
+
+---
+
+## 6. 核心优势与最佳实践总结
+
+1. **绝对 0 MB 资源占用**：
+   无论无头还是有头插件，守护规则一旦注入宿主，**无需常驻任何 WebView2 视窗或隐藏进程**，后台由 Rust 原生极速轮询调度，不漏触发且功耗几乎为零；
+2. **防独显唤醒 (D3Cold Safe)**：
+   微内核原生感应 NVIDIA GPU 电源状态。对显卡相关的守护规则，微内核优先在显卡本身就绪或交流电源连通时调度，严禁无故盲目唤醒处于深度休眠的独显；
+3. **两级配置与出厂兜底机制**：
+   插件开发者在 `manifest.json` 中定义默认出厂规则，用户安装后即刻可用；当用户通过界面自定义后，配置落盘至隔离的 `plugin_storage` 沙盒，既不污染插件原始分发包，又保障用户配置永不丢失；
+4. **生命周期全闭环**：
+   在宿主插件管理中禁用插件时，微内核会同步自动卸载该插件名下的所有活跃 Watcher，保证系统纯净无残留。
 
 ---
 
@@ -126,3 +236,4 @@
 - 上一页：[用例 11：声明式零代码全局快捷键与按键宏映射插件 (Universal Shortcut Bus)](11-universal-shortcuts.md)
 - 下一页：[用例 13：正交混搭架构实战 —— WebView2 富交互大控制台与 Slint 原生极速常驻桌面挂件 (Hybrid Architecture)](13-hybrid-architecture.md)
 - 返回用例索引：[经典实战用例集](README.md)
+
