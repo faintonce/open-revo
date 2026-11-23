@@ -394,10 +394,21 @@
       padding: 10px 14px;
       font-family: Consolas, "Courier New", monospace;
       font-size: 11px;
+      line-height: 1.6;
       color: #38bdf8;
-      max-height: 105px;
+      max-height: 115px;
       overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
+    .console-box .log-line {
+      margin-bottom: 2px;
+      word-break: break-all;
+    }
+    .console-box .log-line.log-success { color: #34d399; }
+    .console-box .log-line.log-warn { color: #fbbf24; }
+    .console-box .log-line.log-error { color: #f87171; }
+    .console-box .log-line.log-info { color: #38bdf8; }
 
     .input-field {
       background: #121826;
@@ -649,7 +660,7 @@
 
     <!-- Output log console -->
     <div class="console-box" id="consoleBox">
-      [00:00:00] 正在连接 OpenRevo 宿主 NVAPI 驱动网关...
+      <div class="log-line log-info">[00:00:00] 正在连接 OpenRevo 宿主 NVAPI 驱动网关...</div>
     </div>
   </div>
 
@@ -699,8 +710,20 @@
 
     function log(msg) {
       const box = document.getElementById('consoleBox');
+      if (!box) return;
       const time = new Date().toTimeString().split(' ')[0];
-      box.innerHTML += `\n[${time}] ${msg}`;
+      const line = document.createElement('div');
+      let typeClass = 'log-info';
+      if (msg.includes('[✓]') || msg.includes('[+]') || msg.includes('🎉') || msg.includes('[💾]')) {
+        typeClass = 'log-success';
+      } else if (msg.includes('[-]') || msg.includes('[!]')) {
+        typeClass = 'log-error';
+      } else if (msg.includes('[✎]') || msg.includes('[⟲]') || msg.includes('[⟳]')) {
+        typeClass = 'log-warn';
+      }
+      line.className = `log-line ${typeClass}`;
+      line.textContent = `[${time}] ${msg}`;
+      box.appendChild(line);
       box.scrollTop = box.scrollHeight;
     }
 
