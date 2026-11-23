@@ -751,15 +751,16 @@
         if (isEnabled) {
           watchers.push({
             id: 'gpu-undervolt-guard',
-            name: '微内核显卡降压超频自愈守护 (开机与电源接入)',
+            name: '微内核显卡降压超频自愈守护 (开机、电源接入与模式切换)',
             plugin_id: PLUGIN_ID,
             enabled: true,
-            cooldown_ms: 2000,
+            cooldown_ms: 1000,
             when: {
               type: 'any',
               conditions: [
                 { type: 'startup' },
-                { type: 'power_event', event: 'ac_connected' }
+                { type: 'power_event', event: 'ac_connected' },
+                { type: 'power_event', event: 'mode_switched' }
               ]
             },
             actions: actions
@@ -1690,7 +1691,22 @@
         canvas.addEventListener('dblclick', onDblClick);
       }
 
-      // 4. Register Tauri Event Listener for host-wide clock offset sync
+      // 4. Register Tauri Event Listener for host-wide clock offset sync & mode switch reaffirmation
+      const onModeSwitchedReaffirm = async (mode) => {
+        if (STATE.plannedDeltas && STATE.plannedDeltas.length >= 16 && STATE.activeMode !== '出厂默认') {
+          log(`[⚡] 检测到系统性能模式切换 (模式 ${mode?.payload !== undefined ? mode.payload : mode})，守护引擎正在确保 V/F 曲线锁定...`);
+          // Brief debounce to allow EC/VBIOS power transition and TGP latching to finish
+          await new Promise(r => setTimeout(r, 350));
+          try {
+            await rpc('set_gpu_vf_curve_deltas', { deltasMhz: STATE.plannedDeltas });
+            await refreshHardwareInfo();
+            log('🎉 性能模式切换完成，V/F 降压曲线已自动重新咬合生效！');
+          } catch (err) {
+            console.warn('Mode switch reaffirmation failed:', err);
+          }
+        }
+      };
+
       try {
         if (window.OpenRevo && typeof window.OpenRevo.listen === 'function') {
           window.OpenRevo.listen('gpu-clock-offsets-changed', (event) => {
@@ -1698,15 +1714,17 @@
               onExternalOffsetsChanged(event.payload.core_offset_mhz, event.payload.mem_offset_mhz);
             }
           });
+          window.OpenRevo.listen('physical-mode-switched', onModeSwitchedReaffirm);
         } else if (window.__TAURI__ && window.__TAURI__.event && typeof window.__TAURI__.event.listen === 'function') {
           window.__TAURI__.event.listen('gpu-clock-offsets-changed', (event) => {
             if (event.payload) {
               onExternalOffsetsChanged(event.payload.core_offset_mhz, event.payload.mem_offset_mhz);
             }
           });
+          window.__TAURI__.event.listen('physical-mode-switched', onModeSwitchedReaffirm);
         }
       } catch (err) {
-        console.warn('Failed to attach gpu-clock-offsets-changed listener:', err);
+        console.warn('Failed to attach event listeners:', err);
       }
     });
 

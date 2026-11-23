@@ -339,6 +339,7 @@ fn set_power_mode_internal_impl(
         let _ = app.emit_to("osd", "physical-mode-switched", mode);
     }
     crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
+    crate::system::watcher_hub::notify_power_event("mode_switched");
     crate::system::slint_window::sync::sync_slint_switches_state();
     Ok(())
 }

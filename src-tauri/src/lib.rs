@@ -99,6 +99,7 @@ impl openrevo_core::CoreEventSink for TauriEventSink {
         let _ = self.app.emit_to("main", "physical-mode-switched", mode);
         crate::system::native_wry::broadcast_event("power-mode-changed", &serde_json::json!({ "mode": mode }));
         crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
+        crate::system::watcher_hub::notify_power_event("mode_switched");
     }
 
     fn on_fan_boost_changed(&self, enabled: bool) {
@@ -174,6 +175,7 @@ impl openrevo_core::CoreEventSink for SlintDaemonEventSink {
         }));
         crate::system::native_wry::broadcast_event("power-mode-changed", &serde_json::json!({ "mode": mode }));
         crate::system::native_wry::broadcast_event("physical-mode-switched", &serde_json::json!(mode));
+        crate::system::watcher_hub::notify_power_event("mode_switched");
     }
 
     fn on_fan_boost_changed(&self, enabled: bool) {

@@ -165,13 +165,19 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             }
 
             // 5. Dynamic GPU DB & TGP (Eco / Quiet Baseline)
-            // Neutralize any GPU overclocking offsets if previously applied
+            // Neutralize any GPU overclocking offsets ONLY if OpenRevo previously applied them
             if crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
-                let cfg = crate::system::config::load_config();
-                if cfg.custom_profile.gpu_super_perf || cfg.turbo_oc_enabled {
+                let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                let (cur_core, cur_mem) = {
+                    let g = gpu.lock();
+                    (g.get_core_offset(), g.get_mem_offset())
+                };
+                if cur_core != 0 || cur_mem != 0 {
                     let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
-                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
                     gpu.lock().set_clock_offsets(0, 0);
+                    crate::log_info!("POWER_MODE", "Office Mode: Reverted previous OpenRevo GPU OC offsets to 0");
+                } else {
+                    crate::log_info!("POWER_MODE", "Office Mode: No active OpenRevo GPU OC, bypassing NVAPI clock reset.");
                 }
 
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
@@ -239,13 +245,19 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             }
 
             // 5. Dynamic GPU DB & TGP (Full factory Base TGP and DB capacity, discrete GPU only)
-            // Neutralize any GPU overclocking offsets if previously applied
+            // Neutralize any GPU overclocking offsets ONLY if OpenRevo previously applied them
             if crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
-                let cfg = crate::system::config::load_config();
-                if cfg.custom_profile.gpu_super_perf || cfg.turbo_oc_enabled {
+                let gpu = crate::driver::gpu_bridge::get_global_gpu();
+                let (cur_core, cur_mem) = {
+                    let g = gpu.lock();
+                    (g.get_core_offset(), g.get_mem_offset())
+                };
+                if cur_core != 0 || cur_mem != 0 {
                     let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
-                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
                     gpu.lock().set_clock_offsets(0, 0);
+                    crate::log_info!("POWER_MODE", "Balanced Mode: Reverted previous OpenRevo GPU OC offsets to 0");
+                } else {
+                    crate::log_info!("POWER_MODE", "Balanced Mode: No active OpenRevo GPU OC, bypassing NVAPI clock reset.");
                 }
 
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
@@ -326,20 +338,28 @@ pub fn apply_ec_hardware_mode(ui_mode: u8) {
             // Apply or reset GPU overclocking offsets based on turbo_oc_enabled
             if crate::driver::gpu_bridge::is_nvidia_dgpu_available() {
                 let cfg = crate::system::config::load_config();
+                let gpu = crate::driver::gpu_bridge::get_global_gpu();
                 if cfg.turbo_oc_enabled {
                     let core = cfg.gpu_oc_core_mhz.clamp(0, 250);
                     let mem = cfg.gpu_oc_mem_mhz.clamp(0, 1000);
                     if let Err(e) = crate::driver::nvapi::set_gpu_clock_offsets(core, mem) {
                         crate::log_warn!("POWER_MODE", "Turbo Mode: Failed to apply GPU OC offsets ({}, {}): {}", core, mem, e);
                     } else {
-                        let gpu = crate::driver::gpu_bridge::get_global_gpu();
                         gpu.lock().set_clock_offsets(core, mem);
                         crate::log_info!("POWER_MODE", "Turbo Mode: Applied GPU OC offsets: core=+{}MHz, mem=+{}MHz", core, mem);
                     }
                 } else {
-                    let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
-                    let gpu = crate::driver::gpu_bridge::get_global_gpu();
-                    gpu.lock().set_clock_offsets(0, 0);
+                    let (cur_core, cur_mem) = {
+                        let g = gpu.lock();
+                        (g.get_core_offset(), g.get_mem_offset())
+                    };
+                    if cur_core != 0 || cur_mem != 0 {
+                        let _ = crate::driver::nvapi::reset_gpu_clock_offsets();
+                        gpu.lock().set_clock_offsets(0, 0);
+                        crate::log_info!("POWER_MODE", "Turbo Mode: Reset previous GPU OC offsets to 0");
+                    } else {
+                        crate::log_info!("POWER_MODE", "Turbo Mode: turbo_oc is OFF, bypassing GPU clock offset overrides.");
+                    }
                 }
 
                 let gpu_caps = crate::driver::gpu_bridge::probe_gpu_tuning_capabilities();
