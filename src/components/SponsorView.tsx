@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Heart, Star, Coffee, ExternalLink, Check, Copy, ShieldAlert } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import alipayQr from '../assets/sponsor/alipay.jpg';
-import wechatQr from '../assets/sponsor/wechat.jpg';
+import alipayQr from '../../src-tauri/crates/openrevo-main/ui/assets/sponsor/alipay.jpg';
+import wechatQr from '../../src-tauri/crates/openrevo-main/ui/assets/sponsor/wechat.jpg';
 
 export const SponsorView: React.FC = () => {
   const [copied, setCopied] = useState(false);
@@ -238,7 +238,7 @@ export const SponsorView: React.FC = () => {
               justifyContent: 'center',
               maxWidth: '240px',
               width: '100%',
-              aspectRatio: '1/1',
+              aspectRatio: '390/417',
               overflow: 'hidden',
             }}
           >
@@ -319,7 +319,7 @@ export const SponsorView: React.FC = () => {
               justifyContent: 'center',
               maxWidth: '240px',
               width: '100%',
-              aspectRatio: '1/1',
+              aspectRatio: '390/417',
               overflow: 'hidden',
             }}
           >
