@@ -1,37 +1,38 @@
 {
-    "version":  "0.9.3",
-    "commit":  "5cd38b1",
-    "tag":  "0.9.3",
-    "display_version":  "v0.9.3",
-    "build_timestamp":  1792912806,
-    "pub_date":  "2026-10-25T07:20:06Z",
-    "notes":  "Automated release build for OpenRevo v0.9.3",
+    "channel":  "stable",
+    "version":  "0.9.8",
+    "commit":  "6e2e318",
+    "tag":  "v0.9.8",
+    "display_version":  "v0.9.8",
+    "build_timestamp":  1795696975,
+    "pub_date":  "2026-11-26T12:42:55Z",
+    "notes":  "Automated release build for OpenRevo v0.9.8 [stable]",
     "assets":  {
                    "binary_only":  {
                                        "filename":  "open-revo.exe",
-                                       "size":  10078720,
-                                       "sha256":  "6b7e66bdd7175cb32464c97623f1c459662bb1215d6307ced3dcdb440d5717ee",
+                                       "size":  25229312,
+                                       "sha256":  "48798f08ca86c4c640f502d6cc6b7dea6ded66759f7aded3aec11f164c97fd16",
                                        "sources":  {
-                                                       "github":  "https://github.com/faintonce/open-revo/releases/download/0.9.3/open-revo.exe",
-                                                       "gitee":  "https://gitee.com/faintonce/open-revo/releases/download/0.9.3/open-revo.exe"
+                                                       "github":  "https://github.com/faintonce/open-revo/releases/download/v0.9.8/open-revo.exe",
+                                                       "gitee":  "https://gitee.com/faintonce/open-revo/releases/download/v0.9.8/open-revo.exe"
                                                    }
                                    },
                    "portable":  {
-                                    "filename":  "OpenRevo-v0.9.3-portable.7z",
-                                    "size":  2915173,
-                                    "sha256":  "968b3e7ec38c9ff9d2853c2005da7890b92d2aaa92f7011c740984c261e8100b",
+                                    "filename":  "OpenRevo-v0.9.8-portable.7z",
+                                    "size":  7048947,
+                                    "sha256":  "10141e1af3e36e023408eb4feabe6464500d2d50c40757a9097a501ca2a60974",
                                     "sources":  {
-                                                    "github":  "https://github.com/faintonce/open-revo/releases/download/0.9.3/OpenRevo-v0.9.3-portable.7z",
-                                                    "gitee":  "https://gitee.com/faintonce/open-revo/releases/download/0.9.3/OpenRevo-v0.9.3-portable.7z"
+                                                    "github":  "https://github.com/faintonce/open-revo/releases/download/v0.9.8/OpenRevo-v0.9.8-portable.7z",
+                                                    "gitee":  "https://gitee.com/faintonce/open-revo/releases/download/v0.9.8/OpenRevo-v0.9.8-portable.7z"
                                                 }
                                 },
                    "installer":  {
-                                     "filename":  "OpenRevo-v0.9.3-x64-Setup.exe",
-                                     "size":  3377915,
-                                     "sha256":  "f6d0efa033ad9cd065efb533b8294b63ad1b2997239f39c7d2942f65996a722c",
+                                     "filename":  "OpenRevo-v0.9.8-x64-Setup.exe",
+                                     "size":  8387897,
+                                     "sha256":  "2d55b4c9def6bdca3dfe0af7c68a5a5b55fbe4ae17a88caf6ba604bf09868e8f",
                                      "sources":  {
-                                                     "github":  "https://github.com/faintonce/open-revo/releases/download/0.9.3/OpenRevo-v0.9.3-x64-Setup.exe",
-                                                     "gitee":  "https://gitee.com/faintonce/open-revo/releases/download/0.9.3/OpenRevo-v0.9.3-x64-Setup.exe"
+                                                     "github":  "https://github.com/faintonce/open-revo/releases/download/v0.9.8/OpenRevo-v0.9.8-x64-Setup.exe",
+                                                     "gitee":  "https://gitee.com/faintonce/open-revo/releases/download/v0.9.8/OpenRevo-v0.9.8-x64-Setup.exe"
                                                  }
                                  }
                }
