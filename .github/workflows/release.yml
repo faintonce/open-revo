@@ -1,11 +1,13 @@
 name: Release & Cloud Build
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
+      publish_release:
+        description: 'Publish GitHub Release for current version'
+        required: false
+        type: boolean
+        default: false
       draft:
         description: 'Publish as draft release'
         required: false
@@ -79,7 +81,8 @@ jobs:
         shell: pwsh
         run: |
           $ver = (Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json).version
-          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$ver-dev" }
+          $isReleaseDispatch = ('${{ github.event.inputs.publish_release }}' -eq 'true') -or ('${{ github.event.inputs.draft }}' -eq 'true')
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } elseif ($isReleaseDispatch) { "v$ver" } else { "v$ver-dev" }
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $tag -ne "v$ver") { throw "Tag and application version differ" }
           if ((Get-Content "package.json" -Raw | ConvertFrom-Json).version -ne $ver) { throw "Frontend and application version differ" }
           Write-Host "Target Version: $ver | Tag: $tag" -ForegroundColor Green
@@ -154,9 +157,9 @@ jobs:
           path: dist_artifacts/*
           if-no-files-found: error
 
-      - name: Publish GitHub Release (Tag / Dispatch)
+      - name: Publish GitHub Release (Manual Dispatch)
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.draft == 'true'
+        if: github.event.inputs.publish_release == 'true' || github.event.inputs.draft == 'true'
         with:
           name: OpenRevo ${{ steps.prepare_artifacts.outputs.tag_name }}
           tag_name: ${{ steps.prepare_artifacts.outputs.tag_name }}

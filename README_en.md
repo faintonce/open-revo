@@ -242,6 +242,7 @@ Join the OpenRevo QQ groups for feedback, chassis profiles, and plugin discussio
 
 - **QQ Group 1**: `1124228342`
 - **QQ Group 2**: `1127639778`
+- **QQ Group 3**：`1137959089`
 
 <div align="center">
 
