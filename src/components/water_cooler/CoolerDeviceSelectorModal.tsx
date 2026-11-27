@@ -38,11 +38,11 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
       const list = await invoke<WaterCoolerDevice[]>('scan_water_cooler_devices');
       setDevices(list || []);
       if (!list || list.length === 0) {
-        setErrorMsg('未搜索到附近的机械革命水冷魔盒，请确认水冷已通电且蓝牙正常广播');
+        setErrorMsg('Рядом не найден блок СЖО MECHREVO: проверьте, что СЖО подключена к питанию и Bluetooth-модуль нормально вещает');
       }
     } catch (e: any) {
       console.error('Failed to scan water coolers:', e);
-      setErrorMsg(typeof e === 'string' ? e : '扫描失败，请确认系统蓝牙已开启');
+      setErrorMsg(typeof e === 'string' ? e : 'Сканирование не удалось: убедитесь, что Bluetooth системы включён');
     } finally {
       setIsScanning(false);
     }
@@ -65,7 +65,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
       onClose();
     } catch (e: any) {
       console.error('Failed to select water cooler:', e);
-      setErrorMsg(typeof e === 'string' ? e : '连接切换失败，请重试');
+      setErrorMsg(typeof e === 'string' ? e : 'Не удалось подключиться/переключиться — повторите');
     } finally {
       setSelectingMac(null);
     }
@@ -83,14 +83,14 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
             gap: '3px',
           }}
         >
-          <Signal size={11} /> 离线/未广播
+          <Signal size={11} /> Не в сети / не вещает
         </span>
       );
     }
     const isStrong = rssi >= -65;
     const isMedium = rssi >= -80 && rssi < -65;
     const color = isStrong ? 'var(--status-ok)' : isMedium ? 'var(--status-info)' : 'var(--status-warning)';
-    const text = isStrong ? '信号极强 (推荐本机)' : isMedium ? '信号良好' : '信号较弱 (疑似邻机)';
+    const text = isStrong ? 'Очень сильный сигнал (рекомендуется это устройство)' : isMedium ? 'Сигнал хороший' : 'Слабый сигнал (возможно, соседское устройство)';
 
     return (
       <span
@@ -125,9 +125,9 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
               <Radio size={18} />
             </div>
             <div>
-              <div className="sys-modal-title">专属水冷魔盒匹配与防串连绑定</div>
+              <div className="sys-modal-title">Сопоставление конкретного блока СЖО и привязка от чужих подключений</div>
               <div className="sys-modal-subtitle">
-                多台电脑在同一局域空间时，请绑定选择专属水冷箱以防止误连邻机
+                Если в одной сети несколько компьютеров — привяжите свой блок СЖО, чтобы не подключиться к соседскому
               </div>
             </div>
           </div>
@@ -136,7 +136,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
             className="toggle-btn"
             onClick={onClose}
             style={{ padding: '6px', minWidth: 'auto', borderRadius: 'var(--radius-sm)' }}
-            title="关闭"
+            title="Выключить"
           >
             <X size={15} />
           </button>
@@ -154,7 +154,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
             }}
           >
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              发现水冷设备: <strong>{devices.length}</strong> 台
+              Найдено оборудование СЖО: <strong>{devices.length}</strong> шт.
             </span>
             <button
               type="button"
@@ -170,7 +170,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
               }}
             >
               <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
-              <span>{isScanning ? '正在扫描周围 BLE 设备...' : '重新扫描设备'}</span>
+              <span>{isScanning ? 'Сканирование окружающих BLE-устройств...' : 'Пересканировать устройства'}</span>
             </button>
           </div>
 
@@ -240,7 +240,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                             gap: '3px',
                           }}
                         >
-                          <CheckCircle2 size={10} /> 当前锁定
+                          <CheckCircle2 size={10} /> Сейчас заблокировано
                         </span>
                       )}
                       {dev.is_paired && (
@@ -254,7 +254,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                             border: '1px solid var(--border-subtle)',
                           }}
                         >
-                          Windows已配对
+                          Сопряжение Windows выполнено
                         </span>
                       )}
                     </div>
@@ -289,7 +289,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                         }}
                       >
                         <Lock size={12} style={{ marginRight: '4px' }} />
-                        专属受控中
+                        Под эксклюзивным управлением
                       </button>
                     ) : (
                       <button
@@ -308,12 +308,12 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                         {isBusy ? (
                           <>
                             <Loader2 size={12} className="animate-spin" />
-                            正在切换...
+                            Переключение...
                           </>
                         ) : (
                           <>
                             <Bluetooth size={12} />
-                            绑定并连接
+                            Привязать и подключить
                           </>
                         )}
                       </button>
@@ -335,7 +335,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                   border: '1px dashed var(--border-subtle)',
                 }}
               >
-                未发现可用水冷设备。请确认水冷机接通电源且水箱指示灯点亮。
+                Доступное оборудование СЖО не найдено. Проверьте, что блок СЖО подключён к питанию и индикатор резервуара горит.
               </div>
             )}
           </div>
@@ -364,8 +364,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
           >
             <Lock size={13} style={{ color: 'var(--status-ok)', flexShrink: 0 }} />
             <span>
-              <strong>专属硬件锁定机制已就绪</strong>：锁定后软件仅允许与指定物理 MAC
-              的水冷箱建立会话，即使周围有同款水冷广播也绝不自动串连。
+              <strong>Механизм аппаратной блокировки готов</strong>: после блокировки программа разрешает сеансы только с блоком СЖО с указанным физическим MAC-адресом и никогда автоматически не соединяется с одноимёнными СЖО поблизости.
             </span>
           </div>
         </div>

@@ -41,8 +41,8 @@ export component MainWindow inherits Window {
     in-out property <int> max_refresh_rate: 240;
     in-out property <[int]> intermediate_rates: [144];
     in-out property <int> brightness: 76;       // 0 - 100
-    in-out property <string> kbd_effect: "极客波浪";
-    in-out property <string> kbd_color_name: "自定义";
+    in-out property <string> kbd_effect: "Экспертные волны";
+    in-out property <string> kbd_color_name: "Пользовательский";
     in-out property <color> kbd_color_preview: #f43f5e;
     in-out property <int> battery_limit: 60;    // 60, 80, 100
     in-out property <bool> is_ac_online: true;
@@ -92,18 +92,18 @@ export component MainWindow inherits Window {
 
     in-out property <int> cpu_rpm: 2746;
     in-out property <int> gpu_rpm: 2635;
-    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_label: "Суммарно при двойной нагрузке:";
     in-out property <string> telemetry_total_watts: "--";
 
     in-out property <string> vram_text: "1.7 / 16.0 GB";
     in-out property <int> vram_mhz: 810;
     in-out property <int> vram_usage: 10;
-    in-out property <string> monitor_name: "京东方";
+    in-out property <string> monitor_name: "BOE";
     in-out property <[int]> rates_row1: [60, 144, 240];
     in-out property <[int]> rates_row2: [];
     in-out property <bool> has_secondary_monitor: false;
-    in-out property <string> primary_monitor_name: "内置主屏";
-    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <string> primary_monitor_name: "Встроенный основной экран";
+    in-out property <string> secondary_monitor_name: "Внешний доп. экран";
 
     // Power Targets
     in-out property <int> pl1_target: 75;
@@ -153,10 +153,10 @@ export component MainWindow inherits Window {
     in-out property <bool> is_in_tuning_view: false;
 
     // Custom Tuning Profile & Hardware Params
-    in-out property <string> active_preset_name: "均衡电竞";
+    in-out property <string> active_preset_name: "Сбалансированный киберспорт";
     in-out property <bool> active_preset_is_builtin: false;
     in-out property <[string]> preset_ids: ["preset_office", "preset_balanced", "preset_turbo"];
-    in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
+    in-out property <[string]> preset_names: ["Офисный тихий", "Сбалансированный киберспорт", "Предельный Турбо"];
     in-out property <int> temp_wall: 95;
     in-out property <bool> temp_wall_enabled: true;
     in-out property <int> temp_wall_min: 85;
@@ -177,8 +177,8 @@ export component MainWindow inherits Window {
     in-out property <int> min_max_pl4: 155;
     in-out property <int> max_max_pl4: 280;
     in-out property <bool> bios_oc_enabled: true;
-    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
-    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <string> bios_oc_desc: "Одновременно разблокировать меню разгона CPU и памяти";
+    in-out property <string> bios_oc_btn_text: "Выключить";
     in-out property <int> bios_oc_status: 0;
     in-out property <bool> bios_oc_disabled: false;
 
@@ -302,15 +302,15 @@ export component MainWindow inherits Window {
 
     // Cloud ICC Modal Props & Callbacks
     in-out property <bool> is_cloud_icc_modal_open: false;
-    in-out property <string> cloud_icc_panel_pnp: "未检出";
-    in-out property <string> cloud_icc_panel_sn: "(无独立面板SN)";
-    in-out property <string> cloud_icc_bios_sn: "未检出";
-    in-out property <string> cloud_icc_mac: "未检出";
-    in-out property <string> cloud_icc_arch: "识别中...";
+    in-out property <string> cloud_icc_panel_pnp: "Не обнаружено";
+    in-out property <string> cloud_icc_panel_sn: "(нет отдельного SN панели)";
+    in-out property <string> cloud_icc_bios_sn: "Не обнаружено";
+    in-out property <string> cloud_icc_mac: "Не обнаружено";
+    in-out property <string> cloud_icc_arch: "Распознавание...";
     in-out property <string> cloud_icc_recommended: "auto";
     in-out property <string> cloud_icc_mode: "auto";
     in-out property <bool> cloud_icc_is_searching: false;
-    in-out property <string> cloud_icc_status: "就绪";
+    in-out property <string> cloud_icc_status: "Готово";
     in-out property <bool> cloud_icc_hit_found: false;
     in-out property <string> cloud_icc_hit_file_name: "";
     in-out property <string> cloud_icc_hit_meta: "";
@@ -328,7 +328,7 @@ export component MainWindow inherits Window {
     // Display Tuning Engine state
     in-out property <bool> tuning_enabled: false;
     in-out property <string> active_preset_id: "preset_vibrant";
-    in-out property <string> active_display_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <string> active_display_preset_name: "Многоцветная яркость (Vibrant)";
     in-out property <int> tuning_temp_k: 6500;
     in-out property <int> tuning_saturation: 150;
     in-out property <int> tuning_contrast: 100;
@@ -340,9 +340,9 @@ export component MainWindow inherits Window {
     in-out property <string> tuning_toast: "";
 
     // Color Calibration state
-    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile: "Системная схема по умолчанию (не откалибрована)";
     in-out property <string> active_color_profile_id: "default_native";
-    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_list: ["Системная схема по умолчанию (не откалибрована)", "Стандартный sRGB (заводская калибровка)", "Широкий цветовой охват DCI-P3 (кинотеатральный)", "Adobe RGB (профессиональный дизайн)"];
     in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
     in-out property <bool> is_color_dirty: false;
 
@@ -399,9 +399,9 @@ export component MainWindow inherits Window {
     callback confirm_migrate_user_data(string);
 
     in-out property <[PowerSchemeItem]> power_schemes: [
-        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+        { guid: "balanced", name: "Сбалансированный (Balanced)", is_active: true }
     ];
-    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> active_power_scheme_name: "Сбалансированный (Balanced)";
     in-out property <string> restore_plan_msg: "";
     in-out property <bool> show_restore_plan_confirm: false;
     in-out property <bool> restoring_power_plan: false;
@@ -425,10 +425,10 @@ export component MainWindow inherits Window {
     in-out property <bool> is_four_zone: false;
     in-out property <bool> is_single_zone: false;
     in-out property <bool> is_single_color: false;
-    in-out property <string> kb_hw_desc: "键盘背光控制器";
-    in-out property <string> lb_hw_desc: "海岸灯条控制器";
-    in-out property <string> hinge_hw_desc: "转轴氛围流光硬件";
-    in-out property <string> logo_hw_desc: "全彩发光徽标控制器";
+    in-out property <string> kb_hw_desc: "Контроллер подсветки клавиатуры";
+    in-out property <string> lb_hw_desc: "Контроллер полосы Coastline";
+    in-out property <string> hinge_hw_desc: "Аппаратура переливающейся подсветки петель";
+    in-out property <string> logo_hw_desc: "Контроллер полноцветного светящегося логотипа";
     in-out property <bool> is_ec_logo: false;
 
     in-out property <int> sleep_minutes: 10;
@@ -448,7 +448,7 @@ export component MainWindow inherits Window {
 
     in-out property <[BrfxScriptItem]> custom_scripts: [];
     in-out property <string> custom_script_id: "kamehameha";
-    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_name: "Камехамэха против Финальной вспышки (Kamehameha)";
     in-out property <string> custom_script_file_name: "kamehameha.brfx";
     in-out property <string> custom_script_author: "OpenRevo Community";
     in-out property <string> custom_script_desc: "";

@@ -12,7 +12,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
         HorizontalLayout {
             spacing: 6px;
             Text {
-                text: "唤醒面板形态";
+                text: "Вид панели при пробуждении";
                 font-size: 12px;
                 font-weight: 600;
                 color: AppTheme.text_primary;
@@ -32,7 +32,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
             }
         }
         Text {
-            text: "从系统托盘或后台双击唤醒时展现的界面形态；可记忆最后状态或锁定首选模式";
+            text: "Вид интерфейса при пробуждении из трея или по двойному щелчку в фоне; можно запоминать последнее состояние или зафиксировать предпочитаемый режим";
             font-size: 10px;
             color: AppTheme.text_muted;
         }
@@ -63,7 +63,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                         padding-left: 8px;
                         padding-right: 8px;
                         Text {
-                            text: "记忆上次形态";
+                            text: "Запоминать последний вид";
                             font-size: 10.5px;
                             font-weight: root.wake_window_mode == "remember" ? 700 : 500;
                             color: root.wake_window_mode == "remember" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -85,7 +85,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                         padding-left: 8px;
                         padding-right: 8px;
                         Text {
-                            text: "始终迷你抽屉";
+                            text: "Всегда мини-панель";
                             font-size: 10.5px;
                             font-weight: root.wake_window_mode == "mini" ? 700 : 500;
                             color: root.wake_window_mode == "mini" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -107,7 +107,7 @@ export component WakeWindowModeRow inherits HorizontalLayout {
                         padding-left: 8px;
                         padding-right: 8px;
                         Text {
-                            text: "始终完整面板";
+                            text: "Всегда полная панель";
                             font-size: 10.5px;
                             font-weight: root.wake_window_mode == "full" ? 700 : 500;
                             color: root.wake_window_mode == "full" ? AppTheme.tag_brand_text : AppTheme.text_secondary;

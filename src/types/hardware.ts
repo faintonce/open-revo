@@ -136,9 +136,9 @@ export interface ModeInfo {
 export const POWER_MODES: ModeInfo[] = [
   {
     id: 1,
-    name: '办公模式',
+    name: 'Офисный режим',
     nameEn: 'OFFICE / SILENT',
-    desc: '轻载静音长续航，温控保守兼顾静音体验',
+    desc: 'Тихая и долгая работа при низкой нагрузке; консервативный контроль температуры с приоритетом тишины',
     color: '#10b981',
     accentClass: 'mode-office',
     pl1: 45,
@@ -147,9 +147,9 @@ export const POWER_MODES: ModeInfo[] = [
   },
   {
     id: 2,
-    name: '均衡模式',
+    name: 'Режим Баланса',
     nameEn: 'BALANCE / GAMING',
-    desc: '日常娱乐与工作，平稳释放兼顾流畅散热',
+    desc: 'Для повседневных развлечений и работы: ровная производительность с плавным охлаждением',
     color: '#3b82f6',
     accentClass: 'mode-balance',
     pl1: 75,
@@ -158,9 +158,9 @@ export const POWER_MODES: ModeInfo[] = [
   },
   {
     id: 3,
-    name: '狂暴模式',
+    name: 'Режим Турбо',
     nameEn: 'BEAST / EXTREME',
-    desc: '原厂高能释放，强效动力尽享峰值性能',
+    desc: 'Заводское высокопроизводительное раскрытие: вся мощь на пике производительности',
     color: '#f43f5e',
     accentClass: 'mode-beast',
     pl1: 205,
@@ -169,9 +169,9 @@ export const POWER_MODES: ModeInfo[] = [
   },
   {
     id: 4,
-    name: '自定义模式',
+    name: 'Пользовательский режим',
     nameEn: 'CUSTOM / PROFILE',
-    desc: '专属极客调优与风扇曲线，深度释放性能潜能',
+    desc: 'Эксклюзивная экспертная настройка и кривые вентиляторов для глубокого раскрытия потенциала производительности',
     color: '#a855f7',
     accentClass: 'mode-custom',
     pl1: 75,

@@ -37,30 +37,30 @@ export component LightingTopologyModal inherits Rectangle {
     property <string> active_preview_id: hovered_id != "" ? hovered_id : ("kb:" + eff_kb);
 
     pure function get_preview_title(id: string) -> string {
-        if id == "kb:per_key" { return "全彩逐键 RGB"; }
-        if id == "kb:four_zone" { return "4区 RGB 硬件分段"; }
-        if id == "kb:single_zone" { return "单区 RGB (整盘同色)"; }
-        if id == "kb:single_white" { return "单色白光背光"; }
-        if id == "kb:none" { return "无键盘背光"; }
+        if id == "kb:per_key" { return "Полноцветный по-клавишный RGB"; }
+        if id == "kb:four_zone" { return "4-зонное аппаратное разделение RGB"; }
+        if id == "kb:single_zone" { return "Однозонный RGB (вся клавиатура одним цветом)"; }
+        if id == "kb:single_white" { return "Одноцветная белая подсветка"; }
+        if id == "kb:none" { return "Без подсветки клавиатуры"; }
 
-        if id == "lb:present" { return "前唇海岸流光灯条"; }
-        if id == "lb:none" { return "无前海岸灯"; }
+        if id == "lb:present" { return "Световая полоса Coastline на передней кромке"; }
+        if id == "lb:none" { return "Нет передней полосы Coastline"; }
 
-        if id == "amb:vent" { return "尾部排气格栅氛围灯"; }
-        if id == "amb:shoulder" { return "八字双飞翼肩灯"; }
-        if id == "amb:none" { return "无额外氛围灯"; }
+        if id == "amb:vent" { return "Фоновая подсветка задних вентиляционных решёток"; }
+        if id == "amb:shoulder" { return "Плечевые полосы «восьмёркой» (двойные крылья)"; }
+        if id == "amb:none" { return "Без дополнительной фоновой подсветки"; }
 
-        if id == "logo:letter" { return "英文字母透光 LOGO"; }
-        if id == "logo:shield" { return "盾形螺母发光标"; }
-        if id == "logo:none" { return "无 A面 LOGO 背光"; }
-        return "硬件规格预览";
+        if id == "logo:letter" { return "Светящийся латинский логотип"; }
+        if id == "logo:shield" { return "Светящийся щит-«гайка» логотип"; }
+        if id == "logo:none" { return "Нет подсветки логотипа на крышке A"; }
+        return "Предпросмотр характеристик оборудования";
     }
 
     pure function get_preview_chip(id: string) -> string {
         if id == "kb:per_key" { return "048D:600B / CE00"; }
         if id == "kb:four_zone" { return "048D:CE00"; }
         if id == "kb:single_zone" { return "EC RAM PWM"; }
-        if id == "kb:single_white" { return "EC 白光背光"; }
+        if id == "kb:single_white" { return "Белая подсветка EC"; }
         if id == "kb:none" { return "Disabled"; }
 
         if id == "lb:present" { return "048D:7001 / EC"; }
@@ -71,48 +71,48 @@ export component LightingTopologyModal inherits Rectangle {
         if id == "amb:none" { return "None"; }
 
         if id == "logo:letter" { return "USB NewLogo (35)"; }
-        if id == "logo:shield" { return "主板 EC 灯效"; }
+        if id == "logo:shield" { return "Эффекты подсветки через EC платы"; }
         if id == "logo:none" { return "None"; }
         return "Standard";
     }
 
     pure function get_preview_desc(id: string) -> string {
-        if id == "kb:per_key" { return "每个按键独立设色，支持 BetterRGB 60FPS 极客流光、水波涟漪与自定义着色器。"; }
-        if id == "kb:four_zone" { return "键盘横向分为 4 个物理区域独立设色，支持硬件级波浪跑马与呼吸。"; }
-        if id == "kb:single_zone" { return "由主板 EC 直驱，全键盘作为一个整体变色，支持单色常亮、呼吸与整体彩虹渐变。"; }
-        if id == "kb:single_white" { return "纯白光 LED，支持关 / 弱光 (50%) / 强光 (100%) 三档无频闪梯级调光。"; }
-        if id == "kb:none" { return "模具无发光背光，或在软件中彻底隐藏键盘控制卡片。"; }
+        if id == "kb:per_key" { return "Отдельный цвет для каждой клавиши; поддержка потока BetterRGB 60 FPS, ряби на воде и пользовательских шейдеров."; }
+        if id == "kb:four_zone" { return "Клавиатура по горизонтали разделена на 4 физические зоны с отдельными цветами; аппаратные волны, бегущий огонь и дыхание."; }
+        if id == "kb:single_zone" { return "Прямое управление от EC платы: вся клавиатура меняет цвет как единое целое; одноцветное свечение, дыхание и общий радужный градиент."; }
+        if id == "kb:single_white" { return "Чисто белые LED: три ступени диммирования без мерцания — выкл / слабая (50%) / яркая (100%)."; }
+        if id == "kb:none" { return "У платформы нет подсветки, либо карточка управления клавиатурой полностью скрыта в программе."; }
 
-        if id == "lb:present" { return "位于触摸板正下方前边缘的细长多段流光灯条，支持对撞、跑马与全彩波浪。"; }
-        if id == "lb:none" { return "模具前唇物理无发光条，选择此项可彻底移除幽灵海岸灯卡片并停止发包。"; }
+        if id == "lb:present" { return "Тонкая многосегментная световая полоса у передней кромки прямо под тачпадом; столкновения, бегущий огонь и полноцветные волны."; }
+        if id == "lb:none" { return "У платформы нет физической световой полосы на передней кромке: выбор пункта полностью удаляет «призрачную» карточку Coastline и прекращает отправку пакетов."; }
 
-        if id == "amb:vent" { return "后出风口左右对称的跑车式排气灯带，水冷模具经典硬核视觉标识。"; }
-        if id == "amb:shoulder" { return "C面键盘左右上方呈“八”字斜向展开的跑马飞翼双灯条，与键盘同频律动。"; }
-        if id == "amb:none" { return "普通机型无后排出风口灯或肩灯，控制台中不挂载氛围灯控制卡片。"; }
+        if id == "amb:vent" { return "Симметричные световые полосы выхлопа в стиле спорткара на задних решётках — классический хардкорный визуальный маркер платформ с СЖО."; }
+        if id == "amb:shoulder" { return "Две световые полосы «крылья», расходящиеся диагонально над клавиатурой слева и справа, пульсируют в такт подсветке клавиш."; }
+        if id == "amb:none" { return "У обычных моделей нет подсветки задних решёток или плечевых полос — карточки управления фоновой подсветкой в консоли не подгружаются."; }
 
-        if id == "logo:letter" { return "整串 MECHREVO 英文全拼透光发光，由独立 USB 芯片驱动，支持彩色波浪与跑马流光。"; }
-        if id == "logo:shield" { return "上下两瓣组成的盾形/螺母发光标，由主板 EC 直驱，支持单色常亮、呼吸与三色混光。"; }
-        if id == "logo:none" { return "A面仅为金属贴牌、高光印字或不发光，移除 A 面灯效卡片避免误操作。"; }
-        return "请将鼠标悬停在上方任意选项查看对应协议说明";
+        if id == "logo:letter" { return "Полная подсветка надписи MECHREVO целиком, управление через отдельный USB-чип; поддерживает цветные волны и бегущую подсветку."; }
+        if id == "logo:shield" { return "Светящийся щит/гайка из двух половин (верх и низ), прямое управление EC платы; одноцветное свечение, дыхание и смешение трёх цветов."; }
+        if id == "logo:none" { return "Крышка A — только металлическая наклейка, глянцевая печать или без подсветки; карточка эффектов крышки A скрыта во избежание ошибочных действий."; }
+        return "Наведите курсор на любой вариант выше, чтобы увидеть описание протокола";
     }
 
     pure function get_preview_example(id: string) -> string {
-        if id == "kb:per_key" { return "典型机型: 耀世16 Pro/Ultra, 苍龙16, 蛟龙 GM7ZG7S(CE00) 等高配"; }
-        if id == "kb:four_zone" { return "典型机型: 蛟龙16, X10 Pro, 极光早期版"; }
-        if id == "kb:single_zone" { return "典型机型: 极光X, 耀世15单区版, 旷世G16"; }
-        if id == "kb:single_white" { return "典型机型: 无界14X, 无界15X 等轻薄本"; }
-        if id == "kb:none" { return "典型机型: 无发光背光通用模具"; }
+        if id == "kb:per_key" { return "Типичные модели: Yaoshi 16 Pro/Ultra, Canglong 16, Jiaolong GM7ZG7S(CE00) и другие топовые"; }
+        if id == "kb:four_zone" { return "Типичные модели: Jiaolong 16, X10 Pro, ранние версии Jiguang"; }
+        if id == "kb:single_zone" { return "Типичные модели: Jiguang X, Yaoshi 15 (однозонная), Kuangshi G16"; }
+        if id == "kb:single_white" { return "Типичные модели: Wujie 14X, Wujie 15X и другие ультрабуки"; }
+        if id == "kb:none" { return "Типичные модели: универсальные платформы без подсветки"; }
 
-        if id == "lb:present" { return "典型机型: 耀世16, 蛟龙16 等前唇灯机型"; }
-        if id == "lb:none" { return "典型机型: 极光全系, 旷世普通版"; }
+        if id == "lb:present" { return "Типичные модели: Yaoshi 16, Jiaolong 16 и другие с подсветкой передней кромки"; }
+        if id == "lb:none" { return "Типичные модели: вся линейка Jiguang, обычные версии Kuangshi"; }
 
-        if id == "amb:vent" { return "典型机型: 旷世16 Super 水冷版等旗舰"; }
-        if id == "amb:shoulder" { return "典型机型: 深海幽灵 IDZ 模具系列"; }
-        if id == "amb:none" { return "典型机型: 绝大多数无额外氛围灯机型"; }
+        if id == "amb:vent" { return "Типичные модели: Kuangshi 16 Super (версия с СЖО) и другие флагманы"; }
+        if id == "amb:shoulder" { return "Типичные модели: серия шасси IDZ (Deep Sea Ghost)"; }
+        if id == "amb:none" { return "Типичные модели: подавляющее большинство моделей без дополнительной фоновой подсветки"; }
 
-        if id == "logo:letter" { return "典型机型: GM6IX0B, 耀世早期特殊版"; }
-        if id == "logo:shield" { return "典型机型: 苍龙, 耀世全系列, 极光X, 蛟龙"; }
-        if id == "logo:none" { return "典型机型: 无界轻薄本全系列"; }
+        if id == "logo:letter" { return "Типичные модели: GM6IX0B, ранние спецверсии Yaoshi"; }
+        if id == "logo:shield" { return "Типичные модели: Canglong, вся серия Yaoshi, Jiguang X, Jiaolong"; }
+        if id == "logo:none" { return "Типичные модели: вся линейка ультрабуков Wujie"; }
         return "";
     }
 
@@ -175,7 +175,7 @@ export component LightingTopologyModal inherits Rectangle {
                                 alignment: start;
 
                                 Text {
-                                    text: "灯效硬件设备拓扑纠偏";
+                                    text: "Исправление топологии оборудования подсветки";
                                     font-size: 14px;
                                     font-weight: 700;
                                     color: AppTheme.text_primary;
@@ -194,7 +194,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         padding-left: 6px;
                                         padding-right: 6px;
                                         Text {
-                                            text: "超薄自适应";
+                                            text: "Адаптация для ультратонких";
                                             font-size: 10px;
                                             font-weight: 600;
                                             color: #38bdf8;
@@ -205,7 +205,7 @@ export component LightingTopologyModal inherits Rectangle {
                             }
 
                             Text {
-                                text: "若自动检测与物理硬件不符，请在此手动指定物理设备。鼠标悬停在选项或 ⓘ 上可查看硬件协议与适用机型。";
+                                text: "Если автоопределение не совпало с физическим оборудованием, укажите устройство вручную здесь. Наведите курсор на вариант или ⓘ, чтобы увидеть протокол и совместимые модели.";
                                 font-size: 11px;
                                 color: AppTheme.text_muted;
                             }
@@ -266,7 +266,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "⌨️ 1. 键盘背光硬件";
+                                text: "⌨️ 1. Оборудование подсветки клавиатуры";
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -274,7 +274,7 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: "Автоопределение: ";
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
@@ -324,7 +324,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "全彩逐键 RGB";
+                                        text: "Полноцветный по-клавишный RGB";
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "per_key" ? 700 : 500;
                                         color: root.eff_kb == "per_key" ? #ffffff : AppTheme.text_secondary;
@@ -337,7 +337,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -375,7 +375,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "4区 RGB";
+                                        text: "4-зонный RGB";
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "four_zone" ? 700 : 500;
                                         color: root.eff_kb == "four_zone" ? #ffffff : AppTheme.text_secondary;
@@ -388,7 +388,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -426,7 +426,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "单区 RGB";
+                                        text: "Однозонный RGB";
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "single_zone" ? 700 : 500;
                                         color: root.eff_kb == "single_zone" ? #ffffff : AppTheme.text_secondary;
@@ -439,7 +439,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -477,7 +477,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "单色白光";
+                                        text: "Одноцветный белый";
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "single_white" ? 700 : 500;
                                         color: root.eff_kb == "single_white" ? #ffffff : AppTheme.text_secondary;
@@ -490,7 +490,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -528,7 +528,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无背光/禁用";
+                                        text: "Без подсветки / отключено";
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "none" ? 700 : 500;
                                         color: root.eff_kb == "none" ? #ffffff : AppTheme.text_secondary;
@@ -541,7 +541,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -569,7 +569,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "🌊 2. 前置海岸灯条";
+                                text: "🌊 2. Передняя световая полоса";
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -577,12 +577,12 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: "Автоопределение: ";
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
                                 Text {
-                                    text: root.base_front_bar == "present" ? "具备灯条" : "未检测到";
+                                    text: root.base_front_bar == "present" ? "Есть световая полоса" : "Не обнаружено";
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: #38bdf8;
@@ -627,7 +627,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "前置海岸灯条 (具备)";
+                                        text: "Передняя световая полоса (есть)";
                                         font-size: 11px;
                                         font-weight: root.eff_front == "present" ? 700 : 500;
                                         color: root.eff_front == "present" ? #ffffff : AppTheme.text_secondary;
@@ -640,7 +640,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -678,7 +678,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无海岸灯条 (屏蔽)";
+                                        text: "Нет передней полосы (скрыть)";
                                         font-size: 11px;
                                         font-weight: root.eff_front == "none" ? 700 : 500;
                                         color: root.eff_front == "none" ? #ffffff : AppTheme.text_secondary;
@@ -691,7 +691,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -719,7 +719,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "💨 3. 特色氛围灯";
+                                text: "💨 3. Особая фоновая подсветка";
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -727,12 +727,12 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: "Автоопределение: ";
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
                                 Text {
-                                    text: root.base_ambient == "vent" ? "尾气灯 (后出风口)" : (root.base_ambient == "shoulder" ? "八字肩灯" : "未检测到");
+                                    text: root.base_ambient == "vent" ? "«Выхлопная» подсветка (задние решётки)" : (root.base_ambient == "shoulder" ? "Плечевые полосы «восьмёркой»" : "Не обнаружено");
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: #38bdf8;
@@ -777,7 +777,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "尾气灯 (后出风口氛围灯)";
+                                        text: "«Выхлопная» подсветка (фоновая подсветка задних решёток)";
                                         font-size: 11px;
                                         font-weight: root.eff_amb == "vent" ? 700 : 500;
                                         color: root.eff_amb == "vent" ? #ffffff : AppTheme.text_secondary;
@@ -790,7 +790,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -828,7 +828,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "八字肩灯 (飞翼同步灯)";
+                                        text: "Плечевые полосы «восьмёркой» (синхронные «крылья»)";
                                         font-size: 11px;
                                         font-weight: root.eff_amb == "shoulder" ? 700 : 500;
                                         color: root.eff_amb == "shoulder" ? #ffffff : AppTheme.text_secondary;
@@ -841,7 +841,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -879,7 +879,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无氛围灯 (默认)";
+                                        text: "Без фоновой подсветки (по умолчанию)";
                                         font-size: 11px;
                                         font-weight: root.eff_amb == "none" ? 700 : 500;
                                         color: root.eff_amb == "none" ? #ffffff : AppTheme.text_secondary;
@@ -892,7 +892,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -920,7 +920,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "✨ 4. A面 LOGO 灯";
+                                text: "✨ 4. Подсветка логотипа на крышке A";
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -928,12 +928,12 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: "Автоопределение: ";
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
                                 Text {
-                                    text: root.base_logo == "letter" ? "英文字母全彩" : (root.base_logo == "shield" ? "盾形螺母标" : "未检测到");
+                                    text: root.base_logo == "letter" ? "Латиница полноцветно" : (root.base_logo == "shield" ? "Щит-«гайка» логотип" : "Не обнаружено");
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: #38bdf8;
@@ -978,7 +978,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "字母 LOGO (MECHREVO)";
+                                        text: "Буквенный логотип (MECHREVO)";
                                         font-size: 11px;
                                         font-weight: root.eff_logo == "letter" ? 700 : 500;
                                         color: root.eff_logo == "letter" ? #ffffff : AppTheme.text_secondary;
@@ -991,7 +991,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -1029,7 +1029,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "盾形 LOGO (上下螺母标)";
+                                        text: "Щит-логотип (верхняя и нижняя «гайки»)";
                                         font-size: 11px;
                                         font-weight: root.eff_logo == "shield" ? 700 : 500;
                                         color: root.eff_logo == "shield" ? #ffffff : AppTheme.text_secondary;
@@ -1042,7 +1042,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -1080,7 +1080,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无 A面 LOGO 灯";
+                                        text: "Нет подсветки логотипа на крышке A";
                                         font-size: 11px;
                                         font-weight: root.eff_logo == "none" ? 700 : 500;
                                         color: root.eff_logo == "none" ? #ffffff : AppTheme.text_secondary;
@@ -1093,7 +1093,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "Авто"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -1241,7 +1241,7 @@ export component LightingTopologyModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "恢复全自动探测";
+                                    text: "Вернуть полностью автоматическое определение";
                                     font-size: 11px;
                                     font-weight: 500;
                                     color: AppTheme.text_secondary;
@@ -1251,7 +1251,7 @@ export component LightingTopologyModal inherits Rectangle {
                         }
 
                         Text {
-                            text: root.diff_count == 0 ? "与自动探测一致" : (root.diff_count + " 项已手动纠偏");
+                            text: root.diff_count == 0 ? "Совпадает с автоопределением" : (root.diff_count + " исправлено вручную");
                             font-size: 11px;
                             font-weight: root.diff_count == 0 ? 500 : 700;
                             color: root.diff_count == 0 ? AppTheme.text_muted : #f59e0b;
@@ -1282,7 +1282,7 @@ export component LightingTopologyModal inherits Rectangle {
                                 padding-right: 14px;
                                 alignment: center;
                                 Text {
-                                    text: "取消";
+                                    text: "Отмена";
                                     font-size: 11px;
                                     color: AppTheme.text_secondary;
                                     vertical-alignment: center;
@@ -1322,7 +1322,7 @@ export component LightingTopologyModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "保存并重新初始化硬件";
+                                    text: "Сохранить и заново инициализировать оборудование";
                                     font-size: 11px;
                                     font-weight: 700;
                                     color: #ffffff;

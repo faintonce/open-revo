@@ -84,7 +84,7 @@ pub fn current_silent() -> Option<bool> {
 /// 应用狂暴子模式。仅在支持该特性的机型上执行，其余机型直接返回 Err。
 pub fn apply_silent(silent: bool) -> Result<(), String> {
     if !is_supported() {
-        return Err("当前硬件平台不支持狂暴子模式".to_string());
+        return Err("Аппаратная платформа не поддерживает подрежимы Турбо".to_string());
     }
 
     let addr = crate::hal::vault::ec::ADDR_TURBO_SUBMODE;
@@ -97,7 +97,7 @@ pub fn apply_silent(silent: bool) -> Result<(), String> {
     let target = if silent { prev | mask } else { prev & !mask };
 
     if target != prev && !crate::driver::wmi_ec::wmi_write_ec(addr, target) {
-        return Err("写子模式寄存器失败".to_string());
+        return Err("Не удалось записать регистр подрежима".to_string());
     }
 
     let cmd = if silent { CMD_SUBMODE_SILENT } else { CMD_SUBMODE_EXTREME };
@@ -111,7 +111,7 @@ pub fn apply_silent(silent: bool) -> Result<(), String> {
             "turbo submode write failed (silent={}): WMI channel unavailable -> rolled back EC bit",
             silent
         );
-        return Err("写入失败（WMI 通道不可用），已回滚寄存器".to_string());
+        return Err("Запись не удалась (канал WMI недоступен), регистр откачен".to_string());
     }
 
     match current_silent() {
@@ -126,7 +126,7 @@ pub fn apply_silent(silent: bool) -> Result<(), String> {
                 silent,
                 other
             );
-            Err("写入后回读不一致".to_string())
+            Err("Чтение после записи не совпадает".to_string())
         }
     }
 }

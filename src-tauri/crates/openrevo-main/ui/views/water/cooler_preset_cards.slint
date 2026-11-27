@@ -18,7 +18,7 @@ export component CoolerPresetCards inherits Rectangle {
             alignment: space-between;
 
             Text {
-                text: "散热预设策略与运行模式";
+                text: "Пресеты охлаждения и режимы работы";
                 font-size: 10.5px;
                 font-weight: 700;
                 color: AppTheme.text_muted;
@@ -26,7 +26,7 @@ export component CoolerPresetCards inherits Rectangle {
             }
 
             Text {
-                text: root.strategy == "custom" ? "当前处于手动自定义调节状态（预设全灭）" : "选择【智慧自适应】自动随动；手调水泵或风扇后自动转为自定义";
+                text: root.strategy == "custom" ? "Сейчас активно ручная пользовательская настройка (все пресеты выключены)" : "Выберите «Умную адаптацию» для автоматического сопровождения; после ручной регулировки насоса или вентилятора режим автоматически становится пользовательским";
                 font-size: 9.5px;
                 font-weight: 500;
                 color: root.strategy == "custom" ? #f59e0b : AppTheme.text_muted;
@@ -71,7 +71,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "智慧自适应";
+                                text: "Умная адаптация";
                                 font-size: 11px;
                                 font-weight: 800;
                                 color: #38bdf8;
@@ -88,7 +88,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "温控随动";
+                                    text: "Температура управляет";
                                     font-size: 8px;
                                     font-weight: 800;
                                     color: #38bdf8;
@@ -99,7 +99,7 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "依据核心温度动态调控，<55°C 风扇停转";
+                        text: "Динамическое управление по температуре ядра; ниже 55°C вентиляторы останавливаются";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
@@ -114,9 +114,9 @@ export component CoolerPresetCards inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "随动: " + root.live_max_temp + "°C → 风扇 " + root.live_fan_duty + "% | 水泵 " + (
-                                root.live_pump_volt >= 11 || root.live_pump_volt == 3 ? "极限狂暴" : (
-                                    root.live_pump_volt == 0 ? "停机" : "标准巡航"
+                            text: "Следование: " + root.live_max_temp + "°C → вентилятор " + root.live_fan_duty + "% | насос " + (
+                                root.live_pump_volt >= 11 || root.live_pump_volt == 3 ? "Предел Турбо" : (
+                                    root.live_pump_volt == 0 ? "Остановлено" : "Стандартный цикл"
                                 )
                             );
                             font-size: 8.5px;
@@ -151,7 +151,7 @@ export component CoolerPresetCards inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "静音策略";
+                            text: "Тихая стратегия";
                             font-size: 11px;
                             font-weight: 800;
                             color: root.strategy == "quiet" ? #38bdf8 : AppTheme.text_primary;
@@ -166,7 +166,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "固定";
+                                    text: "Фиксация";
                                     font-size: 8px;
                                     font-weight: 700;
                                     color: AppTheme.text_muted;
@@ -177,12 +177,12 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "标准巡航水泵 + 40% 风扇";
+                        text: "Насос стандартного цикла + вентиляторы 40%";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "适合安静夜间使用";
+                        text: "Подходит для тихой ночной работы";
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }
@@ -212,7 +212,7 @@ export component CoolerPresetCards inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "均衡策略";
+                            text: "Сбалансированная стратегия";
                             font-size: 11px;
                             font-weight: 800;
                             color: root.strategy == "balance" ? #818cf8 : AppTheme.text_primary;
@@ -227,7 +227,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "固定";
+                                    text: "Фиксация";
                                     font-size: 8px;
                                     font-weight: 700;
                                     color: AppTheme.text_muted;
@@ -238,12 +238,12 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "标准巡航水泵 + 65% 风扇";
+                        text: "Насос стандартного цикла + вентиляторы 65%";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "兼顾散热与风噪";
+                        text: "Баланс охлаждения и шума вентиляторов";
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }
@@ -273,7 +273,7 @@ export component CoolerPresetCards inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "极速狂暴";
+                            text: "Турбо на максимуме";
                             font-size: 11px;
                             font-weight: 800;
                             color: root.strategy == "performance" ? #ef4444 : AppTheme.text_primary;
@@ -288,7 +288,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "满血";
+                                    text: "На полную";
                                     font-size: 8px;
                                     font-weight: 800;
                                     color: #ef4444;
@@ -299,12 +299,12 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "极限狂暴水泵 + 100% 风扇";
+                        text: "Насос на пределе Турбо + вентиляторы 100%";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "极限压榨散热性能";
+                        text: "Выжать из охлаждения максимум";
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }

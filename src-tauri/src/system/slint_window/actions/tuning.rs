@@ -392,7 +392,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
         "tuning_import_preset" => {
             let app_clone = app.cloned();
             tauri::async_runtime::spawn(async move {
-                if let Some(file_path) = open_file_dialog("JSON 调教方案", "json") {
+                if let Some(file_path) = open_file_dialog("JSON-схема настройки", "json") {
                     if let Ok(content) = std::fs::read_to_string(&file_path) {
                         let fname = file_path.file_name().and_then(|n| n.to_str()).map(|s| s.to_string());
                         if let Ok(imported) = crate::commands::tuning_cmd::import_profile_preset(content, fname) {

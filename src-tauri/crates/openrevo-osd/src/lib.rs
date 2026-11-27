@@ -575,10 +575,10 @@ pub fn handle_ipc_message(
 fn show_power_mode_internal(ui: &OsdWindow, mode: u8) {
     let pal = current_palette();
     let (title, icon, color) = match mode {
-        1 => ("办公模式", "🌱", pal.office),
-        2 => ("均衡模式", "⚖️", pal.balance),
-        3 => ("狂暴模式", "⚡", pal.beast),
-        _ => ("极客调校", "💧", pal.geek),
+        1 => ("Офисный режим", "🌱", pal.office),
+        2 => ("Режим Баланса", "⚖️", pal.balance),
+        3 => ("Режим Турбо", "⚡", pal.beast),
+        _ => ("Экспертная настройка", "💧", pal.geek),
     };
 
     ui.set_mode_title(title.into());
@@ -591,9 +591,9 @@ fn show_power_mode_internal(ui: &OsdWindow, mode: u8) {
 fn show_fan_boost_internal(ui: &OsdWindow, enabled: bool) {
     let pal = current_palette();
     let (title, icon, color) = if enabled {
-        ("强冷模式 开启", "🌪️", pal.fan)
+        ("Форс-охлаждение вкл", "🌪️", pal.fan)
     } else {
-        ("强冷模式 关闭", "💨", pal.neutral)
+        ("Форс-охлаждение выкл", "💨", pal.neutral)
     };
 
     ui.set_mode_title(title.into());
@@ -608,51 +608,51 @@ fn show_key_lock_toast_internal(ui: &OsdWindow, name: &str, locked: bool) {
     let (title, icon, color) = match name {
         "win" => {
             if locked {
-                ("Win 键锁定 开启", "🔒", pal.disabled)
+                ("Блокировка Win вкл", "🔒", pal.disabled)
             } else {
-                ("Win 键锁定 关闭", "🔓", pal.enabled)
+                ("Блокировка Win выкл", "🔓", pal.enabled)
             }
         }
         "fn" => {
             if locked {
-                ("Fn 键锁定 开启", "⚡", pal.balance)
+                ("Блокировка Fn вкл", "⚡", pal.balance)
             } else {
-                ("Fn 键锁定 关闭", "⌨️", pal.neutral)
+                ("Блокировка Fn выкл", "⌨️", pal.neutral)
             }
         }
         "touchpad" => {
             if locked {
-                ("触摸板 禁用", "🚫", pal.disabled)
+                ("Тачпад отключён", "🚫", pal.disabled)
             } else {
-                ("触摸板 启用", "🖱️", pal.enabled)
+                ("Тачпад включён", "🖱️", pal.enabled)
             }
         }
         "caps" => {
             if locked {
-                ("大写锁定 开启", "🔠", pal.fan)
+                ("Caps Lock включён", "🔠", pal.fan)
             } else {
-                ("大写锁定 关闭", "🔡", pal.neutral)
+                ("Caps Lock выключен", "🔡", pal.neutral)
             }
         }
         "num" => {
             if locked {
-                ("数字锁定 开启", "🔢", pal.fan)
+                ("Num Lock включён", "🔢", pal.fan)
             } else {
-                ("数字锁定 关闭", "⌨️", pal.neutral)
+                ("Num Lock выключен", "⌨️", pal.neutral)
             }
         }
         "scroll" => {
             if locked {
-                ("滚动锁定 开启", "📜", pal.fan)
+                ("Scroll Lock включён", "📜", pal.fan)
             } else {
-                ("滚动锁定 关闭", "📄", pal.neutral)
+                ("Scroll Lock выключен", "📄", pal.neutral)
             }
         }
         _ => {
             if locked {
-                ("锁定已生效", "🔒", pal.disabled)
+                ("Блокировка применена", "🔒", pal.disabled)
             } else {
-                ("解锁已生效", "🔓", pal.enabled)
+                ("Разблокировка применена", "🔓", pal.enabled)
             }
         }
     };
@@ -669,51 +669,51 @@ fn show_device_switch_internal(ui: &OsdWindow, name: &str, enabled: bool) {
     let (title, icon, color) = match name {
         "camera" => {
             if enabled {
-                ("摄像头 开启", "📷", pal.enabled)
+                ("Камера включена", "📷", pal.enabled)
             } else {
-                ("摄像头 关闭", "🚫", pal.disabled)
+                ("Камера выключена", "🚫", pal.disabled)
             }
         }
         "mic" => {
             if enabled {
-                ("麦克风 开启", "🎙️", pal.enabled)
+                ("Микрофон включён", "🎙️", pal.enabled)
             } else {
-                ("麦克风 静音", "🔇", pal.disabled)
+                ("Микрофон заглушён", "🔇", pal.disabled)
             }
         }
         "wifi" => {
             if enabled {
-                ("Wi-Fi 无线网 开启", "📶", pal.fan)
+                ("Wi-Fi включён", "📶", pal.fan)
             } else {
-                ("Wi-Fi 无线网 关闭", "✈️", pal.disabled)
+                ("Wi-Fi выключен", "✈️", pal.disabled)
             }
         }
         "bluetooth" => {
             if enabled {
-                ("蓝牙 开启", "ᛒ", pal.fan)
+                ("Bluetooth включён", "ᛒ", pal.fan)
             } else {
-                ("蓝牙 关闭", "📵", pal.disabled)
+                ("Bluetooth выключен", "📵", pal.disabled)
             }
         }
         "keep_awake" => {
             if enabled {
-                ("始终保持唤醒 开启", "☕", pal.fan)
+                ("Постоянное бодрствование вкл", "☕", pal.fan)
             } else {
-                ("始终保持唤醒 关闭", "💤", pal.neutral)
+                ("Постоянное бодрствование выкл", "💤", pal.neutral)
             }
         }
         "screen_flip" => {
             if enabled {
-                ("屏幕已翻转 (180°)", "🔄", pal.fan)
+                ("Экран перевёрнут (180°)", "🔄", pal.fan)
             } else {
-                ("屏幕方向已恢复", "🖥️", pal.enabled)
+                ("Ориентация экрана восстановлена", "🖥️", pal.enabled)
             }
         }
         _ => {
             if enabled {
-                ("功能已开启", "✅", pal.enabled)
+                ("Функция включена", "✅", pal.enabled)
             } else {
-                ("功能已关闭", "❌", pal.disabled)
+                ("Функция выключена", "❌", pal.disabled)
             }
         }
     };
@@ -728,7 +728,7 @@ fn show_device_switch_internal(ui: &OsdWindow, name: &str, enabled: bool) {
 fn show_kb_brightness_internal(ui: &OsdWindow, level: u8) {
     let pal = current_palette();
     let (title, icon, color) = if level == 0 {
-        ("键盘背光 关闭".to_string(), "💡", pal.neutral)
+        ("Подсветка клавиатуры выключена".to_string(), "💡", pal.neutral)
     } else {
         let pct = match level {
             1 => 25,
@@ -736,7 +736,7 @@ fn show_kb_brightness_internal(ui: &OsdWindow, level: u8) {
             3 => 75,
             _ => 100,
         };
-        (format!("键盘背光 {}%", pct), "💡", pal.fan)
+        (format!("Подсветка клавиатуры: {}%", pct), "💡", pal.fan)
     };
 
     ui.set_mode_title(title.into());
@@ -749,9 +749,9 @@ fn show_kb_brightness_internal(ui: &OsdWindow, level: u8) {
 fn show_kb_sleep_internal(ui: &OsdWindow, seconds: u32) {
     let pal = current_palette();
     let title = if seconds == 0 {
-        "键盘背光 常亮".to_string()
+        "Подсветка клавиатуры постоянно".to_string()
     } else {
-        format!("背光 {}秒熄灭", seconds)
+        format!("Подсветка: гашение через {} с", seconds)
     };
 
     ui.set_mode_title(title.into());

@@ -45,7 +45,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "CPU 处理器状态";
+                        text: "Состояние процессора (CPU)";
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -184,7 +184,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "GPU 独立显卡";
+                        text: "GPU: дискретная графика";
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -323,7 +323,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "散热系统状态";
+                        text: "Состояние системы охлаждения";
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -345,7 +345,7 @@ export component DashboardTelemetryCards inherits Rectangle {
 
                     VerticalLayout {
                         spacing: 2px;
-                        Text { text: "CPU 扇"; font-size: 9px; color: AppTheme.text_muted; }
+                        Text { text: "Вентилятор CPU"; font-size: 9px; color: AppTheme.text_muted; }
                         HorizontalLayout {
                             spacing: 2px;
                             Text { text: cpu_rpm; font-size: 16px; font-weight: 800; color: AppTheme.text_primary; }
@@ -355,7 +355,7 @@ export component DashboardTelemetryCards inherits Rectangle {
 
                     VerticalLayout {
                         spacing: 2px;
-                        Text { text: "GPU 扇"; font-size: 9px; color: AppTheme.text_muted; }
+                        Text { text: "Вентилятор GPU"; font-size: 9px; color: AppTheme.text_muted; }
                         HorizontalLayout {
                             spacing: 2px;
                             Text { text: gpu_rpm; font-size: 16px; font-weight: 800; color: AppTheme.text_primary; }
@@ -368,7 +368,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "双风扇散热";
+                        text: "Охлаждение двумя вентиляторами";
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -383,7 +383,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                             padding-left: 6px;
                             padding-right: 6px;
                             Text {
-                                text: "自动温控";
+                                text: "Автоматический контроль температуры";
                                 font-size: 9.5px;
                                 font-weight: 700;
                                 color: #38bdf8;
@@ -414,7 +414,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "VRAM 显存容量";
+                        text: "Объём VRAM";
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -461,7 +461,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "专用显存 (VRAM)";
+                        text: "Выделенная видеопамять (VRAM)";
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;

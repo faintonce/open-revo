@@ -465,7 +465,7 @@ pub fn scan_all_water_coolers(timeout: Duration) -> Result<Vec<WaterCoolerDevice
         let display_name = if name.trim().is_empty() {
             paired_list.iter().find(|(p_mac, _)| *p_mac == mac)
                 .map(|(_, n)| n.clone())
-                .unwrap_or_else(|| format!("水冷魔盒 ({:04X})", mac & 0xFFFF))
+                .unwrap_or_else(|| format!("Блок СЖО ({:04X})", mac & 0xFFFF))
         } else {
             name.clone()
         };
@@ -497,7 +497,7 @@ pub fn scan_all_water_coolers(timeout: Duration) -> Result<Vec<WaterCoolerDevice
         result.push(WaterCoolerDevice {
             mac_address: mac_u64_to_str(current_mac),
             mac_u64: current_mac,
-            name: "已绑定水冷魔盒 (离线)".to_string(),
+            name: "Привязанный блок СЖО (не в сети)".to_string(),
             rssi: None,
             is_paired: false,
             is_current: true,

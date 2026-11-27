@@ -71,7 +71,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px' }}>
           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            动效脚本:
+            Скрипт эффектов:
           </span>
           <select
             value={activeScriptId}
@@ -101,7 +101,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             type="button"
             onClick={handleRefreshClick}
             disabled={isRefreshing}
-            title="从本地目录重新读取脚本文件，立即加载外部修改"
+            title="Перечитать файл скрипта из локального каталога и немедленно подхватить внешние изменения"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -119,14 +119,14 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             }}
           >
             <RotateCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
-            <span>刷新</span>
+            <span>Обновить</span>
           </button>
 
           {/* View Source button */}
           <button
             type="button"
             onClick={onViewSource}
-            title="查看源码：在记事本中打开或直接复制纯文本喂给各大 AI 助手改写/生成新特效"
+            title="Исходный код: открыть в «Блокноте» или скопировать текст и отдать любому ИИ-ассистенту для доработки/генерации нового эффекта"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -144,7 +144,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             }}
           >
             <Code2 size={12} />
-            <span>查看源码</span>
+            <span>Исходный код</span>
           </button>
 
           {/* Combined Import & Export */}
@@ -152,7 +152,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              title="导入外部 .brfx 动效脚本文件"
+              title="Импорт внешнего файла скрипта эффектов .brfx"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -169,12 +169,12 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
               }}
             >
               <Upload size={12} />
-              <span>导入</span>
+              <span>Импорт</span>
             </button>
             <button
               type="button"
               onClick={onExport}
-              title="将当前调整后的脚本与参数导出为 .brfx 文件"
+              title="Экспортировать текущий скрипт с параметрами в файл .brfx"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -190,7 +190,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
               }}
             >
               <Download size={12} />
-              <span>导出</span>
+              <span>Экспорт</span>
             </button>
           </div>
 

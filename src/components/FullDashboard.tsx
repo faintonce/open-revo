@@ -439,9 +439,9 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             <span
               className="badge-tag"
               onClick={handleCopyVersion}
-              title={`点击复制版本号: v${__APP_VERSION__}`}
+              title={`Нажмите, чтобы скопировать версию: v${__APP_VERSION__}`}
             >
-              {copiedVersion ? '已复制' : `PRO v${__APP_VERSION__}`}
+              {copiedVersion ? 'Скопировано' : `PRO v${__APP_VERSION__}`}
             </span>
             {status.is_mock && (
               <span
@@ -478,7 +478,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             <button
               onClick={() => handleTakeoverOem()}
               disabled={isSwitchingService}
-              title="检测到机械革命官方电竞服务正在运行。点击后将一键停止并禁用官方服务，避免与 OpenRevo 争抢主板 EC 寄存器与屏幕闪烁。"
+              title="Обнаружена работающая официальная игровая служба MECHREVO. По клику она будет остановлена и отключена одним нажатием, чтобы не конфликтовать с OpenRevo за EC-регистры платы и не вызывать мерцание экрана."
               style={{
                 padding: '3px 8px',
                 borderRadius: '5px',
@@ -496,7 +496,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
               }}
             >
               {isSwitchingService ? <Loader2 size={11} className="animate-spin" /> : <Shield size={11} />}
-              <span>接管官方控制台</span>
+              <span>Перехватить официальную консоль</span>
             </button>
           )}
 
@@ -504,7 +504,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
           {onToggleTheme && (
             <button
               onClick={onToggleTheme}
-              title={theme === 'mono' ? '切换到：多彩风格' : '切换到：极致单色工业风'}
+              title={theme === 'mono' ? 'Переключиться на: многоцветный стиль' : 'Переключиться на: строгий монохромный индустриальный стиль'}
               style={{
                 background: theme === 'cyber' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
                 border: theme === 'cyber' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -525,7 +525,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
           {/* 迷你抽屉模式切换 */}
           <button
             onClick={onCollapseDashboard}
-            title="折叠为迷你抽屉模式"
+            title="Свернуть в режим мини-панели"
             style={{
               background: 'transparent',
               border: '1px solid rgba(255,255,255,0.1)',
@@ -540,13 +540,13 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             }}
           >
             <Minimize2 className="w-3 h-3" />
-            <span>迷你模式</span>
+            <span>Мини-режим</span>
           </button>
 
           {/* 窗口 / 全屏切换 */}
           <button
             onClick={handleToggleMaximize}
-            title={isMaximized ? '还原为 960×740 窗口模式' : '最大化全屏显示'}
+            title={isMaximized ? 'Вернуть оконный режим 960×740' : 'Развернуть на весь экран'}
             style={{
               background: 'transparent',
               border: '1px solid rgba(255,255,255,0.1)',
@@ -561,12 +561,12 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             }}
           >
             {isMaximized ? <Copy className="w-3 h-3" /> : <Square className="w-3 h-3" />}
-            <span>{isMaximized ? '窗口' : '全屏'}</span>
+            <span>{isMaximized ? 'Окно' : 'Полный экран'}</span>
           </button>
 
           <button
             onClick={onMinimize}
-            title="最小化"
+            title="Свернуть"
             style={{
               background: 'transparent',
               border: 'none',
@@ -580,7 +580,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
           </button>
           <button
             onClick={onClose}
-            title="关闭窗口"
+            title="Закрыть окно"
             style={{
               background: 'transparent',
               border: 'none',
@@ -645,7 +645,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
       {/* Main Body Viewport Slot */}
       <div className="shell-viewport" data-slot="viewport">
         {activeTab === 'overview' && (
-          <ModuleErrorBoundary moduleName="状态概览">
+          <ModuleErrorBoundary moduleName="Обзор состояния">
             <OverviewView
               status={status}
               capabilities={capabilities}
@@ -663,25 +663,25 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'gpu' && (
-          <ModuleErrorBoundary moduleName="显卡模式" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName="Режим графики" onNavigateToOverview={() => setActiveTab('overview')}>
             <GpuModeView />
           </ModuleErrorBoundary>
         )}
 
         {activeTab === 'tuning' && (
-          <ModuleErrorBoundary moduleName="电源管理" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName="Управление питанием" onNavigateToOverview={() => setActiveTab('overview')}>
             <PowerTuningView />
           </ModuleErrorBoundary>
         )}
 
         {activeTab === 'lighting' && (
-          <ModuleErrorBoundary moduleName="RGB 灯效工坊" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName="Мастерская RGB" onNavigateToOverview={() => setActiveTab('overview')}>
             <LightingStudio supportFlags={status.support_flags} />
           </ModuleErrorBoundary>
         )}
 
         {activeTab === 'water' && isWaterCoolerEnabled && (
-          <ModuleErrorBoundary moduleName="水冷魔盒 (BLE)" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName="Блок СЖО (BLE)" onNavigateToOverview={() => setActiveTab('overview')}>
             <WaterCoolerView
               status={status}
               onConnectionChange={setIsCoolerConnected}
@@ -690,7 +690,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'system' && (
-          <ModuleErrorBoundary moduleName="系统设置" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName="Системные настройки" onNavigateToOverview={() => setActiveTab('overview')}>
             <SystemSettingsView
               status={status}
               osdConfig={osdConfig}
@@ -708,7 +708,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'plugins' && (
-          <ModuleErrorBoundary moduleName="插件管理" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName="Управление плагинами" onNavigateToOverview={() => setActiveTab('overview')}>
             <PluginsView
               status={status}
               moduleToggles={moduleToggles}
@@ -729,7 +729,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'sponsor' && (
-          <ModuleErrorBoundary moduleName="支持作者" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName="Поддержать автора" onNavigateToOverview={() => setActiveTab('overview')}>
             <SponsorView />
           </ModuleErrorBoundary>
         )}
@@ -737,7 +737,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         {/* 第三方 Tab 插件渲染沙盒 */}
         {tabPlugins.some((p) => p.id === activeTab) && (
           <ModuleErrorBoundary
-            moduleName={tabPlugins.find((p) => p.id === activeTab)?.name || '扩展模块'}
+            moduleName={tabPlugins.find((p) => p.id === activeTab)?.name || 'Модули расширений'}
             onNavigateToOverview={() => setActiveTab('overview')}
           >
             <PluginTabHost
@@ -772,10 +772,10 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
               <div className="sys-modal-icon-badge">
                 <Shield size={24} />
               </div>
-              <div className="sys-modal-title">官方控制中心正在运行</div>
+              <div className="sys-modal-title">Официальный центр управления запущен</div>
             </div>
             <div className="sys-modal-body">
-              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>屏幕持续闪烁</strong>，当前处于<strong>安全只读避让模式</strong>。
+              Обнаружен работающий официальный игровой фон MECHREVO. Чтобы не конфликтовать за EC-регистры платы и не вызвать<strong>Постоянное мерцание экрана</strong>, сейчас находится в<strong>Безопасный режим «только чтение» с уклонением</strong>.
             </div>
             <div className="sys-modal-actions">
               <button
@@ -784,13 +784,13 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
                 className="toggle-btn btn-warning-solid"
               >
                 {isSwitchingService ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
-                <span>{isSwitchingService ? '正在接管服务并释放硬件...' : '立即一键接管官方服务'}</span>
+                <span>{isSwitchingService ? 'Перехват службы и освобождение оборудования...' : 'Немедленно перехватить официальную службу одним нажатием'}</span>
               </button>
               <button
                 onClick={() => setShowOemModal(false)}
                 className="toggle-btn"
               >
-                暂不接管，保持只读监控
+                Пока не перехватывать: оставить мониторинг «только чтение»
               </button>
             </div>
           </div>

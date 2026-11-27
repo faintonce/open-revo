@@ -593,7 +593,7 @@ fn detect_initial_gpu() -> (String, u64, u16, u16) {
     // 1. Fallback: Query nvidia-smi with strict timeout to prevent any boot hang
     // CRITICAL: On non-NVIDIA / pure iGPU laptops (e.g. Wujie/Code), completely bypass nvidia-smi!
     if !is_nvidia_dgpu_available() {
-        return ("集成显卡/核显".to_string(), 4096, 0, 0);
+        return ("Встроенное в CPU iGPU".to_string(), 4096, 0, 0);
     }
 
     let (tx, rx) = std::sync::mpsc::channel();
@@ -622,7 +622,7 @@ fn detect_initial_gpu() -> (String, u64, u16, u16) {
         }
     }
 
-    ("集成显卡/核显".to_string(), 4096, 0, 0)
+    ("Встроенное в CPU iGPU".to_string(), 4096, 0, 0)
 }
 
 static CACHED_GPU_NAME: parking_lot::RwLock<Option<String>> = parking_lot::RwLock::new(None);
@@ -636,7 +636,7 @@ pub fn get_gpu_name_cached() -> String {
         *CACHED_GPU_NAME.write() = Some(name.clone());
         return name;
     }
-    "集成显卡/核显".to_string()
+    "Встроенное в CPU iGPU".to_string()
 }
 
 impl GpuBridge {
@@ -658,11 +658,11 @@ impl GpuBridge {
         let initial_name = {
             #[cfg(windows)]
             {
-                detect_gpu_from_registry().map(|(name, _)| name).unwrap_or_else(|| "高性能独立显卡".to_string())
+                detect_gpu_from_registry().map(|(name, _)| name).unwrap_or_else(|| "Производительная дискретная графика".to_string())
             }
             #[cfg(not(windows))]
             {
-                "高性能独立显卡".to_string()
+                "Производительная дискретная графика".to_string()
             }
         };
 
@@ -1182,7 +1182,7 @@ pub fn extract_gpu_generation(gpu_name: &str) -> u32 {
 pub fn probe_gpu_tuning_capabilities() -> GpuTuningCapabilities {
     let gpu = get_global_gpu();
     let mut gpu_name = gpu.lock().get_name(0);
-    if gpu_name == "高性能独立显卡" || gpu_name == "集成显卡/核显" || gpu_name.is_empty() {
+    if gpu_name == "Производительная дискретная графика" || gpu_name == "Встроенное в CPU iGPU" || gpu_name.is_empty() {
         #[cfg(windows)]
         if let Some((reg_name, _)) = detect_gpu_from_registry() {
             gpu_name = reg_name;

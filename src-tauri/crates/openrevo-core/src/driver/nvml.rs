@@ -130,7 +130,7 @@ struct NvmlApi {
 unsafe fn resolve<T: Copy>(lib: &libloading::Library, name: &[u8]) -> Result<T, String> {
     let sym: libloading::Symbol<'_, T> = lib.get(name).map_err(|e| {
         let printable = String::from_utf8_lossy(&name[..name.len().saturating_sub(1)]).to_string();
-        format!("缺少符号 {printable}: {e}")
+        format!("Отсутствует символ {printable}: {e}")
     })?;
     Ok(*sym)
 }
@@ -153,7 +153,7 @@ impl NvmlContext {
     /// 任一环节失败都返回 `Err(String)`（含可读原因），调用方应回退到 `nvidia-smi`。
     pub fn open() -> Result<Self, String> {
         let lib = unsafe { libloading::Library::new("nvml.dll") }
-            .map_err(|e| format!("加载 nvml.dll 失败: {e}"))?;
+            .map_err(|e| format!("Не удалось загрузить nvml.dll: {e}"))?;
 
         // 集中解析符号：缺任何一个都视为驱动过旧，整体回退
         unsafe {
@@ -184,7 +184,7 @@ impl NvmlContext {
 
             let rc = (api.init_v2)();
             if rc != NVML_SUCCESS {
-                return Err(format!("nvmlInit_v2 返回错误码 {rc}"));
+                return Err(format!("nvmlInit_v2 вернул код ошибки {rc}"));
             }
 
             let mut device: *mut c_void = std::ptr::null_mut();
@@ -192,7 +192,7 @@ impl NvmlContext {
             if rc != NVML_SUCCESS || device.is_null() {
                 // 初始化成功但拿不到设备：必须回滚，否则引用计数不会归零
                 let _ = (api.shutdown)();
-                return Err(format!("nvmlDeviceGetHandleByIndex_v2 返回错误码 {rc}"));
+                return Err(format!("nvmlDeviceGetHandleByIndex_v2 вернул код ошибки {rc}"));
             }
 
             Ok(Self { api, device })

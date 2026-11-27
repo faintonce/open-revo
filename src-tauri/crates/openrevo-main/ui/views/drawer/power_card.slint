@@ -38,14 +38,14 @@ export component DrawerPowerCard inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "性能模式:";
+                    text: "Режим производительности:";
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
                 }
                 Text {
-                    text: power_mode == 1 ? "办公模式" : (power_mode == 2 ? "均衡模式" : (power_mode == 3 ? "狂暴模式" : "极客自定义调校"));
+                    text: power_mode == 1 ? "Офисный режим" : (power_mode == 2 ? "Режим Баланса" : (power_mode == 3 ? "Режим Турбо" : "Экспертная пользовательская настройка"));
                     font-size: 11px;
                     font-weight: 700;
                     color: power_mode == 1 ? #10b981 : (power_mode == 2 ? #3b82f6 : (power_mode == 3 ? #f43f5e : #38bdf8));
@@ -92,7 +92,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "办公";
+                        text: "Офис";
                         font-size: 10.5px;
                         font-weight: power_mode == 1 ? 700 : 500;
                         color: power_mode == 1 ? #10b981 : AppTheme.text_primary;
@@ -127,7 +127,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "均衡";
+                        text: "Баланс";
                         font-size: 10.5px;
                         font-weight: power_mode == 2 ? 700 : 500;
                         color: power_mode == 2 ? #3b82f6 : AppTheme.text_primary;
@@ -187,14 +187,14 @@ export component DrawerPowerCard inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "静音狂暴";
+                                text: "Тихий Турбо";
                                 font-size: 9.5px;
                                 font-weight: (power_mode == 3 && root.turbo_silent) ? 700 : 500;
                                 color: is_restricted ? AppTheme.text_muted : AppTheme.text_primary;
                                 horizontal-alignment: center;
                             }
                             Text {
-                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && root.turbo_silent) ? "● 当前" : "静音");
+                                text: is_restricted ? "Нужен круглый разъём DC" : ((power_mode == 3 && root.turbo_silent) ? "● Сейчас" : "Тихий");
                                 font-size: 8px;
                                 color: is_restricted ? #f59e0b : ((power_mode == 3 && root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
                                 horizontal-alignment: center;
@@ -262,14 +262,14 @@ export component DrawerPowerCard inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "高能狂暴";
+                                text: "Мощный Турбо";
                                 font-size: 9.5px;
                                 font-weight: (power_mode == 3 && !root.turbo_silent) ? 700 : 500;
                                 color: is_restricted ? AppTheme.text_muted : AppTheme.text_primary;
                                 horizontal-alignment: center;
                             }
                             Text {
-                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && !root.turbo_silent) ? "● 当前" : "高能");
+                                text: is_restricted ? "Нужен круглый разъём DC" : ((power_mode == 3 && !root.turbo_silent) ? "● Сейчас" : "Мощный");
                                 font-size: 8px;
                                 color: is_restricted ? #f59e0b : ((power_mode == 3 && !root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
                                 horizontal-alignment: center;
@@ -335,7 +335,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : "狂暴";
+                        text: is_restricted ? "Нужен круглый разъём DC" : "Турбо";
                         font-size: 10.5px;
                         font-weight: power_mode == 3 ? 700 : 500;
                         color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
@@ -401,7 +401,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : "极客调校";
+                        text: is_restricted ? "Нужен круглый разъём DC" : "Экспертная настройка";
                         font-size: 10.5px;
                         font-weight: power_mode == 4 ? 700 : 500;
                         color: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #38bdf8 : AppTheme.text_primary);

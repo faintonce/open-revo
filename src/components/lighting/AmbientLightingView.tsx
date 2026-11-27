@@ -24,10 +24,10 @@ export const AmbientLightingView: React.FC<AmbientLightingViewProps> = ({
   return (
     <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <LightHeaderBanner
-        title="机身尾部氛围灯 (Rear Vent & Hinge Ambient Light)"
-        badgeText={kbHwInfo?.has_ite7000 ? 'ITE Hinge 控制器 (048D:7000)' : '转轴氛围流光硬件'}
+        title="Фоновая подсветка задней части корпуса (Rear Vent & Hinge Ambient Light)"
+        badgeText={kbHwInfo?.has_ite7000 ? 'Контроллер ITE Hinge (048D:7000)' : 'Аппаратура переливающейся подсветки петель'}
         badgeVariant="info"
-        description="机身尾部双出风口与转轴氛围流光灯，支持双模波浪、律动呼吸与极速流星"
+        description="Фоновые световые полосы на двойных задних вентиляционных решётках и петлях; двухрежимные волны, ритмичное дыхание и быстрые метеоры"
         enabled={lighting.hinge_enabled}
         onToggle={() => sendHinge({ hinge_enabled: !lighting.hinge_enabled })}
         disabled={!isHingeSupported}
@@ -36,7 +36,7 @@ export const AmbientLightingView: React.FC<AmbientLightingViewProps> = ({
 
       <div>
         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-          氛围灯效模式 (Ambient Modes)
+          Режимы фоновой подсветки (Ambient Modes)
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
           {LIGHTBAR_MODES.map((m) => {
@@ -76,10 +76,10 @@ export const AmbientLightingView: React.FC<AmbientLightingViewProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} />
-              氛围灯亮度
+              Яркость фоновой подсветки
             </span>
             <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>
-              {lighting.hinge_brightness === 0 ? '关闭 (0)' : `${lighting.hinge_brightness} 档`}
+              {lighting.hinge_brightness === 0 ? 'Выключено (0)' : `${lighting.hinge_brightness} ступ.`}
             </span>
           </div>
           <input
@@ -97,9 +97,9 @@ export const AmbientLightingView: React.FC<AmbientLightingViewProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <Zap className="w-3.5 h-3.5" style={{ color: 'var(--status-info)' }} />
-              流动速度
+              Скорость движения
             </span>
-            <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>{lighting.hinge_speed + 1} 档</span>
+            <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>{lighting.hinge_speed + 1} ступ.</span>
           </div>
           <input
             type="range"
@@ -114,7 +114,7 @@ export const AmbientLightingView: React.FC<AmbientLightingViewProps> = ({
       </div>
 
       <LightColorRow
-        label="氛围灯主色："
+        label="Основной цвет фоновой подсветки:"
         color={lighting.hinge_color}
         onChangeColor={(hex) => sendHinge({ hinge_color: hex })}
         iconColor="var(--status-info)"

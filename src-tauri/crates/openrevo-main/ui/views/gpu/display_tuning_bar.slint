@@ -2,7 +2,7 @@ import { AppTheme } from "../../theme.slint";
 
 export component DisplayTuningBar inherits Rectangle {
     in-out property <bool> tuning_enabled: false;
-    in-out property <string> active_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <string> active_preset_name: "Многоцветная яркость (Vibrant)";
 
     callback toggle_tuning(bool);
     callback open_modal();
@@ -45,13 +45,13 @@ export component DisplayTuningBar inherits Rectangle {
                 alignment: center;
                 spacing: 1px;
                 Text {
-                    text: "屏幕色彩增强 (Display Tuning)";
+                    text: "Улучшение цвета экрана (Display Tuning)";
                     font-size: 12px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: root.tuning_enabled ? ("当前方案: " + root.active_preset_name) : "当前状态: 已关闭 (原厂直出)";
+                    text: root.tuning_enabled ? ("Текущая схема: " + root.active_preset_name) : "Текущее состояние: выключено (прямой заводской вывод)";
                     font-size: 9.5px;
                     color: AppTheme.text_muted;
                 }
@@ -87,7 +87,7 @@ export component DisplayTuningBar inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "调色控制";
+                            text: "Управление цветом";
                             font-size: 10.5px;
                             font-weight: 700;
                             color: #f472b6;

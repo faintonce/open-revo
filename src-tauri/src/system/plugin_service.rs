@@ -151,7 +151,7 @@ pub fn get_service_status(plugin_id: &str) -> PluginServiceStatus {
             pid: None,
             port: svc.port,
             code: Some("STOPPED".to_string()),
-            message: Some("服务未运行".to_string()),
+            message: Some("Служба не запущена".to_string()),
             detail: None,
         }
     }
@@ -197,7 +197,7 @@ pub fn start_service(plugin_id: &str) -> Result<PluginServiceStatus, String> {
                 port: svc.port,
                 code: Some("BINARY_NOT_FOUND".to_string()),
                 message: Some(format!("未找到服务执行程序: {}", svc.executable)),
-                detail: Some(format!("完整搜索路径: {:?}", exe_path)),
+                detail: Some(format!("Полный путь поиска: {:?}", exe_path)),
             });
         }
     };
@@ -210,7 +210,7 @@ pub fn start_service(plugin_id: &str) -> Result<PluginServiceStatus, String> {
             pid: None,
             port: svc.port,
             code: Some("PATH_SECURITY_VIOLATION".to_string()),
-            message: Some("安全拦截：伴随服务执行程序必须位于插件根目录树内部".to_string()),
+            message: Some("Безопасная блокировка: исполняемый файл сопутствующего сервиса должен находиться внутри дерева каталога плагина".to_string()),
             detail: Some(format!("目标: {:?}, 限制目录: {:?}", canon_exe, canon_dir)),
         });
     }
@@ -246,7 +246,7 @@ pub fn start_service(plugin_id: &str) -> Result<PluginServiceStatus, String> {
             } else if e.kind() == std::io::ErrorKind::PermissionDenied {
                 ("PERMISSION_DENIED", "执行权限被系统拒绝（可能被杀毒软件拦截）".to_string())
             } else {
-                ("SPAWN_FAILED", format!("启动进程失败: {}", e))
+                ("SPAWN_FAILED", format!("Не удалось запустить процесс: {}", e))
             };
 
             return Ok(PluginServiceStatus {
@@ -290,7 +290,7 @@ pub fn start_service(plugin_id: &str) -> Result<PluginServiceStatus, String> {
         pid: Some(pid),
         port: svc.port,
         code: Some("OK".to_string()),
-        message: Some("伴随服务启动成功".to_string()),
+        message: Some("Сопутствующий сервис запущен".to_string()),
         detail: None,
     })
 }
@@ -324,7 +324,7 @@ pub fn stop_service(plugin_id: &str) -> Result<PluginServiceStatus, String> {
         pid: None,
         port,
         code: Some("STOPPED".to_string()),
-        message: Some("伴随服务已停止".to_string()),
+        message: Some("Сопутствующий сервис остановлен".to_string()),
         detail: None,
     })
 }

@@ -116,7 +116,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
       await invoke('apply_display_color_preset', { preset });
       await loadState();
       if (onUpdated) onUpdated();
-      showToast(`已切换至方案：${preset.name}`);
+      showToast(`Переключено на схему:${preset.name}`);
     } catch (e) {
       console.error('Failed to select preset:', e);
     }
@@ -150,7 +150,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
       setSelectedPresetId(res.active_preset_id || selectedPresetId);
       if (onUpdated) onUpdated();
       showToast(
-        `已撤销更改，恢复【${res.active_preset.name}】官方默认参数`
+        `Изменения отменены, восстановлены «${res.active_preset.name}» заводские параметры по умолчанию`
       );
     } catch (e) {
       console.error('Failed to reset preset:', e);
@@ -177,9 +177,9 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
         await loadState();
         setActivePreset(imported);
         if (onUpdated) onUpdated();
-        showToast(`成功加载配色文件：${imported.name}`);
+        showToast(`Файл палитры загружен: ${imported.name}`);
       } catch (err: any) {
-        alert(`加载 .json 配色文件失败: ${err}`);
+        alert(`Не удалось загрузить файл палитры .json: ${err}`);
       }
     };
     reader.readAsText(file);
@@ -198,7 +198,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('已导出配色文件至下载');
+    showToast('Файл палитры экспортирован в «Загрузки»');
   };
 
   const showToast = (msg: string) => {
@@ -274,7 +274,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
           </div>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>屏幕色彩增强引擎</span>
+              <span>Движок улучшения цвета экрана</span>
               <span
                 style={{
                   fontSize: '10px',
@@ -286,11 +286,11 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                   border: `1px solid ${state.enabled ? 'rgba(16, 185, 129, 0.4)' : 'rgba(148, 163, 184, 0.3)'}`,
                 }}
               >
-                {state.enabled ? 'GPU 硬件生效中' : '调色已暂停'}
+                {state.enabled ? 'Применяется на уровне GPU' : 'Настройка цвета приостановлена'}
               </span>
             </div>
             <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-              GPU 硬件级 LUT 查找表与全屏 DWM 渲染管线实时色彩重构
+              Аппаратная LUT-таблица GPU и реконструкция цвета в реальном времени в полноэкранном конвейере рендеринга DWM
             </div>
           </div>
         </div>
@@ -325,7 +325,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
               justifyContent: 'center',
               transition: 'all 0.2s',
             }}
-            title="关闭浮层 (ESC)"
+            title="Закрыть слой (Esc)"
           >
             <X size={18} />
           </button>
@@ -361,7 +361,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
             }}
           >
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1' }}>
-              色彩预设方案
+              Пресеты палитр
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {/* Load .json Button */}
@@ -381,10 +381,10 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                   cursor: 'pointer',
                   fontWeight: 600,
                 }}
-                title="导入任意本地 .json 配色方案文件 (自动兼容官方出厂配置)"
+                title="Импорт любого локального файла цветовой схемы .json (автоматически совместим с заводскими настройками)"
               >
                 <FolderOpen size={13} />
-                <span>加载 .json 文件</span>
+                <span>Загрузить файл .json</span>
               </button>
 
               {/* Export Button */}
@@ -403,10 +403,10 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                   color: '#e2e8f0',
                   cursor: 'pointer',
                 }}
-                title="将当前调好的色彩参数导出为 .json 文件"
+                title="Экспортировать текущие настройки цвета в файл .json"
               >
                 <Download size={13} />
-                <span>导出当前 .json</span>
+                <span>Экспортировать текущий .json</span>
               </button>
 
               {/* Undo Changes Button */}
@@ -429,10 +429,10 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                   fontWeight: 600,
                   transition: 'all 0.2s ease',
                 }}
-                title={isModified ? "撤销对当前方案的滑块微调，恢复初始参数" : "当前方案未做任何修改"}
+                title={isModified ? "Отменить тонкую настройку слайдеров текущей схемы и вернуть исходные параметры" : "Текущая схема не изменялась"}
               >
                 <RotateCcw size={12} />
-                <span>撤销更改</span>
+                <span>Отменить изменения</span>
               </button>
             </div>
           </div>
@@ -502,9 +502,9 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                           marginLeft: '4px',
                           whiteSpace: 'nowrap',
                         }}
-                        title="当前方案参数已微调，点击右上角【撤销更改】可一键恢复官方初始参数"
+                        title="Параметры текущей схемы тонко настроены; кнопка «Отменить изменения» вверху справа возвращает исходные заводские значения одним нажатием"
                       >
-                        微调
+                        Тонко
                       </span>
                     ) : (
                       <Check size={12} className="text-pink-400" style={{ flexShrink: 0, marginLeft: '4px' }} />
@@ -529,17 +529,17 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
           }}
         >
           <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '2px' }}>
-            实时显卡硬件微调 (所见即所得，毫秒级生效)
+            Аппаратная тонкая настройка GPU в реальном времени (WYSIWYG, эффект за миллисекунды)
           </div>
 
           {/* Slider 1: Color Temp */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
-              <span style={{ color: '#94a3b8' }}>色温 (Color Temperature)</span>
+              <span style={{ color: '#94a3b8' }}>Цветовая температура (Color Temperature)</span>
               <span style={{ fontWeight: 700, color: '#f59e0b' }}>{activePreset.color_temp_k}K</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#64748b' }}>4000K 暖黄</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>4000K тёплый жёлтый</span>
               <input
                 type="range"
                 min={4000}
@@ -549,20 +549,20 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 onChange={(e) => handleSliderChange('color_temp_k', Number(e.target.value))}
                 style={{ flex: 1, accentColor: '#f59e0b', cursor: 'pointer', height: '6px' }}
               />
-              <span style={{ fontSize: '10px', color: '#64748b' }}>9000K 冷蓝</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>9000K холодный синий</span>
             </div>
           </div>
 
           {/* Slider 2: Saturation / Vibrance */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
-              <span style={{ color: '#94a3b8' }}>色彩鲜艳度 / 饱和度 (Vibrance)</span>
+              <span style={{ color: '#94a3b8' }}>Насыщенность цвета (Vibrance)</span>
               <span style={{ fontWeight: 700, color: '#ec4899' }}>
                 {Math.round(activePreset.saturation * 100)}%
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#64748b' }}>0% 黑白</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>0% чёрно-белый</span>
               <input
                 type="range"
                 min={0}
@@ -572,20 +572,20 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 onChange={(e) => handleSliderChange('saturation', Number(e.target.value))}
                 style={{ flex: 1, accentColor: '#ec4899', cursor: 'pointer', height: '6px' }}
               />
-              <span style={{ fontSize: '10px', color: '#64748b' }}>200% 浓艳</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>200% насыщенность</span>
             </div>
           </div>
 
           {/* Slider 3: Contrast */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
-              <span style={{ color: '#94a3b8' }}>对比度 (Contrast)</span>
+              <span style={{ color: '#94a3b8' }}>Контрастность (Contrast)</span>
               <span style={{ fontWeight: 700, color: '#38bdf8' }}>
                 {Math.round(activePreset.contrast * 100)}%
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#64748b' }}>50% 柔和</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>50% мягкая</span>
               <input
                 type="range"
                 min={0.5}
@@ -595,20 +595,20 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 onChange={(e) => handleSliderChange('contrast', Number(e.target.value))}
                 style={{ flex: 1, accentColor: '#38bdf8', cursor: 'pointer', height: '6px' }}
               />
-              <span style={{ fontSize: '10px', color: '#64748b' }}>150% 鲜明</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>150% насыщенность</span>
             </div>
           </div>
 
           {/* Slider 4: Gamma */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
-              <span style={{ color: '#94a3b8' }}>伽马曲线 (Gamma)</span>
+              <span style={{ color: '#94a3b8' }}>Гамма-кривая (Gamma)</span>
               <span style={{ fontWeight: 700, color: '#a855f7' }}>
                 {activePreset.gamma.toFixed(2)}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#64748b' }}>0.7 暗部深沉</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>0.7 — глубокие тени</span>
               <input
                 type="range"
                 min={0.7}
@@ -618,7 +618,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 onChange={(e) => handleSliderChange('gamma', Number(e.target.value))}
                 style={{ flex: 1, accentColor: '#a855f7', cursor: 'pointer', height: '6px' }}
               />
-              <span style={{ fontSize: '10px', color: '#64748b' }}>1.3 暗部通透</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>1.3 — прозрачные тени</span>
             </div>
           </div>
 
@@ -638,7 +638,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 padding: '4px 0',
               }}
             >
-              <span>{showRgbChannels ? '收起' : '展开'} RGB 独立原色增益微调</span>
+              <span>{showRgbChannels ? 'Свернуть' : 'Развернуть'} Тонкая настройка усиления основных цветов RGB</span>
               {showRgbChannels ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
 
@@ -646,7 +646,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                 {/* R Gain */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ width: '50px', fontSize: '11px', color: '#f87171' }}>红 (R): {Math.round(activePreset.gain_r * 100)}%</span>
+                  <span style={{ width: '50px', fontSize: '11px', color: '#f87171' }}>Красный (R): {Math.round(activePreset.gain_r * 100)}%</span>
                   <input
                     type="range"
                     min={0.5}
@@ -659,7 +659,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 </div>
                 {/* G Gain */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ width: '50px', fontSize: '11px', color: '#4ade80' }}>绿 (G): {Math.round(activePreset.gain_g * 100)}%</span>
+                  <span style={{ width: '50px', fontSize: '11px', color: '#4ade80' }}>Зелёный (G): {Math.round(activePreset.gain_g * 100)}%</span>
                   <input
                     type="range"
                     min={0.5}
@@ -672,7 +672,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 </div>
                 {/* B Gain */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ width: '50px', fontSize: '11px', color: '#60a5fa' }}>蓝 (B): {Math.round(activePreset.gain_b * 100)}%</span>
+                  <span style={{ width: '50px', fontSize: '11px', color: '#60a5fa' }}>Синий (B): {Math.round(activePreset.gain_b * 100)}%</span>
                   <input
                     type="range"
                     min={0.5}

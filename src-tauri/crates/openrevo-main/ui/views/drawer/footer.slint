@@ -52,7 +52,7 @@ export component DrawerFooter inherits Rectangle {
                     }
 
                     Text {
-                        text: "开机自启";
+                        text: "Автозапуск при включении";
                         font-size: 10.5px;
                         font-weight: autostart ? 600 : 400;
                         color: autostart ? AppTheme.text_primary : AppTheme.text_muted;
@@ -86,7 +86,7 @@ export component DrawerFooter inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: root.oem_running ? "接管官方控制台" : "恢复官方控制台";
+                        text: root.oem_running ? "Перехватить официальную консоль" : "Вернуть официальную консоль";
                         font-size: 10px;
                         font-weight: 600;
                         color: root.oem_running ? #fbbf24 : AppTheme.text_secondary;
@@ -121,7 +121,7 @@ export component DrawerFooter inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "展开大面板";
+                    text: "Развернуть большую панель";
                     font-size: 10.5px;
                     font-weight: 600;
                     color: AppTheme.text_primary;

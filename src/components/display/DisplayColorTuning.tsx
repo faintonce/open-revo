@@ -50,12 +50,12 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
         </div>
         <div>
           <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            屏幕色彩增强 (Display Tuning)
+            Улучшение цвета экрана (Display Tuning)
           </div>
           <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
             {enabled
-              ? `当前方案：${tuningState!.active_preset.name}`
-              : '当前状态：已关闭 (原厂直出)'}
+              ? `Текущая схема:${tuningState!.active_preset.name}`
+              : 'Текущее состояние: выключено (прямой заводской вывод)'}
           </div>
         </div>
       </div>
@@ -72,10 +72,10 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
               color: '#f472b6',
               boxShadow: '0 0 10px rgba(236, 72, 153, 0.25)',
             }}
-            title="打开全屏沉浸式调色控制面板"
+            title="Открыть полноэкранную иммерсивную панель настройки цвета"
           >
             <Sliders size={13} />
-            <span>调色控制</span>
+            <span>Управление цветом</span>
           </button>
         )}
 
@@ -97,7 +97,7 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
             boxShadow: enabled ? '0 0 10px rgba(236, 72, 153, 0.5)' : 'none',
             flexShrink: 0,
           }}
-          title={enabled ? '点击关闭色彩增强' : '点击开启色彩增强'}
+          title={enabled ? 'Нажмите, чтобы выключить улучшение цвета' : 'Нажмите, чтобы включить улучшение цвета'}
         >
           <div
             style={{

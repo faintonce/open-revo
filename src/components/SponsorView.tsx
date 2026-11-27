@@ -86,7 +86,7 @@ export const SponsorView: React.FC = () => {
               <Heart size={16} color="#ff3366" fill="#ff3366" style={{ filter: 'drop-shadow(0 0 6px rgba(255, 51, 102, 0.7))' }} />
             </div>
             <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#fff', letterSpacing: '0.02em' }}>
-              支持 OpenRevo 持续开源
+              Поддержать непрерывную открытость OpenRevo
             </h2>
             <span
               style={{
@@ -99,12 +99,11 @@ export const SponsorView: React.FC = () => {
                 border: '1px solid rgba(244, 63, 94, 0.4)',
               }}
             >
-              永久免费 · 无广告 · 纯净逆向
+              Бесплатно навсегда · без рекламы · чистый реверс-инжиниринг
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, maxWidth: '620px', lineHeight: 1.5 }}>
-            OpenRevo 历经数百小时底层逆向、WMI 通信破解与出厂 EC 深度对齐，打造纯净秒开的机械革命全功能控制台。
-            软件不设任何付费门槛与收费功能，如果它切实改善了您的电脑体验，欢迎自愿打赏请作者喝杯咖啡 <Coffee size={13} className="inline text-amber-400 align-text-bottom" /> 您的认可就是项目持续迭代的最佳动力！
+            OpenRevo создан после сотен часов низкоуровневого реверс-инжиниринга, анализа WMI и глубокой калибровки заводского EC — это чистый, мгновенно запускающийся полнофункциональный центр управления ноутбуками MECHREVO. В программе нет платных ограничений; если она реально улучшила работу вашего компьютера, автор будет рад добровольному донату «на чашку кофе» <Coffee size={13} className="inline text-amber-400 align-text-bottom" /> Ваше признание — лучшая мотивация для дальнейшего развития проекта!
           </p>
         </div>
 
@@ -136,7 +135,7 @@ export const SponsorView: React.FC = () => {
             }}
           >
             <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-            <span>GitHub Star 点赞</span>
+            <span>Поставить Star на GitHub</span>
             <ExternalLink className="w-3 h-3 text-rose-200" />
           </button>
           <button
@@ -158,7 +157,7 @@ export const SponsorView: React.FC = () => {
             }}
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? '已复制开源链接' : '复制 GitHub 链接'}</span>
+            <span>{copied ? 'Ссылка на открытый код скопирована' : 'Скопировать ссылку GitHub'}</span>
           </button>
         </div>
       </div>
@@ -178,8 +177,8 @@ export const SponsorView: React.FC = () => {
       >
         <ShieldAlert size={22} color="#ef4444" style={{ flexShrink: 0 }} />
         <div style={{ fontSize: '11px', color: '#fca5a5', lineHeight: 1.5 }}>
-          <strong style={{ color: '#fff', marginRight: '6px' }}>【反盗版与防倒卖郑重声明】</strong>
-          OpenRevo 为 100% 完全免费、公开透明的开源软件，从未授权任何第三方付费分发、加壳改名或二次倒卖。若您通过海鲜市场、贴吧等任何渠道付费购买，请立即向平台申请全额退款并举报不良商家！
+          <strong style={{ color: '#fff', marginRight: '6px' }}>«Серьёзное заявление против пиратства и перепродажи»</strong>
+          OpenRevo — 100% бесплатное и открытое ПО с исходным кодом. Платное распространение, переименование и перепродажа третьими лицами никогда не разрешались. Если вы купили программу через Avito, форумы или любые другие площадки — немедленно требуйте на платформе полный возврат средств и сообщайте о недобросовестном продавце!
         </div>
       </div>
 
@@ -219,10 +218,10 @@ export const SponsorView: React.FC = () => {
                 fontWeight: 900,
               }}
             >
-              微
+              W
             </div>
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#10b981', letterSpacing: '0.02em' }}>
-              微信支付 (WeChat Pay)
+              WeChat Pay
             </span>
           </div>
 
@@ -244,7 +243,7 @@ export const SponsorView: React.FC = () => {
           >
             <img
               src={wechatQr}
-              alt="微信收款码 - 鱼子饭"
+              alt="QR-код WeChat — YuziFan"
               style={{
                 width: '100%',
                 height: '100%',
@@ -258,10 +257,10 @@ export const SponsorView: React.FC = () => {
           {/* Account Label */}
           <div style={{ marginTop: '14px', textAlign: 'center' }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>
-              收款人：鱼子饭 (*昱)
+              Получатель: YuziFan (*Yu)
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              打开微信 [扫一扫] · 任意金额支持
+              Открыть WeChat [сканировать QR] · поддержка на любую сумму
             </div>
           </div>
         </div>
@@ -300,10 +299,10 @@ export const SponsorView: React.FC = () => {
                 fontWeight: 900,
               }}
             >
-              支
+              A
             </div>
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#60a5fa', letterSpacing: '0.02em' }}>
-              支付宝 (Alipay)
+              Alipay
             </span>
           </div>
 
@@ -325,7 +324,7 @@ export const SponsorView: React.FC = () => {
           >
             <img
               src={alipayQr}
-              alt="支付宝收款码 - 鱼子饭"
+              alt="QR-код Alipay — YuziFan"
               style={{
                 width: '100%',
                 height: '100%',
@@ -339,10 +338,10 @@ export const SponsorView: React.FC = () => {
           {/* Account Label */}
           <div style={{ marginTop: '14px', textAlign: 'center' }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>
-              收款人：鱼子饭 (*昱)
+              Получатель: YuziFan (*Yu)
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              打开支付宝 [扫一扫] · 任意金额支持
+              Открыть Alipay [сканировать QR] · поддержка на любую сумму
             </div>
           </div>
         </div>
@@ -362,7 +361,7 @@ export const SponsorView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Coffee className="w-4 h-4 text-amber-400" />
           <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-            <strong>打赏须知：</strong> 赞赏完全基于自愿原则，无论是否赞助均享有软件 100% 完整功能与终身免费更新，感谢每一位关注与支持机械革命开源生态的玩家！
+            <strong>О донате:</strong> Поддержка автора — полностью добровольная: независимо от доната доступны 100% функций и бесплатные обновления навсегда. Спасибо каждому игроку, кто поддерживает открытую экосистему MECHREVO!
           </div>
         </div>
       </div>

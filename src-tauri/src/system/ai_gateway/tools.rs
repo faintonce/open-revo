@@ -170,7 +170,7 @@ pub fn execute_hardware_tool(name: &str, args: &serde_json::Value) -> Result<ser
                 2 => "均衡模式 (Balance / 日常平衡)",
                 3 => "狂暴模式 (Turbo / 极速性能释放)",
                 4 => "自定义模式 (Custom)",
-                _ => "未知模式"
+                _ => "Неизвестный режим"
             };
 
             crate::system::broadcast::broadcast_all("physical-mode-switched", &json!(mode));
@@ -189,7 +189,7 @@ pub fn execute_hardware_tool(name: &str, args: &serde_json::Value) -> Result<ser
                 .ok_or_else(|| "参数 'hz' 缺失".to_string())?;
 
             crate::system::display::set_refresh_rate(hz)
-                .map_err(|e| format!("切换显示器刷新率失败: {}", e))?;
+                .map_err(|e| format!("Не удалось сменить частоту обновления монитора: {}", e))?;
 
             Ok(json!({
                 "success": true,
@@ -238,17 +238,17 @@ pub fn execute_hardware_tool(name: &str, args: &serde_json::Value) -> Result<ser
                 "mic" | "microphone" => "microphone",
                 "touchpad" => "touchpad",
                 "winlock" | "win_lock" => "winlock",
-                _ => return Err(format!("不支持的设备开关: {}", device))
+                _ => return Err(format!("Неподдерживаемый переключатель устройства: {}", device))
             };
 
             crate::system::switches::set_switch(switch_key, enabled)
-                .map_err(|e| format!("切换设备开关失败: {}", e))?;
+                .map_err(|e| format!("Не удалось переключить выключатель устройства: {}", e))?;
 
             Ok(json!({
                 "success": true,
                 "device": device,
                 "enabled": enabled,
-                "message": format!("已成功{}设备 {}", if enabled { "开启" } else { "关闭" }, device)
+                "message": format!("Успешно {} устройство {}", if enabled { "Включить" } else { "Выключить" }, device)
             }))
         }
         _ => Err(format!("未识别的硬件工具指令: '{}'", name))

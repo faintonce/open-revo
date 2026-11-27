@@ -459,13 +459,13 @@ fn format_friendly_screen_name(
         if !brand.is_empty() {
             format!("{} [{}]", brand, res_str)
         } else {
-            format!("内置屏 [{}]", res_str)
+            format!("Встроенный экран [{}]", res_str)
         }
     } else {
         if !brand.is_empty() {
             format!("{} [{}]", brand, res_str)
         } else {
-            format!("外接显示器 [{}]", res_str)
+            format!("Внешний монитор [{}]", res_str)
         }
     }
 }

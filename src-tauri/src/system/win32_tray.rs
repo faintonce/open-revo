@@ -57,7 +57,7 @@ fn to_wide(s: &str) -> Vec<u16> {
 }
 
 fn build_notify_icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
-    let tip = to_wide("OpenRevo 控制中枢");
+    let tip = to_wide("OpenRevo — центр управления");
     let mut tip_arr = [0u16; 128];
     let copy_len = tip.len().min(127);
     tip_arr[..copy_len].copy_from_slice(&tip[..copy_len]);
@@ -182,9 +182,9 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     };
 
     // 1. Presentation Modes
-    let full_w = to_wide("🖥️ 完整面板");
-    let mini_w = to_wide("🪟 迷你抽屉");
-    let screen_off_w = to_wide("🌙 关闭屏幕 (3秒防误触)");
+    let full_w = to_wide("🖥️ Полная панель");
+    let mini_w = to_wide("🪟 Мини-панель");
+    let screen_off_w = to_wide("🌙 Выключить экран (3 с защиты)");
 
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_FULL_PANEL, PCWSTR(full_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_MINI_DRAWER, PCWSTR(mini_w.as_ptr()));
@@ -198,10 +198,10 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     }
 
     // 2. Power Modes
-    let office_w = to_wide("办公模式 (Office)");
-    let balance_w = to_wide("均衡模式 (Balance)");
-    let beast_w = to_wide("狂暴模式 (Beast)");
-    let custom_w = to_wide("极客调校 (Custom)");
+    let office_w = to_wide("Офисный режим (Office)");
+    let balance_w = to_wide("Режим Баланса (Balance)");
+    let beast_w = to_wide("Режим Турбо (Beast)");
+    let custom_w = to_wide("Экспертная настройка (Custom)");
 
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_OFFICE, PCWSTR(office_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_BALANCE, PCWSTR(balance_w.as_ptr()));
@@ -225,8 +225,8 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     );
 
     // 3. Hardware Controls
-    let fan_w = to_wide("一键强冷 (Fan Boost)");
-    let oem_w = to_wide("🔄 接管/恢复 官方后台服务");
+    let fan_w = to_wide("Экстренное охлаждение (Fan Boost)");
+    let oem_w = to_wide("🔄 Перехват/возврат официальной службы");
 
     let _ = AppendMenuW(hmenu, MF_STRING, ID_TOGGLE_FAN, PCWSTR(fan_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_TAKEOVER_TOGGLE, PCWSTR(oem_w.as_ptr()));
@@ -239,7 +239,7 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     // 4. Meta & Quit
     let version_str = format!("🛡️ PRO v{}", env!("CARGO_PKG_VERSION"));
     let version_w = to_wide(&version_str);
-    let quit_w = to_wide("退出 OpenRevo");
+    let quit_w = to_wide("Выход из OpenRevo");
 
     let _ = AppendMenuW(hmenu, MF_STRING | MF_GRAYED, ID_NOTICE, PCWSTR(version_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_QUIT, PCWSTR(quit_w.as_ptr()));

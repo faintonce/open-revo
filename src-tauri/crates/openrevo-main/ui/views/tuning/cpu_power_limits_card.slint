@@ -35,7 +35,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: root.is_amd ? "长时持续功耗 (SPL):" : "长时功耗 PL1:";
+                    text: root.is_amd ? "Длительное устойчивое потребление (SPL):" : "Длительное потребление PL1:";
                     font-size: 11px;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
@@ -137,7 +137,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 4px;
                     Text {
-                        text: "上限: " + root.pl1_max + "W";
+                        text: "Лимит: " + root.pl1_max + "W";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -204,7 +204,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: root.is_amd ? "短时爆发功耗 (sPPT):" : "短时功耗 PL2:";
+                    text: root.is_amd ? "Кратковременное пиковое потребление (sPPT):" : "Кратковременное потребление PL2:";
                     font-size: 11px;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
@@ -306,7 +306,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 4px;
                     Text {
-                        text: "上限: " + root.pl2_max + "W";
+                        text: "Лимит: " + root.pl2_max + "W";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;

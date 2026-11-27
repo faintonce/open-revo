@@ -26,14 +26,14 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
 }) => {
   const directions = isFourZone
     ? [
-        { id: 0, icon: ArrowRight, label: '从左至右' },
-        { id: 1, icon: ArrowLeft, label: '从右至左' },
+        { id: 0, icon: ArrowRight, label: 'Слева направо' },
+        { id: 1, icon: ArrowLeft, label: 'Справа налево' },
       ]
     : [
-        { id: 0, icon: ArrowRight, label: '从左至右' },
-        { id: 1, icon: ArrowLeft, label: '从右至左' },
-        { id: 2, icon: ArrowUp, label: '从下至上' },
-        { id: 3, icon: ArrowDown, label: '从上至下' },
+        { id: 0, icon: ArrowRight, label: 'Слева направо' },
+        { id: 1, icon: ArrowLeft, label: 'Справа налево' },
+        { id: 2, icon: ArrowUp, label: 'Снизу вверх' },
+        { id: 3, icon: ArrowDown, label: 'Сверху вниз' },
       ];
 
   return (
@@ -49,7 +49,7 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
       {!isSingleColor && !isSingleZone && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>运行流动方向：</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>Направление движения:</span>
             <div style={{ display: 'flex', gap: '4px' }}>
               {directions.map((d) => {
                 const Icon = d.icon;
@@ -89,16 +89,16 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} />
-              亮度等级
+              Уровень яркости
             </span>
             <span style={{ color: 'var(--color-brand)', fontWeight: 700 }}>
               {displayBrightness === 0
-                ? '关闭 (0)'
+                ? 'Выключено (0)'
                 : isSingleColor
                 ? displayBrightness === 1
-                  ? '弱光 (50%)'
-                  : '强光 (100%)'
-                : `${displayBrightness} 档`}
+                  ? 'Слабая (50%)'
+                  : 'Яркая (100%)'
+                : `${displayBrightness} ступ.`}
             </span>
           </div>
           <input
@@ -117,10 +117,10 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
                 <Zap className="w-3.5 h-3.5" style={{ color: 'var(--status-info)' }} />
-                流动速度
+                Скорость движения
               </span>
               <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>
-                {displaySpeed + 1} 档 ({displaySpeed === 4 ? '极速' : displaySpeed === 0 ? '平缓' : '适中'})
+                {displaySpeed + 1} ступ. ({displaySpeed === 4 ? 'Мгновенно' : displaySpeed === 0 ? 'Спокойно' : 'Средне'})
               </span>
             </div>
             <input

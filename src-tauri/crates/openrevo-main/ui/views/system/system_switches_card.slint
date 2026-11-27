@@ -34,9 +34,9 @@ export component SystemSwitchesCard inherits Rectangle {
 
     // 7. Windows Power Schemes
     in-out property <[PowerSchemeItem]> power_schemes: [
-        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+        { guid: "balanced", name: "Сбалансированный (Balanced)", is_active: true }
     ];
-    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> active_power_scheme_name: "Сбалансированный (Balanced)";
     in-out property <string> restore_plan_msg: "";
     callback request_restore_power_plan();
     callback switch_power_scheme(string);
@@ -78,7 +78,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 }
             }
             Text {
-                text: "系统配置与通用选项";
+                text: "Конфигурация системы и общие опции";
                 font-size: 13px;
                 font-weight: 700;
                 color: AppTheme.text_primary;
@@ -97,13 +97,13 @@ export component SystemSwitchesCard inherits Rectangle {
             VerticalLayout {
                 spacing: 2px;
                 Text {
-                    text: "开机自动启动 (最小化至托盘)";
+                    text: "Автозапуск при включении (сворачивается в трей)";
                     font-size: 12px;
                     font-weight: 600;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "系统登录时静默启动并在托盘常驻，保障温控与功耗策略平稳运行";
+                    text: "Тихий автозапуск при входе в систему и постоянное присутствие в трее — стабильная работа стратегий охлаждения и мощности";
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -148,7 +148,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "使用经典 WebView2 前端";
+                        text: "Классический фронтенд WebView2";
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -164,7 +164,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             padding-left: 5px;
                             padding-right: 5px;
                             Text {
-                                text: root.use_classic_webview ? "WEBVIEW2" : "SLINT 原生";
+                                text: root.use_classic_webview ? "WEBVIEW2" : "SLINT нативно";
                                 font-size: 10px;
                                 font-weight: 700;
                                 color: root.use_classic_webview ? #f59e0b : #10b981;
@@ -174,7 +174,7 @@ export component SystemSwitchesCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: "默认使用 Slint 原生渲染引擎（低内存、零延迟）。开启后切换回经典 Web 前端（需要重启生效）";
+                    text: "По умолчанию — нативный движок рендеринга Slint (мало памяти, нулевая задержка). Включение переключает на классический веб-фронтенд (нужен перезапуск)";
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -197,7 +197,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             padding-left: 8px;
                             padding-right: 8px;
                             Text {
-                                text: "重启生效";
+                                text: "Применится после перезагрузки";
                                 font-size: 10px;
                                 font-weight: 700;
                                 color: #38bdf8;
@@ -251,7 +251,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "解除离电限制";
+                        text: "Снять ограничение от батареи";
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -267,7 +267,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             padding-left: 5px;
                             padding-right: 5px;
                             Text {
-                                text: root.unlock_battery_limit ? "已解除限制 (风险自担)" : "出厂安全限制";
+                                text: root.unlock_battery_limit ? "Ограничения сняты (на свой риск)" : "Заводские защитные лимиты";
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: root.unlock_battery_limit ? #f59e0b : AppTheme.text_muted;
@@ -289,7 +289,7 @@ export component SystemSwitchesCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: "允许在拔掉充电器或 Type-C 供电时自由切换狂暴与极客调校，且拔电时不强制降级为平衡模式";
+                    text: "Разрешает свободно переключать Турбо и Экспертную настройку при отключённом адаптере или Type-C, без принудительного сброса на Баланс";
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -345,7 +345,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "迷你抽屉点击外部自动收起";
+                        text: "Мини-панель автоматически сворачивается при щелчке вне её";
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -365,7 +365,7 @@ export component SystemSwitchesCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: "在迷你抽屉模式下，点击桌面或其他应用窗口时自动回收抽屉；完整面板不受此影响";
+                    text: "В режиме мини-панели щелчок по рабочему столу или окну другого приложения автоматически сворачивает панель; полная панель не затрагивается";
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -442,7 +442,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "软件版本与分发更新";
+                        text: "Версия ПО и обновления дистрибутива";
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -465,8 +465,8 @@ export component SystemSwitchesCard inherits Rectangle {
                     text: root.update_feedback != ""
                         ? root.update_feedback
                         : (root.update_channel == "beta"
-                            ? "【预览通道】优先接收实验性新特性与先行体验版本；双源智能竞速"
-                            : "【正式通道】仅接收经过充分测试与验证的稳定版本；双源智能竞速");
+                            ? "[Канал предпросмотра] экспериментальные новинки и ранние сборки в приоритете; умная двойная загрузка с двух источников"
+                            : "[Стабильный канал] только основательно протестированные стабильные версии; умная двойная загрузка с двух источников");
                     font-size: 10px;
                     color: root.update_feedback != ""
                         ? (root.update_feedback_type == "error" ? #ef4444 : (root.update_feedback_type == "latest" ? #10b981 : (root.update_feedback_type == "not_found" ? #f59e0b : #38bdf8)))
@@ -504,7 +504,7 @@ export component SystemSwitchesCard inherits Rectangle {
                                 padding-left: 8px;
                                 padding-right: 8px;
                                 Text {
-                                    text: "正式版 (Stable)";
+                                    text: "Стабильная (Stable)";
                                     font-size: 10.5px;
                                     font-weight: root.update_channel == "stable" ? 700 : 500;
                                     color: root.update_channel == "stable" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -526,7 +526,7 @@ export component SystemSwitchesCard inherits Rectangle {
                                 padding-left: 8px;
                                 padding-right: 8px;
                                 Text {
-                                    text: "预览版 (Beta)";
+                                    text: "Предпросмотр (Beta)";
                                     font-size: 10.5px;
                                     font-weight: root.update_channel == "beta" ? 700 : 500;
                                     color: root.update_channel == "beta" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -564,7 +564,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: root.is_checking_update ? "正在检测..." : (root.update_feedback != "" ? (root.update_feedback_type == "latest" ? "已是最新" : (root.update_feedback_type == "not_found" ? "暂无新版" : "重新检测")) : "检查更新");
+                            text: root.is_checking_update ? "Проверка..." : (root.update_feedback != "" ? (root.update_feedback_type == "latest" ? "Уже последняя" : (root.update_feedback_type == "not_found" ? "Новых версий нет" : "Повторная проверка")) : "Проверить обновления");
                             font-size: 11px;
                             font-weight: root.is_checking_update ? 700 : 500;
                             color: root.is_checking_update ? #818cf8 : AppTheme.text_primary;

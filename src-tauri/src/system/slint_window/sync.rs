@@ -30,13 +30,13 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
             format!("{:.1} W", state.gpu_power_w)
         }
     } else if !discrete_gpu {
-        "APU 共享".to_string()
+        "Общая (APU)".to_string()
     } else {
         "-- W".to_string()
     };
     let (telemetry_total_label, telemetry_total_watts) = if !discrete_gpu {
         (
-            "APU 封装功耗:",
+            "Потребление пакета APU:",
             if state.cpu_power_w > 0.0 {
                 format!("{:.1} W", state.cpu_power_w)
             } else {
@@ -46,7 +46,7 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
     } else {
         let total_w = state.cpu_power_w.max(0.0) + state.gpu_power_w.max(0.0);
         (
-            "双烤合计:",
+            "Суммарно при двойной нагрузке:",
             if total_w > 0.0 {
                 format!("{:.0} W", total_w)
             } else {
@@ -153,7 +153,7 @@ pub fn sync_slint_tuning_state() {
     let presets = crate::commands::tuning_cmd::get_profiles_list().unwrap_or_default();
     let current_preset = presets.iter().find(|p| p.id == active_id).cloned().or_else(|| presets.first().cloned());
     let profile = current_preset.as_ref().map(|p| &p.profile).unwrap_or(&cfg.custom_profile);
-    let preset_name = current_preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "静音狂暴".to_string());
+    let preset_name = current_preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "Тихий Турбо".to_string());
     let is_builtin = current_preset.as_ref().map(|p| p.is_builtin).unwrap_or_else(|| active_id.starts_with("preset_"));
 
     let single_fan_channel = manifest.as_ref()
@@ -229,21 +229,21 @@ pub fn sync_slint_tuning_state() {
     let bios_oc_disabled = is_amd || is_unsupported;
 
     let bios_oc_desc = if is_amd {
-        "AMD 平台采用 SMU 动态功耗架构，无 Intel 格式 BIOS 超频菜单".to_string()
+        "Платформы AMD используют динамическую архитектуру мощности SMU — меню разгона в формате Intel в BIOS отсутствует".to_string()
     } else if is_unsupported {
-        "当前机型主板或移动标压CPU未开放BIOS超频菜单".to_string()
+        "Плата текущей модели или мобильный CPU с полным TDP не открывают меню разгона BIOS".to_string()
     } else {
         "同步解锁 CPU 与内存超频菜单".to_string()
     };
 
     let (bios_oc_btn_text, bios_oc_status) = if is_amd || is_unsupported {
-        ("不支持".to_string(), 3)
+        ("Не поддерживается".to_string(), 3)
     } else if bios_status.enabled {
-        ("已开启".to_string(), 1)
+        ("Включено".to_string(), 1)
     } else if is_partial {
-        ("部分开启".to_string(), 2)
+        ("Частично включено".to_string(), 2)
     } else {
-        ("关闭".to_string(), 0)
+        ("Выключить".to_string(), 0)
     };
 
     let payload = serde_json::json!({
@@ -838,7 +838,7 @@ pub fn compute_power_targets(
             175
         };
 
-        let label = "当前设定";
+        let label = "Текущая настройка";
         let text = if tgp > 0 {
             format!("{} PL1: {}W | TGP: {}W", label, pl1, tgp)
         } else if !is_pure_igpu {
@@ -851,7 +851,7 @@ pub fn compute_power_targets(
     }
 
     let is_hw = presets.hardware_read;
-    let label = if is_hw { "原厂目标" } else { "参考值" };
+    let label = if is_hw { "Заводская цель" } else { "参考值" };
 
     let (pl1, tgp) = match power_mode {
         1 => {

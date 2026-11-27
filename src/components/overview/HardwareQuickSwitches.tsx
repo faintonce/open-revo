@@ -151,11 +151,11 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: '4px', height: '14px', background: '#38bdf8', borderRadius: '2px' }} />
           <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.04em', color: '#f1f5f9' }}>
-            快捷设备硬件开关
+            Быстрые аппаратные переключатели устройств
           </span>
         </div>
         <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-          原厂电竞级热键与外设直控
+          Заводские киберспортивные горячие клавиши и прямое управление периферией
         </span>
       </div>
 
@@ -163,7 +163,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {/* 1. WIFI 开关 */}
         <div
           onClick={() => handleToggleSwitch('wifi')}
-          title="启用 / 禁用无线网络 (Wi-Fi)"
+          title="Включить / отключить беспроводную сеть (Wi-Fi)"
           className={`oem-switch-card ${switches.wifi ? 'active' : ''} ${togglingSwitches.wifi ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -180,7 +180,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {/* 2. 蓝牙开关 */}
         <div
           onClick={() => handleToggleSwitch('bluetooth')}
-          title="启用 / 禁用蓝牙 (Bluetooth)"
+          title="Включить / отключить Bluetooth"
           className={`oem-switch-card ${switches.bluetooth ? 'active' : ''} ${togglingSwitches.bluetooth ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -191,13 +191,13 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Bluetooth className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">蓝牙</div>
+          <div className="oem-switch-title">Bluetooth</div>
         </div>
 
         {/* 3. 触摸板开关 */}
         <div
           onClick={() => handleToggleSwitch('touchpad')}
-          title="启用 / 禁用触控板 (Touchpad)"
+          title="Включить / отключить тачпад (Touchpad)"
           className={`oem-switch-card ${switches.touchpad ? 'active' : ''} ${togglingSwitches.touchpad ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -212,13 +212,13 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
               <line x1="12" y1="14" x2="12" y2="20" />
             </svg>
           </div>
-          <div className="oem-switch-title">触摸板</div>
+          <div className="oem-switch-title">Тачпад</div>
         </div>
 
         {/* 4. 网络摄像头开关 */}
         <div
           onClick={() => handleToggleSwitch('camera')}
-          title="启用 / 禁用内置网络摄像头 (Webcam)"
+          title="Включить / отключить встроенную веб-камеру (Webcam)"
           className={`oem-switch-card ${switches.camera ? 'active' : ''} ${togglingSwitches.camera ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -229,13 +229,13 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Camera className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">摄像头</div>
+          <div className="oem-switch-title">Камера</div>
         </div>
 
         {/* 5. 麦克风全局开关 (与摄像头相邻) */}
         <div
           onClick={() => handleToggleSwitch('mic')}
-          title="启用 / 静音全局麦克风输入 (Microphone)"
+          title="Включить / заглушить глобальный ввод микрофона (Microphone)"
           className={`oem-switch-card ${switches.mic ? 'active' : ''} ${togglingSwitches.mic ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -246,13 +246,13 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             {switches.mic ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-rose-400" />}
           </div>
-          <div className="oem-switch-title">{switches.mic ? '麦克风' : '麦克风静音'}</div>
+          <div className="oem-switch-title">{switches.mic ? 'Микрофон' : 'Микрофон заглушён'}</div>
         </div>
 
         {/* 6. OSD 悬浮显示开关 */}
         <div
           onClick={() => handleToggleSwitch('osd')}
-          title="启用 / 禁用屏幕快捷键 OSD 悬浮提示"
+          title="Включить / отключить всплывающие подсказки OSD горячих клавиш экрана"
           className={`oem-switch-card ${switches.osd ? 'active' : ''} ${togglingSwitches.osd ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -263,14 +263,14 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Monitor className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">OSD显示</div>
+          <div className="oem-switch-title">Показывать OSD</div>
         </div>
 
         {/* 7. Win 键 (Only show if hardware supports it) */}
         {status.support_flags?.has_win_lock !== false && (
           <div
             onClick={() => handleToggleSwitch('win_key')}
-            title="游戏模式：锁定 / 放行 Windows 徽标键"
+            title="Игровой режим: блокировка / разблокировка клавиши Windows"
             className={`oem-switch-card ${switches.win_key ? 'active' : ''} ${togglingSwitches.win_key ? 'opacity-60 cursor-wait' : ''}`}
           >
             <div className="oem-bracket-tl" />
@@ -283,7 +283,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
                 <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801" />
               </svg>
             </div>
-            <div className="oem-switch-title">Win键锁</div>
+            <div className="oem-switch-title">Блокировка Win</div>
           </div>
         )}
 
@@ -291,7 +291,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {status.support_flags?.has_fn_lock !== false && (
           <div
             onClick={() => handleToggleSwitch('fn_lock')}
-            title={switches.fn_lock ? 'Fn 锁已开启：需按 Fn 组合键' : 'Fn 锁已关闭：F1-F12 键直接触发'}
+            title={switches.fn_lock ? 'Блокировка Fn включена: нужно сочетание с Fn' : 'Блокировка Fn выключена: клавиши F1–F12 срабатывают напрямую'}
             className={`oem-switch-card ${switches.fn_lock ? 'active' : ''} ${togglingSwitches.fn_lock ? 'opacity-60 cursor-wait' : ''}`}
           >
             <div className="oem-bracket-tl" />
@@ -302,14 +302,14 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
             <div className="oem-icon-badge">
               <span style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '0.04em' }}>FN</span>
             </div>
-            <div className="oem-switch-title">{switches.fn_lock ? 'Fn锁定' : 'F1-F12'}</div>
+            <div className="oem-switch-title">{switches.fn_lock ? 'Блокировка Fn' : 'F1-F12'}</div>
           </div>
         )}
 
         {/* 9. 防休眠常亮开关 */}
         <div
           onClick={() => handleToggleSwitch('keep_awake')}
-          title="防休眠常亮：挂机下载大游戏、渲染或演示时阻止屏幕变暗关闭与系统休眠"
+          title="Постоянная подсветка без сна: при ночных загрузках, рендеринге или презентациях блокирует затемнение экрана и переход системы в сон"
           className={`oem-switch-card ${switches.keep_awake ? 'active' : ''} ${togglingSwitches.keep_awake ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -320,7 +320,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Coffee className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">防休眠</div>
+          <div className="oem-switch-title">Запрет сна</div>
         </div>
 
         {/* 10. 关闭屏幕 (3秒防外设误触唤醒) */}
@@ -332,7 +332,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
               console.error('Failed to turn off screen:', e);
             }
           }}
-          title="关闭屏幕：立即关闭显示器背光（3秒防外设误触，配合防休眠整夜挂机下载不刺眼）"
+          title="Выключить экран: мгновенно гасит подсветку монитора (3 секунды защиты от случайных нажатий периферии; вместе с запретом сна удобно для ночных загрузок без яркого света)"
           className="oem-switch-card cursor-pointer"
         >
           <div className="oem-bracket-tl" />
@@ -343,7 +343,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Moon className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">关闭屏幕</div>
+          <div className="oem-switch-title">Выключить экран</div>
         </div>
       </div>
     </div>

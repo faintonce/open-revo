@@ -723,7 +723,7 @@ pub fn detect_machine_factory_profile() -> Option<(String, String)> {
                             if spool_candidate.exists() {
                                 let _ = windows::Win32::System::Registry::RegCloseKey(hsub);
                                 let _ = windows::Win32::System::Registry::RegCloseKey(hbase);
-                                let model_label = reg_file.split('_').next().unwrap_or("出厂原装").to_string();
+                                let model_label = reg_file.split('_').next().unwrap_or("Заводской штатный").to_string();
                                 return Some((reg_file, model_label));
                             }
                         }
@@ -751,7 +751,7 @@ pub fn detect_machine_factory_profile() -> Option<(String, String)> {
                     || f_upper.starts_with("XMI"))
                     && (f_upper.ends_with(".ICM") || f_upper.ends_with(".ICC"))
                 {
-                    let model_label = fname.split('_').next().unwrap_or("出厂原装").to_string();
+                    let model_label = fname.split('_').next().unwrap_or("Заводской штатный").to_string();
                     return Some((fname, model_label));
                 }
             }
@@ -822,10 +822,10 @@ pub fn list_all_color_profiles(is_internal: bool) -> Vec<ColorProfileItem> {
     // 1. Default Native profile
     list.push(ColorProfileItem {
         id: "default_native".to_string(),
-        name: "系统默认 (未校准)".to_string(),
+        name: "Системная схема по умолчанию (не откалибрована)".to_string(),
         file_name: String::new(),
         is_builtin: true,
-        description: "屏幕未限缩的默认物理输出，色彩最饱满广阔".to_string(),
+        description: "Физический вывод по умолчанию без ограничений: максимально насыщенные и широкие цвета".to_string(),
     });
 
     // 2. Factory Profile (specifically for laptop internal screen)
@@ -833,10 +833,10 @@ pub fn list_all_color_profiles(is_internal: bool) -> Vec<ColorProfileItem> {
         if let Some((factory_file, model_label)) = detect_machine_factory_profile() {
             list.push(ColorProfileItem {
                 id: format!("factory_{}", factory_file),
-                name: format!("原厂出厂校色 ({})", model_label),
+                name: format!("Заводская калибровка ({})", model_label),
                 file_name: factory_file,
                 is_builtin: true,
-                description: "厂商产线高精度校色仪生成的专属屏幕校准曲线".to_string(),
+                description: "Фирменная калибровочная кривая экрана, созданная высокоточным колориметром на производственной линии".to_string(),
             });
         }
     }
@@ -844,26 +844,26 @@ pub fn list_all_color_profiles(is_internal: bool) -> Vec<ColorProfileItem> {
     // 3. Official Standard Profiles (available for all displays)
     list.push(ColorProfileItem {
         id: "std_srgb".to_string(),
-        name: "标准 sRGB (官方校准)".to_string(),
+        name: "Стандартный sRGB (официальная калибровка)".to_string(),
         file_name: "sRGB.icm".to_string(),
         is_builtin: true,
-        description: "机械革命官方原厂 sRGB 模式，消除广色域过饱和（红脸）".to_string(),
+        description: "Официальный заводской режим sRGB MECHREVO: убирает перенасыщенность широкого охвата (красные лица)".to_string(),
     });
 
     list.push(ColorProfileItem {
         id: "std_p3".to_string(),
-        name: "DCI-P3 影视广色域 (官方校准)".to_string(),
+        name: "Широкий охват DCI-P3 для видео (официальная калибровка)".to_string(),
         file_name: "DCIP3.icm".to_string(),
         is_builtin: true,
-        description: "好莱坞数字影院广色域，观影剪辑首选".to_string(),
+        description: "Кинотеатральный широкий охват Голливуда — первый выбор для просмотра и монтажа".to_string(),
     });
 
     list.push(ColorProfileItem {
         id: "std_adobergb".to_string(),
-        name: "Adobe RGB (官方校准)".to_string(),
+        name: "Adobe RGB (официальная калибровка)".to_string(),
         file_name: "AdobeRGB.icm".to_string(),
         is_builtin: true,
-        description: "覆盖更宽广的青绿色调，专业摄影与高质量出版规范".to_string(),
+        description: "Покрывает более широкий сине-зелёный диапазон — стандарт профессиональной фотографии и качественной печати".to_string(),
     });
 
     // 4. User Custom Profiles (in %APPDATA%\OpenRevo\icc_profiles and system spool)
@@ -890,7 +890,7 @@ pub fn list_all_color_profiles(is_internal: bool) -> Vec<ColorProfileItem> {
                             name: fname.replace(".icm", "").replace(".icc", ""),
                             file_name: fname,
                             is_builtin: false,
-                            description: "用户自定义导入的校色特性文件".to_string(),
+                            description: "Пользовательский импортированный файл цветового профиля".to_string(),
                         });
                     }
                 }
@@ -913,7 +913,7 @@ pub fn get_color_calibration_state(target_dev: Option<&str>) -> ColorCalibration
     .unwrap_or_else(|| {
         crate::system::display::DisplayMonitor {
             device_name: "\\\\.\\DISPLAY1".into(),
-            friendly_name: "内建主屏幕".into(),
+            friendly_name: "Встроенный основной экран".into(),
             is_primary: true,
             is_internal: true,
             width: 2560,
@@ -958,7 +958,7 @@ pub fn get_color_calibration_state(target_dev: Option<&str>) -> ColorCalibration
         .iter()
         .find(|p| p.id == display_id)
         .map(|p| p.name.clone())
-        .unwrap_or_else(|| "系统默认 (未校准)".to_string());
+        .unwrap_or_else(|| "Системная схема по умолчанию (не откалибрована)".to_string());
 
     ColorCalibrationState {
         enabled,
@@ -981,7 +981,7 @@ pub fn apply_profile_for_device(device_name: &str, profile_id: &str) -> Result<C
     let item = profiles
         .iter()
         .find(|p| p.id == profile_id)
-        .ok_or_else(|| format!("未找到指定的校色方案: {}", profile_id))?;
+        .ok_or_else(|| format!("Указанная схема калибровки не найдена: {}", profile_id))?;
 
     if item.id == "default_native" || item.file_name.is_empty() {
         // 1. Hardware GPU LUT: write pure linear 1:1 identity ramp (0..65535)
@@ -1062,13 +1062,13 @@ pub fn set_calibration_enabled_for_device(device_name: &str, enable: bool) -> Re
 /// Import a user custom ICC/ICM profile
 pub fn import_custom_icc(file_name: &str, file_bytes: &[u8]) -> Result<ColorProfileItem, String> {
     if file_bytes.len() < 128 {
-        return Err("文件过小，不是有效的 ICC/ICM 色彩配置文件".to_string());
+        return Err("Файл слишком мал — это не действительный профиль ICC/ICM".to_string());
     }
 
     let clean_fname = Path::new(file_name)
         .file_name()
         .and_then(|s| s.to_str())
-        .ok_or_else(|| "文件名无效".to_string())?
+        .ok_or_else(|| "Недопустимое имя файла".to_string())?
         .to_string();
 
     let ext = Path::new(&clean_fname)
@@ -1078,11 +1078,11 @@ pub fn import_custom_icc(file_name: &str, file_bytes: &[u8]) -> Result<ColorProf
         .to_lowercase();
 
     if ext != "icm" && ext != "icc" {
-        return Err("仅支持导入 .icm 或 .icc 格式的校色配置文件".to_string());
+        return Err("Поддерживается импорт только файлов калибровки .icm или .icc".to_string());
     }
 
     let user_path = get_user_icc_dir().join(&clean_fname);
-    fs::write(&user_path, file_bytes).map_err(|e| format!("保存校色文件失败: {}", e))?;
+    fs::write(&user_path, file_bytes).map_err(|e| format!("Не удалось сохранить файл калибровки: {}", e))?;
 
     let sys_spool = PathBuf::from(r"C:\Windows\System32\spool\drivers\color");
     if sys_spool.exists() {
@@ -1099,7 +1099,7 @@ pub fn import_custom_icc(file_name: &str, file_bytes: &[u8]) -> Result<ColorProf
         name: clean_fname.replace(".icm", "").replace(".icc", ""),
         file_name: clean_fname,
         is_builtin: false,
-        description: "用户自定义导入的校色特性文件".to_string(),
+        description: "Пользовательский импортированный файл цветового профиля".to_string(),
     };
 
     Ok(item)
@@ -1114,10 +1114,10 @@ pub fn delete_custom_icc(profile_id: &str, device_name: Option<&str>) -> Result<
     let item = profiles
         .iter()
         .find(|p| p.id == profile_id)
-        .ok_or_else(|| "未找到指定的配置项".to_string())?;
+        .ok_or_else(|| "Указанный элемент конфигурации не найден".to_string())?;
 
     if item.is_builtin {
-        return Err("无法删除系统或出厂预设的校色文件".to_string());
+        return Err("Нельзя удалить системный или заводской файл калибровки".to_string());
     }
 
     let user_path = get_user_icc_dir().join(&item.file_name);

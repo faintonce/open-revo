@@ -411,7 +411,7 @@ pub fn collect_hardware_snapshot() -> HardwareSnapshot {
     let (hw_type, desc) = if has_ite8291 {
         ("PerKey_RGB".to_string(), "独立 ITE 8291 USB 全彩逐键/4区 RGB 键盘 [支持 16 种炫彩流动特效与调色盘]".to_string())
     } else if is_single_zone {
-        ("SingleZone_RGB".to_string(), "主板 EC 单区 RGB 键盘 (全键同色调光)".to_string())
+        ("SingleZone_RGB".to_string(), "Однозонная RGB-клавиатура EC платы (вся клавиатура одним цветом)".to_string())
     } else if is_single_color {
         ("SingleColor".to_string(), "单色白光背光键盘 (支持4档亮度调节)".to_string())
     } else {
@@ -441,9 +441,9 @@ pub fn collect_hardware_snapshot() -> HardwareSnapshot {
     let is_water_cooler = crate::driver::wmi_ec::get_hardware_support_flags().has_water_cooler;
 
     let bat_mode_desc = match raw_bat_mode {
-        0x21 => "工作站模式".to_string(),
-        0x11 => "平衡模式".to_string(),
-        0x01 => "长效模式".to_string(),
+        0x21 => "Режим рабочей станции".to_string(),
+        0x11 => "Режим Баланса".to_string(),
+        0x01 => "Режим долговечности".to_string(),
         _ => format!("模式码: 0x{:02X}", raw_bat_mode),
     };
 

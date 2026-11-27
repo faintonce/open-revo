@@ -17,14 +17,14 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
       <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span>散热预设策略与运行模式</span>
+        <span>Пресеты охлаждения и режимы работы</span>
         <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
           {strategy === 'custom' ? (
             <>
-              <Sparkles size={11} style={{ color: 'var(--status-warn)' }} /> 当前处于手动自定义调节状态（预设全灭）
+              <Sparkles size={11} style={{ color: 'var(--status-warn)' }} /> Сейчас активно ручная пользовательская настройка (все пресеты выключены)
             </>
           ) : (
-            '选择【智慧自适应】自动随动；手调水泵或风扇后自动转为自定义'
+            'Выберите «Умную адаптацию» для автоматического сопровождения; после ручной регулировки насоса или вентилятора режим автоматически становится пользовательским'
           )}
         </span>
       </div>
@@ -49,7 +49,7 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-info)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-              <ShieldCheck size={13} /> 智慧自适应
+              <ShieldCheck size={13} /> Умная адаптация
             </span>
             <span
               className="cooler-strat-badge"
@@ -62,19 +62,19 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
                 color: 'var(--status-info)',
               }}
             >
-              温控随动
+              Температура управляет
             </span>
           </div>
           <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>
-            依据核心温度动态调控，<strong style={{ color: 'var(--status-ok)' }}>&lt;55°C 风扇停转</strong>
+            Динамическое управление по температуре ядра,<strong style={{ color: 'var(--status-ok)' }}>Ниже 55°C вентиляторы останавливаются</strong>
           </div>
           <div className="cooler-strat-sub" style={{ fontSize: '9px', fontWeight: 700, color: 'var(--status-info)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <Zap size={10} /> 随动: {liveMaxTemp}°C → 风扇 {liveInterpolated.duty}% | 水泵 {
+            <Zap size={10} /> Следование: {liveMaxTemp}°C → вентилятор {liveInterpolated.duty}% | насос {
               liveInterpolated.volt >= 11 || liveInterpolated.volt === 3
-                ? '极限狂暴'
+                ? 'Предел Турбо'
                 : liveInterpolated.volt === 0
-                ? '停机'
-                : '标准巡航'
+                ? 'Остановлено'
+                : 'Стандартный цикл'
             }
           </div>
         </div>
@@ -96,11 +96,11 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-info)' }}>静音策略</span>
-            <span className="cooler-strat-badge" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'var(--surface-pill)', color: 'var(--text-muted)' }}>固定</span>
+            <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-info)' }}>Тихая стратегия</span>
+            <span className="cooler-strat-badge" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'var(--surface-pill)', color: 'var(--text-muted)' }}>Фиксация</span>
           </div>
-          <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>标准巡航水泵 + 40% 风扇</div>
-          <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>适合安静夜间使用</div>
+          <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>Насос стандартного цикла + вентиляторы 40%</div>
+          <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>Подходит для тихой ночной работы</div>
         </div>
 
         {/* 均衡策略 */}
@@ -120,11 +120,11 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-brand)' }}>均衡策略</span>
-            <span className="cooler-strat-badge" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'var(--surface-pill)', color: 'var(--text-muted)' }}>固定</span>
+            <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-brand)' }}>Сбалансированная стратегия</span>
+            <span className="cooler-strat-badge" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'var(--surface-pill)', color: 'var(--text-muted)' }}>Фиксация</span>
           </div>
-          <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>标准巡航水泵 + 65% 风扇</div>
-          <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>兼顾散热与风噪</div>
+          <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>Насос стандартного цикла + вентиляторы 65%</div>
+          <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>Баланс охлаждения и шума вентиляторов</div>
         </div>
 
         {/* 极速狂暴 */}
@@ -144,11 +144,11 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-error)' }}>极速狂暴</span>
-            <span className="cooler-strat-badge" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'var(--status-error-dim)', color: 'var(--status-error)' }}>满血</span>
+            <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-error)' }}>Турбо на максимуме</span>
+            <span className="cooler-strat-badge" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'var(--status-error-dim)', color: 'var(--status-error)' }}>На полную</span>
           </div>
-          <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>极限狂暴水泵 + 100% 风扇</div>
-          <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>极限压榨散热性能</div>
+          <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>Насос на пределе Турбо + вентиляторы 100%</div>
+          <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>Выжать из охлаждения максимум</div>
         </div>
       </div>
     </div>

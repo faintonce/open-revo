@@ -29,7 +29,7 @@ const BLD_PREVIEW_STATE: HardwareState = {
   monitors: [
     {
       device_name: 'DISPLAY1',
-      friendly_name: '内嵌屏 [2.5K 16:10]',
+      friendly_name: 'Встроенный экран [2.5K 16:10]',
       is_primary: true,
       is_internal: true,
       width: 2560,

@@ -144,12 +144,12 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
         isBldFanLock ? (
           <div
             className="glass-card bld-fan-card"
-            title="宝龙达模具风扇锁定：可在 0~5800 RPM 之间自由设定目标转速，开启后锁定转速，关闭后恢复 BIOS 自动温控"
+            title="Блокировка вентилятора для платформ Baolongda: свободная установка целевых оборотов в диапазоне 0~5800 RPM; при включении обороты фиксируются, при выключении возвращается автоматическое управление температурой BIOS"
           >
             <div className="bld-fan-header">
               <div className="bld-fan-title-group">
                 <Fan className={`w-3.5 h-3.5 flex-shrink-0 ${status.fan_boost ? 'text-cyan-400 animate-spin' : 'text-cyan-400'}`} />
-                <span className="bld-fan-title">强冷锁速</span>
+                <span className="bld-fan-title">Фиксация оборотов форс-охлаждения</span>
                 <span className={`bld-fan-rpm-badge ${status.fan_boost ? '' : 'inactive'}`}>
                   {bldRpm} RPM
                 </span>
@@ -157,9 +157,9 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
               <button
                 onClick={handleBldSwitchToggle}
                 className={`bld-fan-switch ${status.fan_boost ? 'active' : ''}`}
-                title={status.fan_boost ? '点击关闭转速锁定，恢复原厂自动温控' : '点击开启风扇锁定'}
+                title={status.fan_boost ? 'Нажмите, чтобы снять блокировку оборотов и вернуть заводское автоматическое управление температурой' : 'Нажмите, чтобы включить блокировку вентилятора'}
               >
-                {status.fan_boost ? '已锁定' : '自动'}
+                {status.fan_boost ? 'Заблокировано' : 'Авто'}
               </button>
             </div>
             <div className="bld-fan-slider-row">
@@ -172,7 +172,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
                 value={bldRpm}
                 onChange={(e) => handleBldRpmChange(Number(e.target.value))}
                 className="bld-fan-range"
-                title={`目标转速: ${bldRpm} RPM`}
+                title={`Целевые обороты: ${bldRpm} RPM`}
               />
               <span className="bld-fan-limit-hint">5800</span>
             </div>
@@ -191,15 +191,15 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Fan className="w-5 h-5 text-cyan-400 flex-shrink-0" />
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 600 }}>一键强冷</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>最高转速极限降温</div>
+                <div style={{ fontSize: '12px', fontWeight: 600 }}>Форс-охлаждение</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Максимальные обороты для предельного охлаждения</div>
               </div>
             </div>
             <button
               onClick={() => checkOemGuard(onToggleFanBoost)}
               className={`toggle-btn ${status.fan_boost ? 'active-cyan' : ''}`}
             >
-              {status.fan_boost ? '已开启' : '关闭'}
+              {status.fan_boost ? 'Включено' : 'Выключить'}
             </button>
           </div>
         )
@@ -208,7 +208,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
       {/* 2. 拔电自动低刷 */}
       <div
         className="glass-card"
-        title="开启后，当断开电源适配器时自动将屏幕切换至面板支持的最低刷新率以最大化电池续航；若使用电池时手动调整了刷新率，将维持手动设定"
+        title="При включении автоматически снижает частоту обновления экрана до минимальной поддерживаемой панелью при отключении адаптера, максимально экономя батарею; если на батарее частота была изменена вручную, сохранится ручное значение"
         style={{
           minWidth: '180px',
           display: 'flex',
@@ -220,15 +220,15 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <ZapOff className={`w-5 h-5 ${autoMinRefresh ? 'text-indigo-400' : 'text-slate-400'} flex-shrink-0`} />
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 600 }}>拔电自动低刷</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>离电续航最大化</div>
+            <div style={{ fontSize: '12px', fontWeight: 600 }}>Автопонижение частоты обновления от батареи</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Максимум автономности от батареи</div>
           </div>
         </div>
         <button
           onClick={handleToggleAutoMinRefresh}
           className={`toggle-btn ${autoMinRefresh ? 'active-indigo' : ''}`}
         >
-          {autoMinRefresh ? '已开启' : '关闭'}
+          {autoMinRefresh ? 'Включено' : 'Выключить'}
         </button>
       </div>
 
@@ -248,23 +248,23 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px', flexShrink: 0 }}>
           <Monitor className="w-5 h-5 text-indigo-400 flex-shrink-0" />
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 600 }}>屏幕刷新率</div>
+            <div style={{ fontSize: '12px', fontWeight: 600 }}>Частота обновления экрана</div>
             {monitors.length <= 1 ? (
               <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                {activeMon ? activeMon.friendly_name : '2.5K 屏'}
+                {activeMon ? activeMon.friendly_name : 'Экран 2.5K'}
               </div>
             ) : (
               /* 多屏微型下拉选择器 */
               <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => setShowMonMenu(!showMonMenu)}
-                  title="点击选择调控的显示器"
+                  title="Нажмите, чтобы выбрать управляемый монитор"
                   className="monitor-select-btn"
                   style={{ marginTop: '2px' }}
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                     {activeMon?.is_internal ? <Laptop size={11} /> : <Tv size={11} />}
-                    {activeMon?.friendly_name?.split(' ')[0] || '屏幕'}
+                    {activeMon?.friendly_name?.split(' ')[0] || 'Экран'}
                   </span>
                   <ChevronDown size={10} />
                 </button>

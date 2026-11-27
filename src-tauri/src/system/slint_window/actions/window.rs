@@ -188,7 +188,7 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
                         let size_mb = format!("{:.2}", (res.size as f64) / (1024.0 * 1024.0));
                         let status = if res.has_update { "found" } else { "latest" };
                         let message = if res.has_update {
-                            format!("发现新版本 {}", res.display_version)
+                            format!("Найдена новая версия {}", res.display_version)
                         } else {
                             format!("当前已是最新版本 ({})", res.current_version)
                         };
@@ -260,7 +260,7 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
                             send_slint_ipc_message(serde_json::json!({
                                 "action": "sync_update_result",
                                 "status": "error",
-                                "message": format!("升级失败: {}", e),
+                                "message": format!("Обновление не удалось: {}", e),
                                 "update": { "has_update": false }
                             }));
                         }

@@ -101,7 +101,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              屏幕色彩校正 (Color Management)
+              Коррекция цвета экрана (Color Management)
             </span>
             {calibrationState?.hdr_active && (
               <span
@@ -113,9 +113,9 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
                   color: 'var(--status-warn)',
                   border: '1px solid rgba(245, 158, 11, 0.3)',
                 }}
-                title="检测到 Windows HDR 已开启，SDR 色彩管理可能被系统接管"
+                title="Обнаружен включённый Windows HDR: управление цветом SDR может быть перехвачено системой"
               >
-                HDR 运行中
+                HDR активен
               </span>
             )}
           </div>
@@ -130,8 +130,8 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             title={calibrationState?.active_profile_name}
           >
             {isCalibrated
-              ? `当前方案：${calibrationState!.active_profile_name}${currentMon?.friendly_name ? ` · ${currentMon.friendly_name}` : ''}`
-              : `当前状态：系统默认 (未校准)${currentMon?.friendly_name ? ` · ${currentMon.friendly_name}` : ''}`}
+              ? `Текущая схема:${calibrationState!.active_profile_name}${currentMon?.friendly_name ? ` · ${currentMon.friendly_name}` : ''}`
+              : `Текущее состояние: системная схема по умолчанию (не откалибрована)${currentMon?.friendly_name ? ` · ${currentMon.friendly_name}` : ''}`}
           </div>
         </div>
       </div>
@@ -143,12 +143,12 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
           <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setShowMonMenu(!showMonMenu)}
-              title="点击选择调控的显示器"
+              title="Нажмите, чтобы выбрать управляемый монитор"
               className="monitor-select-btn"
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 {currentMon?.is_internal ? <Laptop size={11} /> : <Tv size={11} />}
-                {currentMon?.friendly_name?.split(' ')[0] || '屏幕'}
+                {currentMon?.friendly_name?.split(' ')[0] || 'Экран'}
               </span>
               <ChevronDown size={10} />
             </button>
@@ -231,10 +231,10 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             color: isDirty ? 'var(--status-info)' : 'var(--text-dim)',
             transition: 'all var(--transition-fast)',
           }}
-          title={isDirty ? '点击立即将此校色方案应用至屏幕硬件 LUT 与 Windows 颜色管理' : '当前方案已生效'}
+          title={isDirty ? 'Нажмите, чтобы немедленно применить эту схему калибровки к аппаратной LUT экрана и управлению цветом Windows' : 'Текущая схема активна'}
         >
           <Check size={12} />
-          <span>应用</span>
+          <span>Применить</span>
         </button>
 
         {/* Hidden file input */}
@@ -258,10 +258,10 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             borderColor: 'rgba(56, 189, 248, 0.35)',
             opacity: isCalibrating ? 0.6 : 1,
           }}
-          title="导入外部 .icm / .icc 校色文件"
+          title="Импорт внешнего файла калибровки .icm / .icc"
         >
           <Upload size={12} />
-          <span>导入</span>
+          <span>Импорт</span>
         </button>
 
         {/* Delete (only for custom profiles) */}
@@ -275,7 +275,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             cursor: isCustomProfileActive && !isCalibrating ? 'pointer' : 'not-allowed',
             padding: '4px 7px',
           }}
-          title={isCustomProfileActive ? '删除此自定义校色文件' : '出厂与系统内置方案不可删除'}
+          title={isCustomProfileActive ? 'Удалить этот пользовательский файл калибровки' : 'Заводские и встроенные в систему схемы нельзя удалять'}
         >
           <Trash2 size={12} />
         </button>

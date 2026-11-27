@@ -135,7 +135,7 @@ impl CustomFxEngine {
             }
             Err(err) => {
                 crate::log_error!("CUSTOM_FX", "Failed to compile BRFX script {}: {}", name, err);
-                Err(format!("编译脚本错误: {}", err))
+                Err(format!("Ошибка компиляции скрипта: {}", err))
             }
         }
     }

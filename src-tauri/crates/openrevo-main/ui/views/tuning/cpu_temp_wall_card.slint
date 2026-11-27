@@ -24,7 +24,7 @@ export component CpuTempWallCard inherits Rectangle {
         HorizontalLayout {
             alignment: space-between;
             Text {
-                text: root.is_amd ? "温度墙上限 (TjMax):" : "温度墙上限:";
+                text: root.is_amd ? "Верхний температурный лимит (TjMax):" : "Верхний температурный лимит:";
                 font-size: 11px;
                 color: AppTheme.text_secondary;
                 vertical-alignment: center;
@@ -33,7 +33,7 @@ export component CpuTempWallCard inherits Rectangle {
             HorizontalLayout {
                 spacing: 8px;
                 Text {
-                    text: root.temp_wall_enabled ? (root.temp_wall + "°C") : (root.temp_wall_max + "°C (不限)");
+                    text: root.temp_wall_enabled ? (root.temp_wall + "°C") : (root.temp_wall_max + "°C (без лимита)");
                     font-size: 12px;
                     font-weight: 700;
                     color: !root.temp_wall_enabled ? AppTheme.text_muted : (root.temp_wall >= 96 ? AppTheme.mode_beast : #38bdf8);
@@ -57,7 +57,7 @@ export component CpuTempWallCard inherits Rectangle {
                     }
 
                     Text {
-                        text: root.temp_wall_enabled ? "已开启" : "关闭";
+                        text: root.temp_wall_enabled ? "Включено" : "Выключить";
                         font-size: 9.5px;
                         font-weight: 700;
                         color: root.temp_wall_enabled ? #38bdf8 : AppTheme.text_muted;
@@ -132,7 +132,7 @@ export component CpuTempWallCard inherits Rectangle {
             }
 
             Text {
-                text: root.is_amd ? (root.temp_wall < 95 ? "限频" : "满血") : ("Tcc-" + (100 - root.temp_wall));
+                text: root.is_amd ? (root.temp_wall < 95 ? "Лимит частоты" : "На полную") : ("Tcc-" + (100 - root.temp_wall));
                 font-size: 10px;
                 color: AppTheme.text_muted;
                 vertical-alignment: center;
@@ -152,7 +152,7 @@ export component CpuTempWallCard inherits Rectangle {
             HorizontalLayout {
                 spacing: 4px;
                 Text {
-                    text: "上限: " + root.temp_wall_max + "°C";
+                    text: "Лимит: " + root.temp_wall_max + "°C";
                     font-size: 9px;
                     color: AppTheme.text_muted;
                     vertical-alignment: center;

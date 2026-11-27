@@ -51,13 +51,13 @@ export component SystemRestorePlanModal inherits Rectangle {
                 VerticalLayout {
                     spacing: 3px;
                     Text {
-                        text: "修复并重置为官方出厂电源计划";
+                        text: "Исправить и сбросить к заводскому плану электропитания";
                         font-size: 15px;
                         font-weight: 800;
                         color: AppTheme.text_primary;
                     }
                     Text {
-                        text: "对齐官方控制台逻辑，消除待机高温与 0.8GHz 异常锁频";
+                        text: "Выравнивает с логикой официальной консоли, устраняя нагрев в простое и аномальную блокировку на 0,8 ГГц";
                         font-size: 11px;
                         color: AppTheme.text_muted;
                     }
@@ -76,31 +76,31 @@ export component SystemRestorePlanModal inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: "💡 该操作将执行以下安全修复（完全对齐 OEM 出厂标准）：";
+                        text: "💡 Операция выполнит следующие безопасные исправления (полностью по заводским стандартам OEM):";
                         font-size: 11px;
                         font-weight: 700;
                         color: #34d399;
                     }
                     Text {
-                        text: "• 消除待机异常高温：重置激进性能滑块覆盖层，恢复 CPU 核心休眠 (Core Parking) 与 C-State 深睡，解决待机 20W+ 积热。";
+                        text: "• Устранение аномального нагрева в простое: сбрасывает агрессивные оверлеи слайдеров производительности, возвращает парковку ядер CPU (Core Parking) и глубокий сон C-State, убирая накопление 20+ Вт тепла.";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         wrap: word-wrap;
                     }
                     Text {
-                        text: "• 彻底清除锁频残留：外科手术式剔除所有静态频率限制键值 (75b0ae3f)，彻底解除 0.8GHz 或 25W 锁频陷阱。";
+                        text: "• Полная очистка остатков блокировки частот: хирургически удаляет ключи статических лимитов (75b0ae3f) из всех схем, снимая ловушку 0,8 ГГц или 25 Вт.";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         wrap: word-wrap;
                     }
                     Text {
-                        text: "• 重新注入官方 OEM 预配包：自适应注入出厂 PPM 调度包（宝龙达 AMD 官方 Provisioning / 同方 PPM 策略包）。";
+                        text: "• Повторное внедрение официального OEM provisioning-пакета: адаптивно внедряет заводской PPM-пакет (официальный Provisioning AMD для Baolongda / PPM-пакет TongFang).";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         wrap: word-wrap;
                     }
                     Text {
-                        text: "• 激活官方平衡方案：切回 Windows 官方平衡计划。若您有自建的个性化电源计划，它们会被完整保留，不会被删除。";
+                        text: "• Активация официального сбалансированного плана: возврат к стандартному плану Windows (Balanced). Личные пользовательские схемы полностью сохраняются и не удаляются.";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         wrap: word-wrap;
@@ -126,7 +126,7 @@ export component SystemRestorePlanModal inherits Rectangle {
                         clicked => { root.close(); }
                     }
                     Text {
-                        text: "取消";
+                        text: "Отмена";
                         font-size: 12px;
                         color: AppTheme.text_primary;
                         horizontal-alignment: center;
@@ -151,7 +151,7 @@ export component SystemRestorePlanModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: root.is_processing ? "正在修复..." : "确认执行安全修复";
+                        text: root.is_processing ? "Идёт исправление..." : "Подтвердить безопасное исправление";
                         font-size: 12px;
                         font-weight: 700;
                         color: #ffffff;

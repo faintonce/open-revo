@@ -1,14 +1,14 @@
 import { AppTheme } from "../../theme.slint";
 
 export component MonitorRefreshCard inherits Rectangle {
-    in-out property <string> title: "屏幕刷新率";
-    in-out property <string> monitor_name: "京东方 (主屏)";
+    in-out property <string> title: "Частота обновления экрана";
+    in-out property <string> monitor_name: "BOE (основной экран)";
     in-out property <int> refresh_rate: 240;
     in-out property <[int]> rates_row1: [60, 144, 240];
     in-out property <[int]> rates_row2: [];
     in-out property <bool> has_secondary_monitor: false;
-    in-out property <string> primary_monitor_name: "京东方 (主屏)";
-    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <string> primary_monitor_name: "BOE (основной экран)";
+    in-out property <string> secondary_monitor_name: "Внешний доп. экран";
 
     callback refresh_rate_switched(int);
     callback select_monitor_index(int);
@@ -130,7 +130,7 @@ export component MonitorRefreshCard inherits Rectangle {
                                         padding-left: 8px;
                                         padding-right: 8px;
                                         Text {
-                                            text: root.primary_monitor_name != "" ? root.primary_monitor_name : "内置主屏";
+                                            text: root.primary_monitor_name != "" ? root.primary_monitor_name : "Встроенный основной экран";
                                             font-size: 10px;
                                             color: AppTheme.text_primary;
                                             vertical-alignment: center;
@@ -154,7 +154,7 @@ export component MonitorRefreshCard inherits Rectangle {
                                         padding-left: 8px;
                                         padding-right: 8px;
                                         Text {
-                                            text: root.secondary_monitor_name != "" ? root.secondary_monitor_name : "外接副屏 / 扩展显示器";
+                                            text: root.secondary_monitor_name != "" ? root.secondary_monitor_name : "Внешний дополнительный / расширяющий монитор";
                                             font-size: 10px;
                                             color: AppTheme.text_secondary;
                                             vertical-alignment: center;

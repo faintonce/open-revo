@@ -19,7 +19,7 @@ export component KeyboardLightingView inherits Rectangle {
     // Custom BRFX Script properties
     in-out property <[BrfxScriptItem]> custom_scripts: [];
     in-out property <string> custom_script_id: "kamehameha";
-    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_name: "Камехамэха против Финальной вспышки (Kamehameha)";
     in-out property <string> custom_script_file_name: "kamehameha.brfx";
     in-out property <string> custom_script_author: "OpenRevo Community";
     in-out property <string> custom_script_desc: "";
@@ -34,7 +34,7 @@ export component KeyboardLightingView inherits Rectangle {
     in-out property <bool> custom_default_reactive: false;
     in-out property <string> custom_default_color_hex: "#00F0FF";
 
-    in property <string> hw_desc: "键盘背光控制器";
+    in property <string> hw_desc: "Контроллер подсветки клавиатуры";
     in property <string> hardware_type: "PerKeyRgb";
     in property <bool> is_four_zone: false;
     in property <bool> is_single_zone: false;
@@ -80,7 +80,7 @@ export component KeyboardLightingView inherits Rectangle {
                     alignment: start;
 
                     Text {
-                        text: root.is_single_color ? "键盘单色背光工作台" : (root.is_single_zone ? "单区 RGB 键盘工作台" : (root.is_four_zone ? "4区 RGB 键盘工作台" : "键盘背光工作台"));
+                        text: root.is_single_color ? "Рабочий стол одноцветной подсветки клавиатуры" : (root.is_single_zone ? "Рабочий стол однозонной RGB-клавиатуры" : (root.is_four_zone ? "Рабочий стол 4-зонной RGB-клавиатуры" : "Рабочий стол подсветки клавиатуры"));
                         font-size: 14px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
@@ -100,7 +100,7 @@ export component KeyboardLightingView inherits Rectangle {
                                 padding-left: 6px;
                                 padding-right: 6px;
                                 Text {
-                                    text: root.is_single_color ? "单色白光背光 [EC硬件直通]" : (root.is_single_zone ? "单区同色 RGB [EC硬件调光]" : (root.is_four_zone ? "ITE 8291 r2 4区 RGB 控制器 (048D:CE00)" : root.hw_desc));
+                                    text: root.is_single_color ? "Одноцветная белая подсветка [прямое управление EC]" : (root.is_single_zone ? "Однозонный одноцветный RGB [аппаратный димминг EC]" : (root.is_four_zone ? "4-зонный RGB-контроллер ITE 8291 r2 (048D:CE00)" : root.hw_desc));
                                     font-size: 10px;
                                     font-weight: 600;
                                     color: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #34d399 : (root.is_four_zone ? #22d3ee : #818cf8));
@@ -112,7 +112,7 @@ export component KeyboardLightingView inherits Rectangle {
                 }
 
                 Text {
-                    text: root.is_single_color ? "检测到当前机型为单色 LED 背光，已自动精简无效控制项，支持开关、3档亮度与闲置熄灯" : (root.is_single_zone ? "全键盘同色调光，支持纯色常亮、彩虹呼吸与4档亮度微调" : (root.is_four_zone ? "4 分区独立调色与 6 种原厂硬件动效，支持方向、亮度与色彩微调" : "12 种硬件内建与动态特效，支持方向、亮度与色态毫秒级原生生效"));
+                    text: root.is_single_color ? "Обнаружена одноцветная LED-подсветка — лишние элементы управления автоматически скрыты; поддерживаются вкл/выкл, 3 ступени яркости и гашение в простое" : (root.is_single_zone ? "Вся клавиатура одним цветом: сплошной цвет, радужное дыхание и 4 ступени регулировки яркости" : (root.is_four_zone ? "4 зоны независимой окраски и 6 заводских аппаратных эффектов; настройка направления, яркости и цвета" : "12 аппаратных и динамических эффектов; направление, яркость и цвет применяются нативно за миллисекунды"));
                     font-size: 11px;
                     color: AppTheme.text_muted;
                 }
@@ -149,7 +149,7 @@ export component KeyboardLightingView inherits Rectangle {
                         }
 
                         Text {
-                            text: root.kb_enabled ? "已开启" : "已关闭";
+                            text: root.kb_enabled ? "Включено" : "Выключено";
                             font-size: 12px;
                             font-weight: 700;
                             color: root.kb_enabled ? #ffffff : AppTheme.text_muted;
@@ -222,10 +222,10 @@ export component KeyboardLightingView inherits Rectangle {
                             alignment: center;
                             Image { source: @image-url("../../assets/icons/sun.svg"); width: 12px; height: 12px; colorize: #f59e0b; }
                         }
-                        Text { text: "全域键盘亮度"; font-size: 12px; font-weight: 600; color: AppTheme.text_secondary; vertical-alignment: center; }
+                        Text { text: "Общая яркость клавиатуры"; font-size: 12px; font-weight: 600; color: AppTheme.text_secondary; vertical-alignment: center; }
                     }
                     Text {
-                        text: Math.max(1, root.kb_brightness) + " 档";
+                        text: Math.max(1, root.kb_brightness) + " ступ.";
                         font-size: 12px;
                         font-weight: 700;
                         color: #818cf8;
@@ -288,7 +288,7 @@ export component KeyboardLightingView inherits Rectangle {
         if !root.is_single_color && (root.is_single_zone || root.is_four_zone || root.kb_engine != 2) : ColorPaletteRow {
             active_color_hex <=> root.kb_color_hex;
             active_color <=> root.kb_color;
-            label_text: "定制主色调:";
+            label_text: "Пользовательский основной цвет:";
             color_selected(hex, c) => {
                 root.change_color(hex, c);
             }

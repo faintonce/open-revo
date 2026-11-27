@@ -61,7 +61,7 @@ export component SleepGuardCard inherits Rectangle {
                     HorizontalLayout {
                         spacing: 6px;
                         Text {
-                            text: "智能睡眠守护 / 背包防烫模式 (Anti-Overheat Sleep Guard)";
+                            text: "Умная защита сна / защита от нагрева в рюкзаке (Anti-Overheat Sleep Guard)";
                             font-size: 12px;
                             font-weight: 800;
                             color: AppTheme.text_primary;
@@ -81,7 +81,7 @@ export component SleepGuardCard inherits Rectangle {
                                 padding-left: 5px;
                                 padding-right: 5px;
                                 Text {
-                                    text: "推荐全开";
+                                    text: "Рекомендуется включить всё";
                                     font-size: 9px;
                                     font-weight: 700;
                                     color: #38bdf8;
@@ -92,7 +92,7 @@ export component SleepGuardCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "封杀 Windows 现代待机后台偷跑；杜绝密闭背包发烫、电池偷耗以及合盖睡死黑屏无法唤醒。";
+                        text: "Блокирует скрытую фоновую активность Windows Modern Standby: исключает нагрев в закрытом рюкзаке, скрытый расход батареи и «мёртвый сон» с чёрным экраном без возможности пробуждения.";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
@@ -151,7 +151,7 @@ export component SleepGuardCard inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "待机断开网络连接";
+                                text: "Разрывать сеть при переходе в ожидание";
                                 font-size: 10.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -159,7 +159,7 @@ export component SleepGuardCard inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "切断休眠 Wi-Fi，阻止系统后台联网唤醒";
+                            text: "Отключает Wi-Fi во сне и не даёт системе пробуждаться фоновыми сетевыми активностями";
                             font-size: 8.5px;
                             color: AppTheme.text_muted;
                         }
@@ -207,7 +207,7 @@ export component SleepGuardCard inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "封杀离开模式伪睡眠";
+                                text: "Блокирует фальшивый сон «режима отсутствия»";
                                 font-size: 10.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -215,7 +215,7 @@ export component SleepGuardCard inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "禁止第三方程序以离开模式偷跑发热";
+                            text: "Блокирует нагрев от «режима отсутствия» (Away Mode) у сторонних программ";
                             font-size: 8.5px;
                             color: AppTheme.text_muted;
                         }
@@ -263,7 +263,7 @@ export component SleepGuardCard inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "忽略系统所需策略";
+                                text: "Игнорировать требуемые системой политики";
                                 font-size: 10.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -271,7 +271,7 @@ export component SleepGuardCard inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "强制无视后台进程的阻止待机声明";
+                            text: "Принудительно игнорировать заявления фоновых процессов о блокировке сна";
                             font-size: 8.5px;
                             color: AppTheme.text_muted;
                         }
@@ -324,7 +324,7 @@ export component SleepGuardCard inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "禁用 RTC 唤醒定时器";
+                                text: "Отключить таймер пробуждения RTC";
                                 font-size: 10.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -332,7 +332,7 @@ export component SleepGuardCard inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "阻止任务计划程序等利用定时器唤醒焖烧";
+                            text: "Блокирует «томительный нагрев» от пробуждения таймерами Планировщика задач и подобных";
                             font-size: 8.5px;
                             color: AppTheme.text_muted;
                         }
@@ -380,7 +380,7 @@ export component SleepGuardCard inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "启用 ACPI 深度睡眠";
+                                text: "Включить глубокий сон ACPI";
                                 font-size: 10.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -388,7 +388,7 @@ export component SleepGuardCard inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "允许 CPU 进入极低功耗 C10/D3cold 状态";
+                            text: "Разрешить CPU уходить в состояния сверхнизкого потребления C10/D3cold";
                             font-size: 8.5px;
                             color: AppTheme.text_muted;
                         }
@@ -436,7 +436,7 @@ export component SleepGuardCard inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "30 分钟超时转入休眠";
+                                text: "Через 30 минут тайм-аута — переход в гибернацию";
                                 font-size: 10.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -444,7 +444,7 @@ export component SleepGuardCard inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "待机半小时未唤醒自动存盘切断供电";
+                            text: "Через полчаса бездействия в ожидании — автосохранение и отключение питания";
                             font-size: 8.5px;
                             color: AppTheme.text_muted;
                         }
