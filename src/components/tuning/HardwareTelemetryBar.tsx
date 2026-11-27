@@ -17,7 +17,7 @@ export const PowerWattBadge: React.FC<PowerWattBadgeProps> = ({
     watts !== undefined && watts > 0
       ? `${watts >= 100 ? watts.toFixed(0) : watts.toFixed(1)} W`
       : isApuOrIgpu && type === 'gpu'
-        ? 'APU 共享'
+        ? 'Общая (APU)'
         : '-- W';
 
   return (
@@ -66,10 +66,10 @@ export const HardwareTelemetryBar: React.FC<HardwareTelemetryBarProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--status-warn)', fontSize: '11px', fontWeight: 600 }}>
           <Activity className="w-3.5 h-3.5" />
-          <span>实时硬件监测</span>
+          <span>Мониторинг оборудования в реальном времени</span>
         </div>
         <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-          {isApuOrIgpu ? 'APU 封装功耗:' : '双烤合计:'}{' '}
+          {isApuOrIgpu ? 'Потребление пакета APU:' : 'Суммарно при двойной нагрузке:'}{' '}
           <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
             {isApuOrIgpu
               ? cpuPowerW !== undefined && cpuPowerW > 0

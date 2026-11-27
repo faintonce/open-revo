@@ -110,7 +110,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--color-balance)' }}>
           <Cpu className="w-4 h-4" />
-          <span>{isAmdPlatform ? 'AMD CPU 功耗与温控' : 'CPU 功耗与温控'}</span>
+          <span>{isAmdPlatform ? 'Потребление и температура AMD CPU' : 'Потребление и температура CPU'}</span>
         </div>
       </div>
 
@@ -127,7 +127,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
             lineHeight: 1.4,
           }}
         >
-          当前机型为轻薄本架构，不支持自定义 CPU 功耗限制与温度墙调节。功耗由预设模式自动调度。
+          Текущая модель — ультрабук: пользовательские лимиты мощности CPU и температурные пороги не поддерживаются; мощность распределяется автоматически preset-режимами.
         </div>
       )}
 
@@ -148,7 +148,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
             <div className="tuning-row">
               <div className="tuning-row-header">
                 <span className="tuning-row-label">
-                  {isAmdPlatform ? '温度墙上限 (TjMax):' : '温度墙上限:'}
+                  {isAmdPlatform ? 'Верхний температурный лимит (TjMax):' : 'Верхний температурный лимит:'}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span
@@ -165,11 +165,11 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                     }}
                     title={
                       effectiveTempTarget >= 100
-                        ? '⚠️ 极高风险：设为 100°C 以上极易触发主板硬件断电保护或 EC 55W 应急锁频；若遇锁死可点击右上角重置按钮一键脱困恢复'
+                        ? '⚠️ Очень высокий риск: значение выше 100°C легко вызывает аппаратное отключение платы или аварийную блокировку частоты EC на 55 Вт; при блокировке нажмите кнопку сброса в правом верхнем углу для мгновенного восстановления'
                         : undefined
                     }
                   >
-                    {tempTargetEnabled ? `${effectiveTempTarget}°C` : `${tempTargetMax}°C (不限)`}
+                    {tempTargetEnabled ? `${effectiveTempTarget}°C` : `${tempTargetMax}°C (без лимита)`}
                     {tempTargetEnabled && effectiveTempTarget >= 100 && ' ⚠️'}
                   </span>
                   <button
@@ -187,7 +187,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                       transition: 'all var(--transition-fast)',
                     }}
                   >
-                    {tempTargetEnabled ? '已开启' : '关闭'}
+                    {tempTargetEnabled ? 'Включено' : 'Выключить'}
                   </button>
                 </div>
               </div>
@@ -216,7 +216,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                     />
                     <span style={{ fontSize: '10px', color: 'var(--text-dim)', minWidth: '40px', textAlign: 'right' }}>
                       {isAmdPlatform
-                        ? (effectiveTempTarget < 95 ? `限频 -${95 - effectiveTempTarget}°C` : '满血')
+                        ? (effectiveTempTarget < 95 ? `Лимит частоты -${95 - effectiveTempTarget}°C` : 'На полную')
                         : `Tcc-${Math.max(0, (tempTargetMax > maxTempWall ? tempTargetMax : maxTempWall) - effectiveTempTarget)}`}
                     </span>
                   </div>
@@ -232,12 +232,12 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                   >
                     <span>{tempTargetMin}°C</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>上限: {tempTargetMax}°C</span>
+                      <span>Лимит: {tempTargetMax}°C</span>
                       <button
                         type="button"
                         onClick={() => onAdjustTempTargetMax?.(-1)}
                         disabled={tempTargetMax <= tempTargetMin}
-                        title="以 1°C 步长调小温度墙上限"
+                        title="Уменьшить верхний температурный лимит с шагом 1°C"
                         className="tuning-step-btn"
                       >
                         -
@@ -246,7 +246,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                         type="button"
                         onClick={() => onAdjustTempTargetMax?.(1)}
                         disabled={tempTargetMax >= maxTempWall}
-                        title="以 1°C 步长调大温度墙上限"
+                        title="Увеличить верхний температурный лимит с шагом 1°C"
                         className="tuning-step-btn"
                       >
                         +
@@ -261,9 +261,9 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
 
       {/* PL1 Long Duration / AMD SPL */}
       <CpuPlSliderRow
-        label={isAmdPlatform ? '长时持续功耗 (SPL):' : '长时功耗 PL1:'}
-        hint={isAmdPlatform ? '等效 PL1' : undefined}
-        tooltip={isAmdPlatform ? 'AMD Sustained Power Limit (持续稳定功耗，等效 Intel PL1)' : 'Intel Long Duration Power Limit (PL1)'}
+        label={isAmdPlatform ? 'Длительное устойчивое потребление (SPL):' : 'Длительное потребление PL1:'}
+        hint={isAmdPlatform ? 'Эквивалент PL1' : undefined}
+        tooltip={isAmdPlatform ? 'AMD Sustained Power Limit (устойчивое длительное потребление, аналог Intel PL1)' : 'Intel Long Duration Power Limit (PL1)'}
         value={pl1}
         onChange={onChangePl1}
         min={minPl}
@@ -276,9 +276,9 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
 
       {/* PL2 Short Duration / AMD sPPT */}
       <CpuPlSliderRow
-        label={isAmdPlatform ? '短时爆发功耗 (sPPT):' : '短时功耗 PL2:'}
-        hint={isAmdPlatform ? '等效 PL2' : undefined}
-        tooltip={isAmdPlatform ? 'AMD Slow Package Power Tracking (通常持续 28 秒的高负荷爆发功耗，等效 Intel PL2)' : 'Intel Short Duration Power Limit (PL2)'}
+        label={isAmdPlatform ? 'Кратковременное пиковое потребление (sPPT):' : 'Кратковременное потребление PL2:'}
+        hint={isAmdPlatform ? 'Эквивалент PL2' : undefined}
+        tooltip={isAmdPlatform ? 'AMD Slow Package Power Tracking (пиковое потребление под нагрузкой обычно до 28 секунд, аналог Intel PL2)' : 'Intel Short Duration Power Limit (PL2)'}
         value={pl2}
         onChange={onChangePl2}
         min={minPl}
@@ -291,13 +291,13 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
 
       {/* PL4 Peak Power / AMD fPPT */}
       <CpuPlSliderRow
-        label={isAmdPlatform ? '极速峰值 (fPPT):' : '瞬时峰值 PL4:'}
-        hint={isAmdPlatform ? (!cpuSupportsFppt ? '未开放 (硬件由SPL管理)' : '等效 PL4') : undefined}
+        label={isAmdPlatform ? 'Мгновенный пик (fPPT):' : 'Мгновенный пик PL4:'}
+        hint={isAmdPlatform ? (!cpuSupportsFppt ? 'Не открыто (мощностью управляет SPL)' : 'Эквивалент PL4') : undefined}
         tooltip={
           isAmdPlatform
             ? (!cpuSupportsFppt
-                ? '此模具主板固件未暴露 fPPT 独立寄存器，硬件由 SPL/sPPT 统一闭环调度'
-                : 'AMD Fast Package Power Tracking (微秒级瞬时电感电流限制，等效 Intel PL4)')
+                ? 'Прошивка платы этой платформы не отдаёт отдельный регистр fPPT: оборудованием управляет единый контур SPL/sPPT'
+                : 'AMD Fast Package Power Tracking (мгновенное ограничение тока дросселя на уровне микросекунд, аналог Intel PL4)')
             : 'Intel Peak Power Limit (PL4)'
         }
         disabled={isAmdPlatform && !cpuSupportsFppt}

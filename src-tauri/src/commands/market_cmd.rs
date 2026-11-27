@@ -134,7 +134,7 @@ pub fn set_plugin_enabled_unified(id: String, enabled: bool) -> Result<bool, Str
                 if enabled {
                     let (is_compat, notice) = crate::commands::system_cmd::check_version_compatibility(m.min_host_version.as_deref());
                     if !is_compat {
-                        return Err(notice.unwrap_or_else(|| "当前宿主版本低于插件要求版本".into()));
+                        return Err(notice.unwrap_or_else(|| "Версия хоста ниже требуемой плагином".into()));
                     }
                 }
                 m.plugin_type.unwrap_or_else(|| "extension".into())

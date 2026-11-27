@@ -160,7 +160,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
       setHtmlContent(html);
     } catch (err: any) {
       console.error('Failed to load plugin html:', err);
-      setError(typeof err === 'string' ? err : err?.message || '无法加载插件 index.html');
+      setError(typeof err === 'string' ? err : err?.message || 'Не удалось загрузить index.html плагина');
     } finally {
       setLoading(false);
     }
@@ -202,7 +202,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
         plugin_id: plugin.id,
         status: 'error',
         code: 'SPAWN_ERROR',
-        message: typeof e === 'string' ? e : e?.message || '启动服务失败',
+        message: typeof e === 'string' ? e : e?.message || 'Не удалось запустить службу',
       };
       setServiceStatus(errStatus);
       iframeRef.current?.contentWindow?.postMessage(
@@ -478,7 +478,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
         }}
       >
         <Loader2 size={28} className="animate-spin" />
-        <span style={{ fontSize: '13px' }}>正在加载插件面板 [{plugin.name}]...</span>
+        <span style={{ fontSize: '13px' }}>Загрузка панели плагина [{plugin.name}]...</span>
       </div>
     );
   }
@@ -490,18 +490,18 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
           <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--status-error)', marginBottom: '16px' }}>
             <AlertCircle size={32} />
           </div>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-primary)' }}>插件加载失败</h3>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-primary)' }}>Не удалось загрузить плагин</h3>
           <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            {error || '未在插件目录中找到 index.html 入口文件。请检查插件目录结构或查阅《OpenRevo 插件与扩展文档》。'}
+            {error || 'В каталоге плагина не найден входной файл index.html. Проверьте структуру каталога плагина или обратитесь к «Документации по плагинам и расширениям OpenRevo».'}
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
             <button onClick={fetchHtml} className="toggle-btn">
               <RotateCcw size={13} />
-              <span>重试</span>
+              <span>Повторить</span>
             </button>
             <button onClick={handleOpenPluginsDir} className="toggle-btn active-indigo">
               <FolderOpen size={13} />
-              <span>打开插件目录</span>
+              <span>Открыть каталог плагинов</span>
             </button>
           </div>
         </div>
@@ -545,19 +545,19 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
                 className="plugin-service-pill"
                 title={
                   serviceStatus?.status === 'error'
-                    ? `${serviceStatus.message || '启动失败'}${serviceStatus.detail ? ` (${serviceStatus.detail})` : ''}`
+                    ? `${serviceStatus.message || 'Не удалось запустить'}${serviceStatus.detail ? ` (${serviceStatus.detail})` : ''}`
                     : undefined
                 }
               >
                 <span className={`plugin-service-dot ${serviceStatus?.status || 'stopped'}`} />
                 <span>
                   {serviceActionLoading
-                    ? '处理中...'
+                    ? 'Обработка...'
                     : serviceStatus?.status === 'running'
-                    ? `服务在线${serviceStatus.port ? ` :${serviceStatus.port}` : ''}`
+                    ? `Служба запущена${serviceStatus.port ? ` :${serviceStatus.port}` : ''}`
                     : serviceStatus?.status === 'error'
-                    ? '服务异常'
-                    : '服务未运行'}
+                    ? 'Сбой службы'
+                    : 'Служба не запущена'}
                 </span>
               </div>
 
@@ -566,18 +566,18 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
                   onClick={handleStopService}
                   disabled={serviceActionLoading}
                   className="toggle-btn"
-                  title="停止此插件的本地伴随服务"
+                  title="Остановить локальный сопутствующий сервис этого плагина"
                   style={{ height: '22px', padding: '0 8px', fontSize: '11px' }}
                 >
                   <Square size={10} />
-                  <span>停止</span>
+                  <span>Стоп</span>
                 </button>
               ) : (
                 <button
                   onClick={handleStartService}
                   disabled={serviceActionLoading}
                   className="toggle-btn active-emerald"
-                  title="拉起此插件的本地提权伴随服务"
+                  title="Запустить локальный повышенный сопутствующий сервис этого плагина"
                   style={{ height: '22px', padding: '0 8px', fontSize: '11px' }}
                 >
                   {serviceActionLoading ? (
@@ -585,7 +585,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
                   ) : (
                     <Play size={10} />
                   )}
-                  <span>启动服务</span>
+                  <span>Запустить службу</span>
                 </button>
               )}
             </div>
@@ -594,31 +594,31 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
           <button
             onClick={fetchHtml}
             className="toggle-btn"
-            title="重新加载插件"
+            title="Перезагрузить плагины"
             style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
           >
             <RotateCcw size={12} />
-            <span>刷新</span>
+            <span>Обновить</span>
           </button>
           {isPoppedOut ? (
             <button
               onClick={handleClosePopOut}
               className="toggle-btn active-cyan"
-              title="当前正以独立原生视窗运行，点击收回并关闭独立视窗"
+              title="Сейчас работает в отдельном нативном окне; нажмите, чтобы свернуть и закрыть его"
               style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
             >
               <Minimize2 size={12} />
-              <span>收回视窗</span>
+              <span>Свернуть окно</span>
             </button>
           ) : (
             <button
               onClick={handlePopOut}
               className="toggle-btn active-indigo"
-              title="以独立原生窗口弹出运行，支持在玩游戏或脱离主控制台时随时调优"
+              title="Запускается в отдельном нативном окне: подстраивать параметры можно в любой момент во время игры или без главной консоли"
               style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
             >
               <ExternalLink size={12} />
-              <span>独立视窗运行</span>
+              <span>Работа в отдельном окне</span>
             </button>
           )}
         </div>

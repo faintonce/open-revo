@@ -152,7 +152,7 @@ pub fn get_realtime_wifi_state() -> Option<bool> {
     for line in text.lines() {
         let l = line.to_lowercase();
         if l.contains("wlan") || l.contains("wi-fi") || l.contains("wireless") || line.contains("无线") {
-            if l.contains("enabled") || line.contains("已启用") {
+            if l.contains("enabled") || line.contains("Включено") {
                 return Some(true);
             } else if l.contains("disabled") || line.contains("已禁用") {
                 return Some(false);

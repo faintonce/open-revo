@@ -72,7 +72,7 @@ export component GpuTuningCol inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "GPU 释放与超频";
+                    text: "Раскрытие и разгон GPU";
                     font-size: 13px;
                     font-weight: 700;
                     color: #10b981;
@@ -105,7 +105,7 @@ export component GpuTuningCol inherits Rectangle {
                 alignment: space-between;
 
                 Text {
-                    text: "超性能 (Super Perf)";
+                    text: "Супер-производительность (Super Perf)";
                     font-size: 12px;
                     font-weight: 700;
                     color: root.effective_super_perf ? #10b981 : AppTheme.text_primary;
@@ -158,7 +158,7 @@ export component GpuTuningCol inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "核心频率偏移:";
+                        text: "Смещение частоты ядра:";
                         font-size: 11px;
                         color: AppTheme.text_secondary;
                     }
@@ -242,7 +242,7 @@ export component GpuTuningCol inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "显存频率偏移:";
+                        text: "Смещение частоты памяти:";
                         font-size: 11px;
                         color: AppTheme.text_secondary;
                     }
@@ -332,7 +332,7 @@ export component GpuTuningCol inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: "模具功耗联动：原厂模式锁定";
+                        text: "Связка мощности платформы: заблокировано заводским режимом";
                         font-size: 11px;
                         font-weight: 700;
                         color: #10b981;
@@ -340,7 +340,7 @@ export component GpuTuningCol inherits Rectangle {
                 }
 
                 Text {
-                    text: "当前模具 GPU 功耗由原厂性能模式统一调度（狂暴模式自动释放 140W 满血，含 25W Dynamic Boost；办公模式 30W；平衡模式 120W），核心与显存超频正常生效。";
+                    text: "Потребление GPU в текущей платформе управляется заводскими режимами производительности (в режиме Турбо автоматически раскрывается полные 140 Вт, включая 25 Вт Dynamic Boost; в офисном — 30 Вт; в Балансе — 120 Вт); разгон ядра и видеопамяти работает штатно.";
                     font-size: 9.5px;
                     color: AppTheme.text_muted;
                     wrap: word-wrap;
@@ -364,7 +364,7 @@ export component GpuTuningCol inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "cTGP 功耗:";
+                        text: "Потребление cTGP:";
                         font-size: 11px;
                         color: AppTheme.text_secondary;
                     }
@@ -472,7 +472,7 @@ export component GpuTuningCol inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         Text {
-                            text: (root.effective_super_perf || root.db_enabled) ? ("+" + root.effective_db_watts + " W") : "关闭";
+                            text: (root.effective_super_perf || root.db_enabled) ? ("+" + root.effective_db_watts + " W") : "Выключить";
                             font-size: 11px;
                             font-weight: 700;
                             color: #10b981;
@@ -601,7 +601,7 @@ export component GpuTuningCol inherits Rectangle {
                 }
 
                 Text {
-                    text: (root.effective_base_watts + root.effective_db_watts) + " W (基础 " + root.effective_base_watts + "W + DB " + root.effective_db_watts + "W)";
+                    text: (root.effective_base_watts + root.effective_db_watts) + " Вт (база " + root.effective_base_watts + "W + DB " + root.effective_db_watts + "W)";
                     font-size: 13px;
                     font-weight: 800;
                     color: #38bdf8;
@@ -632,14 +632,14 @@ export component GpuTuningCol inherits Rectangle {
                     HorizontalLayout {
                         spacing: 4px;
                         Text {
-                            text: "⚠ 模具原厂建议功耗参考";
+                            text: "⚠ Рекомендованные заводом лимиты мощности платформы";
                             font-size: 10px;
                             font-weight: 700;
                             color: #f59e0b;
                         }
                     }
                     if root.factory_hardware_read: Text {
-                        text: root.is_declarative ? "原厂硬件直读" : "EC 硬件直读";
+                        text: root.is_declarative ? "Заводское прямое чтение оборудования" : "Прямое аппаратное чтение EC";
                         font-size: 9.5px;
                         font-weight: 700;
                         color: #10b981;
@@ -648,8 +648,8 @@ export component GpuTuningCol inherits Rectangle {
 
                 Text {
                     text: root.factory_hardware_read ?
-                        ("• CPU 原厂预设: 办公 " + root.factory_office_pl1 + "W / 平衡 " + root.factory_balance_pl1 + "W / 狂暴 " + root.factory_turbo_pl1 + "W") :
-                        "• CPU 推荐: 持续 PL1 45W~75W / 爆发 PL2 75W~115W";
+                        ("• CPU заводской пресет: Офис " + root.factory_office_pl1 + " Вт / Баланс " + root.factory_balance_pl1 + " Вт / Турбо " + root.factory_turbo_pl1 + "W") :
+                        "• CPU рекомендуемо: длительный PL1 45~75 Вт / пиковый PL2 75~115 Вт";
                     font-size: 9px;
                     color: AppTheme.text_secondary;
                     wrap: word-wrap;
@@ -657,8 +657,8 @@ export component GpuTuningCol inherits Rectangle {
 
                 Text {
                     text: root.factory_hardware_read ?
-                        ("• GPU 原厂预设: 基础 " + root.factory_base_tgp + "W + DB " + root.factory_max_db + "W (原厂最大 " + root.factory_total_tgp + "W)") :
-                        "• GPU 推荐: 基础 Base TGP + DB 15W~25W 动态分配";
+                        ("• GPU заводской пресет: база " + root.factory_base_tgp + "W + DB " + root.factory_max_db + " Вт (заводской максимум " + root.factory_total_tgp + "W)") :
+                        "• GPU рекомендуемо: базовый TGP + динамическое распределение DB 15~25 Вт";
                     font-size: 9px;
                     color: AppTheme.text_secondary;
                     wrap: word-wrap;

@@ -183,7 +183,7 @@ pub fn send_chat_stream(
                 }));
             }
         })
-        .map_err(|e| format!("启动流式线程失败: {}", e))?;
+        .map_err(|e| format!("Не удалось запустить поток стриминга: {}", e))?;
 
     Ok(session_id)
 }
@@ -269,7 +269,7 @@ fn execute_chat_stream_loop(
                 } else {
                     err_body
                 };
-                return Err(format!("大模型端点响应 HTTP {}: {}", code, detail));
+                return Err(format!("Конечная точка LLM ответила HTTP {}: {}", code, detail));
             }
             Err(e) => {
                 return Err(format!("请求大模型失败: {}", e));

@@ -33,7 +33,7 @@ export component KeyboardControlsBar inherits Rectangle {
                 alignment: start;
 
                 Text {
-                    text: "运行流向方向:";
+                    text: "Направление движения:";
                     font-size: 11px;
                     font-weight: 600;
                     color: AppTheme.text_secondary;
@@ -143,7 +143,7 @@ export component KeyboardControlsBar inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "亮度等级";
+                        text: "Уровень яркости";
                         font-size: 10px;
                         font-weight: 600;
                         color: AppTheme.text_secondary;
@@ -151,7 +151,7 @@ export component KeyboardControlsBar inherits Rectangle {
                     }
                 }
                 Text {
-                    text: root.is_single_color ? (Math.max(1, root.kb_brightness) == 1 ? "1档 (弱光)" : "2档 (强光)") : (Math.max(1, root.kb_brightness) + " 档");
+                    text: root.is_single_color ? (Math.max(1, root.kb_brightness) == 1 ? "1 ступ. (слабая)" : "2 ступ. (яркая)") : (Math.max(1, root.kb_brightness) + " ступ.");
                     font-size: 10px;
                     font-weight: 700;
                     color: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #34d399 : (root.is_four_zone ? #22d3ee : #818cf8));
@@ -236,7 +236,7 @@ export component KeyboardControlsBar inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "流动速度";
+                        text: "Скорость движения";
                         font-size: 10px;
                         font-weight: 600;
                         color: AppTheme.text_secondary;
@@ -244,7 +244,7 @@ export component KeyboardControlsBar inherits Rectangle {
                     }
                 }
                 Text {
-                    text: (root.kb_speed + 1) + " 档 (适中)";
+                    text: (root.kb_speed + 1) + " ступ. (средняя)";
                     font-size: 10px;
                     font-weight: 700;
                     color: #06b6d4;

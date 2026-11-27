@@ -65,7 +65,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
         {/* 主题切换开关 (单色/赛博) */}
         <button
           onClick={onToggleTheme}
-          title={theme === 'mono' ? '切换到：赛博分区主题配色' : '切换到：极简纯单色配色'}
+          title={theme === 'mono' ? 'Переключиться на: тематическую палитру Cyber' : 'Переключиться на: минималистичную чисто монохромную палитру'}
           style={{
             background: theme === 'cyber' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
             border: theme === 'cyber' ? '1px solid rgba(56, 189, 248, 0.4)' : 'none',
@@ -85,7 +85,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
         {/* 赞赏与支持 */}
         <button
           onClick={onOpenSponsor}
-          title="支持作者 (赞赏与开源支持)"
+          title="Поддержать автора (донат и поддержка открытого кода)"
           style={{
             background: 'transparent',
             border: 'none',
@@ -105,7 +105,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
         {/* 最小化 */}
         <button
           onClick={onMinimize}
-          title="最小化到托盘"
+          title="Свернуть в трей"
           style={{
             background: 'transparent',
             border: 'none',
@@ -124,7 +124,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
         {/* 关闭 */}
         <button
           onClick={onClose}
-          title="关闭窗口 (保持后台托盘服务)"
+          title="Закрыть окно (фоновая служба в трее продолжит работать)"
           style={{
             background: 'transparent',
             border: 'none',

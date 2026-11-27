@@ -60,21 +60,21 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
       <div className="m-card-header">
         <div className="m-header-left">
           <Cpu size={13} style={{ color: 'var(--theme-gpu)' }} />
-          <span>显卡模式:</span>
+          <span>Режим графики:</span>
           <span style={{ color: 'var(--theme-gpu)', fontWeight: 700 }}>
             {gpuModeInfo?.has_dgpu === false
-              ? '核显模式 (纯APU架构)'
+              ? 'Режим iGPU (чистая архитектура APU)'
               : gpuModeInfo?.current_mode === 'dgpu'
-              ? '独显直连 (dGPU)'
+              ? 'Прямой вывод dGPU'
               : gpuModeInfo?.current_mode === 'hybrid'
-              ? '混合输出 (Dynamic)'
+              ? 'Гибридный вывод (Dynamic)'
               : gpuModeInfo?.current_mode === 'igpu'
-              ? '核显模式 (iGPU)'
-              : '检测中...'}
+              ? 'Режим iGPU'
+              : 'Определение...'}
           </span>
         </div>
         <div className="m-header-right" style={{ color: 'var(--theme-gpu)' }}>
-          GPU: {status.gpu_temp > 0 ? `${status.gpu_temp}°C` : (status.cpu_temp > 0 ? `${status.cpu_temp}°C` : '--')} · Fan: {status.gpu_fan_rpm > 0 ? `${status.gpu_fan_rpm} RPM` : '静音'}
+          GPU: {status.gpu_temp > 0 ? `${status.gpu_temp}°C` : (status.cpu_temp > 0 ? `${status.cpu_temp}°C` : '--')} · Fan: {status.gpu_fan_rpm > 0 ? `${status.gpu_fan_rpm} RPM` : 'Тихий'}
         </div>
       </div>
 
@@ -97,10 +97,10 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
           }}
           title={
             gpuModeInfo?.has_dgpu === false
-              ? '纯核显轻薄本架构，原生运行于核显模式'
+              ? 'Ультратонкая архитектура только на iGPU, изначально работает в режиме iGPU'
               : isIgpuLocked
-              ? (gpuModeInfo?.capabilities?.reason_igpu_unsupported || '当前机型为双模架构，无物理核显直连走线，已锁定保护防黑屏')
-              : '点击打开高级显卡切换面板'
+              ? (gpuModeInfo?.capabilities?.reason_igpu_unsupported || 'Модель — двухрежимная архитектура без физической линии прямого вывода iGPU; включена защитная блокировка от чёрного экрана')
+              : 'Нажмите, чтобы открыть расширенную панель переключения графики'
           }
           onClick={() => {
             if (!isIgpuLocked) onExpandDashboard('gpu');
@@ -108,7 +108,7 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
         >
           {isIgpuLocked ? <Lock size={14} /> : <Cpu size={14} />}
           <span style={{ fontSize: '10.5px', fontWeight: 600 }}>
-            {gpuModeInfo?.has_dgpu === false ? '纯集显 (生效)' : isIgpuLocked ? '双模锁定' : '纯集显'}
+            {gpuModeInfo?.has_dgpu === false ? 'Только iGPU (активно)' : isIgpuLocked ? 'Блокировка двух режимов' : 'Только iGPU'}
           </span>
         </button>
 
@@ -128,13 +128,13 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
               ? { opacity: 0.35, cursor: 'not-allowed' }
               : {}),
           }}
-          title={gpuModeInfo?.has_dgpu === false ? '纯核显架构无独立显卡，不可用' : '点击打开高级显卡切换面板'}
+          title={gpuModeInfo?.has_dgpu === false ? 'Архитектура только на iGPU, без dGPU — недоступно' : 'Нажмите, чтобы открыть расширенную панель переключения графики'}
           onClick={() => {
             if (gpuModeInfo?.has_dgpu !== false) onExpandDashboard('gpu');
           }}
         >
           <Repeat size={14} />
-          <span style={{ fontSize: '10.5px', fontWeight: 600 }}>标准混合</span>
+          <span style={{ fontSize: '10.5px', fontWeight: 600 }}>Стандартный гибрид</span>
         </button>
 
         <button
@@ -153,13 +153,13 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
               ? { opacity: 0.35, cursor: 'not-allowed' }
               : {}),
           }}
-          title={gpuModeInfo?.has_dgpu === false ? '纯核显架构无独立显卡，不可用' : '点击打开高级显卡切换面板'}
+          title={gpuModeInfo?.has_dgpu === false ? 'Архитектура только на iGPU, без dGPU — недоступно' : 'Нажмите, чтобы открыть расширенную панель переключения графики'}
           onClick={() => {
             if (gpuModeInfo?.has_dgpu !== false) onExpandDashboard('gpu');
           }}
         >
           <Crosshair size={14} />
-          <span style={{ fontSize: '10.5px', fontWeight: 600 }}>独显直连</span>
+          <span style={{ fontSize: '10.5px', fontWeight: 600 }}>Прямой вывод dGPU</span>
         </button>
       </div>
     </div>

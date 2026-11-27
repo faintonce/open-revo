@@ -693,7 +693,7 @@ pub fn load_plugin_watchers_from_storage(plugin_id: &str) -> Option<Vec<WatcherD
 pub fn save_plugin_watchers_to_storage(plugin_id: &str, watchers: &[WatcherDefinition]) -> Result<(), String> {
     let path = get_plugin_watchers_storage_path(plugin_id)?;
     let json = serde_json::to_string_pretty(watchers).map_err(|e| format!("序列化 Watcher 规则失败: {}", e))?;
-    std::fs::write(&path, json).map_err(|e| format!("写入 Watcher 配置文件失败: {}", e))?;
+    std::fs::write(&path, json).map_err(|e| format!("Не удалось записать конфигурацию Watcher: {}", e))?;
     Ok(())
 }
 

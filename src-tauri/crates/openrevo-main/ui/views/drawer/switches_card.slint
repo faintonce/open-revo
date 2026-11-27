@@ -53,7 +53,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: root.has_fan_boost ? "一键强冷" : "暂不支持";
+                    text: root.has_fan_boost ? "Форс-охлаждение" : "Пока не поддерживается";
                     font-size: 9.5px;
                     font-weight: (root.has_fan_boost && fan_boost) ? 700 : 500;
                     color: !root.has_fan_boost ? AppTheme.text_muted : (fan_boost ? #38bdf8 : AppTheme.text_primary);
@@ -87,7 +87,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: camera_enabled ? "摄像头" : "相机已关";
+                    text: camera_enabled ? "Камера" : "Камера выключена";
                     font-size: 9.5px;
                     font-weight: camera_enabled ? 700 : 500;
                     color: camera_enabled ? #38bdf8 : AppTheme.text_primary;
@@ -121,7 +121,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: mic_enabled ? "麦克风" : "麦克静音";
+                    text: mic_enabled ? "Микрофон" : "Микрофон заглушён";
                     font-size: 9.5px;
                     font-weight: mic_enabled ? 700 : 500;
                     color: mic_enabled ? #38bdf8 : AppTheme.text_primary;
@@ -155,7 +155,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: win_locked ? "Win已锁" : "Win键锁";
+                    text: win_locked ? "Win заблокирована" : "Блокировка Win";
                     font-size: 9.5px;
                     font-weight: win_locked ? 700 : 500;
                     color: win_locked ? #38bdf8 : AppTheme.text_primary;
@@ -189,7 +189,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: keep_awake ? "保持常亮" : "常亮保持";
+                    text: keep_awake ? "Держать постоянно" : "Держать постоянно";
                     font-size: 9.5px;
                     font-weight: keep_awake ? 700 : 500;
                     color: keep_awake ? #38bdf8 : AppTheme.text_primary;
@@ -223,7 +223,7 @@ export component DrawerSwitchesCard inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: "关闭屏幕";
+                    text: "Выключить экран";
                     font-size: 9.5px;
                     font-weight: 500;
                     color: AppTheme.text_primary;

@@ -4,17 +4,17 @@ export component CloudIccModal inherits Rectangle {
     in-out property <bool> is_open: false;
 
     // Hardware Identity Properties
-    in-out property <string> panel_pnp: "未检出";
-    in-out property <string> panel_sn: "(无独立面板SN)";
-    in-out property <string> bios_sn: "未检出";
-    in-out property <string> mac_address: "未检出";
-    in-out property <string> arch_name: "识别中...";
+    in-out property <string> panel_pnp: "Не обнаружено";
+    in-out property <string> panel_sn: "(нет отдельного SN панели)";
+    in-out property <string> bios_sn: "Не обнаружено";
+    in-out property <string> mac_address: "Не обнаружено";
+    in-out property <string> arch_name: "Распознавание...";
     in-out property <string> recommended_method: "auto"; // "auto" | "50" | "40"
     in-out property <string> selected_mode: "auto";
 
     // Query & Hit State
     in-out property <bool> is_searching: false;
-    in-out property <string> status_text: "就绪";
+    in-out property <string> status_text: "Готово";
     in-out property <bool> hit_found: false;
     in-out property <string> hit_file_name: "";
     in-out property <string> hit_meta: "";
@@ -86,7 +86,7 @@ export component CloudIccModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 8px;
                                 Text {
-                                    text: "同方原厂云端校色助手";
+                                    text: "Облачный помощник заводской калибровки TongFang";
                                     font-size: 14px;
                                     font-weight: 700;
                                     color: AppTheme.text_primary;
@@ -102,7 +102,7 @@ export component CloudIccModal inherits Rectangle {
                                         padding-left: 6px;
                                         padding-right: 6px;
                                         Text {
-                                            text: "Win32 原生纯净";
+                                            text: "Нативная чистота Win32";
                                             font-size: 9.5px;
                                             font-weight: 600;
                                             color: #38bdf8;
@@ -112,7 +112,7 @@ export component CloudIccModal inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "出厂硬件指纹智能识别 · Uniwill 40系 & Aistone 50系双节点并发拉取 · 一键应用生效";
+                                text: "Умное распознавание аппаратного отпечатка завода · параллельная загрузка с двух узлов (Uniwill 40-й серии и Aistone 50-й) · применение одним нажатием";
                                 font-size: 10px;
                                 color: AppTheme.text_muted;
                             }
@@ -182,7 +182,7 @@ export component CloudIccModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "本机硬件识别真值";
+                                    text: "Истинные значения распознавания оборудования";
                                     font-size: 12px;
                                     font-weight: 700;
                                     color: AppTheme.text_primary;
@@ -216,7 +216,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "声明式主板架构";
+                                        text: "Декларативная архитектура платы";
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
@@ -242,7 +242,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "屏幕面板 PnP ID";
+                                        text: "PnP ID панели экрана";
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
@@ -268,12 +268,12 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "BIOS 序列号";
+                                        text: "Серийный номер BIOS";
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
                                     Text {
-                                        text: root.bios_sn != "" ? root.bios_sn : "(标准)";
+                                        text: root.bios_sn != "" ? root.bios_sn : "(стандарт)";
                                         font-size: 11px;
                                         font-weight: 700;
                                         color: AppTheme.text_primary;
@@ -294,7 +294,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "物理网卡 MAC";
+                                        text: "Физический MAC сетевой карты";
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
@@ -334,7 +334,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "智能推荐模式";
+                                    text: "Умный рекомендованный режим";
                                     font-size: 10.5px;
                                     font-weight: root.selected_mode == "auto" ? 700 : 500;
                                     color: root.selected_mode == "auto" ? #38bdf8 : AppTheme.text_muted;
@@ -358,7 +358,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "50系专属 (Aistone / SN)";
+                                    text: "Только для 50-й серии (Aistone / SN)";
                                     font-size: 10.5px;
                                     font-weight: root.selected_mode == "50" ? 700 : 500;
                                     color: root.selected_mode == "50" ? #38bdf8 : AppTheme.text_muted;
@@ -382,7 +382,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "40系及更早 (Uniwill / MAC)";
+                                    text: "40-я серия и раньше (Uniwill / MAC)";
                                     font-size: 10.5px;
                                     font-weight: root.selected_mode == "40" ? 700 : 500;
                                     color: root.selected_mode == "40" ? #38bdf8 : AppTheme.text_muted;
@@ -419,7 +419,7 @@ export component CloudIccModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "重新探测";
+                                    text: "Перепроверить";
                                     font-size: 10.5px;
                                     color: AppTheme.text_primary;
                                     vertical-alignment: center;
@@ -454,7 +454,7 @@ export component CloudIccModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: root.is_searching ? "正在检索云端..." : "开始检索原厂校色";
+                                    text: root.is_searching ? "Поиск в облаке..." : "Начать поиск заводской калибровки";
                                     font-size: 11px;
                                     font-weight: 700;
                                     color: root.is_searching ? #38bdf8 : #000000;
@@ -485,7 +485,7 @@ export component CloudIccModal inherits Rectangle {
                             }
                         }
                         Text {
-                            text: root.is_searching ? "正在连接原厂校色数据库检索候选哈希队列，请稍候..." : "点击上方【开始检索原厂校色】，系统将自动匹配专属出厂色彩文件";
+                            text: root.is_searching ? "Подключение к базе заводских калибровок, поиск очереди кандидатов по хэшам — подождите..." : "Нажмите «Начать поиск заводской калибровки» выше — система автоматически подберёт фирменный заводской цветовой профиль";
                             font-size: 11px;
                             color: AppTheme.text_muted;
                             horizontal-alignment: center;
@@ -515,7 +515,7 @@ export component CloudIccModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 8px;
                                 Text {
-                                    text: "🎯 成功命中原厂校色配置包！";
+                                    text: "🎯 Точное попадание в заводской пакет калибровки!";
                                     font-size: 13px;
                                     font-weight: 700;
                                     color: #10b981;
@@ -540,7 +540,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-right: 10px;
                                 spacing: 6px;
                                 Text {
-                                    text: "命中文件:";
+                                    text: "Совпавший файл:";
                                     font-size: 10.5px;
                                     color: AppTheme.text_muted;
                                     vertical-alignment: center;
@@ -559,7 +559,7 @@ export component CloudIccModal inherits Rectangle {
                         if root.hit_profiles.length > 1: HorizontalLayout {
                             spacing: 8px;
                             Text {
-                                text: "当前选用档位:";
+                                text: "Выбранная ступень:";
                                 font-size: 10.5px;
                                 color: AppTheme.text_muted;
                                 vertical-alignment: center;
@@ -606,7 +606,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 5px;
                                     Text {
-                                        text: "✔ 一键应用生效至当前显示器";
+                                        text: "✔ Применить к текущему монитору одним нажатием";
                                         font-size: 11.5px;
                                         font-weight: 700;
                                         color: #000000;
@@ -631,7 +631,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 5px;
                                     Text {
-                                        text: "批量导入全部档位至方案库";
+                                        text: "Импортировать все ступени в библиотеку схем";
                                         font-size: 11.5px;
                                         font-weight: 700;
                                         color: #38bdf8;

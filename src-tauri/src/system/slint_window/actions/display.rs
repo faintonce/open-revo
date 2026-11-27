@@ -298,7 +298,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
                         sync_slint_display_state();
                         send_slint_ipc_message(serde_json::json!({
                             "action": "cloud_icc_toast",
-                            "toast": format!("✔ 已成功应用原厂校色 [{}] 至当前显示器！", p.file_name)
+                            "toast": format!("✔ Заводская калибровка [{}] успешно применена к текущему монитору!", p.file_name)
                         }));
                     }
                 }

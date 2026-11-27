@@ -64,7 +64,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               userSelect: 'none',
             }}
             onClick={onToggleAutostart}
-            title={status.autostart ? '已启用开机自启动 (最小化至托盘)' : '未启用开机自启'}
+            title={status.autostart ? 'Автозапуск включён (сворачивается в трей)' : 'Автозапуск при включении не включён'}
           >
             <input
               type="checkbox"
@@ -73,7 +73,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               style={{ accentColor: '#38bdf8', cursor: 'pointer', margin: 0 }}
             />
             <span style={{ color: status.autostart ? '#f1f5f9' : 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-              开机自启
+              Автозапуск при включении
             </span>
           </label>
 
@@ -84,8 +84,8 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               disabled={isSwitchingService}
               title={
                 status.oem_running
-                  ? '检测到机械革命官方电竞服务正在运行。点击后将一键停止并禁用官方服务，防止与 OpenRevo 争抢 EC 硬件寄存器。'
-                  : '机械革命官方电竞服务当前已被屏蔽/接管。点击后可重新恢复启动官方原厂后台服务。'
+                  ? 'Обнаружена работающая официальная игровая служба MECHREVO. По клику она будет остановлена и отключена одним нажатием, чтобы OpenRevo не конфликтовал за аппаратные EC-регистры.'
+                  : 'Официальная игровая служба MECHREVO сейчас заблокирована/перехвачена. По клику можно снова запустить штатную фоновую службу производителя.'
               }
               style={{
                 padding: '2px 7px',
@@ -110,7 +110,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               ) : (
                 <Repeat size={10} />
               )}
-              <span>{status.oem_running ? '接管官方控制台' : '恢复官方控制台'}</span>
+              <span>{status.oem_running ? 'Перехватить официальную консоль' : 'Вернуть официальную консоль'}</span>
             </button>
           )}
         </div>
@@ -118,7 +118,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <button className="m-foot-btn expand" onClick={() => onExpandDashboard('overview')}>
             <Maximize2 size={12} />
-            <span>展开大面板</span>
+            <span>Развернуть большую панель</span>
           </button>
         </div>
       </div>
@@ -172,11 +172,11 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
             </div>
 
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
-              官方控制中心正在运行
+              Официальный центр управления запущен
             </div>
 
             <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5, marginBottom: '16px', textAlign: 'left' }}>
-              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>屏幕持续闪烁</strong>，当前处于<strong>安全只读避让模式</strong>。
+              Обнаружен работающий официальный игровой фон MECHREVO. Чтобы не конфликтовать за EC-регистры платы и не вызвать<strong>Постоянное мерцание экрана</strong>, сейчас находится в<strong>Безопасный режим «только чтение» с уклонением</strong>.
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -206,7 +206,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
                 }}
               >
                 {isSwitchingService ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-                <span>{isSwitchingService ? '正在接管服务并释放硬件...' : '立即一键接管官方服务'}</span>
+                <span>{isSwitchingService ? 'Перехват службы и освобождение оборудования...' : 'Немедленно перехватить официальную службу одним нажатием'}</span>
               </button>
 
               <button
@@ -221,7 +221,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                暂不接管，保持只读监控
+                Пока не перехватывать: оставить мониторинг «только чтение»
               </button>
             </div>
           </div>

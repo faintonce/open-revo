@@ -305,14 +305,14 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
           <div className="plugin-section-title-wrap">
             <div className="plugin-section-title">
               <Puzzle size={16} />
-              <span>内置插件</span>
-              <RevBadge variant="accent">Safe-Mode 模块隔离</RevBadge>
+              <span>Встроенные плагины</span>
+              <RevBadge variant="accent">Изоляция модулей в Safe-Mode</RevBadge>
             </div>
             <div className="plugin-section-desc">
-              系统核心功能插槽，可根据使用偏好按需开启或关闭。关闭后模块将从顶栏导航与后台调度中隐藏
+              Слоты основных функций системы: включайте и отключайте по предпочтениям. После отключения модуль скрывается из верхней навигации и фоновой диспетчеризации
             </div>
           </div>
-          <RevBadge variant="default">共 {builtinSlots.length} 项</RevBadge>
+          <RevBadge variant="default">Всего {builtinSlots.length} шт.</RevBadge>
         </div>
 
         <div className="plugins-list">
@@ -355,11 +355,11 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
           <div className="plugin-section-title-wrap">
             <div className="plugin-section-title">
               <Boxes size={16} />
-              <span>自定义插件</span>
-              <RevBadge variant="info">社区生态扩展</RevBadge>
+              <span>Пользовательские плагины</span>
+              <RevBadge variant="info">Расширения экосистемы сообщества</RevBadge>
             </div>
             <div className="plugin-section-desc">
-              支持加载由社区与开发者提供的扩展（桌面透明挂件、调谐脚本、自动化服务等），基于安全沙盒运行
+              Поддержка расширений от сообщества и разработчиков (прозрачные виджеты на рабочем столе, скрипты настройки, автоматизация и т.д.), работающих в безопасной песочнице
             </div>
           </div>
 
@@ -367,19 +367,19 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
             <button
               onClick={handleOpenPluginsDir}
               className="toggle-btn"
-              title="打开用户插件目录 (%APPDATA%\OpenRevo\plugins)"
+              title="Открыть каталог пользовательских плагинов (%APPDATA%\OpenRevo\plugins)"
             >
               <FolderOpen size={13} />
-              <span>打开插件目录</span>
+              <span>Открыть каталог плагинов</span>
             </button>
             <button
               onClick={() => fetchCustomPlugins(true)}
               disabled={loadingCustom}
               className="toggle-btn"
-              title="刷新已安装插件列表并热重载当前样式"
+              title="Обновить список установленных плагинов и «горячо» перезагрузить текущие стили"
             >
               <RotateCcw size={13} className={loadingCustom ? 'animate-spin' : ''} />
-              <span>刷新</span>
+              <span>Обновить</span>
             </button>
           </div>
         </div>
@@ -389,13 +389,13 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
             <div className="plugin-empty-icon">
               <Boxes size={24} />
             </div>
-            <div className="plugin-empty-title">暂未检测到第三方自定义插件</div>
+            <div className="plugin-empty-title">Сторонние пользовательские плагины пока не обнаружены</div>
             <div className="plugin-empty-desc">
-              将包含 manifest.json 的插件文件夹或 .rhai 脚本放入 plugins 目录后点击右上角“刷新”即可加载。详情可查阅《OpenRevo 插件与扩展文档》。
+              Поместите папку плагина с manifest.json или скрипт .rhai в каталог plugins и нажмите «Обновить» в правом верхнем углу. Подробнее — в «Документации по плагинам и расширениям OpenRevo».
             </div>
             <button onClick={handleOpenPluginsDir} className="toggle-btn active-indigo">
               <FolderOpen size={13} />
-              <span>打开 plugins 目录</span>
+              <span>Открыть каталог plugins</span>
             </button>
           </div>
         ) : (
@@ -419,30 +419,30 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
                         <span className="plugin-item-id">[{plugin.id}]</span>
                         <RevBadge variant="default">v{plugin.version}</RevBadge>
                         {/* 多维度能力标签组合 */}
-                        {plugin.has_skin && <RevBadge variant="accent">主窗皮肤</RevBadge>}
-                        {plugin.has_background && <RevBadge variant="warning">背景壁纸</RevBadge>}
-                        {plugin.has_widget && <RevBadge variant="success">桌面挂件</RevBadge>}
-                        {plugin.has_tab && <RevBadge variant="info">选项卡</RevBadge>}
-                        {plugin.has_slot && <RevBadge variant="accent">微插槽 {plugin.target_slot ? `[${plugin.target_slot}]` : ''}</RevBadge>}
-                        {plugin.has_service && <RevBadge variant="default">伴生服务</RevBadge>}
-                        {plugin.is_headless && <RevBadge variant="default">后台看门狗</RevBadge>}
+                        {plugin.has_skin && <RevBadge variant="accent">Тема главного окна</RevBadge>}
+                        {plugin.has_background && <RevBadge variant="warning">Фон рабочего стола</RevBadge>}
+                        {plugin.has_widget && <RevBadge variant="success">Виджет рабочего стола</RevBadge>}
+                        {plugin.has_tab && <RevBadge variant="info">Вкладки</RevBadge>}
+                        {plugin.has_slot && <RevBadge variant="accent">микрослот {plugin.target_slot ? `[${plugin.target_slot}]` : ''}</RevBadge>}
+                        {plugin.has_service && <RevBadge variant="default">Сопутствующий сервис</RevBadge>}
+                        {plugin.is_headless && <RevBadge variant="default">Фоновый сторожевой таймер</RevBadge>}
                         {!plugin.has_skin && !plugin.has_background && !plugin.has_widget && !plugin.has_tab && !plugin.has_slot && !plugin.has_service && !plugin.is_headless && (
                           <RevBadge variant="default">{plugin.plugin_type}</RevBadge>
                         )}
                         {plugin.is_compatible === false ? (
                           <RevBadge variant="error" title={plugin.compatibility_notice}>
-                            ⚠️ {plugin.compatibility_notice || `需 OpenRevo v${plugin.min_host_version}+`}
+                            ⚠️ {plugin.compatibility_notice || `Нужен OpenRevo v${plugin.min_host_version}+`}
                           </RevBadge>
                         ) : plugin.min_host_version ? (
-                          <RevBadge variant="default" title={`最低要求 OpenRevo v${plugin.min_host_version}`}>
+                          <RevBadge variant="default" title={`Требуется OpenRevo не ниже v${plugin.min_host_version}`}>
                             v{plugin.min_host_version}+
                           </RevBadge>
                         ) : null}
                       </div>
                       <span className="plugin-item-desc">{plugin.description}</span>
                       <div className="plugin-item-meta">
-                        <span>作者: {plugin.author}</span>
-                        <span>目录: {plugin.dir_name}</span>
+                        <span>Автор: {plugin.author}</span>
+                        <span>Каталог: {plugin.dir_name}</span>
                       </div>
                     </div>
                   </div>
@@ -453,10 +453,10 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
                         className="toggle-btn"
                         style={{ height: '26px', padding: '0 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                         onClick={() => onSelectPluginTab(plugin.id)}
-                        title="打开该插件在控制台的页面/设置"
+                        title="Открыть страницу/настройки плагина в консоли"
                       >
                         <ExternalLink size={12} />
-                        <span>打开面板</span>
+                        <span>Открыть панель</span>
                       </button>
                     )}
                     <RevSwitch

@@ -381,28 +381,28 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
   };
 
   const pageTitle = isSingleColor
-    ? '键盘单色背光工作台'
+    ? 'Рабочий стол одноцветной подсветки клавиатуры'
     : isSingleZone
-    ? '单区 RGB 键盘工作台'
+    ? 'Рабочий стол однозонной RGB-клавиатуры'
     : isFourZone
-    ? '4区 RGB 键盘工作台'
-    : '键盘背光工作台';
+    ? 'Рабочий стол 4-зонной RGB-клавиатуры'
+    : 'Рабочий стол подсветки клавиатуры';
 
   const badgeText = isSingleColor
-    ? '单色白光背光 [EC硬件直通]'
+    ? 'Одноцветная белая подсветка [прямое управление EC]'
     : isSingleZone
-    ? '单区同色 RGB [EC硬件调光]'
+    ? 'Однозонный одноцветный RGB [аппаратный димминг EC]'
     : isFourZone
-    ? 'ITE 8291 r2 4区 RGB 控制器 (048D:CE00)'
-    : 'ITE 8291 单键 RGB 控制器 (048D 逐键 HID)';
+    ? '4-зонный RGB-контроллер ITE 8291 r2 (048D:CE00)'
+    : 'По-клавишный RGB-контроллер ITE 8291 (048D, HID на каждую клавишу)';
 
   const pageDesc = isSingleColor
-    ? '检测到当前机型为单色 LED 背光，已自动精简无效控制项，支持开关、3档亮度与闲置熄灯'
+    ? 'Обнаружена одноцветная LED-подсветка — лишние элементы управления автоматически скрыты; поддерживаются вкл/выкл, 3 ступени яркости и гашение в простое'
     : isSingleZone
-    ? '全键盘同色调光，支持纯色常亮、彩虹呼吸与4档亮度微调'
+    ? 'Вся клавиатура одним цветом: сплошной цвет, радужное дыхание и 4 ступени регулировки яркости'
     : isFourZone
-    ? '4 分区独立调色与 6 种原厂硬件动效，支持方向、亮度与色彩微调'
-    : '12 种硬件内建与动态特效，支持方向、亮度与色彩毫秒级直接生效';
+    ? '4 зоны независимой окраски и 6 заводских аппаратных эффектов; настройка направления, яркости и цвета'
+    : '12 аппаратных и динамических эффектов; направление, яркость и цвет применяются напрямую за миллисекунды';
 
   const isKbOn = lighting.kb_enabled && lighting.kb_brightness > 0;
 
@@ -498,10 +498,10 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
                 <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} />
-                全域键盘亮度
+                Общая яркость клавиатуры
               </span>
               <span style={{ color: 'var(--color-brand)', fontWeight: 700 }}>
-                {displayBrightness === 0 ? '关闭 (0)' : `${displayBrightness} 档`}
+                {displayBrightness === 0 ? 'Выключено (0)' : `${displayBrightness} ступ.`}
               </span>
             </div>
             <input
@@ -557,7 +557,7 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
             />
           ) : !isSingleColor && (
             <LightColorRow
-              label="定制主色调："
+              label="Пользовательский основной цвет:"
               color={lighting.kb_color}
               onChangeColor={(hex: string) => sendKeyboard({ kb_color: hex })}
               iconColor="var(--color-brand)"

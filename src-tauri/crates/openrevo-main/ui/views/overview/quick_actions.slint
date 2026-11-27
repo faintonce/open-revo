@@ -65,7 +65,7 @@ export component DashboardQuickActions inherits Rectangle {
                         }
 
                         Text {
-                            text: "强冷锁速";
+                            text: "Фиксация оборотов форс-охлаждения";
                             font-size: 11.5px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
@@ -115,7 +115,7 @@ export component DashboardQuickActions inherits Rectangle {
                                 padding-left: 8px;
                                 padding-right: 8px;
                                 Text {
-                                    text: fan_boost ? "已锁定" : "自动";
+                                    text: fan_boost ? "Заблокировано" : "Авто";
                                     font-size: 10px;
                                     font-weight: 700;
                                     color: fan_boost ? #0f172a : AppTheme.text_secondary;
@@ -227,13 +227,13 @@ export component DashboardQuickActions inherits Rectangle {
                         alignment: center;
                         spacing: 2px;
                         Text {
-                            text: "一键强冷";
+                            text: "Форс-охлаждение";
                             font-size: 12px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
                         }
                         Text {
-                            text: "最高转速极限降温";
+                            text: "Максимальные обороты для предельного охлаждения";
                             font-size: 9.5px;
                             color: AppTheme.text_muted;
                         }
@@ -257,7 +257,7 @@ export component DashboardQuickActions inherits Rectangle {
                             padding-left: 10px;
                             padding-right: 10px;
                             Text {
-                                text: fan_boost ? "已开启" : "关闭";
+                                text: fan_boost ? "Включено" : "Выключить";
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: fan_boost ? #0f172a : AppTheme.text_secondary;
@@ -298,13 +298,13 @@ export component DashboardQuickActions inherits Rectangle {
                         alignment: center;
                         spacing: 2px;
                         Text {
-                            text: "拔电自动低刷";
+                            text: "Автопонижение частоты обновления от батареи";
                             font-size: 12px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
                         }
                         Text {
-                            text: "离电续航最大化";
+                            text: "Максимум автономности от батареи";
                             font-size: 9.5px;
                             color: AppTheme.text_muted;
                         }
@@ -328,7 +328,7 @@ export component DashboardQuickActions inherits Rectangle {
                             padding-left: 10px;
                             padding-right: 10px;
                             Text {
-                                text: auto_min_hz ? "已开启" : "关闭";
+                                text: auto_min_hz ? "Включено" : "Выключить";
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: auto_min_hz ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -373,7 +373,7 @@ export component DashboardQuickActions inherits Rectangle {
                         HorizontalLayout {
                             spacing: 6px;
                             Text {
-                                text: "OSD 设置";
+                                text: "Настройки OSD";
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -399,7 +399,7 @@ export component DashboardQuickActions inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "形态控制";
+                            text: "Управление видом окна";
                             font-size: 9.5px;
                             color: AppTheme.text_muted;
                         }
@@ -428,7 +428,7 @@ export component DashboardQuickActions inherits Rectangle {
                                 padding-right: 8px;
                                 spacing: 4px;
                                 Text {
-                                    text: root.osd_config.theme == "cinema" ? "电影字幕" : (root.osd_config.theme == "fade" ? "向右羽化" : "磨砂胶囊");
+                                    text: root.osd_config.theme == "cinema" ? "Киносубтитры" : (root.osd_config.theme == "fade" ? "Перо вправо" : "Матовая капсула");
                                     font-size: 11px;
                                     color: AppTheme.text_primary;
                                     vertical-alignment: center;
@@ -463,7 +463,7 @@ export component DashboardQuickActions inherits Rectangle {
                                                 mouse-cursor: pointer;
                                                 clicked => { root.change_osd_theme("cinema"); }
                                             }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "电影字幕"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "Киносубтитры"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
@@ -473,7 +473,7 @@ export component DashboardQuickActions inherits Rectangle {
                                                 mouse-cursor: pointer;
                                                 clicked => { root.change_osd_theme("fade"); }
                                             }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "向右羽化"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "Перо вправо"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
@@ -483,7 +483,7 @@ export component DashboardQuickActions inherits Rectangle {
                                                 mouse-cursor: pointer;
                                                 clicked => { root.change_osd_theme("pill"); }
                                             }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "磨砂胶囊"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "Матовая капсула"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                     }
                                 }
@@ -559,7 +559,7 @@ export component DashboardQuickActions inherits Rectangle {
                                 padding-right: 8px;
                                 spacing: 4px;
                                 Text {
-                                    text: root.osd_config.position == "top-left" ? "左上角" : (root.osd_config.position == "bottom-center" ? "下方中央" : "屏幕正中");
+                                    text: root.osd_config.position == "top-left" ? "Сверху слева" : (root.osd_config.position == "bottom-center" ? "Снизу по центру" : "Центр экрана");
                                     font-size: 11px;
                                     color: AppTheme.text_primary;
                                     vertical-alignment: center;
@@ -591,21 +591,21 @@ export component DashboardQuickActions inherits Rectangle {
                                             border-radius: 4px;
                                             background: t_p1.has-hover ? AppTheme.surface_pill : transparent;
                                             t_p1 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("top-left"); } }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "左上角"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "Сверху слева"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
                                             border-radius: 4px;
                                             background: t_p2.has-hover ? AppTheme.surface_pill : transparent;
                                             t_p2 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("bottom-center"); } }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "下方中央"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "Снизу по центру"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
                                             border-radius: 4px;
                                             background: t_p3.has-hover ? AppTheme.surface_pill : transparent;
                                             t_p3 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("center"); } }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "屏幕正中"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: "Центр экрана"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                     }
                                 }
@@ -626,7 +626,7 @@ export component DashboardQuickActions inherits Rectangle {
                             HorizontalLayout {
                                 padding-left: 10px;
                                 padding-right: 10px;
-                                Text { text: "预览"; font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
+                                Text { text: "Предпросмотр"; font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
                             }
                         }
                     }

@@ -94,14 +94,14 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span>
-            上限: {max}
+            Лимит: {max}
             {unit}
           </span>
           <button
             type="button"
             onClick={() => onAdjustMax?.(-adjustStep)}
             disabled={max <= minCap}
-            title={`以 ${adjustStep}${unit} 步长调小上限`}
+            title={`Шаг ${adjustStep}${unit} — уменьшить лимит`}
             className="tuning-step-btn"
           >
             -
@@ -110,7 +110,7 @@ export const CpuPlSliderRow: React.FC<CpuPlSliderRowProps> = ({
             type="button"
             onClick={() => onAdjustMax?.(adjustStep)}
             disabled={max >= maxCap}
-            title={`以 ${adjustStep}${unit} 步长调大上限`}
+            title={`Шаг ${adjustStep}${unit} — увеличить лимит`}
             className="tuning-step-btn"
           >
             +

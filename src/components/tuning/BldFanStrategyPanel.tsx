@@ -58,17 +58,17 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--status-info)' }}>
           <Wind className="w-4 h-4" />
-          <span>原厂散热策略与闭环温控</span>
+          <span>Заводская стратегия охлаждения и контур управления температурой</span>
         </div>
         <button
           type="button"
           onClick={handleRestoreAuto}
           className="tuning-step-btn"
           style={{ width: 'auto', padding: '2px 8px', fontSize: '10px', gap: '4px' }}
-          title="恢复出厂自适应温控，清除转速上限与强冷锁定"
+          title="Восстановить заводское адаптивное управление температурой, снять лимит оборотов и блокировку форс-охлаждения"
         >
           <RotateCcw className="w-3 h-3" />
-          <span>恢复默认</span>
+          <span>По умолчанию</span>
         </button>
       </div>
 
@@ -86,26 +86,26 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-            <span>CPU 风扇</span>
+            <span>Вентилятор CPU</span>
             <span>{cpuTemp > 0 ? `${cpuTemp}°C` : '--'}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Fan className={`w-3.5 h-3.5 ${cpuFanRpm > 0 ? 'animate-spin' : ''}`} style={{ color: 'var(--status-info)' }} />
             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {cpuFanRpm > 0 ? `${cpuFanRpm} RPM` : '待机停转'}
+              {cpuFanRpm > 0 ? `${cpuFanRpm} RPM` : 'Остановка в простое'}
             </span>
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-            <span>GPU 风扇</span>
+            <span>Вентилятор GPU</span>
             <span>{gpuTemp > 0 ? `${gpuTemp}°C` : '--'}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Fan className={`w-3.5 h-3.5 ${gpuFanRpm > 0 ? 'animate-spin' : ''}`} style={{ color: 'var(--color-turbo)' }} />
             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {gpuFanRpm > 0 ? `${gpuFanRpm} RPM` : '待机停转'}
+              {gpuFanRpm > 0 ? `${gpuFanRpm} RPM` : 'Остановка в простое'}
             </span>
           </div>
         </div>
@@ -126,7 +126,7 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Fan className={`w-4 h-4 ${fanBoost ? 'animate-spin' : ''}`} style={{ color: fanBoost ? 'var(--status-info)' : 'var(--text-muted)' }} />
           <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '12px', whiteSpace: 'nowrap' }}>
-            {fanBoostMode === 'direct_rpm_clamp' ? `硬件物理强锁 (${maxRpm} RPM)` : '极速强冷 (Fan Boost)'}
+            {fanBoostMode === 'direct_rpm_clamp' ? `Аппаратная физическая блокировка (${maxRpm} RPM)` : 'Мгновенное форс-охлаждение (Fan Boost)'}
           </span>
         </div>
         <RevSwitch
@@ -142,10 +142,10 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
         <div className="tuning-row-header">
           <span className="tuning-row-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Gauge className="w-3.5 h-3.5 text-cyan-400" />
-            <span>风扇转速上限:</span>
+            <span>Лимит оборотов вентилятора:</span>
           </span>
           <span style={{ fontSize: '11px', fontWeight: 700, color: isCapActive ? 'var(--status-info)' : 'var(--text-muted)' }}>
-            {isCapActive ? `${speedCap} RPM (${Math.round((speedCap / maxRpm) * 100)}%)` : '原厂自适应 (无上限)'}
+            {isCapActive ? `${speedCap} RPM (${Math.round((speedCap / maxRpm) * 100)}%)` : 'Заводская адаптация (без верхнего лимита)'}
           </span>
         </div>
         <div style={{ padding: '4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -160,8 +160,8 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
           />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-dim)' }}>
-          <span>2800 RPM (静音限速)</span>
-          <span>{maxRpm} RPM (满速上限)</span>
+          <span>2800 RPM (тихий лимит)</span>
+          <span>{maxRpm} RPM (предел полной скорости)</span>
         </div>
       </div>
     </div>

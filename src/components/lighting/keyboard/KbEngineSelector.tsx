@@ -32,7 +32,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-          驱动引擎:
+          Движок драйвера:
         </span>
         <div style={{ display: 'flex', gap: '4px' }}>
           <button
@@ -49,9 +49,9 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
               color: engine === 'hardware' ? 'var(--status-ok)' : 'var(--text-dim)',
               transition: 'all var(--transition-fast)',
             }}
-            title="由 ITE 8291 单片机固件内部硬件定时器渲染，系统 0% CPU 占用"
+            title="Рендерится аппаратным таймером внутри прошивки микроконтроллера ITE 8291; нагрузка на CPU — 0%"
           >
-            <ShieldCheck size={12} className="inline mr-1" /> 原厂固件 (0% CPU)
+            <ShieldCheck size={12} className="inline mr-1" /> Заводская прошивка (0% CPU)
           </button>
           <button
             type="button"
@@ -67,9 +67,9 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
               color: engine === 'streamer' ? 'var(--color-brand)' : 'var(--text-dim)',
               transition: 'all var(--transition-fast)',
             }}
-            title="由 BetterRGB 空间几何算法计算并由驱动以 60FPS 逐帧推流到键盘"
+            title="Рассчитывается пространственно-геометрическим алгоритмом BetterRGB и потоком передаётся драйвером на клавиатуру покадрово при 60 FPS"
           >
-            <Zap size={12} className="inline mr-1" /> 极客高刷 (BetterRGB 算法)
+            <Zap size={12} className="inline mr-1" /> Экспертный высокий FPS (алгоритм BetterRGB)
           </button>
           <button
             type="button"
@@ -85,16 +85,16 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
               color: engine === 'custom' ? 'var(--status-error)' : 'var(--text-dim)',
               transition: 'all var(--transition-fast)',
             }}
-            title="自定义动效脚本工作室：支持导入外部 .brfx 脚本与实时参数微调"
+            title="Студия пользовательских световых скриптов: импорт внешних .brfx-скриптов и тонкая настройка параметров в реальном времени"
           >
-            <Sparkles size={12} className="inline mr-1" /> 定制脚本 (BetterRGB)
+            <Sparkles size={12} className="inline mr-1" /> Пользовательские скрипты (BetterRGB)
           </button>
         </div>
       </div>
 
       {engine !== 'hardware' ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>推流高刷帧率:</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>Частота кадров потока подсветки:</span>
           <div style={{ display: 'flex', gap: '3px' }}>
             {[15, 30, 45, 60].map((fpsVal) => {
               const active = fps === fpsVal;
@@ -127,7 +127,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
       ) : (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--status-ok)', opacity: 0.9 }}>
           <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--status-ok)' }} />
-          硬件自主运算，无需主机推流
+          Вычисления выполняет само оборудование — поток с хоста не нужен
         </span>
       )}
     </div>

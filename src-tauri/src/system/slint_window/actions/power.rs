@@ -196,7 +196,7 @@ pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) ->
             let res = crate::commands::power_cmd::restore_official_power_plan();
             let msg = match res {
                 Ok(s) => s,
-                Err(e) => format!("修复失败: {}", e),
+                Err(e) => format!("Исправление не удалось: {}", e),
             };
             sync_slint_power_schemes(Some(&msg));
             true

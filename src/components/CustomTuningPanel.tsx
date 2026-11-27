@@ -483,8 +483,8 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     const currentPreset = presetsList.find((p) => p.id === activeProfileId);
     if (!currentPreset) return;
     const confirmMsg = currentPreset.is_builtin
-      ? `确定要将原厂方案【${currentPreset.name}】重置为出厂最佳预设吗？\n（将同步重置 CPU 与 GPU 硬件功耗握手，解除可能的过热锁 55W 或 GPU 锁功耗异常）`
-      : `确定要放弃修改，恢复方案【${currentPreset.name}】为默认推荐参数吗？\n（将同步重置 CPU 与 GPU 硬件功耗握手，解除可能的过热锁 55W 或 GPU 锁功耗异常）`;
+      ? `Сбросить заводскую схему «${currentPreset.name}» к лучшим заводским настройкам?\n(Потребление CPU и GPU будет заново согласовано на уровне оборудования: снимается возможная блокировка по перегреву на 55 Вт или аномальная блокировка мощности GPU)`
+      : `Отменить изменения и вернуть схему «${currentPreset.name}» к рекомендованным параметрам по умолчанию?\n(Потребление CPU и GPU будет заново согласовано на уровне оборудования: снимается возможная блокировка по перегреву на 55 Вт или аномальная блокировка мощности GPU)`;
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -553,7 +553,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   const handleDeleteProfile = async () => {
     const currentPreset = presetsList.find((p) => p.id === activeProfileId);
     if (!currentPreset || currentPreset.is_builtin) return;
-    if (!window.confirm(`确定要删除方案【${currentPreset.name}】(${currentPreset.file_name}) 吗？`)) return;
+    if (!window.confirm(`Удалить схему «${currentPreset.name}»(${currentPreset.file_name})?`)) return;
     try {
       await invoke('delete_profile_preset', { id: activeProfileId });
       await loadProfilesData();
@@ -567,11 +567,11 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     try {
       const savedPath = await invoke<string | null>('export_profile_preset', { id: activeProfileId });
       if (savedPath) {
-        alert('调教方案已成功导出至：\n' + savedPath);
+        alert('Схема настройки успешно экспортирована в:\n' + savedPath);
       }
     } catch (e: any) {
       console.error('Failed to export profile:', e);
-      alert('导出调教方案失败: ' + e);
+      alert('Не удалось экспортировать схему настройки: ' + e);
     }
   };
 
@@ -590,7 +590,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
         await loadProfilesData();
         await handleSelectProfile(imported.id);
       } catch (err: any) {
-        alert('导入失败: ' + err);
+        alert('Не удалось импортировать: ' + err);
       }
     };
     reader.readAsText(file);
@@ -755,7 +755,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   // Toggle BIOS OC switch with cross-generation NVRAM hardware execution
   const handleToggleBiosOc = async () => {
     if (biosStatus?.hardware_read && !biosStatus.supported) {
-      alert('当前机器主板固件或处理器未声明支持高级超频菜单 (Support=0x00)，已安全拦截！');
+      alert('Прошивка платы или процессор текущего устройства не заявляют поддержку меню разгона (Support=0x00) — запрос безопасно заблокирован!');
       return;
     }
 
@@ -767,7 +767,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
       setProfile((prev) => ({ ...prev, bios_oc_enabled: res.enabled }));
     } catch (e: any) {
       console.error('Failed to toggle BIOS OC menu:', e);
-      alert(`修改高级 BIOS 超频菜单失败: ${e}\n\n请尝试【以管理员身份运行】OpenRevo，以获取读写主板 SPI Flash NVRAM 的 SeSystemEnvironmentPrivilege 权限！`);
+      alert(`Не удалось изменить расширенное меню разгона BIOS: ${e}\n\nЗапустите OpenRevo «от имени администратора», чтобы получить привилегию SeSystemEnvironmentPrivilege для чтения и записи SPI Flash NVRAM платы!`);
     } finally {
       setBiosToggling(false);
     }
@@ -968,7 +968,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
                 marginBottom: '8px',
               }}
             >
-              当前机型尚未适配硬件契约
+              Текущая модель ещё не адаптирована под аппаратный контракт
             </div>
             <div
               style={{
@@ -978,7 +978,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
                 maxWidth: '460px',
               }}
             >
-              为保障硬件与供电安全，OpenRevo 已自动启用硬件只读保护，暂不支持对未适配机型下发功耗控制与风扇曲线调节。
+              Для безопасности оборудования и питания OpenRevo автоматически включил аппаратную защиту «только чтение»: управление потреблением и кривыми вентиляторов пока недоступно для неадаптированных моделей.
             </div>
           </div>
         ) : (
@@ -1171,8 +1171,8 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
           >
             <span style={{ fontSize: '13px', lineHeight: 1 }}>⚠️</span>
             <span>
-              <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>免责声明：</strong>
-              OpenRevo 仅提供底层硬件操控能力，参数配置权完全归属用户。超出出厂规格的极限功耗、温控或频率偏移可能导致硬件保护性黑屏、断电或重置，请根据整机散热与供电合理调校，相关风险由操作者自负。
+              <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Дисклеймер:</strong>
+              OpenRevo предоставляет только низкоуровневое управление оборудованием; настройка параметров — ответственность пользователя. Лимиты мощности, температурные пороги или частоты сверх заводских спецификаций могут вызвать защитный чёрный экран, отключение питания или сброс. Настройте с учётом охлаждения и питания вашего устройства — риски несёт оператор.
             </span>
           </div>
 
@@ -1207,7 +1207,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
                   e.currentTarget.style.color = '#cbd5e1';
                 }}
               >
-                关闭
+                Выключить
               </button>
             )}
           </div>

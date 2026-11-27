@@ -53,7 +53,7 @@ export component SystemUnlockBatteryModal inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         Text {
-                            text: "解除离电模式限制风险警示";
+                            text: "Предупреждение о рисках снятия ограничения работы от батареи";
                             font-size: 15px;
                             font-weight: 800;
                             color: AppTheme.text_primary;
@@ -78,7 +78,7 @@ export component SystemUnlockBatteryModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "硬件放电与电池安全性须知（官方固件默认禁止电池开高功耗）";
+                        text: "Правила безопасности при разряде оборудования и работе с батареей (официальная прошивка по умолчанию запрещает высокое потребление от батареи)";
                         font-size: 11px;
                         color: AppTheme.text_muted;
                     }
@@ -97,32 +97,32 @@ export component SystemUnlockBatteryModal inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: "⚠️ 开启后将无视适配器断开状态，允许在电池供电下运行狂暴模式：";
+                        text: "⚠️ После включения статус адаптера игнорируется — режим Турбо разрешено запускать от батареи:";
                         font-size: 11px;
                         font-weight: 700;
                         color: #fb7185;
                     }
 
                     Text {
-                        text: "• 电池过流保护断电：游戏本电池瞬时放电功率远低于电源适配器，离电重负载可能瞬间触发 BMS 过流保护导致直接掉电黑屏或硬件重启。";
+                        text: "• Отключение защитой батареи от сверхтока: мгновенная токоотдача батареи намного ниже адаптера; тяжёлая нагрузка от батареи может мгновенно вызвать срабатывание BMS — внезапное отключение, чёрный экран или аппаратная перезагрузка.";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         wrap: word-wrap;
                     }
                     Text {
-                        text: "• 电池寿命加速衰减：大倍率放电会导致电芯剧烈发热，显著加速电池容量老化与鼓包风险。";
+                        text: "• Ускоренное старение батареи: сильноточный разряд вызывает интенсивный нагрев ячеек и заметно ускоряет деградацию ёмкости с риском вздутия.";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         wrap: word-wrap;
                     }
                     Text {
-                        text: "• 拔电不再强制降级：拔掉充电器后，系统将锁定当前模式，不会再自动降级为平衡模式。";
+                        text: "• Без принудительного понижения: после отключения адаптера система фиксирует текущий режим и больше не сбрасывается в Баланс автоматически.";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         wrap: word-wrap;
                     }
                     Text {
-                        text: "• 推荐应用场景：如果您是在离电下追求极致续航、设定比办公模式更低的极客功耗，可以放心使用；但切勿在离电下运行重度 3D 游戏或高负载渲染！";
+                        text: "• Рекомендуемый сценарий: если вы на батарее стремитесь к максимальной автономности и задали потребление ниже офисного режима — пользуйтесь спокойно; но не запускайте на батарее тяжёлые 3D-игры и рендеринг!";
                         font-size: 10.5px;
                         color: #10b981;
                         wrap: word-wrap;
@@ -148,7 +148,7 @@ export component SystemUnlockBatteryModal inherits Rectangle {
                         clicked => { root.close(); }
                     }
                     Text {
-                        text: "取消";
+                        text: "Отмена";
                         font-size: 12px;
                         color: AppTheme.text_primary;
                         horizontal-alignment: center;
@@ -173,7 +173,7 @@ export component SystemUnlockBatteryModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: root.is_processing ? "正在生效..." : "我已知晓风险，确认解除";
+                        text: root.is_processing ? "Применение..." : "Я осознаю риски и подтверждаю снятие";
                         font-size: 12px;
                         font-weight: 700;
                         color: #ffffff;

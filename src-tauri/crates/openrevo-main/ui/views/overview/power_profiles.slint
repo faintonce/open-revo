@@ -35,16 +35,16 @@ export component DashboardPowerProfiles inherits Rectangle {
                 spacing: 3px;
                 alignment: center;
                 Text {
-                    text: "性能释放模式 (Power Profiles)";
+                    text: "Режимы производительности (Power Profiles)";
                     font-size: 13.5px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: power_mode == 1 ? "当前配置：办公模式 (QUIET / OFFICE) - 极致静音，适合低负载文档办公与省电环境" :
-                          (power_mode == 2 ? "当前配置：均衡模式 (BALANCE / GAMING) - 日常娱乐与工作，平稳释放兼顾流畅散热" :
-                          (power_mode == 3 ? "当前配置：狂暴模式 (TURBO / PERFORMANCE) - 极限性能全开，风扇高转速压榨硬件极限" :
-                          "当前配置：极客自定义调校 (CUSTOM TUNING) - 用户自定义 PL1/PL2/TGP 功耗与温控策略"));
+                    text: power_mode == 1 ? "Текущая конфигурация: Офисный режим (QUIET / OFFICE) — максимальная тишина для работы с документами и экономии энергии" :
+                          (power_mode == 2 ? "Текущая конфигурация: Режим Баланса (BALANCE / GAMING) — повседневные развлечения и работа, ровная производительность с плавным охлаждением" :
+                          (power_mode == 3 ? "Текущая конфигурация: Режим Турбо (TURBO / PERFORMANCE) — максимальная производительность, высокие обороты вентиляторов выжимают предел оборудования" :
+                          "Текущая конфигурация: Экспертная настройка (CUSTOM TUNING) — пользовательские лимиты PL1/PL2/TGP и стратегия охлаждения"));
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -65,7 +65,7 @@ export component DashboardPowerProfiles inherits Rectangle {
                     padding-left: 10px;
                     padding-right: 10px;
                     Text {
-                        text: power_target_text != "" ? power_target_text : ("原厂目标 PL1: " + pl1_target + "W | TGP: " + tgp_target + "W");
+                        text: power_target_text != "" ? power_target_text : ("Заводской целевой PL1: " + pl1_target + "W | TGP: " + tgp_target + "W");
                         font-size: 10.5px;
                         font-weight: 700;
                         color: power_mode == 1 ? #10b981 :
@@ -108,14 +108,14 @@ export component DashboardPowerProfiles inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "办公";
+                        text: "Офис";
                         font-size: 12px;
                         font-weight: power_mode == 1 ? 800 : 600;
                         color: power_mode == 1 ? #10b981 : AppTheme.text_primary;
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: "静音";
+                        text: "Тихий";
                         font-size: 9.5px;
                         color: power_mode == 1 ? #10b981 : AppTheme.text_muted;
                         horizontal-alignment: center;
@@ -149,14 +149,14 @@ export component DashboardPowerProfiles inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "均衡";
+                        text: "Баланс";
                         font-size: 12px;
                         font-weight: power_mode == 2 ? 800 : 600;
                         color: power_mode == 2 ? #38bdf8 : AppTheme.text_primary;
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: power_mode == 2 ? "● 当前" : "标准";
+                        text: power_mode == 2 ? "● Сейчас" : "Стандарт";
                         font-size: 9.5px;
                         color: power_mode == 2 ? #38bdf8 : AppTheme.text_muted;
                         horizontal-alignment: center;
@@ -213,14 +213,14 @@ export component DashboardPowerProfiles inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "静音狂暴";
+                                text: "Тихий Турбо";
                                 font-size: 11px;
                                 font-weight: (power_mode == 3 && root.turbo_silent) ? 800 : 600;
                                 color: is_restricted ? AppTheme.text_muted : ((power_mode == 3 && root.turbo_silent) ? #f43f5e : AppTheme.text_primary);
                                 horizontal-alignment: center;
                             }
                             Text {
-                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && root.turbo_silent) ? "● 当前" : "静音");
+                                text: is_restricted ? "Нужен круглый разъём DC" : ((power_mode == 3 && root.turbo_silent) ? "● Сейчас" : "Тихий");
                                 font-size: 9px;
                                 color: is_restricted ? #f59e0b : ((power_mode == 3 && root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
                                 horizontal-alignment: center;
@@ -288,14 +288,14 @@ export component DashboardPowerProfiles inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "高能狂暴";
+                                text: "Мощный Турбо";
                                 font-size: 11px;
                                 font-weight: (power_mode == 3 && !root.turbo_silent) ? 800 : 600;
                                 color: is_restricted ? AppTheme.text_muted : ((power_mode == 3 && !root.turbo_silent) ? #f43f5e : AppTheme.text_primary);
                                 horizontal-alignment: center;
                             }
                             Text {
-                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && !root.turbo_silent) ? "● 当前" : "高能");
+                                text: is_restricted ? "Нужен круглый разъём DC" : ((power_mode == 3 && !root.turbo_silent) ? "● Сейчас" : "Мощный");
                                 font-size: 9px;
                                 color: is_restricted ? #f59e0b : ((power_mode == 3 && !root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
                                 horizontal-alignment: center;
@@ -361,14 +361,14 @@ export component DashboardPowerProfiles inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "狂暴";
+                        text: "Турбо";
                         font-size: 12px;
                         font-weight: power_mode == 3 ? 800 : 600;
                         color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : (power_mode == 3 ? "● 当前" : "狂暴");
+                        text: is_restricted ? "Нужен круглый разъём DC" : (power_mode == 3 ? "● Сейчас" : "Турбо");
                         font-size: 9.5px;
                         color: is_restricted ? #f59e0b : (power_mode == 3 ? #f43f5e : AppTheme.text_muted);
                         horizontal-alignment: center;
@@ -437,14 +437,14 @@ export component DashboardPowerProfiles inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "自定义";
+                        text: "Пользовательский";
                         font-size: 12px;
                         font-weight: power_mode == 4 ? 800 : 600;
                         color: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #c084fc : AppTheme.text_primary);
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : (power_mode == 4 ? "● 当前" : "极客");
+                        text: is_restricted ? "Нужен круглый разъём DC" : (power_mode == 4 ? "● Сейчас" : "Эксперт");
                         font-size: 9.5px;
                         color: is_restricted ? #f59e0b : (power_mode == 4 ? #c084fc : AppTheme.text_muted);
                         horizontal-alignment: center;
@@ -480,7 +480,7 @@ export component DashboardPowerProfiles inherits Rectangle {
                         }
 
                         Text {
-                            text: "调校";
+                            text: "Настройка";
                             font-size: 9.5px;
                             font-weight: 700;
                             color: #f3e8ff;

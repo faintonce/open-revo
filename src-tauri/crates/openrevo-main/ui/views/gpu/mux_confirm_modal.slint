@@ -2,7 +2,7 @@ import { AppTheme } from "../../theme.slint";
 
 export component MuxConfirmModal inherits Rectangle {
     in-out property <string> pending_mode: "dgpu";
-    in-out property <string> pending_title: "独显直连";
+    in-out property <string> pending_title: "Прямой вывод dGPU";
 
     callback cancel();
     callback confirm(string, bool); // (mode, restart_now)
@@ -35,7 +35,7 @@ export component MuxConfirmModal inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "切换显卡输出模式";
+                    text: "Переключить режим вывода графики";
                     font-size: 14px;
                     font-weight: 800;
                     color: AppTheme.text_primary;
@@ -44,7 +44,7 @@ export component MuxConfirmModal inherits Rectangle {
             }
 
             Text {
-                text: "即将切换主板硬件 MUX 至【" + root.pending_title + "】。\n\n配置写入 UEFI NVRAM 后需要重启电脑以生效物理链路。请选择是否立即重启电脑？";
+                text: "Сейчас переключит аппаратный MUX платы в режим «" + root.pending_title + "».\n\nПосле записи конфигурации в UEFI NVRAM требуется перезагрузка для перестройки физической линии. Перезагрузить компьютер сейчас?";
                 font-size: 11px;
                 color: AppTheme.text_secondary;
                 wrap: word-wrap;
@@ -67,7 +67,7 @@ export component MuxConfirmModal inherits Rectangle {
                         clicked => { root.cancel(); }
                     }
                     Text {
-                        text: "取消";
+                        text: "Отмена";
                         font-size: 11px;
                         color: AppTheme.text_secondary;
                         horizontal-alignment: center;
@@ -90,7 +90,7 @@ export component MuxConfirmModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "仅写入稍后重启";
+                        text: "Только записать, перезагрузить позже";
                         font-size: 11px;
                         color: AppTheme.text_primary;
                         horizontal-alignment: center;
@@ -111,7 +111,7 @@ export component MuxConfirmModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "立即重启电脑";
+                        text: "Перезагрузить компьютер сейчас";
                         font-size: 11px;
                         font-weight: 700;
                         color: #ffffff;

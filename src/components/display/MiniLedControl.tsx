@@ -25,12 +25,12 @@ export const MiniLedControl: React.FC<MiniLedControlProps> = ({
         </div>
         <div>
           <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            内置屏幕分区背光 (MiniLED Local Dimming)
+            Позонная подсветка встроенного экрана (MiniLED Local Dimming)
           </div>
           <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
             {enabled
-              ? '当前状态：已开启 (深黑高对比模式，仅对内置屏幕生效)'
-              : '当前状态：已关闭 (全屏均匀背光模式)'}
+              ? 'Текущее состояние: включено (глубоко-чёрный высококонтрастный режим, действует только на встроенный экран)'
+              : 'Текущее состояние: выключено (равномерная полноэкранная подсветка)'}
           </div>
         </div>
       </div>
@@ -41,8 +41,8 @@ export const MiniLedControl: React.FC<MiniLedControlProps> = ({
           onClick={() => onToggle(!enabled)}
           disabled={isToggling}
           className={`miniled-toggle-switch ${enabled ? 'active' : ''}`}
-          title={enabled ? '点击关闭 MiniLED 分区背光' : '点击开启 MiniLED 分区背光'}
-          aria-label="切换MiniLED分区背光"
+          title={enabled ? 'Нажмите, чтобы выключить позонную подсветку MiniLED' : 'Нажмите, чтобы включить позонную подсветку MiniLED'}
+          aria-label="Переключить позонную подсветку MiniLED"
         >
           <div className="miniled-toggle-knob" />
         </button>

@@ -106,7 +106,7 @@ export component CoolerCurveCanvas inherits Rectangle {
         if self.width > 60px: Text {
             x: 6px;
             y: 4px;
-            text: "低温停转区 (<" + root.pump_start_temp + "°C)";
+            text: "Зона остановки при низкой температуре (<" + root.pump_start_temp + "°C)";
             font-size: 8.5px;
             font-weight: 700;
             color: #34d39999;
@@ -124,7 +124,7 @@ export component CoolerCurveCanvas inherits Rectangle {
         if self.width > 80px: Text {
             x: 6px;
             y: 4px;
-            text: "标准巡航区 (" + root.pump_start_temp + "°C~" + root.pump_turbo_temp + "°C)";
+            text: "Зона стандартного цикла (" + root.pump_start_temp + "°C~" + root.pump_turbo_temp + "°C)";
             font-size: 8.5px;
             font-weight: 700;
             color: #06b6d4bb;
@@ -142,7 +142,7 @@ export component CoolerCurveCanvas inherits Rectangle {
         if self.width > 60px: Text {
             x: 6px;
             y: 4px;
-            text: "水泵极限狂暴区 (≥" + root.pump_turbo_temp + "°C)";
+            text: "Зона предельного Турбо насоса (≥" + root.pump_turbo_temp + "°C)";
             font-size: 8.5px;
             font-weight: 700;
             color: #f43f5ebb;
@@ -187,7 +187,7 @@ export component CoolerCurveCanvas inherits Rectangle {
     Text {
         x: root.x_start - 16px;
         y: root.floor_y + 2px;
-        text: root.pump_start_temp + "°启泵";
+        text: root.pump_start_temp + "° пуск насоса";
         font-size: 8px;
         font-weight: 800;
         color: #34d399;
@@ -195,7 +195,7 @@ export component CoolerCurveCanvas inherits Rectangle {
     Text {
         x: root.x_turbo - 16px;
         y: root.floor_y + 2px;
-        text: root.pump_turbo_temp + "°狂暴";
+        text: root.pump_turbo_temp + "° Турбо";
         font-size: 8px;
         font-weight: 800;
         color: #f43f5e;
@@ -269,7 +269,7 @@ export component CoolerCurveCanvas inherits Rectangle {
             border-color: #34d399;
 
             Text {
-                text: root.pump_start_temp + "° 启泵";
+                text: root.pump_start_temp + "° пуск насоса";
                 font-size: 8px;
                 font-weight: 700;
                 color: #ffffff;
@@ -311,7 +311,7 @@ export component CoolerCurveCanvas inherits Rectangle {
             border-color: #fda4af;
 
             Text {
-                text: root.pump_turbo_temp + "° 狂暴";
+                text: root.pump_turbo_temp + "° Турбо";
                 font-size: 8px;
                 font-weight: 700;
                 color: #ffffff;

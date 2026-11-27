@@ -1,12 +1,12 @@
 import { AppTheme } from "../../theme.slint";
 
 export component ColorProfileBar inherits Rectangle {
-    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile: "Системная схема по умолчанию (не откалибрована)";
     in-out property <string> active_color_profile_id: "default_native";
-    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_list: ["Системная схема по умолчанию (не откалибрована)", "Стандартный sRGB (заводская калибровка)", "Широкий цветовой охват DCI-P3 (кинотеатральный)", "Adobe RGB (профессиональный дизайн)"];
     in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
     in-out property <bool> is_color_dirty: false;
-    in-out property <string> monitor_name: "京东方";
+    in-out property <string> monitor_name: "BOE";
 
     callback apply_profile(string);
     callback import_profile();
@@ -50,13 +50,13 @@ export component ColorProfileBar inherits Rectangle {
                 alignment: center;
                 spacing: 1px;
                 Text {
-                    text: "屏幕色彩校正 (Color Management)";
+                    text: "Коррекция цвета экрана (Color Management)";
                     font-size: 12px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "当前方案: " + root.active_color_profile + " · " + root.monitor_name;
+                    text: "Текущая схема: " + root.active_color_profile + " · " + root.monitor_name;
                     font-size: 9.5px;
                     color: AppTheme.text_muted;
                 }
@@ -172,7 +172,7 @@ export component ColorProfileBar inherits Rectangle {
                             padding-right: 8px;
                             spacing: 4px;
                             Text {
-                                text: "应用";
+                                text: "Применить";
                                 font-size: 10.5px;
                                 font-weight: 600;
                                 color: root.is_color_dirty ? #38bdf8 : AppTheme.text_muted;
@@ -204,7 +204,7 @@ export component ColorProfileBar inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "导入";
+                                text: "Импорт";
                                 font-size: 10.5px;
                                 font-weight: 600;
                                 color: #38bdf8;
@@ -236,7 +236,7 @@ export component ColorProfileBar inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "原厂校色";
+                                text: "Заводская калибровка";
                                 font-size: 10.5px;
                                 font-weight: 600;
                                 color: #38bdf8;

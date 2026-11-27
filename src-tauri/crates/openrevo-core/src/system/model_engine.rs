@@ -1151,7 +1151,7 @@ pub fn detect_model_profile() -> ModelMatchResult {
                 ec_project_id: ec_pid,
                 bios_project_id: reg_bios_pid,
                 is_trusted: true,
-                confidence_reason: format!("匹配本机预设 [{}] (代号: {})", mine.alias, mine.model_id),
+                confidence_reason: format!("Совпадение с локальным пресетом [{}] (код: {})", mine.alias, mine.model_id),
             };
         }
     }

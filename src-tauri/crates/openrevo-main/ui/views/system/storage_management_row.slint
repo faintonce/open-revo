@@ -19,7 +19,7 @@ export component StorageManagementRow inherits HorizontalLayout {
         HorizontalLayout {
             spacing: 6px;
             Text {
-                text: "数据存储管理";
+                text: "Управление хранением данных";
                 font-size: 12px;
                 font-weight: 600;
                 color: AppTheme.text_primary;
@@ -35,7 +35,7 @@ export component StorageManagementRow inherits HorizontalLayout {
                     padding-left: 5px;
                     padding-right: 5px;
                     Text {
-                        text: root.data_dir_info.mode == "portable" ? "便携目录 (./data)" : (root.data_dir_info.mode == "custom" ? "自定义路径 (data_dir.ptr)" : "标准 AppData (%APPDATA%)");
+                        text: root.data_dir_info.mode == "portable" ? "Портативный каталог (./data)" : (root.data_dir_info.mode == "custom" ? "Пользовательский путь (data_dir.ptr)" : "Стандартный AppData (%APPDATA%)");
                         font-size: 10px;
                         font-weight: 700;
                         color: root.data_dir_info.mode == "portable" ? #10b981 : (root.data_dir_info.mode == "custom" ? #f59e0b : #818cf8);
@@ -45,7 +45,7 @@ export component StorageManagementRow inherits HorizontalLayout {
             }
         }
         Text {
-            text: "当前目录: " + root.data_dir_info.path;
+            text: "Текущий каталог: " + root.data_dir_info.path;
             font-size: 10px;
             color: AppTheme.text_muted;
         }
@@ -78,7 +78,7 @@ export component StorageManagementRow inherits HorizontalLayout {
                         colorize: AppTheme.text_secondary;
                         y: (parent.height - self.height) / 2;
                     }
-                    Text { text: "打开目录"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                    Text { text: "Открыть каталог"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
                 }
             }
 
@@ -104,7 +104,7 @@ export component StorageManagementRow inherits HorizontalLayout {
                         colorize: AppTheme.text_secondary;
                         y: (parent.height - self.height) / 2;
                     }
-                    Text { text: "查看日志"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                    Text { text: "Открыть журнал"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
                 }
             }
 
@@ -122,7 +122,7 @@ export component StorageManagementRow inherits HorizontalLayout {
                 HorizontalLayout {
                     padding-left: 8px;
                     padding-right: 8px;
-                    Text { text: "迁移存储"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
+                    Text { text: "Перенести хранилище"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; }
                 }
             }
 
@@ -148,7 +148,7 @@ export component StorageManagementRow inherits HorizontalLayout {
                         colorize: #f43f5e;
                         y: (parent.height - self.height) / 2;
                     }
-                    Text { text: "清除数据"; font-size: 11px; font-weight: 700; color: #f43f5e; vertical-alignment: center; }
+                    Text { text: "Очистить данные"; font-size: 11px; font-weight: 700; color: #f43f5e; vertical-alignment: center; }
                 }
             }
         }

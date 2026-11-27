@@ -125,7 +125,7 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
     window.on_tuning_toggle_bios_oc(move || {
         ipc::send_action_to_host("tuning_toggle_bios_oc", serde_json::json!({}));
         if let Some(ui) = ui_oc.upgrade() {
-            ui.set_bios_oc_btn_text("写入中...".into());
+            ui.set_bios_oc_btn_text("Запись...".into());
         }
     });
 

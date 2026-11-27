@@ -35,7 +35,7 @@ impl Default for DisplayColorPreset {
     fn default() -> Self {
         Self {
             id: "preset_vibrant".to_string(),
-            name: "多彩鲜艳 (Vibrant)".to_string(),
+            name: "Многоцветная яркость (Vibrant)".to_string(),
             author: Some("机械革命官方".to_string()),
             brightness_pct: Some(50.0),
             color_temp_k: 6500,
@@ -378,7 +378,7 @@ pub fn get_builtin_presets() -> Vec<DisplayColorPreset> {
     vec![
         DisplayColorPreset {
             id: "preset_vibrant".to_string(),
-            name: "多彩鲜艳 (Vibrant)".to_string(),
+            name: "Многоцветная яркость (Vibrant)".to_string(),
             author: Some("机械革命官方".to_string()),
             brightness_pct: Some(50.0),
             color_temp_k: 6500,
@@ -613,7 +613,7 @@ pub fn import_color_preset_json(
                     .and_then(|v| v.as_str())
                     .unwrap_or("官方导入方案");
                 let name = match raw_name {
-                    "VibrantMode" => "多彩鲜艳 (Vibrant)",
+                    "VibrantMode" => "Многоцветная яркость (Vibrant)",
                     "InternetMode" => "上网模式 (Internet)",
                     "VideoMode" => "视频模式 (Video)",
                     "LowBlueMode" => "低蓝光护眼 (Low Blue)",
@@ -675,7 +675,7 @@ pub fn import_color_preset_json(
 
         // 3. Loose key-value mapping from generic JSON
         let name = original_filename
-            .unwrap_or_else(|| "导入方案".to_string())
+            .unwrap_or_else(|| "Импортировать схему".to_string())
             .replace(".json", "");
         let temp = val
             .get("color_temp_k")

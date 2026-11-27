@@ -19,24 +19,24 @@ export const CpuBiosOcRow: React.FC<CpuBiosOcRowProps> = ({
   const isDisabled = biosToggling || isAmd || isUnsupported;
 
   const descText = isAmd
-    ? 'AMD 平台采用 SMU 动态功耗架构，无 Intel 格式 BIOS 超频菜单'
+    ? 'Платформы AMD используют динамическую архитектуру мощности SMU — меню разгона в формате Intel в BIOS отсутствует'
     : isUnsupported
-      ? '当前机型主板或移动标压CPU未开放BIOS超频菜单'
+      ? 'Плата текущей модели или мобильный CPU с полным TDP не открывают меню разгона BIOS'
       : biosStatus?.cpu_oc_supported && biosStatus?.mem_oc_supported
-        ? `同步解锁 CPU 与内存超频菜单 (CPU: ${biosStatus.cpu_oc_enabled ? '已开' : '未开'}, 内存: ${biosStatus.mem_oc_enabled ? '已开' : '未开'})`
-        : '向主板 UEFI NVRAM 同步写入 CPU 与内存超频菜单解锁标志位';
+        ? `Одновременно разблокировать меню разгона CPU и памяти (CPU: ${biosStatus.cpu_oc_enabled ? 'Вкл.' : 'Не включено'}, память: ${biosStatus.mem_oc_enabled ? 'Вкл.' : 'Не включено'})`
+        : 'Синхронно записывает в UEFI NVRAM платы флаги разблокировки меню разгона CPU и памяти';
 
   const isPartial = Boolean(biosStatus?.cpu_oc_enabled || biosStatus?.mem_oc_enabled);
 
   const buttonText = biosToggling
-    ? '写入中...'
+    ? 'Запись...'
     : isAmd || isUnsupported
-      ? '不支持'
+      ? 'Не поддерживается'
       : biosOcEnabled
-        ? '已开启'
+        ? 'Включено'
         : isPartial
-          ? '部分开启'
-          : '关闭';
+          ? 'Частично включено'
+          : 'Выключить';
 
   const getButtonBg = () => {
     if (isAmd || isUnsupported) return 'var(--surface-pill)';
@@ -65,7 +65,7 @@ export const CpuBiosOcRow: React.FC<CpuBiosOcRowProps> = ({
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-          高级 BIOS 超频菜单
+          Расширенное меню разгона BIOS
         </span>
         <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
           {descText}

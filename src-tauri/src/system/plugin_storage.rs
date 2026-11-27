@@ -54,10 +54,10 @@ fn resolve_sandboxed_path(plugin_id: &str, rel_path: &str) -> Result<PathBuf, St
 /// Atomically write bytes to a file using temporary file swap
 fn atomic_write_file(path: &Path, content: &[u8]) -> Result<(), String> {
     let tmp_path = path.with_extension(format!("tmp.{}", std::process::id()));
-    fs::write(&tmp_path, content).map_err(|e| format!("写入临时存储文件失败: {}", e))?;
+    fs::write(&tmp_path, content).map_err(|e| format!("Не удалось записать файл временного хранилища: {}", e))?;
     fs::rename(&tmp_path, path).map_err(|e| {
         let _ = fs::remove_file(&tmp_path);
-        format!("原子重命名存储文件失败: {}", e)
+        format!("Не удалось атомарно переименовать файл хранилища: {}", e)
     })
 }
 
@@ -107,7 +107,7 @@ pub fn write_plugin_file(plugin_id: &str, path: &str, content: &str) -> Result<(
 pub fn delete_plugin_file(plugin_id: &str, path: &str) -> Result<bool, String> {
     let target = resolve_sandboxed_path(plugin_id, path)?;
     if target.exists() && target.is_file() {
-        fs::remove_file(&target).map_err(|e| format!("删除文件失败: {}", e))?;
+        fs::remove_file(&target).map_err(|e| format!("Не удалось удалить файл: {}", e))?;
         Ok(true)
     } else {
         Ok(false)

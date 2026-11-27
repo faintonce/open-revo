@@ -377,7 +377,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Keyboard className="w-4 h-4" style={{ color: 'var(--color-brand)' }} />
-            <span>键盘背光</span>
+            <span>Подсветка клавиатуры</span>
           </button>
 
           {Boolean(kbHwInfo?.has_front_lightbar || kbHwInfo?.has_ite7001) && (
@@ -402,7 +402,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
               }}
             >
               <Zap className="w-4 h-4" style={{ color: 'var(--status-info)' }} />
-              <span>海岸灯条</span>
+              <span>Полоса Coastline</span>
             </button>
           )}
 
@@ -428,7 +428,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
               }}
             >
               <Wind className="w-4 h-4" style={{ color: 'var(--status-info)' }} />
-              <span>氛围灯条</span>
+              <span>Фоновая световая полоса</span>
             </button>
           )}
 
@@ -454,14 +454,14 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
               }}
             >
               <Sparkles className="w-4 h-4" style={{ color: 'var(--color-beast)' }} />
-              <span>A面 LOGO</span>
+              <span>Логотип крышки A</span>
             </button>
           )}
         </div>
 
         {/* Global Sleep Timer */}
         <div
-          title="系统闲置无操作时自动关闭键盘、灯带与Logo灯效（敲击任意按键或移动鼠标瞬间唤醒）"
+          title="При бездействии автоматически гасит подсветку клавиатуры, световых полос и логотипа (мгновенно пробуждается от любой клавиши или движения мыши)"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -475,7 +475,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
           }}
         >
           <Clock className="w-3.5 h-3.5" style={{ color: 'var(--color-brand)' }} />
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>闲置熄灯:</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Гашение в простое:</span>
           <select
             value={lighting.sleep_minutes}
             onChange={(e) => sendTimeout(Number(e.target.value))}
@@ -527,13 +527,13 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--color-brand)' }} />
-            <span>迎宾仪式</span>
+            <span>Приветственный ритуал</span>
           </div>
 
           <button
             type="button"
             onClick={handleToggleCeremony}
-            title="开机启动或休眠唤醒时，自动上演全域硬件协同迎宾灯效秀（全机型自适应）"
+            title="При включении или пробуждении из сна автоматически проигрывается скоординированное приветственное световое шоу всей аппаратуры (адаптивно для всех моделей)"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -560,14 +560,14 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
                 boxShadow: (lighting.ceremony_enabled ?? true) ? '0 0 8px var(--color-brand)' : 'none',
               }}
             />
-            <span>{(lighting.ceremony_enabled ?? true) ? '已启用' : '已停用'}</span>
+            <span>{(lighting.ceremony_enabled ?? true) ? 'Включено' : 'Отключено'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleTriggerWelcome}
             disabled={isApplying}
-            title="立即触发一次全矩阵迎宾仪式灯效演示"
+            title="Немедленно запустить демонстрацию полного матричного приветственного светового шоу"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -587,7 +587,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{isApplying ? '演示中...' : '预览全域仪式'}</span>
+            <span>{isApplying ? 'Демонстрация...' : 'Предпросмотр полного ритуала подсветки'}</span>
           </button>
         </div>
 
@@ -596,7 +596,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
           <button
             type="button"
             onClick={handleSaveAsStartup}
-            title="将当前调好的各项灯效设定为系统开机及唤醒恢复的默认底色"
+            title="Сделать текущую настройку всех эффектов подсветки базовой для включения системы и пробуждения"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -615,13 +615,13 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             {saveSuccess ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--status-ok)' }} /> : <Save className="w-3.5 h-3.5" />}
-            <span>{saveSuccess ? '已设为开机默认' : '设为默认'}</span>
+            <span>{saveSuccess ? 'Установлено по умолчанию при включении' : 'Сделать по умолчанию'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleResetDefaults}
-            title="恢复当前设备出厂默认灯效设置"
+            title="Восстановить заводские настройки подсветки текущего устройства"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -639,13 +639,13 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>恢复默认</span>
+            <span>По умолчанию</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsTopologyModalOpen(true)}
-            title="手动纠正模具与物理灯效硬件设备拓扑映射（如单区误判为4区、或开启漏检外设）"
+            title="Вручную исправить сопоставление платформы с топологией физического оборудования подсветки (например одна зона ошибочно определена как 4 зоны, или включить пропущенную периферию)"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -664,7 +664,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Cpu className="w-3.5 h-3.5" />
-            <span>硬件纠偏</span>
+            <span>Исправление оборудования</span>
           </button>
         </div>
       </div>

@@ -16,29 +16,29 @@ export component DrawerLightingCard inherits Rectangle {
     in-out property <string> kb_color_hex: "#6366F1";
     in-out property <color> kb_color: #6366f1;
 
-    property <string> current_effect_name: (!root.kb_enabled || root.kb_brightness == 0) ? "关闭背光" : (
-        root.is_single_color ? "开启照明" : (
-            root.is_single_zone ? (root.kb_effect == 2 ? "彩虹循环" : "单色常亮") : (
+    property <string> current_effect_name: (!root.kb_enabled || root.kb_brightness == 0) ? "Выключить подсветку" : (
+        root.is_single_color ? "Включить подсветку" : (
+            root.is_single_zone ? (root.kb_effect == 2 ? "Цикл радуги" : "Постоянный монохром") : (
                 root.is_four_zone ? (
-                    root.kb_effect == 1 ? "单色常亮" : (
-                        root.kb_effect == 2 ? "单色呼吸" : (
-                            root.kb_effect == 3 ? "全彩波浪" : (
-                                root.kb_effect == 5 ? "彩虹循环" : (
-                                    root.kb_effect == 12 ? "闪烁跳变" : "全彩波浪"
+                    root.kb_effect == 1 ? "Постоянный монохром" : (
+                        root.kb_effect == 2 ? "Монохромное дыхание" : (
+                            root.kb_effect == 3 ? "Полноцветные волны" : (
+                                root.kb_effect == 5 ? "Цикл радуги" : (
+                                    root.kb_effect == 12 ? "Мерцание со скачками" : "Полноцветные волны"
                                 )
                             )
                         )
                     )
                 ) : (
-                    root.kb_effect == 100 ? "正弦呼吸" : (
-                        root.kb_effect == 101 ? "极客波浪" : (
-                            root.kb_effect == 102 ? "同心涟漪" : (
-                                root.kb_effect == 106 ? "全彩彩虹" : (
-                                    root.kb_effect == 1 ? "静态恒亮" : (
-                                        root.kb_effect == 2 ? "单色呼吸" : (
-                                            root.kb_effect == 3 ? "炫彩波浪" : (
-                                                root.kb_effect == 5 ? "炫彩彩虹" : (
-                                                    root.kb_effect == 21 ? "游戏高亮" : "极客波浪"
+                    root.kb_effect == 100 ? "Синусоидальное дыхание" : (
+                        root.kb_effect == 101 ? "Экспертные волны" : (
+                            root.kb_effect == 102 ? "Концентрическая рябь" : (
+                                root.kb_effect == 106 ? "Полноцветная радуга" : (
+                                    root.kb_effect == 1 ? "Постоянное свечение" : (
+                                        root.kb_effect == 2 ? "Монохромное дыхание" : (
+                                            root.kb_effect == 3 ? "Многоцветные волны" : (
+                                                root.kb_effect == 5 ? "Многоцветная радуга" : (
+                                                    root.kb_effect == 21 ? "Игровая подсветка" : "Экспертные волны"
                                                 )
                                             )
                                         )
@@ -52,14 +52,14 @@ export component DrawerLightingCard inherits Rectangle {
         )
     );
 
-    property <string> current_color_name: (root.kb_color_hex == "#00ffff" || root.kb_color_hex == "#00FFFF") ? "机械青" : (
-        (root.kb_color_hex == "#10b981" || root.kb_color_hex == "#10B981") ? "翡翠绿" : (
-            (root.kb_color_hex == "#c084fc" || root.kb_color_hex == "#C084FC" || root.kb_color_hex == "#6366f1" || root.kb_color_hex == "#6366F1") ? "电竞紫" : (
-                (root.kb_color_hex == "#f43f5e" || root.kb_color_hex == "#F43F5E") ? "热血红" : (
-                    (root.kb_color_hex == "#38bdf8" || root.kb_color_hex == "#38BDF8") ? "天空蓝" : (
-                        (root.kb_color_hex == "#fbbf24" || root.kb_color_hex == "#FBBF24") ? "暖阳金" : (
-                            (root.kb_color_hex == "#ec4899" || root.kb_color_hex == "#EC4899") ? "幻影粉" : (
-                                (root.kb_color_hex == "#ffffff" || root.kb_color_hex == "#FFFFFF") ? "纯净白" : "自定义"
+    property <string> current_color_name: (root.kb_color_hex == "#00ffff" || root.kb_color_hex == "#00FFFF") ? "Механический бирюзовый" : (
+        (root.kb_color_hex == "#10b981" || root.kb_color_hex == "#10B981") ? "Изумрудный" : (
+            (root.kb_color_hex == "#c084fc" || root.kb_color_hex == "#C084FC" || root.kb_color_hex == "#6366f1" || root.kb_color_hex == "#6366F1") ? "Киберспортивный фиолет" : (
+                (root.kb_color_hex == "#f43f5e" || root.kb_color_hex == "#F43F5E") ? "Огненный красный" : (
+                    (root.kb_color_hex == "#38bdf8" || root.kb_color_hex == "#38BDF8") ? "Небесно-голубой" : (
+                        (root.kb_color_hex == "#fbbf24" || root.kb_color_hex == "#FBBF24") ? "Тёплое золото" : (
+                            (root.kb_color_hex == "#ec4899" || root.kb_color_hex == "#EC4899") ? "Фантомный розовый" : (
+                                (root.kb_color_hex == "#ffffff" || root.kb_color_hex == "#FFFFFF") ? "Чистый белый" : "Пользовательский"
                             )
                         )
                     )
@@ -91,7 +91,7 @@ export component DrawerLightingCard inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "笔记本键盘背光";
+                    text: "Подсветка клавиатуры ноутбука";
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
@@ -109,7 +109,7 @@ export component DrawerLightingCard inherits Rectangle {
                     padding-left: 6px;
                     padding-right: 6px;
                     Text {
-                        text: root.is_single_color ? "单色白光" : (root.is_single_zone ? "单区RGB" : (root.is_four_zone ? "4区RGB" : "全彩RGB"));
+                        text: root.is_single_color ? "Одноцветный белый" : (root.is_single_zone ? "Однозонный RGB" : (root.is_four_zone ? "4-зонный RGB" : "Полноцветный RGB"));
                         font-size: 9px;
                         font-weight: 700;
                         color: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #10b981 : (root.is_four_zone ? #06b6d4 : #c084fc));
@@ -184,7 +184,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "开启照明"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Включить подсветку"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
 
@@ -199,7 +199,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "单色常亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Постоянный монохром"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if root.is_single_zone : Rectangle {
@@ -212,7 +212,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "彩虹循环"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Цикл радуги"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
 
@@ -227,7 +227,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "全彩波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Полноцветные волны"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if root.is_four_zone : Rectangle {
@@ -240,7 +240,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "单色呼吸"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Монохромное дыхание"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if root.is_four_zone : Rectangle {
@@ -253,7 +253,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "单色常亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Постоянный монохром"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if root.is_four_zone : Rectangle {
@@ -266,7 +266,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "彩虹循环"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Цикл радуги"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
 
@@ -281,7 +281,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "极客波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Экспертные волны"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
@@ -294,7 +294,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "正弦呼吸"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Синусоидальное дыхание"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
@@ -307,7 +307,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "全彩彩虹"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Полноцветная радуга"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
@@ -320,7 +320,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "静态恒亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Постоянное свечение"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
@@ -333,7 +333,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "单色呼吸"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Монохромное дыхание"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color && !root.is_single_zone && !root.is_four_zone : Rectangle {
@@ -346,7 +346,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "炫彩波浪"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Многоцветные волны"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
 
@@ -361,7 +361,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "关闭背光"; font-size: 9.5px; color: #f43f5e; vertical-alignment: center; }
+                                    Text { text: "Выключить подсветку"; font-size: 9.5px; color: #f43f5e; vertical-alignment: center; }
                                 }
                             }
                         }
@@ -407,7 +407,7 @@ export component DrawerLightingCard inherits Rectangle {
                             }
                         }
                         Text {
-                            text: root.is_single_color ? ((!root.kb_enabled || root.kb_brightness == 0) ? "已灭灯" : (root.kb_brightness == 1 ? "50% 柔和" : "100% 满亮")) : root.current_color_name;
+                            text: root.is_single_color ? ((!root.kb_enabled || root.kb_brightness == 0) ? "Погашено" : (root.kb_brightness == 1 ? "50% мягкая" : "100% максимальная яркость")) : root.current_color_name;
                             font-size: 10.5px;
                             color: AppTheme.text_primary;
                             vertical-alignment: center;
@@ -449,7 +449,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "100% 满亮"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "100% максимальная яркость"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if root.is_single_color : Rectangle {
@@ -462,7 +462,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "50% 柔和"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "50% мягкая"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if root.is_single_color : Rectangle {
@@ -475,7 +475,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 }
                                 HorizontalLayout {
                                     padding-left: 6px;
-                                    Text { text: "关闭背光"; font-size: 9.5px; color: #f43f5e; vertical-alignment: center; }
+                                    Text { text: "Выключить подсветку"; font-size: 9.5px; color: #f43f5e; vertical-alignment: center; }
                                 }
                             }
 
@@ -488,7 +488,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #00ffff; y: (parent.height - self.height) / 2; }
-                                    Text { text: "机械青"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Механический бирюзовый"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color : Rectangle {
@@ -499,7 +499,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #10b981; y: (parent.height - self.height) / 2; }
-                                    Text { text: "翡翠绿"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Изумрудный"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color : Rectangle {
@@ -510,7 +510,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #c084fc; y: (parent.height - self.height) / 2; }
-                                    Text { text: "电竞紫"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Киберспортивный фиолет"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color : Rectangle {
@@ -521,7 +521,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #f43f5e; y: (parent.height - self.height) / 2; }
-                                    Text { text: "热血红"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Огненный красный"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color : Rectangle {
@@ -532,7 +532,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #38bdf8; y: (parent.height - self.height) / 2; }
-                                    Text { text: "天空蓝"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Небесно-голубой"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color : Rectangle {
@@ -543,7 +543,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #fbbf24; y: (parent.height - self.height) / 2; }
-                                    Text { text: "暖阳金"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Тёплое золото"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color : Rectangle {
@@ -554,7 +554,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #ec4899; y: (parent.height - self.height) / 2; }
-                                    Text { text: "幻影粉"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Фантомный розовый"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                             if !root.is_single_color : Rectangle {
@@ -565,7 +565,7 @@ export component DrawerLightingCard inherits Rectangle {
                                 HorizontalLayout {
                                     padding-left: 6px; spacing: 5px;
                                     Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #ffffff; y: (parent.height - self.height) / 2; }
-                                    Text { text: "纯净白"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
+                                    Text { text: "Чистый белый"; font-size: 9.5px; color: AppTheme.text_primary; vertical-alignment: center; }
                                 }
                             }
                         }
@@ -597,7 +597,7 @@ export component DrawerLightingCard inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: "更多";
+                        text: "Ещё";
                         font-size: 10.5px;
                         color: AppTheme.text_secondary;
                         vertical-alignment: center;

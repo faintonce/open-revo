@@ -61,7 +61,7 @@ export component LightingNavBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "键盘背光";
+                            text: "Подсветка клавиатуры";
                             font-size: 11px;
                             font-weight: 700;
                             color: root.sub_tab == 0 ? AppTheme.text_primary : AppTheme.text_muted;
@@ -102,7 +102,7 @@ export component LightingNavBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "海岸灯条";
+                            text: "Полоса Coastline";
                             font-size: 11px;
                             font-weight: 700;
                             color: root.sub_tab == 1 ? AppTheme.text_primary : AppTheme.text_muted;
@@ -143,7 +143,7 @@ export component LightingNavBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "氛围灯条";
+                            text: "Фоновая световая полоса";
                             font-size: 11px;
                             font-weight: 700;
                             color: root.sub_tab == 2 ? AppTheme.text_primary : AppTheme.text_muted;
@@ -184,7 +184,7 @@ export component LightingNavBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "A面 LOGO";
+                            text: "Логотип крышки A";
                             font-size: 11px;
                             font-weight: 700;
                             color: root.sub_tab == 3 ? AppTheme.text_primary : AppTheme.text_muted;
@@ -230,14 +230,14 @@ export component LightingNavBar inherits Rectangle {
                     }
 
                     Text {
-                        text: "闲置熄灯:";
+                        text: "Гашение в простое:";
                         font-size: 11px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
                     }
 
                     Text {
-                        text: root.sleep_minutes == 0 ? "从不关闭" : (root.sleep_minutes + " 分钟");
+                        text: root.sleep_minutes == 0 ? "Никогда не гаснет" : (root.sleep_minutes + " мин");
                         font-size: 11px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
@@ -291,7 +291,7 @@ export component LightingNavBar inherits Rectangle {
                                     padding-right: 10px;
                                     alignment: space-between;
                                     Text {
-                                        text: "从不关闭";
+                                        text: "Никогда не гаснет";
                                         font-size: 11px;
                                         font-weight: root.sleep_minutes == 0 ? 700 : 500;
                                         color: root.sleep_minutes == 0 ? AppTheme.accent_brand : AppTheme.text_primary;
@@ -326,7 +326,7 @@ export component LightingNavBar inherits Rectangle {
                                     padding-right: 10px;
                                     alignment: space-between;
                                     Text {
-                                        text: "1 分钟";
+                                        text: "1 минута";
                                         font-size: 11px;
                                         font-weight: root.sleep_minutes == 1 ? 700 : 500;
                                         color: root.sleep_minutes == 1 ? AppTheme.accent_brand : AppTheme.text_primary;
@@ -361,7 +361,7 @@ export component LightingNavBar inherits Rectangle {
                                     padding-right: 10px;
                                     alignment: space-between;
                                     Text {
-                                        text: "5 分钟";
+                                        text: "5 минут";
                                         font-size: 11px;
                                         font-weight: root.sleep_minutes == 5 ? 700 : 500;
                                         color: root.sleep_minutes == 5 ? AppTheme.accent_brand : AppTheme.text_primary;
@@ -396,7 +396,7 @@ export component LightingNavBar inherits Rectangle {
                                     padding-right: 10px;
                                     alignment: space-between;
                                     Text {
-                                        text: "10 分钟 (默认)";
+                                        text: "10 минут (по умолчанию)";
                                         font-size: 11px;
                                         font-weight: root.sleep_minutes == 10 ? 700 : 500;
                                         color: root.sleep_minutes == 10 ? AppTheme.accent_brand : AppTheme.text_primary;
@@ -431,7 +431,7 @@ export component LightingNavBar inherits Rectangle {
                                     padding-right: 10px;
                                     alignment: space-between;
                                     Text {
-                                        text: "15 分钟";
+                                        text: "15 минут";
                                         font-size: 11px;
                                         font-weight: root.sleep_minutes == 15 ? 700 : 500;
                                         color: root.sleep_minutes == 15 ? AppTheme.accent_brand : AppTheme.text_primary;
@@ -466,7 +466,7 @@ export component LightingNavBar inherits Rectangle {
                                     padding-right: 10px;
                                     alignment: space-between;
                                     Text {
-                                        text: "30 分钟";
+                                        text: "30 минут";
                                         font-size: 11px;
                                         font-weight: root.sleep_minutes == 30 ? 700 : 500;
                                         color: root.sleep_minutes == 30 ? AppTheme.accent_brand : AppTheme.text_primary;

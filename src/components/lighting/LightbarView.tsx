@@ -25,21 +25,21 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
   return (
     <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <LightHeaderBanner
-        title="机身前沿海岸灯条 (Front Coastline Lightbar)"
+        title="Световая полоса по передней кромке корпуса (Front Coastline Lightbar)"
         badgeText={
           !isBaseLightbarSupported
-            ? '未检测到硬件'
+            ? 'Оборудование не обнаружено'
             : isEcLightbar
-            ? '主板 EC 灯条控制'
-            : 'ITE Lightbar4 控制器 (048D:7001)'
+            ? 'Управление световой полосой через EC платы'
+            : 'Контроллер ITE Lightbar4 (048D:7001)'
         }
         badgeVariant={!isBaseLightbarSupported ? 'default' : 'info'}
         description={
           !isBaseLightbarSupported
-            ? '当前机型模具未配置前沿海岸灯条硬件，功能已智能停用'
+            ? 'На платформе текущей модели нет аппаратной передней световой полосы — функция умно отключена'
             : isEcLightbar
-            ? '主板 EC 芯片直通硬件驱动，支持静态定色、律动呼吸与动态流光'
-            : '机身前沿与两侧流光灯带，支持对冲、波浪与流星动效'
+            ? 'Прямое аппаратное управление через чип EC платы: статический цвет, ритмичное дыхание и динамическая подсветка'
+            : 'Световые полосы по передней кромке и бокам корпуса: встречные потоки, волны и метеоры'
         }
         enabled={lighting.lb_enabled}
         onToggle={() => sendLightbar({ lb_enabled: !lighting.lb_enabled })}
@@ -49,7 +49,7 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
 
       <div>
         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-          海岸灯效模式 (Lightbar Modes)
+          Режимы эффектов Coastline (Lightbar Modes)
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
           {LIGHTBAR_MODES.map((m) => {
@@ -89,10 +89,10 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} />
-              灯带亮度
+              Яркость полосы
             </span>
             <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>
-              {lighting.lb_brightness === 0 ? '关闭 (0)' : `${lighting.lb_brightness} 档`}
+              {lighting.lb_brightness === 0 ? 'Выключено (0)' : `${lighting.lb_brightness} ступ.`}
             </span>
           </div>
           <input
@@ -110,9 +110,9 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <Zap className="w-3.5 h-3.5" style={{ color: 'var(--status-info)' }} />
-              流动速度
+              Скорость движения
             </span>
-            <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>{lighting.lb_speed + 1} 档</span>
+            <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>{lighting.lb_speed + 1} ступ.</span>
           </div>
           <input
             type="range"
@@ -127,7 +127,7 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
       </div>
 
       <LightColorRow
-        label="灯带主色："
+        label="Основной цвет световой полосы:"
         color={lighting.lb_color}
         onChangeColor={(hex) => sendLightbar({ lb_color: hex })}
         iconColor="var(--status-info)"

@@ -58,7 +58,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Sliders size={13} style={{ color: 'var(--color-brand)' }} />
           <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            上位通用参数微调 (实时映射物理键盘)
+            Тонкая настройка общих параметров (мгновенное отображение на физической клавиатуре)
           </span>
         </div>
 
@@ -66,7 +66,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           type="button"
           onClick={onReset}
           disabled={!isModified}
-          title="恢复至当前脚本载入时的初始默认参数"
+          title="Вернуть параметры по умолчанию на момент загрузки текущего скрипта"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -83,7 +83,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           }}
         >
           <Undo2 size={11} />
-          <span>恢复默认</span>
+          <span>По умолчанию</span>
         </button>
       </div>
 
@@ -100,7 +100,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
               <Zap size={12} style={{ color: 'var(--status-info)' }} />
-              动效流速
+              Скорость эффектов
             </span>
             <span style={{ color: 'var(--status-info)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
               {values.speed.toFixed(1)}x
@@ -122,7 +122,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
               <Maximize2 size={12} style={{ color: 'var(--color-brand)' }} />
-              空间尺度 / 扩散
+              Масштаб пространства / рассеивание
             </span>
             <span style={{ color: 'var(--color-brand)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
               {Math.round(values.scale * 100)}%
@@ -155,14 +155,14 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
         {/* Direction Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-            流动方向:
+            Направление движения:
           </span>
           <div style={{ display: 'flex', gap: '4px' }}>
             {[
-              { id: 0, icon: ArrowRight, label: '从左至右' },
-              { id: 1, icon: ArrowLeft, label: '从右至左' },
-              { id: 2, icon: ArrowUp, label: '从下至上' },
-              { id: 3, icon: ArrowDown, label: '从上至下' },
+              { id: 0, icon: ArrowRight, label: 'Слева направо' },
+              { id: 1, icon: ArrowLeft, label: 'Справа налево' },
+              { id: 2, icon: ArrowUp, label: 'Снизу вверх' },
+              { id: 3, icon: ArrowDown, label: 'Сверху вниз' },
             ].map((d) => {
               const Icon = d.icon;
               const active = values.direction === d.id;
@@ -218,7 +218,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
             }}
           >
             <Activity size={13} />
-            <span>击键互动: {values.reactive ? '开启' : '关闭'}</span>
+            <span>Реакция на нажатия: {values.reactive ? 'Включить' : 'Выключить'}</span>
           </button>
         </div>
       </div>
@@ -236,7 +236,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Palette size={13} style={{ color: 'var(--color-brand)' }} />
           <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-            定制主色调:
+            Пользовательский основной цвет:
           </span>
           <div style={{ display: 'flex', gap: '6px' }}>
             {PRESET_COLORS.map((c) => {
@@ -284,15 +284,15 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
               <Type size={12} style={{ color: 'var(--color-brand)' }} />
-              <span>滚动弹幕文本 (实时映射物理键盘)</span>
+              <span>Бегущий текст (мгновенное отображение на физической клавиатуре)</span>
             </span>
-            <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>支持大写英文、数字与符号</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Поддержка заглавных латинских букв, цифр и символов</span>
           </div>
           <input
             type="text"
             value={values.customText}
             onChange={(e) => onChange({ customText: e.target.value })}
-            placeholder="输入弹幕文字，例如: I LOVE OPEN-REVO"
+            placeholder="Введите текст бегущей строки, например: I LOVE OPEN-REVO"
             style={{
               width: '100%',
               background: 'rgba(0, 0, 0, 0.35)',

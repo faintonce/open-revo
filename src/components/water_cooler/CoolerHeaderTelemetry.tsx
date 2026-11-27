@@ -42,7 +42,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
       {/* 1. 顶部连接状态与操作按钮组 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>外置水冷魔盒</span>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Внешний блок СЖО</span>
           <span
             className="cooler-ble-badge"
             style={{
@@ -55,14 +55,14 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
               fontWeight: 600,
             }}
           >
-            BLE 原生直连
+            Прямое нативное соединение BLE
           </span>
           {coolerData.mac_address ? (
             <button
               type="button"
               onClick={onOpenDeviceSelector}
               className="cooler-mac-badge-btn"
-              title="点击打开水冷魔盒列表，绑定专属水冷箱以防止邻机串连"
+              title="Нажмите, чтобы открыть список блоков СЖО и привязать свой, исключив подключение к соседнему устройству"
               style={{
                 fontSize: '9px',
                 color: 'var(--text-secondary)',
@@ -86,7 +86,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
               type="button"
               onClick={onOpenDeviceSelector}
               className="cooler-mac-badge-btn"
-              title="点击搜索并选择专属水冷箱"
+              title="Нажмите, чтобы найти и выбрать свой блок СЖО"
               style={{
                 fontSize: '9px',
                 color: 'var(--status-info)',
@@ -101,7 +101,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
               }}
             >
               <Bluetooth size={10} />
-              <span>选择水冷魔盒</span>
+              <span>Выбрать блок СЖО</span>
             </button>
           )}
         </div>
@@ -132,7 +132,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 boxShadow: coolerData.connected ? '0 0 6px var(--status-ok)' : 'none',
               }}
             />
-            <span>{coolerData.connected ? '已直连受控' : '未连接'}</span>
+            <span>{coolerData.connected ? 'Подключено напрямую, под управлением' : 'Не подключено'}</span>
           </div>
 
           {coolerData.connected ? (
@@ -141,7 +141,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 type="button"
                 onClick={onFillWater}
                 className="cooler-prime-btn"
-                title="脉冲启停水泵 8 次，排除水冷管道中的微小气泡"
+                title="8 импульсных пусков/остановок насоса для удаления микропузырей из контура СЖО"
                 style={{
                   background: coolerData.is_priming ? 'var(--color-beast)' : 'var(--surface-pill)',
                   border: '1px solid var(--border-medium)',
@@ -158,13 +158,13 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 }}
               >
                 <Droplets className="w-3 h-3" />
-                <span>{coolerData.is_priming ? '排气注水中...' : '注水排气'}</span>
+                <span>{coolerData.is_priming ? 'Идёт заправка и удаление воздуха...' : 'Заправка и удаление воздуха'}</span>
               </button>
               <button
                 type="button"
                 onClick={onResetToDefault}
                 className="cooler-curve-default-btn"
-                title="恢复出厂推荐的智慧自适应温控曲线与出厂策略"
+                title="Восстановить рекомендованную заводом умную адаптивную кривую охлаждения и заводские параметры"
                 style={{
                   background: 'var(--surface-pill)',
                   border: '1px solid var(--border-medium)',
@@ -181,13 +181,13 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 }}
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>默认曲线</span>
+                <span>Кривая по умолчанию</span>
               </button>
               <button
                 type="button"
                 onClick={onDisconnectCooler}
                 className="cooler-disconnect-btn"
-                title="安全停机水泵与冷排风扇，并断开蓝牙直连"
+                title="Безопасно останавливает насос и вентилятор радиатора, разрывая Bluetooth-соединение"
                 style={{
                   background: 'var(--status-error-dim)',
                   border: '1px solid rgba(239, 68, 68, 0.28)',
@@ -200,7 +200,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                   transition: 'all var(--transition-fast)',
                 }}
               >
-                <span>断开水冷</span>
+                <span>Отключить СЖО</span>
               </button>
             </>
           ) : (
@@ -224,7 +224,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                   {isCoolerConnecting ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
-                  {isCoolerConnecting ? '正在直连...' : '立即直连'}
+                  {isCoolerConnecting ? 'Прямое подключение...' : 'Подключить сразу'}
                 </span>
               </button>
               <button
@@ -248,7 +248,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 }}
               >
                 <Bluetooth className="w-3 h-3" />
-                <span>{isPairing ? '⟳ 扫描配对中...' : '搜索配对'}</span>
+                <span>{isPairing ? '⟳ Сканирование и сопряжение...' : 'Поиск и сопряжение'}</span>
               </button>
             </>
           )}
@@ -258,7 +258,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
       {/* 2. 4 核心遥测指标卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '7px', flexShrink: 0 }}>
         <div className="metric-pill" style={{ background: 'var(--surface-sunken)', padding: '5px 9px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>当前水流状态</span>
+          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>Текущее состояние потока</span>
           <div
             className="metric-value"
             style={{
@@ -270,13 +270,13 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
             }}
           >
             {coolerData.connected
-              ? (coolerData.is_flow_ok || coolerData.meter_state === 2 || coolerData.meter_state === 1 ? '正常 (Flowing)' : coolerData.meter_state === 3 ? '微流/建立中' : '无流量')
+              ? (coolerData.is_flow_ok || coolerData.meter_state === 2 || coolerData.meter_state === 1 ? 'Обычный (Flowing)' : coolerData.meter_state === 3 ? 'Слабый поток / устанавливается' : 'Нет потока')
               : '--'}
           </div>
         </div>
 
         <div className="metric-pill" style={{ background: 'var(--surface-sunken)', padding: '5px 9px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>核心综合温度 max(CPU, GPU)</span>
+          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>Сводная температура ядра max(CPU, GPU)</span>
           <div className="metric-value" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--status-info)' }}>
             {liveMaxTemp} °C
             <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: 500, marginLeft: '4px' }}>
@@ -286,28 +286,28 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
         </div>
 
         <div className="metric-pill" style={{ background: 'var(--surface-sunken)', padding: '5px 9px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>水泵运行工况 / 档位</span>
+          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>Рабочие режимы насоса / ступени</span>
           <div className="metric-value" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--status-info)' }}>
             {coolerData.connected ? (
               (() => {
                 const tier = coolerData.pump_tier ?? (coolerData.pump_voltage >= 11 ? 3 : coolerData.pump_voltage >= 7 ? 2 : coolerData.pump_voltage === 0 ? 0 : 2);
                 if (tier === 0 || coolerData.pump_voltage === 0) {
-                  return <span style={{ color: 'var(--text-muted)' }}>已停机 (0%)</span>;
+                  return <span style={{ color: 'var(--text-muted)' }}>Остановлено (0%)</span>;
                 }
                 if (tier === 3 || coolerData.pump_voltage >= 11) {
-                  return <span style={{ color: 'var(--color-beast)' }}>极限狂暴 (100%)</span>;
+                  return <span style={{ color: 'var(--color-beast)' }}>Предел Турбо (100%)</span>;
                 }
                 if (tier === 1) {
-                  return <span style={{ color: 'var(--status-info)' }}>静音巡航 (35%)</span>;
+                  return <span style={{ color: 'var(--status-info)' }}>Тихий цикл (35%)</span>;
                 }
-                return <span style={{ color: 'var(--status-info)' }}>标准巡航 (45%)</span>;
+                return <span style={{ color: 'var(--status-info)' }}>Стандартный цикл (45%)</span>;
               })()
             ) : '--'}
           </div>
         </div>
 
         <div className="metric-pill" style={{ background: 'var(--surface-sunken)', padding: '5px 9px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>冷排风扇实时转速</span>
+          <span className="metric-label" style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>Обороты вентилятора радиатора в реальном времени</span>
           <div className="metric-value" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--color-brand)', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <span>{coolerData.connected ? `${coolerData.fan_duty}%` : '--'}</span>
             {coolerData.connected && (
@@ -321,7 +321,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                   color: coolerData.fan_duty === 0 ? 'var(--status-ok)' : 'var(--color-brand)',
                 }}
               >
-                {coolerData.fan_duty === 0 ? '0 RPM 停转 (静音)' : `${Math.round(coolerData.fan_duty * 24)} RPM`}
+                {coolerData.fan_duty === 0 ? '0 RPM — полная остановка (тишина)' : `${Math.round(coolerData.fan_duty * 24)} RPM`}
               </span>
             )}
           </div>

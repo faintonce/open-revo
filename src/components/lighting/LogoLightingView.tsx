@@ -35,14 +35,14 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
   }, [isEcDirectLogo, lighting.logo_effect, sendLogo]);
 
   const badgeText = !isLogoSupported
-    ? '未检测到硬件'
+    ? 'Оборудование не обнаружено'
     : isEcDirectLogo
-    ? '主板 EC 直通盾形徽标 (PWM)'
+    ? 'Щит-логотип с прямым управлением от EC платы (PWM)'
     : kbHwInfo?.has_ite7000
-    ? 'ITE 独立徽标控制器 (048D:7000)'
+    ? 'Отдельный контроллер логотипа ITE (048D:7000)'
     : kbHwInfo?.has_ite7001
-    ? 'ITE 独立炫彩徽标控制器 (048D:7001 文字徽标)'
-    : '全彩发光徽标控制器';
+    ? 'Отдельный многоцветный контроллер логотипа ITE (048D:7001, текстовый логотип)'
+    : 'Контроллер полноцветного светящегося логотипа';
 
   const badgeVariant = !isLogoSupported
     ? 'default'
@@ -51,15 +51,15 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
     : 'accent';
 
   const description = !isLogoSupported
-    ? '当前机型模具未配置独立 A 面发光徽标硬件，功能已智能停用'
+    ? 'Платформа текущей модели не имеет отдельного светящегося логотипа на крышке A — функция умно отключена'
     : isEcDirectLogo
-    ? '主板 EC 单区硬件直通调控 (盾形徽标，支持单色常亮、呼吸与彩虹呼吸模式)'
-    : 'A面独立炫彩发光徽标 (支持跑马灯、波浪、对冲、流星等全彩流光动效)';
+    ? 'Прямое аппаратное управление через EC платы (щит-логотип: одноцветное свечение, дыхание и радужное дыхание)'
+    : 'Отдельный многоцветный светящийся логотип на крышке A (бегущий огонь, волны, встречные потоки, метеоры и другие полноцветные эффекты)';
 
   return (
     <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <LightHeaderBanner
-        title="A面 炫彩徽标 (A-Cover LOGO)"
+        title="Многоцветный логотип на крышке A (A-Cover LOGO)"
         badgeText={badgeText}
         badgeVariant={badgeVariant}
         description={description}
@@ -71,7 +71,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
 
       <div>
         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-          LOGO 发光模式 (Logo Modes)
+          Режимы подсветки логотипа (Logo Modes)
         </div>
         <div
           style={{
@@ -123,10 +123,10 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
                 <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} />
-                LOGO 发光亮度
+                Яркость подсветки логотипа
               </span>
               <span style={{ color: 'var(--color-beast)', fontWeight: 700 }}>
-                {lighting.logo_brightness === 0 ? '关闭 (0)' : `${lighting.logo_brightness} 档`}
+                {lighting.logo_brightness === 0 ? 'Выключено (0)' : `${lighting.logo_brightness} ступ.`}
               </span>
             </div>
             <input
@@ -152,7 +152,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
               }}
             />
             <div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>LOGO 即时色彩</div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Мгновенный цвет логотипа</div>
               <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                 RGB: {lighting.logo_color.toUpperCase()}
               </div>
@@ -162,7 +162,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
 
         {/* Right: Color Presets & Direct Picker */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>色彩参考与快速应用：</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Референсы палитр и быстрое применение:</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {PRESET_COLORS.map((c) => {
               const isSelected = lighting.logo_color.toLowerCase() === c.hex.toLowerCase();
@@ -191,7 +191,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>色盘自定义：</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Пользовательская палитра:</span>
             <input
               type="color"
               value={lighting.logo_color}

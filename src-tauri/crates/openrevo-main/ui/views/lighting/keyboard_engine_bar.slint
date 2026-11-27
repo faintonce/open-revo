@@ -27,7 +27,7 @@ export component KeyboardEngineBar inherits Rectangle {
                 alignment: start;
 
                 Text {
-                    text: "驱动引擎:";
+                    text: "Движок драйвера:";
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_muted;
@@ -63,7 +63,7 @@ export component KeyboardEngineBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "原厂固件 (0% CPU)";
+                            text: "Заводская прошивка (0% CPU)";
                             font-size: 11px;
                             font-weight: 600;
                             color: root.kb_engine == 0 ? #10b981 : AppTheme.text_muted;
@@ -101,7 +101,7 @@ export component KeyboardEngineBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "独家算法 (BetterRGB)";
+                            text: "Фирменный алгоритм (BetterRGB)";
                             font-size: 11px;
                             font-weight: 600;
                             color: root.kb_engine == 1 ? #818cf8 : AppTheme.text_muted;
@@ -139,7 +139,7 @@ export component KeyboardEngineBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "定制脚本 (BetterRGB)";
+                            text: "Пользовательские скрипты (BetterRGB)";
                             font-size: 11px;
                             font-weight: 600;
                             color: root.kb_engine == 2 ? #f43f5e : AppTheme.text_muted;
@@ -159,7 +159,7 @@ export component KeyboardEngineBar inherits Rectangle {
                 alignment: end;
 
                 Text {
-                    text: "独立刷新率:";
+                    text: "Отдельная частота обновления:";
                     font-size: 11px;
                     color: AppTheme.text_muted;
                     vertical-alignment: center;

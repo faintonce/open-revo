@@ -229,7 +229,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <TrendingUp size={13} style={{ color: 'var(--status-info)' }} /> 自适应温控曲线 (Fan Duty & Pump Voltage vs Temp)
+            <TrendingUp size={13} style={{ color: 'var(--status-info)' }} /> Адаптивные температурные кривые (скважность вентилятора и напряжение насоса от температуры)
           </span>
           <span
             style={{
@@ -242,22 +242,22 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
               fontWeight: 700,
             }}
           >
-            支持节点与水泵阈值拖拽
+            Поддержка перетаскивания узлов и порогов насоса
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '9px', color: 'var(--text-muted)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: 'var(--radius-full)', background: 'var(--status-info)' }} />
-            <span>风扇 (0%~100%)</span>
+            <span>Вентилятор (0~100%)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: 'var(--radius-full)', background: 'var(--color-brand)' }} />
-            <span>水泵工况 (双杆可拖拽: 启泵/狂暴)</span>
+            <span>Режимы насоса (двойные ползунки: пуск насоса / Турбо)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: 'var(--radius-full)', background: 'var(--status-error)' }} />
-            <span>实时探针</span>
+            <span>Прямые датчики</span>
           </div>
         </div>
       </div>
@@ -310,7 +310,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
           />
           {xStart - startX > 65 && (
             <text x={startX + 8} y="42" fill="#34d399" fontSize="9" fontWeight="700" opacity="0.7">
-              低温停转区 (&lt;{displayStart}°C)
+              Зона остановки при низкой температуре (&lt;{displayStart}°C)
             </text>
           )}
 
@@ -323,7 +323,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
           />
           {xTurbo - xStart > 90 && (
             <text x={xStart + 8} y="42" fill="#06b6d4" fontSize="9" fontWeight="700" opacity="0.85">
-              水泵标准巡航区 ({displayStart}°C~{displayTurbo}°C)
+              Зона стандартного цикла насоса ({displayStart}°C~{displayTurbo}°C)
             </text>
           )}
 
@@ -336,7 +336,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
           />
           {endX - xTurbo > 65 && (
             <text x={xTurbo + 8} y="42" fill="#f43f5e" fontSize="9" fontWeight="700" opacity="0.85">
-              水泵极限狂暴区 (≥{displayTurbo}°C)
+              Зона предельного Турбо насоса (≥{displayTurbo}°C)
             </text>
           )}
 
@@ -359,10 +359,10 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
             );
           })}
           <text x={xStart} y="134" fill="#34d399" fontSize="9" fontWeight="800" textAnchor="middle">
-            {displayStart}°启泵
+            {displayStart}° пуск насоса
           </text>
           <text x={xTurbo} y="134" fill="#f43f5e" fontSize="9" fontWeight="800" textAnchor="middle">
-            {displayTurbo}°狂暴
+            {displayTurbo}° Турбо
           </text>
 
           {/* 填充面积与平滑折线 */}
@@ -419,7 +419,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
                 strokeWidth={activeDragPump === 'start' ? 1.4 : 0.8}
               />
               <text x="0" y="10" fill="#ffffff" fontSize="8.5" fontWeight="700" textAnchor="middle">
-                {displayStart}° 启泵
+                {displayStart}° пуск насоса
               </text>
             </g>
             {/* 中间握持滑块 Thumb */}
@@ -475,7 +475,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
                 strokeWidth={activeDragPump === 'turbo' ? 1.4 : 0.8}
               />
               <text x="0" y="10" fill="#ffffff" fontSize="8.5" fontWeight="700" textAnchor="middle">
-                {displayTurbo}° 狂暴
+                {displayTurbo}° Турбо
               </text>
             </g>
             {/* 中间握持滑块 Thumb */}
@@ -538,12 +538,12 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
       {/* 曲线底部预设模板 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '3px', borderTop: '1px solid var(--border-subtle)', fontSize: '9.5px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>曲线预设：</span>
+          <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>Пресет кривой:</span>
           {[
-            { id: 'standard', label: '出厂智慧 (55°起转)', Icon: Star },
-            { id: 'quiet', label: '极致静音 (65°起转)', Icon: VolumeX },
-            { id: 'aggressive', label: '激进压温 (45°起转)', Icon: Flame },
-            { id: 'linear', label: '线性爬升', Icon: Zap },
+            { id: 'standard', label: 'Заводской умный профиль (старт с 55°)', Icon: Star },
+            { id: 'quiet', label: 'Максимальная тишина (старт с 65°)', Icon: VolumeX },
+            { id: 'aggressive', label: 'Агрессивное давление на температуру (старт с 45°)', Icon: Flame },
+            { id: 'linear', label: 'Линейный подъём', Icon: Zap },
           ].map((t) => {
             const IconComponent = t.Icon;
             const isActive = curveTemplate === t.id;
@@ -577,7 +577,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
 
         <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--status-ok)' }} />
-          <span>内置 3°C 迟滞滤波防抖</span>
+          <span>Встроенный гистерезис 3°C против дребезга</span>
         </div>
       </div>
     </div>

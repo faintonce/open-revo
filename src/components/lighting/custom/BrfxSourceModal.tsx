@@ -77,7 +77,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Code2 size={16} style={{ color: 'var(--color-brand)' }} />
             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {script.name} - 脚本源文件
+              {script.name} - исходный файл скрипта
             </span>
             <span
               style={{
@@ -125,7 +125,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
           }}
         >
           <span>
-            提示：可直接点击下方按钮复制纯文本喂给各大 AI 助手改写或生成新特效，或用记事本直接修改。
+            Подсказка: кнопками ниже можно скопировать исходный текст и отдать его любому ИИ-ассистенту для доработки или генерации нового эффекта, либо отредактировать его в «Блокноте».
           </span>
           {onOpenInNotepad && (
             <button
@@ -146,7 +146,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
               }}
             >
               <ExternalLink size={11} />
-              用记事本打开
+              Открыть в «Блокноте»
             </button>
           )}
         </div>
@@ -188,7 +188,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
           }}
         >
           <span style={{ fontSize: '11px', color: copied ? 'var(--status-ok)' : 'var(--text-dim)' }}>
-            {copied ? '已复制到剪贴板！可直接粘贴给 AI 助手' : `${script.code.split('\n').length} 行代码`}
+            {copied ? 'Скопировано в буфер обмена! Можно сразу вставить ИИ-ассистенту' : `${script.code.split('\n').length} строк кода`}
           </span>
 
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -211,7 +211,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
               }}
             >
               {copied ? <Check size={13} /> : <Copy size={13} />}
-              {copied ? '已复制' : '复制代码喂给 AI'}
+              {copied ? 'Скопировано' : 'Скопировать код для ИИ'}
             </button>
             <button
               type="button"
@@ -226,7 +226,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
                 color: 'var(--text-primary)',
               }}
             >
-              关闭
+              Выключить
             </button>
           </div>
         </div>

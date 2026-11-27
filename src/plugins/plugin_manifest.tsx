@@ -82,38 +82,38 @@ export interface BuiltinModuleSlot {
 export const BUILTIN_MODULE_SLOTS: BuiltinModuleSlot[] = [
   {
     id: 'overview',
-    name: '状态总览',
+    name: 'Общий обзор состояния',
     tabClassName: 'tab-overview',
     order: 10,
     icon: Gauge,
-    description: '整机实时传感器监控、模式切换仪表盘与电池健康看板',
+    description: 'Мониторинг датчиков всего устройства в реальном времени, панель переключения режимов и доска здоровья батареи',
     isVisible: () => true,
   },
   {
     id: 'gpu',
-    name: '显卡模式',
+    name: 'Режим графики',
     tabClassName: 'tab-gpu',
     order: 20,
     icon: Cpu,
-    description: '独显直连/混合输出 MUX 切换、动态超频、屏幕亮度与 ICC 校色',
+    description: 'Переключение MUX (прямой вывод dGPU / гибридный), динамический разгон, яркость экрана и ICC-калибровка',
     isVisible: () => true,
   },
   {
     id: 'tuning',
-    name: '电源管理',
+    name: 'Управление питанием',
     tabClassName: 'tab-tuning',
     order: 30,
     icon: BatteryCharging,
-    description: 'CPU PL1/PL2/PL4 功耗墙精调、风扇双通道曲线与温度保护墙',
+    description: 'Точная настройка лимитов мощности CPU PL1/PL2/PL4, двухканальные кривые вентиляторов и температурные защитные пороги',
     isVisible: () => true,
   },
   {
     id: 'lighting',
-    name: 'RGB 灯效工坊',
+    name: 'Мастерская RGB',
     tabClassName: 'tab-lighting',
     order: 40,
     icon: Palette,
-    description: '四区全彩背光键盘、尾翼光带、Logo 灯与自定义流光特效',
+    description: '4-зонная полноцветная подсветка клавиатуры, хвостовая световая полоса, логотип и пользовательские эффекты перелива',
     isVisible: (ctx) => {
       const type = ctx.capabilities?.rgb_keyboard?.type;
       return type !== 'none' && type !== 'monochrome_stepped';
@@ -121,11 +121,11 @@ export const BUILTIN_MODULE_SLOTS: BuiltinModuleSlot[] = [
   },
   {
     id: 'water',
-    name: '水冷魔盒 (BLE)',
+    name: 'Блок СЖО (BLE)',
     tabClassName: 'tab-water',
     order: 50,
     icon: Droplets,
-    description: '第二代外置水冷低功耗蓝牙控制、水温遥测与智能温控曲线',
+    description: 'Bluetooth LE управление СЖО второго поколения, телеметрия температуры воды и умные температурные кривые',
     isVisible: (ctx) => ctx.isWaterCoolerEnabled,
     renderBadge: (ctx) => {
       if (ctx.isCoolerConnected) {
@@ -141,39 +141,39 @@ export const BUILTIN_MODULE_SLOTS: BuiltinModuleSlot[] = [
             background: 'var(--surface-badge)',
           }}
         >
-          未连
+          Нет связи
         </span>
       );
     },
   },
   {
     id: 'system',
-    name: '系统',
+    name: 'Система',
     tabClassName: 'tab-system',
     order: 60,
     icon: Layers,
-    description: '硬件开关矩阵、全局 OSD 浮层排版、自启动及系统参数设置',
+    description: 'Матрица аппаратных переключателей, компоновка глобального слоя OSD, автозапуск и системные параметры',
     isEssential: true,
     isVisible: () => true,
   },
   {
     id: 'plugins',
-    name: '插件',
+    name: 'Плагины',
     tabClassName: 'tab-plugins',
     order: 65,
     icon: Puzzle,
-    description: '内置核心功能模块启闭、第三方扩展与自定义插件管理',
+    description: 'Включение/отключение встроенных основных модулей, сторонние расширения и управление пользовательскими плагинами',
     isEssential: true,
     isVisible: () => true,
   },
   {
     id: 'sponsor',
-    name: '支持作者',
+    name: 'Поддержать автора',
     tabClassName: 'tab-sponsor',
     order: 70,
     icon: Heart,
     iconClass: 'sponsor-tab-heart',
-    description: '开源作者打赏通道、鸣谢名单与硬件逆向资产交接记录',
+    description: 'Канал донатов автору открытого проекта, список благодарностей и история передачи активов реверс-инжиниринга оборудования',
     isEssential: true,
     isVisible: () => true,
   },

@@ -177,7 +177,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--color-brand)' }}>
           <Wind className="w-4 h-4" />
-          <span>风扇策略与曲线</span>
+          <span>Стратегия и кривые вентиляторов</span>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Fan className={`w-3.5 h-3.5 ${fanBoost ? 'animate-spin' : ''}`} style={{ color: fanBoost ? 'var(--status-info)' : 'var(--text-muted)' }} />
             <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-              硬件物理强锁 ({maxRpm} RPM)
+              Аппаратная физическая блокировка ({maxRpm} RPM)
             </span>
           </div>
           <RevSwitch
@@ -221,7 +221,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
           }}
         >
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>平滑过渡</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>Плавный переход</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <select
@@ -264,7 +264,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
           }}
         >
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>风扇独立输出</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>Независимый вывод вентилятора</div>
           </div>
           <RevSwitch
             checked={fanIsolated}
@@ -305,7 +305,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   transition: 'all var(--transition-fast)',
                 }}
               >
-                CPU风扇
+                Вентилятор CPU
               </button>
 
               {/* Sync Link Chain Button */}
@@ -324,7 +324,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   justifyContent: 'center',
                   transition: 'all var(--transition-fast)',
                 }}
-                title={fanCurveLinked ? '双风扇曲线已锁定联动（调节任意一侧将实时镜像同步）' : '双风扇独立调节（点击开启联动同步）'}
+                title={fanCurveLinked ? 'Кривые двух вентиляторов связаны синхронизацией (изменение любой стороны мгновенно зеркалится)' : 'Независимая регулировка двух вентиляторов (по клику — включить синхронизацию)'}
               >
                 {fanCurveLinked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3 opacity-60" />}
               </button>
@@ -344,20 +344,20 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   transition: 'all var(--transition-fast)',
                 }}
               >
-                GPU风扇
+                Вентилятор GPU
               </button>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <Link2 className="w-3.5 h-3.5" style={{ color: 'var(--status-info)' }} />
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                双风扇联动
+                Синхронизация двух вентиляторов
               </span>
             </div>
           )}
 
           <span style={{ fontSize: '10px', color: isEditingAllowed ? 'var(--color-brand)' : 'var(--text-dim)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {isEditingAllowed ? '● 8点曲线调校' : '○ 出厂预设托管'}
+            {isEditingAllowed ? '● Настройка кривой по 8 точкам' : '○ Сопровождение заводских пресетов'}
           </span>
         </div>
 
@@ -552,7 +552,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   cursor: isEditingAllowed ? 'pointer' : 'not-allowed',
                   transition: 'background var(--transition-fast)',
                 }}
-                title={`增加 1% (当前 ${pt.temp}°C: ${pt.duty}%)`}
+                title={`Увеличить на 1% (сейчас ${pt.temp}°C: ${pt.duty}%)`}
               >
                 <Plus className="w-2.5 h-2.5" />
               </button>
@@ -594,7 +594,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   cursor: isEditingAllowed && pt.duty > minDuty ? 'pointer' : 'not-allowed',
                   transition: 'background var(--transition-fast)',
                 }}
-                title={pt.duty <= minDuty ? `已达硬件起旋最低限制 (${minDuty}%)` : `减少 1% (当前 ${pt.temp}°C: ${pt.duty}%)`}
+                title={pt.duty <= minDuty ? `Достигнут аппаратный минимум начала вращения (${minDuty}%)` : `Уменьшить на 1% (сейчас ${pt.temp}°C: ${pt.duty}%)`}
               >
                 <Minus className="w-2.5 h-2.5" />
               </button>
@@ -618,9 +618,9 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
             padding: '2px 4px',
           }}
         >
-          <span>{minDuty > 0 ? `最低起旋 ${minDuty}% (2200 RPM) · 滚轮微调` : '鼠标悬停滚轮微调'}</span>
+          <span>{minDuty > 0 ? `Мин. начало вращения ${minDuty}% (2200 RPM) · колесо мыши для точной настройки` : 'Тонкая настройка колесом мыши при наведении'}</span>
           <span style={{ color: fanIsolated ? 'var(--color-brand)' : 'var(--text-dim)' }}>
-            8 节点单调递增
+            8 узлов, монотонно возрастающих
           </span>
         </div>
       </div>

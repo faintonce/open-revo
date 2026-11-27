@@ -475,27 +475,27 @@ pub fn get_gpu_vf_curve() -> Option<Vec<GpuVfPoint>> {
 /// Includes hardware sanity boundaries and strict buffer capacity protections.
 pub fn set_gpu_vf_curve_deltas(deltas_mhz: &[i32]) -> Result<(), String> {
     if deltas_mhz.len() < 16 {
-        return Err("V/F 曲线有效锚点数过少 (< 16)，拒绝写入以防异常".to_string());
+        return Err("Слишком мало валидных якорей кривой V/F (< 16): запись отклонена во избежание сбоя".to_string());
     }
     let max_pos = CTRL_ENTRY_BASE + (deltas_mhz.len() - 1) * CTRL_ENTRY_STRIDE + CTRL_DELTA_OFFSET + 4;
     if max_pos > CONTROL_TABLE_SIZE {
-        return Err(format!("V/F 曲线锚点数超出控制表容量限制 ({} > {})", max_pos, CONTROL_TABLE_SIZE));
+        return Err(format!("Число якорей кривой V/F превышает ёмкость управляющей таблицы ({} > {})", max_pos, CONTROL_TABLE_SIZE));
     }
 
     // DIY Unlocked: Remove hardcoded clamp to allow full enthusiast control (like MSI Afterburner).
     // Only basic sanity guard against extreme integer overflow when converting to kHz.
     for (i, &d) in deltas_mhz.iter().enumerate() {
         if d < -2500 || d > 2500 {
-            return Err(format!("锚点 #{} 频率偏移超出合理物理极限 (-2500 ~ +2500 MHz): {} MHz", i, d));
+            return Err(format!("Якорь #{}: смещение частоты за разумным физическим пределом (-2500 ~ +2500 МГц): {} МГц", i, d));
         }
     }
 
-    let drv = get_driver().ok_or_else(|| "NVIDIA NVAPI 不可用".to_string())?;
-    let get_table = drv.get_clock_boost_table.ok_or_else(|| "当前显卡驱动不支持读取 V/F 控制表".to_string())?;
-    let set_table = drv.set_clock_boost_table.ok_or_else(|| "当前显卡驱动不支持写入 V/F 控制表".to_string())?;
+    let drv = get_driver().ok_or_else(|| "NVIDIA NVAPI недоступна".to_string())?;
+    let get_table = drv.get_clock_boost_table.ok_or_else(|| "Текущий драйвер GPU не поддерживает чтение таблицы V/F".to_string())?;
+    let set_table = drv.set_clock_boost_table.ok_or_else(|| "Текущий драйвер GPU не поддерживает запись таблицы V/F".to_string())?;
     let _guard = NVAPI_MUTEX.lock();
 
-    let mask = get_vf_points_mask_raw(drv).ok_or_else(|| "读取 GPU VF 掩码失败".to_string())?;
+    let mask = get_vf_points_mask_raw(drv).ok_or_else(|| "Не удалось прочитать маску VF GPU".to_string())?;
 
     let mut buf = vec![0u8; CONTROL_TABLE_SIZE];
     let ver = make_version(CONTROL_TABLE_SIZE, 1);
@@ -505,7 +505,7 @@ pub fn set_gpu_vf_curve_deltas(deltas_mhz: &[i32]) -> Result<(), String> {
     // Read existing table first (read-modify-write) to guarantee vendor reserved fields integrity
     let ret = unsafe { get_table(drv.primary_gpu_handle, buf.as_mut_ptr()) };
     if ret != NVAPI_OK {
-        return Err(format!("读取当前时钟控制表失败: NVAPI 代码 {}", ret));
+        return Err(format!("Не удалось прочитать текущую таблицу частот: код NVAPI {}", ret));
     }
 
     // Overwrite deltas (Anchor 0 is hardware baseline root and skipped)
@@ -522,7 +522,7 @@ pub fn set_gpu_vf_curve_deltas(deltas_mhz: &[i32]) -> Result<(), String> {
     let set_ret = unsafe { set_table(drv.primary_gpu_handle, buf.as_ptr()) };
     if set_ret != NVAPI_OK {
         crate::log_error!("NVAPI", "写入 V/F 曲线控制表失败: 代码 {}", set_ret);
-        return Err(format!("写入 V/F 曲线控制表失败: NVAPI 代码 {}", set_ret));
+        return Err(format!("Не удалось записать таблицу кривой V/F: код NVAPI {}", set_ret));
     }
 
     crate::log_info!("NVAPI", "V/F 曲线 {} 个锚点频率已成功编程至显卡驱动！", deltas_mhz.len());
@@ -532,9 +532,9 @@ pub fn set_gpu_vf_curve_deltas(deltas_mhz: &[i32]) -> Result<(), String> {
 /// Generate and apply a classic Afterburner-style horizontal flattened undervolt curve.
 /// Elevates low-voltage curve by boost offset, then strictly flattens all anchors beyond target_volt_mv.
 pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Result<(), String> {
-    let current_points = get_gpu_vf_curve().ok_or_else(|| "读取当前显卡 V/F 曲线失败".to_string())?;
+    let current_points = get_gpu_vf_curve().ok_or_else(|| "Не удалось прочитать текущую кривую V/F GPU".to_string())?;
     if current_points.len() < 16 {
-        return Err("有效锚点数不足".to_string());
+        return Err("Недостаточно валидных якорей".to_string());
     }
 
     // Locate anchor closest to requested target voltage
@@ -590,7 +590,7 @@ pub fn set_gpu_undervolt_curve(target_volt_mv: i32, max_boost_mhz: i32) -> Resul
 
 /// Reset all V/F curve deltas back to factory baseline (0 MHz offset on all anchors)
 pub fn reset_gpu_vf_curve() -> Result<(), String> {
-    let current_points = get_gpu_vf_curve().ok_or_else(|| "读取当前显卡 V/F 曲线失败".to_string())?;
+    let current_points = get_gpu_vf_curve().ok_or_else(|| "Не удалось прочитать текущую кривую V/F GPU".to_string())?;
     let zero_deltas = vec![0i32; current_points.len()];
     set_gpu_vf_curve_deltas(&zero_deltas)
 }

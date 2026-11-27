@@ -30,7 +30,7 @@ pub fn check_hotkey_conflict(combo: String) -> HotkeyProbeResult {
 #[tauri::command]
 pub fn register_custom_shortcut(binding: ShortcutBinding) -> Result<bool, String> {
     if binding.combo.trim().is_empty() {
-        return Err("快捷键组合不能为空".to_string());
+        return Err("Сочетание горячих клавиш не может быть пустым".to_string());
     }
     let binding_clone = binding.clone();
     if reg_shortcut(binding) {
@@ -43,7 +43,7 @@ pub fn register_custom_shortcut(binding: ShortcutBinding) -> Result<bool, String
         crate::system::config::save_config(&cfg);
         Ok(true)
     } else {
-        Err("解析或注册快捷键失败，请检查按键格式 (如 'Ctrl+Alt+F')".to_string())
+        Err("Не удалось разобрать или зарегистрировать горячую клавишу; проверьте формат (например 'Ctrl+Alt+F')".to_string())
     }
 }
 
@@ -56,7 +56,7 @@ pub fn unregister_custom_shortcut(id: String) -> Result<bool, String> {
         crate::system::config::save_config(&cfg);
         Ok(true)
     } else {
-        Err(format!("未找到 ID 为 '{}' 的快捷键", id))
+        Err(format!("Не найдена горячая клавиша с ID '{}'", id))
     }
 }
 

@@ -121,8 +121,8 @@ pub fn register(window: &MainWindow, ui_weak: slint::Weak<MainWindow>) {
         } else {
             false
         };
-        // When OEM is currently running (cur_running=true), user clicks "接管官方控制台", take_over must be true.
-        // When OEM is currently stopped/taken over (cur_running=false), user clicks "恢复官方控制台", take_over must be false.
+        // When OEM is currently running (cur_running=true), user clicks "Перехватить официальную консоль", take_over must be true.
+        // When OEM is currently stopped/taken over (cur_running=false), user clicks "Вернуть официальную консоль", take_over must be false.
         ipc::send_action_to_host("toggle_oem", serde_json::json!({ "take_over": cur_running }));
         if let Some(ui) = ui_oem.upgrade() {
             ui.set_oem_running(!cur_running);

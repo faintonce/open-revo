@@ -264,9 +264,9 @@ fn set_power_mode_internal_impl(
     // Thin & light laptops rely on onboard EC power envelopes (e.g. 28W/30W/35W) and are fully exempt.
     if !is_thin_and_light && (mode == 3 || mode == 4) && !is_dc && !cfg.unlock_battery_power_limit {
         let msg = if check_dgpu_present() {
-            "在电池或 Type-C 供电下，狂暴模式与自定义模式不可用。请连接 DC 圆口电源适配器，或在【系统】设置中开启“解除离电限制”。"
+            "От батареи или Type-C режимы Турбо и Пользовательский недоступны. Подключите адаптер с круглым разъёмом DC или включите «Снятие ограничения от батареи» в настройках «Система»."
         } else {
-            "在电池供电下，狂暴模式与自定义模式不可用。请连接电源适配器，或在【系统】设置中开启“解除离电限制”。"
+            "От батареи режимы Турбо и Пользовательский недоступны. Подключите адаптер питания или включите «Снятие ограничения от батареи» в настройках «Система»."
         };
         return Err(msg.to_string());
     }
@@ -1128,7 +1128,7 @@ pub fn apply_turbo_profile(
     ec_state: State<'_, SharedEcBridge>,
 ) -> Result<TurboSubmodeState, String> {
     if !crate::system::power::turbo_submode::is_supported() {
-        return Err("当前硬件平台不支持狂暴子模式".to_string());
+        return Err("Аппаратная платформа не поддерживает подрежимы Турбо".to_string());
     }
 
     let current_mode = ec_state.lock().get_power_mode();

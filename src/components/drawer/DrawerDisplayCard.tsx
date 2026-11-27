@@ -160,14 +160,14 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
         <div className="m-card-header" style={{ position: 'relative', zIndex: 10 }}>
           <div className="m-header-left">
             <Tv size={13} style={{ color: 'var(--theme-hz)' }} />
-            <span>屏幕刷新率:</span>
+            <span>Частота обновления экрана:</span>
             <span style={{ color: 'var(--theme-hz)', fontWeight: 700 }}>{currentHz}Hz</span>
           </div>
 
           <div className="m-header-right" style={{ display: 'flex', alignItems: 'center' }}>
             {monitors.length <= 1 ? (
               <span style={{ color: 'var(--theme-hz)', fontSize: '10px' }}>
-                {activeMon ? activeMon.friendly_name : '2.5K 屏'}
+                {activeMon ? activeMon.friendly_name : 'Экран 2.5K'}
               </span>
             ) : (
               /* 多显示器微型下拉选择器 (纯黑不透底，杜绝折行溢出) */
@@ -175,11 +175,11 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
                 <button
                   className="m-mon-selector-btn"
                   onClick={() => setShowMonMenu(!showMonMenu)}
-                  title="点击切换当前调控的显示器"
+                  title="Нажмите, чтобы переключить текущий управляемый монитор"
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                     {activeMon?.is_internal ? <Laptop size={11} /> : <Tv size={11} />}
-                    {activeMon?.friendly_name?.split(' ')[0] || '屏幕'} · {currentHz}Hz
+                    {activeMon?.friendly_name?.split(' ')[0] || 'Экран'} · {currentHz}Hz
                   </span>
                   <ChevronDown size={10} />
                 </button>
@@ -225,10 +225,10 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
                 : {}
             }
             onClick={handleToggleAutoMinHz}
-            title="拔掉充电器时自动将内置屏幕切换至最低支持刷新率以延长续航 (外接屏不受影响)"
+            title="При отключении зарядного устройства автоматически снижает частоту обновления встроенного экрана до минимальной поддерживаемой для экономии батареи (внешние экраны не затрагиваются)"
           >
             <Battery size={12} />
-            <span>拔电低刷</span>
+            <span>Низкая частота от батареи</span>
           </button>
 
           {/* 2/4: 最低档 */}
@@ -282,7 +282,7 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
               }
               onClick={() => setShowHzMenu(!showHzMenu)}
             >
-              <span>{rates.intermediate.includes(currentHz) ? `${currentHz}Hz` : '更多'}</span>
+              <span>{rates.intermediate.includes(currentHz) ? `${currentHz}Hz` : 'Ещё'}</span>
               <ChevronDown size={10} />
             </button>
 
@@ -314,13 +314,13 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
         <div className="m-card-header">
           <div className="m-header-left">
             <Sun size={13} style={{ color: 'var(--theme-lux)' }} />
-            <span>屏幕亮度:</span>
+            <span>Яркость экрана:</span>
             <span style={{ color: 'var(--theme-lux)', fontWeight: 700 }}>{brightness}%</span>
           </div>
           <div style={{ display: 'flex', gap: '5px' }}>
-            <div className="m-chip" onClick={() => handleBrightnessQuick(25)}>暗光 25%</div>
-            <div className="m-chip" onClick={() => handleBrightnessQuick(60)}>室内 60%</div>
-            <div className="m-chip" onClick={() => handleBrightnessQuick(100)}>户外 100%</div>
+            <div className="m-chip" onClick={() => handleBrightnessQuick(25)}>При слабом свете 25%</div>
+            <div className="m-chip" onClick={() => handleBrightnessQuick(60)}>В помещении 60%</div>
+            <div className="m-chip" onClick={() => handleBrightnessQuick(100)}>На улице 100%</div>
           </div>
         </div>
 

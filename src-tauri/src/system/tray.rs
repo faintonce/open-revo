@@ -114,29 +114,29 @@ pub fn build_tray_menu(
         .map(|w| crate::system::window::is_window_expanded(&w))
         .unwrap_or(false);
 
-    let full_panel_item = CheckMenuItem::with_id(app, "mode_full_panel", "🖥️ 完整面板", true, is_expanded, None::<&str>)?;
-    let mini_drawer_item = CheckMenuItem::with_id(app, "mode_mini_drawer", "🪟 迷你抽屉", true, !is_expanded, None::<&str>)?;
-    let turn_off_screen_item = MenuItem::with_id(app, "turn_off_screen", "🌙 关闭屏幕 (3秒防误触)", true, None::<&str>)?;
+    let full_panel_item = CheckMenuItem::with_id(app, "mode_full_panel", "🖥️ Полная панель", true, is_expanded, None::<&str>)?;
+    let mini_drawer_item = CheckMenuItem::with_id(app, "mode_mini_drawer", "🪟 Мини-панель", true, !is_expanded, None::<&str>)?;
+    let turn_off_screen_item = MenuItem::with_id(app, "turn_off_screen", "🌙 Выключить экран (3 с защиты)", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
 
     let initial_mode = ec.lock().get_power_mode();
     let initial_fan = ec.lock().is_fan_boost();
 
-    let office_item = CheckMenuItem::with_id(app, "mode_office", "办公模式 (Office)", true, initial_mode == 1, None::<&str>)?;
-    let balance_item = CheckMenuItem::with_id(app, "mode_balance", "均衡模式 (Balance)", true, initial_mode == 2, None::<&str>)?;
-    let beast_item = CheckMenuItem::with_id(app, "mode_beast", "狂暴模式 (Beast)", true, initial_mode == 3, None::<&str>)?;
-    let custom_item = CheckMenuItem::with_id(app, "mode_custom", "极客调校 (Custom)", true, initial_mode == 4, None::<&str>)?;
+    let office_item = CheckMenuItem::with_id(app, "mode_office", "Офисный режим (Office)", true, initial_mode == 1, None::<&str>)?;
+    let balance_item = CheckMenuItem::with_id(app, "mode_balance", "Режим Баланса (Balance)", true, initial_mode == 2, None::<&str>)?;
+    let beast_item = CheckMenuItem::with_id(app, "mode_beast", "Режим Турбо (Beast)", true, initial_mode == 3, None::<&str>)?;
+    let custom_item = CheckMenuItem::with_id(app, "mode_custom", "Экспертная настройка (Custom)", true, initial_mode == 4, None::<&str>)?;
 
     let sep2 = PredefinedMenuItem::separator(app)?;
 
-    let fan_boost_item = CheckMenuItem::with_id(app, "toggle_fan", "一键强冷 (Fan Boost)", true, initial_fan, None::<&str>)?;
-    let oem_toggle_item = MenuItem::with_id(app, "takeover_toggle", "🔄 接管/恢复 官方后台服务", true, None::<&str>)?;
-    let widget_lock_item = MenuItem::with_id(app, "toggle_widget_lock", "🧲 挂件穿透锁定 / 解锁拖动 (或按住Ctrl)", true, None::<&str>)?;
+    let fan_boost_item = CheckMenuItem::with_id(app, "toggle_fan", "Экстренное охлаждение (Fan Boost)", true, initial_fan, None::<&str>)?;
+    let oem_toggle_item = MenuItem::with_id(app, "takeover_toggle", "🔄 Перехват/возврат официальной службы", true, None::<&str>)?;
+    let widget_lock_item = MenuItem::with_id(app, "toggle_widget_lock", "🧲 Фиксация виджета / разблокировка перетаскивания (или удерживать Ctrl)", true, None::<&str>)?;
 
     let sep3 = PredefinedMenuItem::separator(app)?;
 
     let notice_item = MenuItem::with_id(app, "notice", &format!("🛡️ {}", app_version_display()), false, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "退出 OpenRevo", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "Выход из OpenRevo", true, None::<&str>)?;
 
     let _ = TRAY_MENU_CONTROLS.set(TrayMenuControls {
         full_panel: full_panel_item.clone(),

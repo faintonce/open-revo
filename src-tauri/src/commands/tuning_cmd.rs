@@ -105,13 +105,13 @@ pub fn set_gpu_mode_internal(
     gpu_bridge: &crate::driver::gpu_bridge::SharedGpuBridge,
 ) -> Result<GpuModeInfo, String> {
     if !check_dgpu_present() {
-        return Err("当前设备为纯核显架构轻薄本（无物理独立显卡与 MUX 切换芯片），无需且不支持显卡模式切换。".to_string());
+        return Err("Текущее устройство — ультрабук только на iGPU (без дискретной графики и чипа MUX): переключение режима графики не требуется и не поддерживается.".to_string());
     }
 
     let caps = crate::driver::uefi_nvram::probe_gpu_capabilities();
     if mode.eq_ignore_ascii_case("igpu") && !caps.supports_igpu_only {
         let reason = caps.reason_igpu_unsupported.unwrap_or_else(|| {
-            "当前模具硬件架构不支持纯核显模式 (iGPU Only)。已拦截写入以彻底防止主板黑屏变砖！".to_string()
+            "Аппаратная архитектура платформы не поддерживает режим «только iGPU». Запись заблокирована, чтобы полностью исключить чёрный экран и «окирпичивание» платы!".to_string()
         });
         return Err(reason);
     }
@@ -121,7 +121,7 @@ pub fn set_gpu_mode_internal(
     let write_res = crate::driver::uefi_nvram::write_gpu_mode(&mode);
     if let Err(ref e) = write_res {
         eprintln!("[OpenRevo GPU Mode] Hardware write failed: {}", e);
-        return Err(format!("写入主板显卡模式寄存器/NVRAM 失败: {}\n请确认是否以管理员身份运行 OpenRevo！", e));
+        return Err(format!("Не удалось записать регистр/NVRAM режима графики платы: {}\nУбедитесь, что OpenRevo запущен от имени администратора!", e));
     }
 
     if should_restart {
@@ -295,9 +295,9 @@ pub fn apply_custom_profile(
             "apply_custom_profile rejected: Machine is NOT on full-power AC/DC adapter!"
         );
         let msg = if check_dgpu_present() {
-            "在电池或 Type-C 供电下，无法应用自定义模式超频。请连接 DC 圆口电源适配器，或在【系统】设置中开启“解除离电限制”。"
+            "От батареи или Type-C разгон Пользовательского режима недоступен. Подключите адаптер с круглым разъёмом DC или включите «Снятие ограничения от батареи» в настройках «Система»."
         } else {
-            "在电池供电下，无法应用自定义模式超频。请连接电源适配器，或在【系统】设置中开启“解除离电限制”。"
+            "От батареи разгон Пользовательского режима недоступен. Подключите адаптер питания или включите «Снятие ограничения от батареи» в настройках «Система»."
         };
         return Err(msg.to_string());
     }
@@ -535,7 +535,7 @@ pub fn set_active_profile_id(
 ) -> Result<crate::system::config::CustomProfilePreset, String> {
     let profiles = crate::system::config::list_profiles();
     let target = profiles.into_iter().find(|p| p.id == id)
-        .ok_or_else(|| format!("未找到指定的方案 ID: {}", id))?;
+        .ok_or_else(|| format!("Указанный ID схемы не найден: {}", id))?;
 
     let mut cfg = crate::system::config::load_config();
     cfg.active_profile_id = id.clone();
@@ -606,7 +606,7 @@ pub fn create_profile_preset(
 
     let preset = crate::system::config::CustomProfilePreset {
         id,
-        name: if name.trim().is_empty() { "自定义方案".to_string() } else { name.trim().to_string() },
+        name: if name.trim().is_empty() { "Пользовательская схема".to_string() } else { name.trim().to_string() },
         file_name,
         icon_key: "star".to_string(),
         is_builtin: false,
@@ -622,13 +622,13 @@ pub fn reset_profile_preset(id: String) -> Result<crate::system::config::CustomP
     let target = if id.starts_with("preset_") {
         let defaults = crate::system::config::get_default_builtin_presets();
         let factory = defaults.into_iter().find(|p| p.id == id)
-            .ok_or_else(|| format!("未找到原厂预设: {}", id))?;
+            .ok_or_else(|| format!("Заводской пресет не найден: {}", id))?;
         crate::system::config::save_profile_file(&factory)?;
         factory
     } else {
         let profiles = crate::system::config::list_profiles();
         let mut target = profiles.into_iter().find(|p| p.id == id)
-            .ok_or_else(|| format!("未找到方案: {}", id))?;
+            .ok_or_else(|| format!("Схема не найдена: {}", id))?;
         let default_custom = crate::system::model_engine::get_model_default_custom_profile();
         target.profile = default_custom;
         crate::system::config::save_profile_file(&target)?;
@@ -720,13 +720,13 @@ pub fn rename_profile_preset(
     new_name: String,
 ) -> Result<crate::system::config::CustomProfilePreset, String> {
     if id.starts_with("preset_") {
-        return Err("原厂内置方案不可重命名！".to_string());
+        return Err("Встроенные заводские схемы нельзя переименовывать!".to_string());
     }
     let profiles = crate::system::config::list_profiles();
     let mut target = profiles.into_iter().find(|p| p.id == id)
-        .ok_or_else(|| format!("未找到方案 ID: {}", id))?;
+        .ok_or_else(|| format!("ID схемы не найден: {}", id))?;
     if target.is_builtin {
-        return Err("原厂内置方案不可重命名！".to_string());
+        return Err("Встроенные заводские схемы нельзя переименовывать!".to_string());
     }
 
     target.name = new_name.trim().to_string();
@@ -843,7 +843,7 @@ pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str)
     let filter_w: Vec<u16> = filter_str.encode_utf16().collect();
 
     let def_ext_w: Vec<u16> = OsStr::new(filter_ext.trim_start_matches('.')).encode_wide().chain(std::iter::once(0)).collect();
-    let title_w: Vec<u16> = OsStr::new("导出配置文件").encode_wide().chain(std::iter::once(0)).collect();
+    let title_w: Vec<u16> = OsStr::new("Экспортировать файл конфигурации").encode_wide().chain(std::iter::once(0)).collect();
 
     // OFN_OVERWRITEPROMPT (0x2) | OFN_PATHMUSTEXIST (0x800) | OFN_NOCHANGEDIR (0x8) | OFN_EXPLORER (0x80000) | OFN_ENABLESIZING (0x800000)
     let flags = 0x00000002 | 0x00000800 | 0x00000008 | 0x00080000 | 0x00800000;
@@ -889,14 +889,14 @@ pub fn save_file_dialog(default_name: &str, filter_name: &str, filter_ext: &str)
 pub fn export_profile_preset(id: String) -> Result<Option<String>, String> {
     let profiles = crate::system::config::list_profiles();
     let target = profiles.into_iter().find(|p| p.id == id)
-        .ok_or_else(|| format!("未找到方案 ID: {}", id))?;
-    let content = serde_json::to_string_pretty(&target).map_err(|e| format!("导出序列化失败: {}", e))?;
+        .ok_or_else(|| format!("ID схемы не найден: {}", id))?;
+    let content = serde_json::to_string_pretty(&target).map_err(|e| format!("Ошибка сериализации при экспорте: {}", e))?;
     let default_name = target.file_name;
 
     #[cfg(target_os = "windows")]
     {
-        if let Some(dest) = save_file_dialog(&default_name, "JSON 调教方案", "json") {
-            std::fs::write(&dest, content).map_err(|e| format!("保存方案文件失败: {}", e))?;
+        if let Some(dest) = save_file_dialog(&default_name, "JSON-схема настройки", "json") {
+            std::fs::write(&dest, content).map_err(|e| format!("Не удалось сохранить файл схемы: {}", e))?;
             return Ok(Some(dest.to_string_lossy().to_string()));
         }
         Ok(None)
@@ -1192,7 +1192,7 @@ pub fn open_models_in_notepad() -> Result<(), String> {
         std::process::Command::new("notepad.exe")
             .arg(path.to_string_lossy().to_string())
             .spawn()
-            .map_err(|e| format!("无法启动记事本: {}", e))?;
+            .map_err(|e| format!("Не удалось запустить «Блокнот»: {}", e))?;
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -1207,12 +1207,12 @@ pub fn export_models_json() -> Result<Option<String>, String> {
     if !path.exists() {
         let _ = crate::system::model_engine::load_model_profiles();
     }
-    let content = std::fs::read_to_string(&path).map_err(|e| format!("读取 models.json 失败: {}", e))?;
+    let content = std::fs::read_to_string(&path).map_err(|e| format!("Не удалось прочитать models.json: {}", e))?;
 
     #[cfg(target_os = "windows")]
     {
-        if let Some(dest) = save_file_dialog("models.json", "JSON 配置文件", "json") {
-            std::fs::write(&dest, content).map_err(|e| format!("保存 models.json 失败: {}", e))?;
+        if let Some(dest) = save_file_dialog("models.json", "JSON-файл конфигурации", "json") {
+            std::fs::write(&dest, content).map_err(|e| format!("Не удалось сохранить models.json: {}", e))?;
             return Ok(Some(dest.to_string_lossy().to_string()));
         }
         Ok(None)
@@ -1227,10 +1227,10 @@ pub fn export_models_json() -> Result<Option<String>, String> {
 #[tauri::command]
 pub fn import_models_json(json_content: String) -> Result<String, String> {
     let mut profiles = serde_json::from_str::<Vec<crate::system::model_engine::ModelProfile>>(&json_content)
-        .map_err(|e| format!("JSON 解析失败，请检查配置文件格式: {}", e))?;
+        .map_err(|e| format!("Ошибка разбора JSON — проверьте формат файла конфигурации: {}", e))?;
 
     if profiles.is_empty() {
-        return Err("导入的配置列表中未包含有效的机型数据".to_string());
+        return Err("В импортированном списке конфигураций нет корректных данных модели".to_string());
     }
 
     crate::system::model_engine::sync_active_machine_profile(&mut profiles);
@@ -1239,7 +1239,7 @@ pub fn import_models_json(json_content: String) -> Result<String, String> {
 
     let count = profiles.len();
     let my_alias = crate::system::model_engine::get_active_alias();
-    Ok(format!("成功导入 {} 项机型配置！当前本机识别为：{}", count, my_alias))
+    Ok(format!("Успешно импортировано конфигураций моделей: {}! Текущее устройство распознано как: {}", count, my_alias))
 }
 
 pub fn set_bld_fan_speed_cap_internal(

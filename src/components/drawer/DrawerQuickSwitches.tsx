@@ -116,10 +116,10 @@ export const DrawerQuickSwitches: React.FC<DrawerQuickSwitchesProps> = ({
           <button
             className={`m-quick-btn ${status.fan_boost ? 'active' : ''}`}
             onClick={() => checkOemGuard(onToggleFanBoost)}
-            title={status.fan_boost ? '双风扇狂暴强冷运转中 (点击关闭)' : '一键开启双风扇极速强冷'}
+            title={status.fan_boost ? 'Оба вентилятора работают в режиме форс-охлаждения Турбо (нажмите для отключения)' : 'Мгновенное форс-охлаждение обоими вентиляторами одним нажатием'}
           >
             <Fan size={16} className={status.fan_boost ? 'animate-spin' : ''} />
-            <span className="m-quick-btn-label">一键强冷</span>
+            <span className="m-quick-btn-label">Форс-охлаждение</span>
           </button>
         )}
 
@@ -127,40 +127,40 @@ export const DrawerQuickSwitches: React.FC<DrawerQuickSwitchesProps> = ({
         <button
           className={`m-quick-btn ${switches.camera ? 'active' : ''}`}
           onClick={() => toggleSwitch('camera')}
-          title={switches.camera ? '摄像头已供电开启 (点击硬件断电禁用)' : '摄像头已硬件断电禁用 (点击开启)'}
+          title={switches.camera ? 'Камера включена и запитана (по клику — аппаратное отключение питания)' : 'Камера аппаратно обесточена (нажмите для включения)'}
         >
           {switches.camera ? <Camera size={16} /> : <CameraOff size={16} />}
-          <span className="m-quick-btn-label">{switches.camera ? '摄像头' : '相机已关'}</span>
+          <span className="m-quick-btn-label">{switches.camera ? 'Камера' : 'Камера выключена'}</span>
         </button>
 
         {/* 3. 麦克风开关 */}
         <button
           className={`m-quick-btn ${switches.mic ? 'active' : ''}`}
           onClick={() => toggleSwitch('mic')}
-          title={switches.mic ? '麦克风已就绪拾音 (点击一键静音)' : '麦克风已一键静音 (点击解除)'}
+          title={switches.mic ? 'Микрофон готов к записи (нажмите для мгновенного отключения)' : 'Микрофон отключён одним нажатием (нажмите для включения)'}
         >
           {switches.mic ? <Mic size={16} /> : <MicOff size={16} />}
-          <span className="m-quick-btn-label">{switches.mic ? '麦克风' : '麦克静音'}</span>
+          <span className="m-quick-btn-label">{switches.mic ? 'Микрофон' : 'Микрофон заглушён'}</span>
         </button>
 
         {/* 4. Win 键锁 */}
         <button
           className={`m-quick-btn ${status.win_key_locked ? 'active' : ''}`}
           onClick={onToggleWinKey}
-          title={status.win_key_locked ? 'Windows 徽标键已锁定防误触 (点击解锁)' : 'Windows 徽标键未锁定 (点击锁定)'}
+          title={status.win_key_locked ? 'Клавиша Windows заблокирована от случайных нажатий (нажмите для разблокировки)' : 'Клавиша Windows не заблокирована (нажмите для блокировки)'}
         >
           {status.win_key_locked ? <Lock size={16} /> : <Unlock size={16} />}
-          <span className="m-quick-btn-label">{status.win_key_locked ? 'Win已锁' : 'Win键锁'}</span>
+          <span className="m-quick-btn-label">{status.win_key_locked ? 'Win заблокирована' : 'Блокировка Win'}</span>
         </button>
 
         {/* 5. 防休眠 */}
         <button
           className={`m-quick-btn ${switches.keep_awake ? 'active' : ''}`}
           onClick={() => toggleSwitch('keep_awake')}
-          title={switches.keep_awake ? '防休眠模式已开启 (保持系统常亮不锁屏)' : '防休眠模式已关闭 (遵循系统电源计划)'}
+          title={switches.keep_awake ? 'Режим запрета сна включён (система не гаснет и не блокируется)' : 'Режим запрета сна выключен (система следует своей схеме электропитания)'}
         >
           <Coffee size={16} />
-          <span className="m-quick-btn-label">{switches.keep_awake ? '常亮保持' : '防休眠'}</span>
+          <span className="m-quick-btn-label">{switches.keep_awake ? 'Держать постоянно' : 'Запрет сна'}</span>
         </button>
 
         {/* 6. 关闭屏幕 (3秒防误触) */}
@@ -173,10 +173,10 @@ export const DrawerQuickSwitches: React.FC<DrawerQuickSwitchesProps> = ({
               console.error('Failed to turn off screen:', e);
             }
           }}
-          title="立即关闭屏幕显示器（3秒防外设误触唤醒，配合防休眠整夜挂机）"
+          title="Мгновенно гасит экран (3 секунды защиты от случайного пробуждения периферией; вместе с запретом сна — для ночных загрузок)"
         >
           <Moon size={16} />
-          <span className="m-quick-btn-label">关闭屏幕</span>
+          <span className="m-quick-btn-label">Выключить экран</span>
         </button>
       </div>
 

@@ -29,10 +29,10 @@ export const GpuPresetReferenceCard: React.FC<GpuPresetReferenceCardProps> = ({ 
         }}
       >
         <AlertTriangle size={13} className="shrink-0" />
-        <span>模具原厂建议功耗参考</span>
+        <span>Рекомендованные заводом лимиты мощности платформы</span>
         {presets?.hardware_read && (
           <span style={{ fontSize: '10px', color: 'var(--status-ok)', fontWeight: 600, marginLeft: 'auto' }}>
-            {isDeclarative ? '原厂硬件直读' : 'EC 硬件直读'}
+            {isDeclarative ? 'Заводское прямое чтение оборудования' : 'Прямое аппаратное чтение EC'}
           </span>
         )}
       </div>
@@ -40,19 +40,19 @@ export const GpuPresetReferenceCard: React.FC<GpuPresetReferenceCardProps> = ({ 
         {presets?.hardware_read ? (
           <>
             <div>
-              • CPU 原厂预设: 办公 {presets.office_pl1}W / 平衡 {presets.balance_pl1}W / 狂暴 {presets.turbo_pl1}W
+              • CPU заводской пресет: Офис {presets.office_pl1}Вт / Баланс {presets.balance_pl1}Вт / Турбо {presets.turbo_pl1}W
             </div>
             <div>
-              • GPU 原厂预设: 基础 {presets.base_tgp}W + DB {presets.max_db}W (原厂最大 {presets.base_tgp + presets.max_db}W)
+              • GPU заводской пресет: база {presets.base_tgp}W + DB {presets.max_db}Вт (заводской максимум {presets.base_tgp + presets.max_db}W)
             </div>
           </>
         ) : (
           <>
             <div>
-              • CPU 推荐: 持续 PL1 {presets?.office_pl1 || 45}W~{presets?.balance_pl1 || 75}W / 爆发 PL2 {presets?.balance_pl2 || 75}W~{presets?.turbo_pl2 || 115}W
+              • CPU рекомендуемо: длительный PL1  {presets?.office_pl1 || 45}W~{presets?.balance_pl1 || 75} Вт / пиковый PL2 {presets?.balance_pl2 || 75}W~{presets?.turbo_pl2 || 115}W
             </div>
             <div>
-              • GPU 推荐: 基础 {presets?.base_tgp || 'Base'}W + DB {presets?.max_db ? `+${presets.max_db}W` : '15W~25W'} 动态分配
+              • GPU рекомендуемо: база  {presets?.base_tgp || 'Base'}W + DB {presets?.max_db ? `+${presets.max_db}W` : '15W~25W'} динамическое распределение
             </div>
           </>
         )}

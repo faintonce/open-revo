@@ -44,14 +44,14 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "电池健康:";
+                    text: "Здоровье батареи:";
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
                 }
                 Text {
-                    text: battery_limit == 60 ? "工作站模式" : (battery_limit == 80 ? "平衡模式" : "长效模式");
+                    text: battery_limit == 60 ? "Режим рабочей станции" : (battery_limit == 80 ? "Режим Баланса" : "Режим долговечности");
                     font-size: 11px;
                     font-weight: 700;
                     color: #2dd4bf;
@@ -71,7 +71,7 @@ export component DrawerBatteryCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: is_ac_online ? "AC 已连接" : "电池供电";
+                    text: is_ac_online ? "AC подключён" : "От батареи";
                     font-size: 10px;
                     color: AppTheme.text_muted;
                     vertical-alignment: center;
@@ -97,7 +97,7 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "工作站";
+                    text: "Рабочая станция";
                     font-size: 10.5px;
                     font-weight: battery_limit == 60 ? 700 : 500;
                     color: battery_limit == 60 ? #2dd4bf : AppTheme.text_primary;
@@ -119,7 +119,7 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "平衡";
+                    text: "Баланс";
                     font-size: 10.5px;
                     font-weight: battery_limit == 80 ? 700 : 500;
                     color: battery_limit == 80 ? #2dd4bf : AppTheme.text_primary;
@@ -141,7 +141,7 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "长效";
+                    text: "Долговечность";
                     font-size: 10.5px;
                     font-weight: battery_limit == 100 ? 700 : 500;
                     color: battery_limit == 100 ? #2dd4bf : AppTheme.text_primary;

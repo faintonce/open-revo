@@ -96,7 +96,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--status-ok)' }}>
           <Flame className="w-4 h-4 shrink-0" />
-          <span>GPU 释放与超频</span>
+          <span>Раскрытие и разгон GPU</span>
         </div>
         {capabilities?.gpu_name && (
           <span
@@ -133,7 +133,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
             lineHeight: 1.4,
           }}
         >
-          当前机型未配备独立显卡或模具不支持独立 GPU 功耗调节，超频与 cTGP 释放功能已停用。
+          В текущей модели нет dGPU либо платформа не поддерживает отдельную регулировку мощности GPU — разгон и функция раскрытия cTGP отключены.
         </div>
       )}
 
@@ -172,7 +172,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
               flexShrink: 0,
             }}
           >
-            超性能 (Super Perf)
+            Супер-производительность (Super Perf)
           </span>
           <RevSwitch
             checked={effectiveSuperPerf}
@@ -185,7 +185,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
         {/* GPU Core Clock Offset */}
         <div className="tuning-row" style={{ opacity: effectiveSuperPerf ? 1 : 0.45, transition: 'opacity var(--transition-fast)' }}>
           <div className="tuning-row-header">
-            <span className="tuning-row-label">核心频率偏移:</span>
+            <span className="tuning-row-label">Смещение частоты ядра:</span>
             <span
               style={{
                 fontWeight: 700,
@@ -223,7 +223,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
         {/* GPU Memory Clock Offset */}
         <div className="tuning-row" style={{ opacity: gpuSuperPerf ? 1 : 0.45, transition: 'opacity var(--transition-fast)' }}>
           <div className="tuning-row-header">
-            <span className="tuning-row-label">显存频率偏移:</span>
+            <span className="tuning-row-label">Смещение частоты памяти:</span>
             <span
               style={{
                 fontWeight: 700,
@@ -279,8 +279,8 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
           >
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--status-warn)' }} />
             <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-              <div style={{ fontWeight: 700, color: 'var(--status-error)' }}>⚠️ 超频风险提示</div>
-              <div>此范围内超频可能出现蓝屏、黑屏或驱动崩溃风险，请谨慎操作并注意散热！</div>
+              <div style={{ fontWeight: 700, color: 'var(--status-error)' }}>⚠️ Предупреждение о рисках разгона</div>
+              <div>В этом диапазоне разгона возможны BSOD, чёрный экран или сбои драйвера — действуйте осторожно и следите за охлаждением!</div>
             </div>
           </div>
         )}
@@ -300,10 +300,10 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--status-ok)' }}>
               <Zap className="w-3.5 h-3.5 shrink-0" />
-              <span>模具功耗联动：原厂模式锁定</span>
+              <span>Связка мощности платформы: заблокировано заводским режимом</span>
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-dim)', lineHeight: 1.45 }}>
-              当前模具 GPU 功耗由原厂性能模式统一调度（狂暴模式自动释放 {presets?.base_tgp && presets?.max_db ? `${presets.base_tgp + presets.max_db}W 满血，含 ${presets.max_db}W Dynamic Boost` : '满血功耗'}；办公模式 30W；平衡模式 120W），核心与显存超频正常生效。
+              Потребление GPU в текущей платформе управляется заводскими режимами производительности (в Турбо автоматически раскрываются {presets?.base_tgp && presets?.max_db ? `${presets.base_tgp + presets.max_db} Вт на полную, включая ${presets.max_db}W Dynamic Boost` : 'Полная мощность'}; офисный — 30 Вт; Баланс — 120 Вт), разгон ядра и видеопамяти работает штатно.
             </div>
           </div>
         )}
@@ -312,7 +312,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
         {isNonFullPower && (
           <div className="tuning-row" style={{ opacity: (gpuSuperPerf || isPending) ? 0.45 : 1, transition: 'opacity var(--transition-fast)' }}>
             <div className="tuning-row-header">
-              <span className="tuning-row-label">cTGP 功耗:</span>
+              <span className="tuning-row-label">Потребление cTGP:</span>
               <span style={{ fontWeight: 700, color: (gpuSuperPerf || isPending) ? 'var(--text-dim)' : 'var(--status-info)', fontSize: '11px', whiteSpace: 'nowrap' }}>
                 {isPending ? '--' : `${currentBaseWatts} W`}
               </span>
@@ -348,7 +348,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
               <span className="tuning-row-label">Dynamic Boost:</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontWeight: 700, color: (effectiveDbEnabled && !isPending) ? 'var(--status-ok)' : 'var(--text-dim)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                  {isPending ? '--' : (effectiveDbEnabled ? `+${currentDbWatts} W` : '关闭')}
+                  {isPending ? '--' : (effectiveDbEnabled ? `+${currentDbWatts} W` : 'Выключить')}
                 </span>
                 <RevSwitch
                   checked={effectiveDbEnabled}
@@ -402,7 +402,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
               {isPending ? '--' : `${totalCalculatedTgp} W`}
             </span>
             <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              {isPending ? '(显卡冷启动检测中...)' : `(基础 ${currentBaseWatts}W + DB ${currentDbWatts}W)`}
+              {isPending ? '(идёт определение GPU при холодном старте...)' : `(база ${currentBaseWatts}W + DB ${currentDbWatts}W)`}
             </span>
           </div>
         )}

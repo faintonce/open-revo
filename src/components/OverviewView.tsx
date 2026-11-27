@@ -83,7 +83,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       }
 
       return {
-        label: '当前设定',
+        label: 'Текущая настройка',
         pl1,
         tgp,
       };
@@ -97,7 +97,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       const pl1Val = capabilities.power_mode_watts[modeKey];
       if (pl1Val !== undefined) {
         return {
-          label: '原厂目标',
+          label: 'Заводская цель',
           pl1: pl1Val,
           tgp: 0,
         };
@@ -109,7 +109,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     if (isPureIgpu) {
       const thinLightPl1 = status.power_mode === 1 ? 35 : status.power_mode === 3 ? 54 : 45;
       return {
-        label: '原厂目标',
+        label: 'Заводская цель',
         pl1: thinLightPl1,
         tgp: 0,
       };
@@ -144,7 +144,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     }
 
     return {
-      label: presets?.hardware_read ? '原厂目标' : '参考值 (读取预设值失败)',
+      label: presets?.hardware_read ? 'Заводская цель' : 'Справочное значение (не удалось прочитать пресет)',
       pl1,
       tgp,
     };
@@ -164,10 +164,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div>
             <h3 style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mech)' }}>
-              性能释放模式 (Power Profiles)
+              Режимы производительности (Power Profiles)
             </h3>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              当前配置：{currentModeInfo.name} ({currentModeInfo.nameEn}) - {currentModeInfo.desc}
+              Текущая конфигурация:{currentModeInfo.name} ({currentModeInfo.nameEn}) - {currentModeInfo.desc}
             </p>
           </div>
           <div
