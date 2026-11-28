@@ -2,6 +2,7 @@ pub mod autostart;
 pub mod config;
 pub mod display;
 pub mod hooks;
+pub mod lite_mode;
 pub mod process;
 pub mod query_cache;
 pub mod service_mgr;

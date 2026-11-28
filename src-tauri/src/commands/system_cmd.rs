@@ -246,6 +246,40 @@ pub fn get_classic_webview() -> bool {
 }
 
 #[tauri::command]
+pub fn get_lite_mode() -> bool {
+    crate::system::config::load_config().lite_mode
+}
+
+#[tauri::command]
+pub fn set_lite_mode(enabled: bool) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.lite_mode = enabled;
+    crate::system::config::save_config(&cfg);
+    if enabled {
+        crate::log_info!("CONFIG", "lite_mode enabled (idle {}s)", cfg.lite_mode_idle_secs);
+    } else {
+        crate::system::lite_mode::disarm();
+        crate::system::native_wry::clear_lite_mode_embedded_plugin();
+        crate::log_info!("CONFIG", "lite_mode disabled");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_lite_mode_idle_secs() -> u64 {
+    crate::system::lite_mode::clamp_idle_secs(crate::system::config::load_config().lite_mode_idle_secs)
+}
+
+#[tauri::command]
+pub fn set_lite_mode_idle_secs(secs: u64) -> Result<(), String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.lite_mode_idle_secs = crate::system::lite_mode::clamp_idle_secs(secs);
+    crate::system::config::save_config(&cfg);
+    crate::log_info!("CONFIG", "lite_mode_idle_secs set to: {}", cfg.lite_mode_idle_secs);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_classic_webview(enabled: bool) -> Result<(), String> {
     let mut cfg = crate::system::config::load_config();
     cfg.use_classic_webview = enabled;

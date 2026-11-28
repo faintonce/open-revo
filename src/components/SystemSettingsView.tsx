@@ -76,6 +76,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable');
   const [miniAutoHide, setMiniAutoHide] = useState(true);
   const [useClassicWebview, setUseClassicWebview] = useState(false);
+  const [liteMode, setLiteMode] = useState(false);
   const [showRestartHint, setShowRestartHint] = useState(false);
   const [unlockBatteryLimit, setUnlockBatteryLimit] = useState(!!status.unlock_battery_power_limit);
   const [showUnlockBatteryConfirm, setShowUnlockBatteryConfirm] = useState(false);
@@ -196,6 +197,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       })
       .catch(() => { });
 
+    invoke<boolean>('get_lite_mode')
+      .then((val) => {
+        if (typeof val === 'boolean') {
+          setLiteMode(val);
+        }
+      })
+      .catch(() => { });
+
     invoke<string>('get_update_channel')
       .then((ch) => {
         if (ch === 'beta' || ch === 'stable') {
@@ -230,6 +239,15 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       await invoke('set_classic_webview', { enabled });
     } catch (e) {
       console.error('Failed to set classic webview:', e);
+    }
+  };
+
+  const handleToggleLiteMode = async (enabled: boolean) => {
+    setLiteMode(enabled);
+    try {
+      await invoke('set_lite_mode', { enabled });
+    } catch (e) {
+      console.error('Failed to set lite mode:', e);
     }
   };
 
@@ -712,6 +730,27 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <RevSwitch
                 checked={useClassicWebview}
                 onChange={handleToggleClassicWebview}
+              />
+            </div>
+          </div>
+
+          {/* 轻量模式：后台回收 WebView2 */}
+          <div className="quick-row" style={{ alignItems: 'center' }}>
+            <div>
+              <div className="sys-row-label">
+                <span>轻量模式（后台回收 WebView2）</span>
+                <RevBadge variant={liteMode ? 'success' : 'info'}>
+                  {liteMode ? '已开启' : '已关闭'}
+                </RevBadge>
+              </div>
+              <div className="sys-row-desc">
+                主界面隐藏超过 5 分钟后销毁后台 WebView2：经典模式销毁主窗口，Slint 模式回收内嵌插件页，再次打开时按需重建（插件页需重新加载）。桌面挂件、OSD 与后台自动化不受影响，立即生效，无需重启
+              </div>
+            </div>
+            <div className="sys-row-controls">
+              <RevSwitch
+                checked={liteMode}
+                onChange={handleToggleLiteMode}
               />
             </div>
           </div>

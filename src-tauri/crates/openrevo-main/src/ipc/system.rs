@@ -355,6 +355,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(cw) = val.get("use_classic_webview").and_then(|v| v.as_bool()) {
                 ui.set_use_classic_webview(cw);
             }
+            if let Some(lm) = val.get("lite_mode").and_then(|v| v.as_bool()) {
+                ui.set_lite_mode(lm);
+            }
             if let Some(ch) = val.get("update_channel").and_then(|v| v.as_str()) {
                 ui.set_update_channel(ch.into());
             }

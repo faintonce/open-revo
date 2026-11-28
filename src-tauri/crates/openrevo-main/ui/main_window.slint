@@ -386,6 +386,9 @@ export component MainWindow inherits Window {
     callback toggle_classic_webview(bool);
     callback restart_openrevo();
 
+    in-out property <bool> lite_mode: false;
+    callback toggle_lite_mode(bool);
+
     in-out property <UserDataDirInfo> data_dir_info: {
         path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
         mode: "appdata"
@@ -1306,6 +1309,9 @@ export component MainWindow inherits Window {
         use_classic_webview: root.use_classic_webview;
         toggle_classic_webview(en) => { root.toggle_classic_webview(en); }
         restart_openrevo => { root.restart_openrevo(); }
+
+        lite_mode: root.lite_mode;
+        toggle_lite_mode(en) => { root.toggle_lite_mode(en); }
 
         data_dir_info: root.data_dir_info;
         show_clear_confirm <=> root.show_clear_confirm;

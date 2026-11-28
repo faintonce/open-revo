@@ -48,6 +48,9 @@ pub enum NativeWryMessage {
         rect: (i32, i32, i32, i32),
     },
     HideEmbedded,
+    /// Lite mode: drop the embedded child webview and remember its plugin id
+    /// so it can be re-attached when the main window is shown again.
+    DestroyEmbeddedLite,
     SetClickThrough {
         plugin_id: String,
         enable: bool,
@@ -146,6 +149,9 @@ impl raw_window_handle::HasWindowHandle for HwndWrapper {
 static INIT_ONCE: Once = Once::new();
 static PROXY_HOLDER: Mutex<Option<EventLoopProxy<NativeWryMessage>>> = Mutex::new(None);
 static ACTIVE_EMBEDDED_PLUGIN: RwLock<Option<String>> = RwLock::new(None);
+/// Plugin id of the embedded view most recently destroyed by lite mode.
+/// Consumed by `take_lite_mode_embedded_plugin` on the next main-window show.
+static LITE_EMBEDDED_PLUGIN: RwLock<Option<String>> = RwLock::new(None);
 static IS_SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 fn get_running_popouts_set() -> &'static RwLock<HashSet<String>> {
@@ -864,6 +870,27 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     }
                 }
 
+                NativeWryMessage::DestroyEmbeddedLite => {
+                    // Same drop as HideEmbedded, but remember the plugin id so
+                    // lite mode can re-attach it when the main window returns.
+                    if let Some((pid, view, parent_hwnd)) = embedded.take() {
+                        *LITE_EMBEDDED_PLUGIN.write() = Some(pid.clone());
+                        *ACTIVE_EMBEDDED_PLUGIN.write() = None;
+                        crate::system::telemetry::unregister_consumer(&pid);
+                        crate::log_info!("NATIVE_WRY", "Lite mode: dropping embedded child webview for '{}'", pid);
+                        drop(view);
+
+                        #[cfg(target_os = "windows")]
+                        unsafe {
+                            use windows::Win32::Foundation::HWND;
+                            use windows::Win32::Graphics::Gdi::{InvalidateRect, UpdateWindow};
+                            let h = HWND(parent_hwnd as *mut _);
+                            let _ = InvalidateRect(h, None, true);
+                            let _ = UpdateWindow(h);
+                        }
+                    }
+                }
+
                 NativeWryMessage::EvalJs { target, script } => {
                     match target {
                         ViewTarget::Popout(pid) => {
@@ -887,6 +914,7 @@ fn run_native_wry_event_loop(tx: std::sync::mpsc::Sender<EventLoopProxy<NativeWr
                     crate::log_info!("NATIVE_WRY", "Shutting down all native Wry views...");
                     get_running_popouts_set().write().clear();
                     *ACTIVE_EMBEDDED_PLUGIN.write() = None;
+                    *LITE_EMBEDDED_PLUGIN.write() = None;
                     popouts.clear();
                     embedded = None;
                     *control_flow = ControlFlow::Exit;
@@ -1228,6 +1256,32 @@ pub fn hide_embedded() {
     if let Some(proxy) = get_active_proxy() {
         let _ = proxy.send_event(NativeWryMessage::HideEmbedded);
     }
+}
+
+/// Lite mode: destroy the embedded WebView2 child (dropping its Chromium
+/// processes) while remembering which plugin was active, so the next main
+/// window show can re-attach it. No-op when no embedded view exists. Desktop
+/// widget popouts are untouched.
+pub fn destroy_embedded_for_lite_mode() {
+    if let Some(proxy) = get_active_proxy() {
+        let _ = proxy.send_event(NativeWryMessage::DestroyEmbeddedLite);
+    }
+}
+
+/// Take the plugin id remembered by the last lite-mode destroy, if any.
+pub fn take_lite_mode_embedded_plugin() -> Option<String> {
+    LITE_EMBEDDED_PLUGIN.write().take()
+}
+
+/// Put a plugin id back for a later restore attempt (e.g. the Slint HWND was
+/// not resolvable yet when the main window was shown).
+pub fn remember_lite_mode_embedded_plugin(plugin_id: &str) {
+    *LITE_EMBEDDED_PLUGIN.write() = Some(plugin_id.to_string());
+}
+
+/// Drop any pending lite-mode restore (e.g. the user turned lite mode off).
+pub fn clear_lite_mode_embedded_plugin() {
+    *LITE_EMBEDDED_PLUGIN.write() = None;
 }
 
 pub fn reload_active_embedded() {
