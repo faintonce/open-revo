@@ -10,6 +10,7 @@ pub mod switches;
 pub mod cpu_monitor;
 pub mod power_listener;
 pub mod power_mode;
+pub use openrevo_core::system::power_safety;
 pub mod power;
 pub mod logger;
 pub mod hardware_probe;

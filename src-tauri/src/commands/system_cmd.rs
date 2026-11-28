@@ -167,6 +167,7 @@ pub fn collect_hardware_state(
             cpu.get_temp()
         }
     };
+    cpu.enrich_power_sample(cpu_fan_rpm, if query_gpu && has_gpu && gpu_power_w > 0.0 { Some(gpu_power_w) } else { None });
     let oem_running = process::is_oem_service_running();
     let oem_installed = process::is_oem_installed();
     let is_intel_13_14_gen = cpu.is_intel_13_14_gen();
