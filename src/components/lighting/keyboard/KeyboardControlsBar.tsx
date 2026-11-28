@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sun, Zap, ArrowRight, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react';
+import { trText, useI18n } from '../../../i18n/I18nContext';
 
 export interface KeyboardControlsBarProps {
   isSingleColor: boolean;
@@ -24,16 +25,17 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
   displaySpeed,
   onSpeedChange,
 }) => {
+  useI18n();
   const directions = isFourZone
     ? [
-        { id: 0, icon: ArrowRight, label: '从左至右' },
-        { id: 1, icon: ArrowLeft, label: '从右至左' },
+        { id: 0, icon: ArrowRight, label: trText('从左至右') },
+        { id: 1, icon: ArrowLeft, label: trText('从右至左') },
       ]
     : [
-        { id: 0, icon: ArrowRight, label: '从左至右' },
-        { id: 1, icon: ArrowLeft, label: '从右至左' },
-        { id: 2, icon: ArrowUp, label: '从下至上' },
-        { id: 3, icon: ArrowDown, label: '从上至下' },
+        { id: 0, icon: ArrowRight, label: trText('从左至右') },
+        { id: 1, icon: ArrowLeft, label: trText('从右至左') },
+        { id: 2, icon: ArrowUp, label: trText('从下至上') },
+        { id: 3, icon: ArrowDown, label: trText('从上至下') },
       ];
 
   return (
@@ -49,7 +51,7 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
       {!isSingleColor && !isSingleZone && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>运行流动方向：</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{trText('运行流动方向：')}</span>
             <div style={{ display: 'flex', gap: '4px' }}>
               {directions.map((d) => {
                 const Icon = d.icon;
@@ -93,11 +95,11 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
             </span>
             <span style={{ color: 'var(--color-brand)', fontWeight: 700 }}>
               {displayBrightness === 0
-                ? '关闭 (0)'
+                ? trText('关闭 (0)')
                 : isSingleColor
                 ? displayBrightness === 1
-                  ? '弱光 (50%)'
-                  : '强光 (100%)'
+                  ? trText('弱光 (50%)')
+                  : trText('强光 (100%)')
                 : `${displayBrightness} 档`}
             </span>
           </div>
@@ -120,7 +122,7 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
                 流动速度
               </span>
               <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>
-                {displaySpeed + 1} 档 ({displaySpeed === 4 ? '极速' : displaySpeed === 0 ? '平缓' : '适中'})
+                {displaySpeed + 1} 档 ({displaySpeed === 4 ? '极速' : displaySpeed === 0 ? '平缓' : trText('适中')})
               </span>
             </div>
             <input

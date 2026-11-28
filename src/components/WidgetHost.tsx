@@ -6,12 +6,14 @@ import { getCurrentWindow, currentMonitor } from '@tauri-apps/api/window';
 import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
 import { HardwareState, PowerMode } from '../types/hardware';
 import { Flame, Fan, X } from 'lucide-react';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 interface WidgetHostProps {
   pluginId: string;
 }
 
 export const WidgetHost: React.FC<WidgetHostProps> = ({ pluginId }) => {
+  useI18n();
   const [loading, setLoading] = useState(true);
   const [customHtml, setCustomHtml] = useState<string | null>(null);
   const [hasCustomPlugin, setHasCustomPlugin] = useState(false);
@@ -365,7 +367,7 @@ html, body {
   const isOverheat = cpuTemp > 80;
   const isWarm = cpuTemp > 68;
   const coreGlow = isOverheat ? '#ef4444' : isWarm ? '#f59e0b' : '#38bdf8';
-  const modeName = hardware.power_mode === 1 ? '办公' : hardware.power_mode === 3 ? '狂暴' : '均衡';
+  const modeName = hardware.power_mode === 1 ? '办公' : hardware.power_mode === 3 ? '狂暴' : trText('均衡');
 
   return (
     <div
@@ -483,9 +485,9 @@ html, body {
               letterSpacing: '0.05em',
             }}
           >
-            {hardware.cpu_power_w ? `${Math.round(hardware.cpu_power_w)}W` : 'CPU 结温'}
+            {hardware.cpu_power_w ? `${Math.round(hardware.cpu_power_w)}W` : trText('CPU 结温')}
             {' · '}
-            {hardware.cpu_fan_rpm ? `${hardware.cpu_fan_rpm} RPM` : '风扇'}
+            {hardware.cpu_fan_rpm ? `${hardware.cpu_fan_rpm} RPM` : trText('风扇')}
           </div>
         </div>
 
@@ -542,7 +544,7 @@ html, body {
             }}
           >
             <Fan size={12} className={hardware.fan_boost ? 'animate-spin' : ''} />
-            <span>{hardware.fan_boost ? '强冷中' : '强冷'}</span>
+            <span>{hardware.fan_boost ? '强冷中' : trText('强冷')}</span>
           </button>
         </div>
       </div>

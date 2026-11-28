@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { RotateCw, Code2, Upload, Download } from 'lucide-react';
 import { BrfxScript } from '../lightingConstants';
+import { trText, useI18n } from '../../../i18n/I18nContext';
 
 interface BrfxSelectorBarProps {
   scripts: BrfxScript[];
@@ -21,6 +22,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
   onImport,
   onExport,
 }) => {
+  useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -119,7 +121,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             }}
           >
             <RotateCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
-            <span>刷新</span>
+            <span>{trText('刷新')}</span>
           </button>
 
           {/* View Source button */}
@@ -144,7 +146,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             }}
           >
             <Code2 size={12} />
-            <span>查看源码</span>
+            <span>{trText('查看源码')}</span>
           </button>
 
           {/* Combined Import & Export */}
@@ -169,7 +171,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
               }}
             >
               <Upload size={12} />
-              <span>导入</span>
+              <span>{trText('导入')}</span>
             </button>
             <button
               type="button"
@@ -190,7 +192,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
               }}
             >
               <Download size={12} />
-              <span>导出</span>
+              <span>{trText('导出')}</span>
             </button>
           </div>
 

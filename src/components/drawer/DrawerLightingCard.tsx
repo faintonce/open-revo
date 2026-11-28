@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { trText, useI18n } from '../../i18n/I18nContext';
 import {
   Keyboard,
   ChevronDown,
@@ -31,44 +32,44 @@ interface KeyboardHardwareInfo {
 }
 
 const KBD_PRESET_COLORS = [
-  { name: '冰晶蓝', hex: '#38bdf8' },
-  { name: '机械青', hex: '#00ffff' },
-  { name: '电竞紫', hex: '#a855f7' },
-  { name: '极光绿', hex: '#10b981' },
-  { name: '烈焰红', hex: '#f43f5e' },
-  { name: '暖阳金', hex: '#fbbf24' },
-  { name: '幻影粉', hex: '#ec4899' },
-  { name: '纯净白', hex: '#ffffff' },
+  { name: trText('冰晶蓝'), hex: '#38bdf8' },
+  { name: trText('机械青'), hex: '#00ffff' },
+  { name: trText('电竞紫'), hex: '#a855f7' },
+  { name: trText('极光绿'), hex: '#10b981' },
+  { name: trText('烈焰红'), hex: '#f43f5e' },
+  { name: trText('暖阳金'), hex: '#fbbf24' },
+  { name: trText('幻影粉'), hex: '#ec4899' },
+  { name: trText('纯净白'), hex: '#ffffff' },
 ];
 
 const PERKEY_MODES = [
-  { id: 3, name: '炫彩波浪' },
-  { id: 1, name: '静态恒亮' },
-  { id: 2, name: '单色呼吸' },
-  { id: 21, name: '游戏高亮' },
-  { id: 5, name: '炫彩彩虹' },
-  { id: 0, name: '关闭背光' },
+  { id: 3, name: trText('炫彩波浪') },
+  { id: 1, name: trText('静态恒亮') },
+  { id: 2, name: trText('单色呼吸') },
+  { id: 21, name: trText('游戏高亮') },
+  { id: 5, name: trText('炫彩彩虹') },
+  { id: 0, name: trText('关闭背光') },
 ];
 
 const STREAMER_DRAWER_MODES = [
-  { id: 101, name: '极客波浪' },
-  { id: 100, name: '正弦呼吸' },
-  { id: 102, name: '同心涟漪' },
-  { id: 103, name: '丝滑流沙' },
-  { id: 106, name: '全彩彩虹' },
-  { id: 113, name: '静态恒亮' },
-  { id: 0, name: '关闭背光' },
+  { id: 101, name: trText('极客波浪') },
+  { id: 100, name: trText('正弦呼吸') },
+  { id: 102, name: trText('同心涟漪') },
+  { id: 103, name: trText('丝滑流沙') },
+  { id: 106, name: trText('全彩彩虹') },
+  { id: 113, name: trText('静态恒亮') },
+  { id: 0, name: trText('关闭背光') },
 ];
 
 const SINGLE_ZONE_MODES = [
-  { id: 1, name: '单色常亮' },
-  { id: 2, name: '彩虹循环' },
-  { id: 0, name: '关闭背光' },
+  { id: 1, name: trText('单色常亮') },
+  { id: 2, name: trText('彩虹循环') },
+  { id: 0, name: trText('关闭背光') },
 ];
 
 const SINGLE_COLOR_MODES = [
-  { id: 1, name: '开启照明' },
-  { id: 0, name: '关闭背光' },
+  { id: 1, name: trText('开启照明') },
+  { id: 0, name: trText('关闭背光') },
 ];
 
 
@@ -88,6 +89,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
   capabilities,
   onExpandDashboard,
 }) => {
+  useI18n();
   const [kbHwInfo, setKbHwInfo] = useState<KeyboardHardwareInfo | null>(null);
   const [kbdEngine, setKbdEngine] = useState<'hardware' | 'streamer'>('hardware');
   const [streamerEffect, setStreamerEffect] = useState<number>(1);
@@ -224,9 +226,9 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
       const max = validSteps[0] || 1;
       let name = '';
       if (validSteps.length === 2) {
-        name = lvl === 2 ? '100% 强光' : '50% 弱光';
+        name = lvl === 2 ? '100% 强光' : trText('50% 弱光');
       } else if (validSteps.length === 3) {
-        name = lvl === 3 ? '100% 满亮' : lvl === 2 ? '60% 柔和' : '30% 微光';
+        name = lvl === 3 ? '100% 满亮' : lvl === 2 ? '60% 柔和' : trText('30% 微光');
       } else {
         const pct = Math.round((lvl / max) * 100);
         name = lvl === max ? `${pct}% 满亮` : `${pct}% 档位`;
@@ -271,22 +273,22 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
   }, [isSingleColor, isSingleZone, kbdEngine]);
 
   const activeModeName = useMemo(() => {
-    if (kbdEffect === 0) return '关闭背光';
-    if (isSingleColor) return '开启照明';
+    if (kbdEffect === 0) return trText('关闭背光');
+    if (isSingleColor) return trText('开启照明');
     if (!isSingleZone && kbdEngine === 'streamer') {
       const normalized = typeof streamerEffect === 'number'
         ? (streamerEffect >= 100 ? streamerEffect : streamerEffect + 100)
         : 101;
       const found = STREAMER_DRAWER_MODES.find((m) => m.id === normalized);
-      return found ? found.name : '极客波浪';
+      return found ? found.name : trText('极客波浪');
     }
     const found = currentModes.find((m) => m.id === kbdEffect);
-    return found ? found.name : '炫彩波浪';
+    return found ? found.name : trText('炫彩波浪');
   }, [currentModes, kbdEffect, isSingleColor, isSingleZone, kbdEngine, streamerEffect]);
 
   const activeColorObj = useMemo(() => {
     const found = KBD_PRESET_COLORS.find((c) => c.hex.toLowerCase() === kbdColor.toLowerCase());
-    return found || { name: '自定义', hex: kbdColor };
+    return found || { name: trText('自定义'), hex: kbdColor };
   }, [kbdColor]);
 
 
@@ -402,7 +404,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
         <div className="m-card-header">
           <div className="m-header-left">
             <Keyboard size={13} style={{ color: 'var(--theme-kbd)' }} />
-            <span>键盘背光休眠延时</span>
+            <span>{trText('键盘背光休眠延时')}</span>
           </div>
 
           <div className="m-header-right" style={{ color: 'var(--theme-kbd)', fontSize: '10px' }}>
@@ -412,10 +414,10 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
 
         <div className="m-grid-4">
           {[
-            { label: '常亮', sec: 0 },
-            { label: '10秒', sec: 10 },
-            { label: '30秒', sec: 30 },
-            { label: '60秒', sec: 60 },
+            { label: trText('常亮'), sec: 0 },
+            { label: trText('10秒'), sec: 10 },
+            { label: trText('30秒'), sec: 30 },
+            { label: trText('60秒'), sec: 60 },
           ].map((item) => (
             <button
               key={item.sec}
@@ -446,7 +448,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
         <div className="m-card-header">
           <div className="m-header-left">
             <Keyboard size={13} style={{ color: 'var(--theme-kbd)' }} />
-            <span>笔记本键盘背光</span>
+            <span>{trText('笔记本键盘背光')}</span>
             {kbHwInfo && (
               <span
                 style={{
@@ -458,7 +460,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
                   fontWeight: 600,
                 }}
               >
-                {isSingleColor ? '单色白光' : isSingleZone ? '单区RGB' : '全彩RGB'}
+                {isSingleColor ? '单色白光' : isSingleZone ? '单区RGB' : trText('全彩RGB')}
               </span>
             )}
           </div>
@@ -516,7 +518,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
                 }}
                 title={isKbdTurnedOn ? "选择单色白光背光亮度档位" : "背光已关闭，点击选择档位开启照明"}
               >
-                <span>{isKbdTurnedOn ? `档位 ${currentSingleColorLevel}档` : '已灭灯'}</span>
+                <span>{isKbdTurnedOn ? `档位 ${currentSingleColorLevel}档` : trText('已灭灯')}</span>
                 <ChevronDown size={11} style={{ opacity: 0.7, flexShrink: 0, marginLeft: '3px' }} />
               </button>
 
@@ -613,7 +615,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
               onClick={() => onExpandDashboard('lighting')}
             >
               <Palette size={12} />
-              <span>更多</span>
+              <span>{trText('更多')}</span>
             </button>
           )}
         </div>

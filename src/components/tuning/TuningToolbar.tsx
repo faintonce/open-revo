@@ -18,6 +18,7 @@ import {
   Star,
 } from 'lucide-react';
 import { CustomProfilePreset } from '../../types/hardware';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 const renderProfileIcon = (key: string) => {
   switch (key) {
@@ -60,6 +61,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
   onOpenProfilesFolder,
   onClose,
 }) => {
+  useI18n();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'new' | 'rename' | null>(null);
   const [modalInputName, setModalInputName] = useState('');
@@ -127,7 +129,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
 
         {/* Profile Controls in Top Right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>方案:</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{trText('方案:')}</span>
 
           {/* Custom Dark Glass Dropdown */}
           <div ref={dropdownRef} style={{ position: 'relative' }}>
@@ -156,7 +158,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                 {renderProfileIcon(activePreset?.icon_key || 'star')}
                 <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: '12px' }}>
-                  {activePreset?.name || '未知方案'}
+                  {activePreset?.name || trText('未知方案')}
                 </span>
               </span>
               <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70 ml-1" />
@@ -211,9 +213,9 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
                         <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.name}</span>
                       </div>
                       {isUnmodified ? (
-                        <span style={{ fontSize: '10px', color: 'var(--text-dim)', marginLeft: '6px', flexShrink: 0 }}>原厂</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-dim)', marginLeft: '6px', flexShrink: 0 }}>{trText('原厂')}</span>
                       ) : (
-                        <span style={{ fontSize: '10px', color: 'var(--status-warn)', marginLeft: '6px', flexShrink: 0 }}>自定义</span>
+                        <span style={{ fontSize: '10px', color: 'var(--status-warn)', marginLeft: '6px', flexShrink: 0 }}>{trText('自定义')}</span>
                       )}
                     </div>
                   );
@@ -225,7 +227,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
           <button
             type="button"
             className="toolbar-icon-btn"
-            title={activePreset?.is_builtin ? '将当前参数另存为新方案' : '将当前参数另存为新方案副本'}
+            title={activePreset?.is_builtin ? '将当前参数另存为新方案' : trText('将当前参数另存为新方案副本')}
             onClick={() => {
               setModalInputName(`${activePreset?.name || '方案'}_副本`.slice(0, 12));
               setModalMode('new');
@@ -250,7 +252,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
           <button
             type="button"
             className="toolbar-icon-btn"
-            title={activePreset?.is_builtin ? '原厂预设不可重命名' : '重命名当前方案'}
+            title={activePreset?.is_builtin ? '原厂预设不可重命名' : trText('重命名当前方案')}
             disabled={activePreset?.is_builtin}
             onClick={() => {
               if (activePreset && !activePreset.is_builtin) {
@@ -302,7 +304,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
             style={{
               color: activePreset?.is_builtin ? 'var(--text-dim)' : 'var(--status-error)',
             }}
-            title={activePreset?.is_builtin ? '原厂预设不可删除' : '删除当前方案文件'}
+            title={activePreset?.is_builtin ? '原厂预设不可删除' : trText('删除当前方案文件')}
             disabled={activePreset?.is_builtin}
             onClick={onDeleteProfile}
           >
@@ -355,7 +357,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>
-              {modalMode === 'new' ? '新建方案副本' : '重命名方案'}
+              {modalMode === 'new' ? '新建方案副本' : trText('重命名方案')}
             </div>
             <input
               type="text"

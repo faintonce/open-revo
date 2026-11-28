@@ -4,6 +4,7 @@ import { HardwareState } from '../../types/hardware';
 import { PowerWattBadge } from '../tuning/HardwareTelemetryBar';
 
 import { ModelCapabilities } from '../../plugins/plugin_manifest';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 function formatCpuShort(brand?: string): string {
   if (!brand) return 'CPU';
@@ -32,6 +33,7 @@ interface HardwareStatCardsProps {
 }
 
 export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, capabilities }) => {
+  useI18n();
   const isPureIgpu = capabilities ? capabilities.discrete_gpu === false : !status.gpu_name;
 
   const isApuOrIgpu = isPureIgpu;
@@ -129,7 +131,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', fontWeight: 600, color: isPureIgpu ? '#38bdf8' : '#6ee7b7', letterSpacing: '0.02em' }}>
-            {isPureIgpu ? 'GPU 集成核心' : 'GPU 独立显卡'}
+            {isPureIgpu ? 'GPU 集成核心' : trText('GPU 独立显卡')}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <PowerWattBadge watts={status.gpu_power_w} type="gpu" isApuOrIgpu={isApuOrIgpu} />
@@ -217,7 +219,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', margin: '6px 0 2px 0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '9.5px', color: 'var(--text-dim)', fontWeight: 600, letterSpacing: '0.03em' }}>
-                  {isPureIgpu ? '主散热扇' : 'CPU 扇'}
+                  {isPureIgpu ? '主散热扇' : trText('CPU 扇')}
                 </span>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'baseline' }}>
                   <span>{status.cpu_fan_rpm}</span>
@@ -227,7 +229,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: '8px' }}>
                 <span style={{ fontSize: '9.5px', color: 'var(--text-dim)', fontWeight: 600, letterSpacing: '0.03em' }}>
-                  {isPureIgpu ? '副散热扇' : 'GPU 扇'}
+                  {isPureIgpu ? '副散热扇' : trText('GPU 扇')}
                 </span>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: '#a5f3fc', display: 'flex', alignItems: 'baseline' }}>
                   <span>{status.gpu_fan_rpm}</span>
@@ -261,7 +263,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-dim)' }}>
-          <span>{isPureIgpu ? (status.gpu_fan_rpm > 0 ? '双涡轮高效散热' : '智能高效散热') : '双风扇散热'}</span>
+          <span>{isPureIgpu ? (status.gpu_fan_rpm > 0 ? '双涡轮高效散热' : trText('智能高效散热')) : trText('双风扇散热')}</span>
           <span
             style={{
               background: status.fan_boost ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255, 255, 255, 0.07)',
@@ -274,7 +276,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
               color: status.fan_boost ? '#fb7185' : '#38bdf8',
             }}
           >
-            {status.fan_boost ? '一键强冷' : '自动温控'}
+            {status.fan_boost ? '一键强冷' : trText('自动温控')}
           </span>
         </div>
       </div>
@@ -293,7 +295,7 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', fontWeight: 600, color: '#d8b4fe', letterSpacing: '0.02em' }}>
-            {isPureIgpu ? 'UMA 共享显存' : 'VRAM 显存容量'}
+            {isPureIgpu ? 'UMA 共享显存' : trText('VRAM 显存容量')}
           </span>
           <Sparkles className="w-4 h-4 text-purple-400 flex-shrink-0" />
         </div>
@@ -352,8 +354,8 @@ export const HardwareStatCards: React.FC<HardwareStatCardsProps> = ({ status, ca
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '10.5px', color: 'var(--text-dim)' }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>
             {!isPureIgpu
-              ? '专用显存 (VRAM)'
-              : '共享显存 (UMA)'}
+              ? trText('专用显存 (VRAM)')
+              : trText('共享显存 (UMA)')}
           </span>
           <span
             style={{

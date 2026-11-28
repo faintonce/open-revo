@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { HardwareState } from '../../types/hardware';
 import { Tv, Laptop, ChevronDown, Battery, Check, Sun } from 'lucide-react';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface DrawerDisplayCardProps {
   status: HardwareState;
@@ -15,6 +16,7 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
   onSwitchRefreshRate,
   checkOemGuard,
 }) => {
+  useI18n();
   const [showHzMenu, setShowHzMenu] = useState(false);
   const [selectedMonIdx, setSelectedMonIdx] = useState(0);
   const [showMonMenu, setShowMonMenu] = useState(false);
@@ -160,14 +162,14 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
         <div className="m-card-header" style={{ position: 'relative', zIndex: 10 }}>
           <div className="m-header-left">
             <Tv size={13} style={{ color: 'var(--theme-hz)' }} />
-            <span>屏幕刷新率:</span>
+            <span>{trText('屏幕刷新率:')}</span>
             <span style={{ color: 'var(--theme-hz)', fontWeight: 700 }}>{currentHz}Hz</span>
           </div>
 
           <div className="m-header-right" style={{ display: 'flex', alignItems: 'center' }}>
             {monitors.length <= 1 ? (
               <span style={{ color: 'var(--theme-hz)', fontSize: '10px' }}>
-                {activeMon ? activeMon.friendly_name : '2.5K 屏'}
+                {activeMon ? activeMon.friendly_name : trText('2.5K 屏')}
               </span>
             ) : (
               /* 多显示器微型下拉选择器 (纯黑不透底，杜绝折行溢出) */
@@ -179,7 +181,7 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                     {activeMon?.is_internal ? <Laptop size={11} /> : <Tv size={11} />}
-                    {activeMon?.friendly_name?.split(' ')[0] || '屏幕'} · {currentHz}Hz
+                    {activeMon?.friendly_name?.split(' ')[0] || trText('屏幕')} · {currentHz}Hz
                   </span>
                   <ChevronDown size={10} />
                 </button>
@@ -228,7 +230,7 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
             title="拔掉充电器时自动将内置屏幕切换至最低支持刷新率以延长续航 (外接屏不受影响)"
           >
             <Battery size={12} />
-            <span>拔电低刷</span>
+            <span>{trText('拔电低刷')}</span>
           </button>
 
           {/* 2/4: 最低档 */}
@@ -282,7 +284,7 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
               }
               onClick={() => setShowHzMenu(!showHzMenu)}
             >
-              <span>{rates.intermediate.includes(currentHz) ? `${currentHz}Hz` : '更多'}</span>
+              <span>{rates.intermediate.includes(currentHz) ? `${currentHz}Hz` : trText('更多')}</span>
               <ChevronDown size={10} />
             </button>
 
@@ -314,13 +316,13 @@ export const DrawerDisplayCard: React.FC<DrawerDisplayCardProps> = ({
         <div className="m-card-header">
           <div className="m-header-left">
             <Sun size={13} style={{ color: 'var(--theme-lux)' }} />
-            <span>屏幕亮度:</span>
+            <span>{trText('屏幕亮度:')}</span>
             <span style={{ color: 'var(--theme-lux)', fontWeight: 700 }}>{brightness}%</span>
           </div>
           <div style={{ display: 'flex', gap: '5px' }}>
-            <div className="m-chip" onClick={() => handleBrightnessQuick(25)}>暗光 25%</div>
-            <div className="m-chip" onClick={() => handleBrightnessQuick(60)}>室内 60%</div>
-            <div className="m-chip" onClick={() => handleBrightnessQuick(100)}>户外 100%</div>
+            <div className="m-chip" onClick={() => handleBrightnessQuick(25)}>{trText('暗光 25%')}</div>
+            <div className="m-chip" onClick={() => handleBrightnessQuick(60)}>{trText('室内 60%')}</div>
+            <div className="m-chip" onClick={() => handleBrightnessQuick(100)}>{trText('户外 100%')}</div>
           </div>
         </div>
 

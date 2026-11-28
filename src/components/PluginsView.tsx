@@ -11,6 +11,7 @@ import {
 import { HardwareState } from '../types/hardware';
 import { RevBadge, RevSwitch } from './ui';
 import { BUILTIN_MODULE_SLOTS, BuiltinModuleSlot } from '../plugins/plugin_manifest';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 export interface PluginServiceConfig {
   executable: string;
@@ -86,6 +87,7 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
   onCustomPluginsUpdated,
   onSelectPluginTab,
 }) => {
+  useI18n();
   // Water cooler special toggle handling
   const [waterCoolerEnabled, setWaterCoolerEnabled] = useState<boolean>(() => {
     return propWaterCoolerEnabled ?? status.water_cooler_enabled ?? status.support_flags?.has_water_cooler ?? false;
@@ -305,8 +307,8 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
           <div className="plugin-section-title-wrap">
             <div className="plugin-section-title">
               <Puzzle size={16} />
-              <span>内置插件</span>
-              <RevBadge variant="accent">Safe-Mode 模块隔离</RevBadge>
+              <span>{trText('内置插件')}</span>
+              <RevBadge variant="accent">{trText('Safe-Mode 模块隔离')}</RevBadge>
             </div>
             <div className="plugin-section-desc">
               系统核心功能插槽，可根据使用偏好按需开启或关闭。关闭后模块将从顶栏导航与后台调度中隐藏
@@ -355,8 +357,8 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
           <div className="plugin-section-title-wrap">
             <div className="plugin-section-title">
               <Boxes size={16} />
-              <span>自定义插件</span>
-              <RevBadge variant="info">社区生态扩展</RevBadge>
+              <span>{trText('自定义插件')}</span>
+              <RevBadge variant="info">{trText('社区生态扩展')}</RevBadge>
             </div>
             <div className="plugin-section-desc">
               支持加载由社区与开发者提供的扩展（桌面透明挂件、调谐脚本、自动化服务等），基于安全沙盒运行
@@ -370,7 +372,7 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
               title="打开用户插件目录 (%APPDATA%\OpenRevo\plugins)"
             >
               <FolderOpen size={13} />
-              <span>打开插件目录</span>
+              <span>{trText('打开插件目录')}</span>
             </button>
             <button
               onClick={() => fetchCustomPlugins(true)}
@@ -379,7 +381,7 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
               title="刷新已安装插件列表并热重载当前样式"
             >
               <RotateCcw size={13} className={loadingCustom ? 'animate-spin' : ''} />
-              <span>刷新</span>
+              <span>{trText('刷新')}</span>
             </button>
           </div>
         </div>
@@ -389,13 +391,13 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
             <div className="plugin-empty-icon">
               <Boxes size={24} />
             </div>
-            <div className="plugin-empty-title">暂未检测到第三方自定义插件</div>
+            <div className="plugin-empty-title">{trText('暂未检测到第三方自定义插件')}</div>
             <div className="plugin-empty-desc">
               将包含 manifest.json 的插件文件夹或 .rhai 脚本放入 plugins 目录后点击右上角“刷新”即可加载。详情可查阅《OpenRevo 插件与扩展文档》。
             </div>
             <button onClick={handleOpenPluginsDir} className="toggle-btn active-indigo">
               <FolderOpen size={13} />
-              <span>打开 plugins 目录</span>
+              <span>{trText('打开 plugins 目录')}</span>
             </button>
           </div>
         ) : (
@@ -419,13 +421,13 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
                         <span className="plugin-item-id">[{plugin.id}]</span>
                         <RevBadge variant="default">v{plugin.version}</RevBadge>
                         {/* 多维度能力标签组合 */}
-                        {plugin.has_skin && <RevBadge variant="accent">主窗皮肤</RevBadge>}
-                        {plugin.has_background && <RevBadge variant="warning">背景壁纸</RevBadge>}
-                        {plugin.has_widget && <RevBadge variant="success">桌面挂件</RevBadge>}
-                        {plugin.has_tab && <RevBadge variant="info">选项卡</RevBadge>}
+                        {plugin.has_skin && <RevBadge variant="accent">{trText('主窗皮肤')}</RevBadge>}
+                        {plugin.has_background && <RevBadge variant="warning">{trText('背景壁纸')}</RevBadge>}
+                        {plugin.has_widget && <RevBadge variant="success">{trText('桌面挂件')}</RevBadge>}
+                        {plugin.has_tab && <RevBadge variant="info">{trText('选项卡')}</RevBadge>}
                         {plugin.has_slot && <RevBadge variant="accent">微插槽 {plugin.target_slot ? `[${plugin.target_slot}]` : ''}</RevBadge>}
-                        {plugin.has_service && <RevBadge variant="default">伴生服务</RevBadge>}
-                        {plugin.is_headless && <RevBadge variant="default">后台看门狗</RevBadge>}
+                        {plugin.has_service && <RevBadge variant="default">{trText('伴生服务')}</RevBadge>}
+                        {plugin.is_headless && <RevBadge variant="default">{trText('后台看门狗')}</RevBadge>}
                         {!plugin.has_skin && !plugin.has_background && !plugin.has_widget && !plugin.has_tab && !plugin.has_slot && !plugin.has_service && !plugin.is_headless && (
                           <RevBadge variant="default">{plugin.plugin_type}</RevBadge>
                         )}
@@ -456,7 +458,7 @@ export const PluginsView: React.FC<PluginsViewProps> = ({
                         title="打开该插件在控制台的页面/设置"
                       >
                         <ExternalLink size={12} />
-                        <span>打开面板</span>
+                        <span>{trText('打开面板')}</span>
                       </button>
                     )}
                     <RevSwitch

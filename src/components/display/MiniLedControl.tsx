@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layers } from 'lucide-react';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface MiniLedControlProps {
   enabled: boolean;
@@ -16,6 +17,7 @@ export const MiniLedControl: React.FC<MiniLedControlProps> = ({
   isToggling,
   onToggle,
 }) => {
+  useI18n();
   return (
     <div className="glass-card miniled-control-card">
       {/* Left: icon + label */}
@@ -29,8 +31,8 @@ export const MiniLedControl: React.FC<MiniLedControlProps> = ({
           </div>
           <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
             {enabled
-              ? '当前状态：已开启 (深黑高对比模式，仅对内置屏幕生效)'
-              : '当前状态：已关闭 (全屏均匀背光模式)'}
+              ? trText('当前状态：已开启 (深黑高对比模式，仅对内置屏幕生效)')
+              : trText('当前状态：已关闭 (全屏均匀背光模式)')}
           </div>
         </div>
       </div>
@@ -41,7 +43,7 @@ export const MiniLedControl: React.FC<MiniLedControlProps> = ({
           onClick={() => onToggle(!enabled)}
           disabled={isToggling}
           className={`miniled-toggle-switch ${enabled ? 'active' : ''}`}
-          title={enabled ? '点击关闭 MiniLED 分区背光' : '点击开启 MiniLED 分区背光'}
+          title={enabled ? '点击关闭 MiniLED 分区背光' : trText('点击开启 MiniLED 分区背光')}
           aria-label="切换MiniLED分区背光"
         >
           <div className="miniled-toggle-knob" />

@@ -23,12 +23,14 @@ import { LightbarView } from './lighting/LightbarView';
 import { AmbientLightingView } from './lighting/AmbientLightingView';
 import { LogoLightingView } from './lighting/LogoLightingView';
 import { LightingTopologyOverrideModal } from './lighting/LightingTopologyOverrideModal';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 interface LightingStudioProps {
   supportFlags?: HardwareSupportFlags;
 }
 
 export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) => {
+  useI18n();
   const [subTab, setSubTab] = useState<'keyboard' | 'lightbar' | 'ambient' | 'logo'>('keyboard');
   const [kbHwInfo, setKbHwInfo] = useState<KeyboardHardwareInfo | null>(null);
 
@@ -377,7 +379,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Keyboard className="w-4 h-4" style={{ color: 'var(--color-brand)' }} />
-            <span>键盘背光</span>
+            <span>{trText('键盘背光')}</span>
           </button>
 
           {Boolean(kbHwInfo?.has_front_lightbar || kbHwInfo?.has_ite7001) && (
@@ -402,7 +404,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
               }}
             >
               <Zap className="w-4 h-4" style={{ color: 'var(--status-info)' }} />
-              <span>海岸灯条</span>
+              <span>{trText('海岸灯条')}</span>
             </button>
           )}
 
@@ -428,7 +430,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
               }}
             >
               <Wind className="w-4 h-4" style={{ color: 'var(--status-info)' }} />
-              <span>氛围灯条</span>
+              <span>{trText('氛围灯条')}</span>
             </button>
           )}
 
@@ -454,7 +456,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
               }}
             >
               <Sparkles className="w-4 h-4" style={{ color: 'var(--color-beast)' }} />
-              <span>A面 LOGO</span>
+              <span>{trText('A面 LOGO')}</span>
             </button>
           )}
         </div>
@@ -475,7 +477,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
           }}
         >
           <Clock className="w-3.5 h-3.5" style={{ color: 'var(--color-brand)' }} />
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>闲置熄灯:</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{trText('闲置熄灯:')}</span>
           <select
             value={lighting.sleep_minutes}
             onChange={(e) => sendTimeout(Number(e.target.value))}
@@ -527,7 +529,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--color-brand)' }} />
-            <span>迎宾仪式</span>
+            <span>{trText('迎宾仪式')}</span>
           </div>
 
           <button
@@ -560,7 +562,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
                 boxShadow: (lighting.ceremony_enabled ?? true) ? '0 0 8px var(--color-brand)' : 'none',
               }}
             />
-            <span>{(lighting.ceremony_enabled ?? true) ? '已启用' : '已停用'}</span>
+            <span>{(lighting.ceremony_enabled ?? true) ? '已启用' : trText('已停用')}</span>
           </button>
 
           <button
@@ -587,7 +589,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{isApplying ? '演示中...' : '预览全域仪式'}</span>
+            <span>{isApplying ? '演示中...' : trText('预览全域仪式')}</span>
           </button>
         </div>
 
@@ -615,7 +617,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             {saveSuccess ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--status-ok)' }} /> : <Save className="w-3.5 h-3.5" />}
-            <span>{saveSuccess ? '已设为开机默认' : '设为默认'}</span>
+            <span>{saveSuccess ? '已设为开机默认' : trText('设为默认')}</span>
           </button>
 
           <button
@@ -639,7 +641,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>恢复默认</span>
+            <span>{trText('恢复默认')}</span>
           </button>
 
           <button
@@ -664,7 +666,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Cpu className="w-3.5 h-3.5" />
-            <span>硬件纠偏</span>
+            <span>{trText('硬件纠偏')}</span>
           </button>
         </div>
       </div>

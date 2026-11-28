@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HardwareState } from '../../types/hardware';
+import { trText, useI18n } from '../../i18n/I18nContext';
 import {
   Shield,
   Zap,
@@ -26,6 +27,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
   showOemModal,
   setShowOemModal,
 }) => {
+  useI18n();
   const [isSwitchingService, setIsSwitchingService] = useState(false);
 
   const handleServiceToggle = async (takeOver: boolean) => {
@@ -64,7 +66,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               userSelect: 'none',
             }}
             onClick={onToggleAutostart}
-            title={status.autostart ? '已启用开机自启动 (最小化至托盘)' : '未启用开机自启'}
+            title={status.autostart ? '已启用开机自启动 (最小化至托盘)' : trText('未启用开机自启')}
           >
             <input
               type="checkbox"
@@ -84,8 +86,8 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               disabled={isSwitchingService}
               title={
                 status.oem_running
-                  ? '检测到机械革命官方电竞服务正在运行。点击后将一键停止并禁用官方服务，防止与 OpenRevo 争抢 EC 硬件寄存器。'
-                  : '机械革命官方电竞服务当前已被屏蔽/接管。点击后可重新恢复启动官方原厂后台服务。'
+                  ? trText('检测到机械革命官方电竞服务正在运行。点击后将一键停止并禁用官方服务，防止与 OpenRevo 争抢 EC 硬件寄存器。')
+                  : trText('机械革命官方电竞服务当前已被屏蔽/接管。点击后可重新恢复启动官方原厂后台服务。')
               }
               style={{
                 padding: '2px 7px',
@@ -110,7 +112,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               ) : (
                 <Repeat size={10} />
               )}
-              <span>{status.oem_running ? '接管官方控制台' : '恢复官方控制台'}</span>
+              <span>{status.oem_running ? '接管官方控制台' : trText('恢复官方控制台')}</span>
             </button>
           )}
         </div>
@@ -118,7 +120,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <button className="m-foot-btn expand" onClick={() => onExpandDashboard('overview')}>
             <Maximize2 size={12} />
-            <span>展开大面板</span>
+            <span>{trText('展开大面板')}</span>
           </button>
         </div>
       </div>
@@ -176,7 +178,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
             </div>
 
             <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5, marginBottom: '16px', textAlign: 'left' }}>
-              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>屏幕持续闪烁</strong>，当前处于<strong>安全只读避让模式</strong>。
+              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>{trText('屏幕持续闪烁')}</strong>{trText('，当前处于')}<strong>{trText('安全只读避让模式')}</strong>。
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -206,7 +208,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
                 }}
               >
                 {isSwitchingService ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-                <span>{isSwitchingService ? '正在接管服务并释放硬件...' : '立即一键接管官方服务'}</span>
+                <span>{isSwitchingService ? '正在接管服务并释放硬件...' : trText('立即一键接管官方服务')}</span>
               </button>
 
               <button

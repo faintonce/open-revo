@@ -7,6 +7,7 @@ import {
 } from './lightingConstants';
 import { LightHeaderBanner } from './LightHeaderBanner';
 import { LightColorRow } from './LightColorRow';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface LightbarViewProps {
   lighting: LightingState;
@@ -19,6 +20,7 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
   kbHwInfo,
   sendLightbar,
 }) => {
+  useI18n();
   const isEcLightbar = Boolean(kbHwInfo?.is_ec_lightbar);
   const isBaseLightbarSupported = Boolean(kbHwInfo && (kbHwInfo.has_front_lightbar || kbHwInfo.has_ite7001));
 
@@ -28,18 +30,18 @@ export const LightbarView: React.FC<LightbarViewProps> = ({
         title="机身前沿海岸灯条 (Front Coastline Lightbar)"
         badgeText={
           !isBaseLightbarSupported
-            ? '未检测到硬件'
+            ? trText('未检测到硬件')
             : isEcLightbar
-            ? '主板 EC 灯条控制'
-            : 'ITE Lightbar4 控制器 (048D:7001)'
+            ? trText('主板 EC 灯条控制')
+            : trText('ITE Lightbar4 控制器 (048D:7001)')
         }
         badgeVariant={!isBaseLightbarSupported ? 'default' : 'info'}
         description={
           !isBaseLightbarSupported
-            ? '当前机型模具未配置前沿海岸灯条硬件，功能已智能停用'
+            ? trText('当前机型模具未配置前沿海岸灯条硬件，功能已智能停用')
             : isEcLightbar
-            ? '主板 EC 芯片直通硬件驱动，支持静态定色、律动呼吸与动态流光'
-            : '机身前沿与两侧流光灯带，支持对冲、波浪与流星动效'
+            ? trText('主板 EC 芯片直通硬件驱动，支持静态定色、律动呼吸与动态流光')
+            : trText('机身前沿与两侧流光灯带，支持对冲、波浪与流星动效')
         }
         enabled={lighting.lb_enabled}
         onToggle={() => sendLightbar({ lb_enabled: !lighting.lb_enabled })}

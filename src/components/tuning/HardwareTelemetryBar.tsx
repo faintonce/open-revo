@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface PowerWattBadgeProps {
   watts?: number;
@@ -12,12 +13,13 @@ export const PowerWattBadge: React.FC<PowerWattBadgeProps> = ({
   type,
   isApuOrIgpu = false,
 }) => {
+  useI18n();
   const color = type === 'cpu' ? 'var(--color-balance)' : 'var(--status-ok)';
   const formatted =
     watts !== undefined && watts > 0
       ? `${watts >= 100 ? watts.toFixed(0) : watts.toFixed(1)} W`
       : isApuOrIgpu && type === 'gpu'
-        ? 'APU 共享'
+        ? trText('APU 共享')
         : '-- W';
 
   return (
@@ -66,10 +68,10 @@ export const HardwareTelemetryBar: React.FC<HardwareTelemetryBarProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--status-warn)', fontSize: '11px', fontWeight: 600 }}>
           <Activity className="w-3.5 h-3.5" />
-          <span>实时硬件监测</span>
+          <span>{trText('实时硬件监测')}</span>
         </div>
         <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-          {isApuOrIgpu ? 'APU 封装功耗:' : '双烤合计:'}{' '}
+          {isApuOrIgpu ? 'APU 封装功耗:' : trText('双烤合计:')}{' '}
           <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
             {isApuOrIgpu
               ? cpuPowerW !== undefined && cpuPowerW > 0

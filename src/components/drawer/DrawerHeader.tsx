@@ -2,6 +2,7 @@ import React from 'react';
 import { HardwareState } from '../../types/hardware';
 import { Palette, Heart, Minus, X } from 'lucide-react';
 import logoImg from '../../assets/logo.png';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface DrawerHeaderProps {
   status: HardwareState;
@@ -20,6 +21,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
   onMinimize,
   onClose,
 }) => {
+  useI18n();
   return (
     <div
       data-tauri-drag-region
@@ -65,7 +67,7 @@ export const DrawerHeader: React.FC<DrawerHeaderProps> = ({
         {/* 主题切换开关 (单色/赛博) */}
         <button
           onClick={onToggleTheme}
-          title={theme === 'mono' ? '切换到：赛博分区主题配色' : '切换到：极简纯单色配色'}
+          title={theme === 'mono' ? '切换到：赛博分区主题配色' : trText('切换到：极简纯单色配色')}
           style={{
             background: theme === 'cyber' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
             border: theme === 'cyber' ? '1px solid rgba(56, 189, 248, 0.4)' : 'none',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Palette } from 'lucide-react';
 import { PRESET_COLORS } from '../lightingConstants';
+import { trText, useI18n } from '../../../i18n/I18nContext';
 
 export interface FourZoneColorPanelProps {
   currentZones: [string, string, string, string];
@@ -17,11 +18,12 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
   onApplyZonePreset,
   onChangeMainColor,
 }) => {
+  useI18n();
   const zoneLabels = [
-    { name: '分区 1 (左侧区)', key: 0 },
-    { name: '分区 2 (中左区)', key: 1 },
-    { name: '分区 3 (中右区)', key: 2 },
-    { name: '分区 4 (右侧区)', key: 3 },
+    { name: trText('分区 1 (左侧区)'), key: 0 },
+    { name: trText('分区 2 (中左区)'), key: 1 },
+    { name: trText('分区 3 (中右区)'), key: 2 },
+    { name: trText('分区 4 (右侧区)'), key: 3 },
   ];
 
   return (
@@ -166,7 +168,7 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>快速调色板:</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{trText('快速调色板:')}</span>
           {PRESET_COLORS.map((c) => (
             <div
               key={c.hex}
@@ -184,7 +186,7 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>自定义单色:</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{trText('自定义单色:')}</span>
           <input
             type="color"
             value={mainColor}

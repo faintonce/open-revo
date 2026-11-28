@@ -1,4 +1,5 @@
 import React from 'react';
+import { trText, useI18n } from '../../../i18n/I18nContext';
 import {
   KEYBOARD_MODES,
   FOURZONE_KEYBOARD_MODES,
@@ -24,12 +25,13 @@ export const KeyboardModeGrid: React.FC<KeyboardModeGridProps> = ({
   onSelectEffect,
   onSelectStreamerEffect,
 }) => {
+  useI18n();
   const isHardware = isFourZone || engine === 'hardware';
 
   const modes = isSingleZone
     ? [
-        { id: 1, name: '单色常亮', desc: '全键盘同色静态照明' },
-        { id: 2, name: '彩虹循环', desc: '全键盘呼吸渐变循环' },
+        { id: 1, name: trText('单色常亮'), desc: trText('全键盘同色静态照明') },
+        { id: 2, name: trText('彩虹循环'), desc: trText('全键盘呼吸渐变循环') },
       ]
     : isFourZone
     ? FOURZONE_KEYBOARD_MODES
@@ -38,10 +40,10 @@ export const KeyboardModeGrid: React.FC<KeyboardModeGridProps> = ({
     : STREAMER_MODES;
 
   const headerTitle = isFourZone
-    ? '4区原厂硬件灯效 (ITE 8291 r2 固件驱动):'
+    ? trText('4区原厂硬件灯效 (ITE 8291 r2 固件驱动):')
     : engine === 'hardware'
-    ? '原厂硬件独立灯效 (内置 MCU 固件算法 - 稳定节能):'
-    : '极客高刷流光动效 (BetterRGB 空间投影算法 - 华丽多变):';
+    ? trText('原厂硬件独立灯效 (内置 MCU 固件算法 - 稳定节能):')
+    : trText('极客高刷流光动效 (BetterRGB 空间投影算法 - 华丽多变):');
 
   const normalizedStreamerEff =
     currentStreamerEffect >= 100 ? currentStreamerEffect : currentStreamerEffect + 100;

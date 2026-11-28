@@ -1,5 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, ChevronDown, ChevronRight, Home } from 'lucide-react';
+import { trText } from '../i18n/I18nContext';
 
 interface Props {
   moduleName: string;
@@ -97,7 +98,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
               wordBreak: 'break-word',
             }}
           >
-            {error?.message || '发生未知渲染错误 (Unknown render exception)'}
+            {error?.message || trText('发生未知渲染错误 (Unknown render exception)')}
           </div>
 
           {/* Collapsible Details */}
@@ -118,7 +119,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
               }}
             >
               {showDetails ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <span>{showDetails ? '收起技术堆栈详情' : '展开技术堆栈详情'}</span>
+              <span>{showDetails ? '收起技术堆栈详情' : trText('展开技术堆栈详情')}</span>
             </button>
 
             {showDetails && (
@@ -136,7 +137,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                   border: '1px solid rgba(255, 255, 255, 0.05)',
                 }}
               >
-                {error?.stack || '无可用调用堆栈'}
+                {error?.stack || trText('无可用调用堆栈')}
               </pre>
             )}
           </div>
@@ -162,7 +163,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
               }}
             >
               <RefreshCw size={14} />
-              <span>重试加载该模块</span>
+              <span>{trText('重试加载该模块')}</span>
             </button>
 
             {onNavigateToOverview && (
@@ -185,7 +186,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                 }}
               >
                 <Home size={14} />
-                <span>返回状态概览</span>
+                <span>{trText('返回状态概览')}</span>
               </button>
             )}
           </div>

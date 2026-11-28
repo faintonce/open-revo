@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { useI18n } from '../i18n/I18nContext';
+import { useI18n, trText } from '../i18n/I18nContext';
 import {
   FolderOpen,
   Trash2,
@@ -116,11 +116,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       cfg.gpu_oc_core_mhz = safeCore;
       cfg.gpu_oc_mem_mhz = safeMem;
       await invoke('save_app_config', { cfg });
-      setGpuOcSaveHint('已保存');
+      setGpuOcSaveHint(trText('已保存'));
       setTimeout(() => setGpuOcSaveHint(''), 2000);
     } catch (e) {
       console.warn('[Settings] save gpu oc defaults failed:', e);
-      setGpuOcSaveHint('保存失败');
+      setGpuOcSaveHint(trText('保存失败'));
       setTimeout(() => setGpuOcSaveHint(''), 3000);
     }
   };
@@ -152,7 +152,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         await invoke('set_unlock_battery_power_limit', { enable: false });
         setUnlockBatteryLimit(false);
       } catch (err: any) {
-        alert('关闭解除离电限制失败: ' + err);
+        alert(trText('关闭解除离电限制失败: ') + err);
       } finally {
         setTogglingUnlockBattery(false);
       }
@@ -166,7 +166,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       setUnlockBatteryLimit(true);
       setShowUnlockBatteryConfirm(false);
     } catch (err: any) {
-      alert('开启解除离电限制失败: ' + err);
+      alert(trText('开启解除离电限制失败: ') + err);
     } finally {
       setTogglingUnlockBattery(false);
     }
@@ -316,7 +316,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     try {
       await invoke('open_user_data_dir');
     } catch (err: any) {
-      alert('无法打开用户数据目录: ' + err);
+      alert(trText('无法打开用户数据目录: ') + err);
     }
   };
 
@@ -325,10 +325,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     try {
       await invoke('clear_user_data_dir');
       setShowClearConfirm(false);
-      alert('OpenRevo 用户数据已成功清除！\n建议重启应用以重新初始化出厂默认配置。');
+      alert(trText('OpenRevo 用户数据已成功清除！\n建议重启应用以重新初始化出厂默认配置。'));
       fetchUserDataDirInfo();
     } catch (err: any) {
-      alert('清除数据失败: ' + err);
+      alert(trText('清除数据失败: ') + err);
     } finally {
       setClearingData(false);
     }
@@ -342,9 +342,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       await fetchUserDataDirInfo();
       setShowMigrateModal(false);
       setMigrateTargetPath('');
-      alert('用户数据目录已成功迁移至: ' + migrateTargetPath.trim());
+      alert(trText('用户数据目录已成功迁移至: ') + migrateTargetPath.trim());
     } catch (err: any) {
-      alert('迁移数据目录失败: ' + err);
+      alert(trText('迁移数据目录失败: ') + err);
     } finally {
       setMigratingData(false);
     }
@@ -415,11 +415,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       if (!silent) {
         const errStr = String(err);
         if (errStr.includes('404') && updateChannel === 'beta') {
-          alert('暂无预览版更新发布 (尚未在 Release 中找到 preview.json)。');
+          alert(trText('暂无预览版更新发布 (尚未在 Release 中找到 preview.json)。'));
         } else if (errStr.includes('404')) {
-          alert('未找到版本发布清单文件 (404 Not Found)。');
+          alert(trText('未找到版本发布清单文件 (404 Not Found)。'));
         } else {
-          alert('检查更新失败: ' + err);
+          alert(trText('检查更新失败: ') + err);
         }
       }
     } finally {
@@ -439,7 +439,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         isInstaller: updateResult.asset_type === 'installer',
       });
     } catch (err: any) {
-      alert('下载或升级安装失败: ' + err);
+      alert(trText('下载或升级安装失败: ') + err);
       setDownloadingUpdate(false);
     }
   };
@@ -467,7 +467,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       await invoke('set_active_windows_power_scheme', { guid });
       await fetchPowerSchemes();
     } catch (e: any) {
-      alert('切换电源方案失败: ' + e);
+      alert(trText('切换电源方案失败: ') + e);
     } finally {
       setSwitchingScheme(false);
     }
@@ -484,7 +484,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     try {
       const res = await invoke<string>('restore_official_power_plan');
       await fetchPowerSchemes();
-      setRestorePlanMsg({ ok: true, text: res || '已成功恢复官方出厂电源计划与 PPM 调度！' });
+      setRestorePlanMsg({ ok: true, text: res || trText('已成功恢复官方出厂电源计划与 PPM 调度！') });
       setTimeout(() => setRestorePlanMsg(null), 5000);
     } catch (e: any) {
       console.error('Failed to restore official power plan:', e);
@@ -498,7 +498,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   return (
     <div className="sys-page">
       <div className="glass-card">
-        <h3 className="sys-section-title">系统功能开关</h3>
+        <h3 className="sys-section-title">{trText('系统功能开关')}</h3>
         <div className="sys-rows">
 
           {/* 界面语言 (i18n + 外挂 JSON 语言包) */}
@@ -534,7 +534,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row" style={{ alignItems: 'center' }}>
             <div>
               <div className="sys-row-label">
-                <span>OSD 屏幕悬浮提示</span>
+                <span>{trText('OSD 屏幕悬浮提示')}</span>
                 <RevBadge variant="info">HUD</RevBadge>
               </div>
               <div className="sys-row-desc">
@@ -544,21 +544,21 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             <div className="sys-row-controls">
               {/* 风格 */}
               <div className="sys-row-controls">
-                <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>风格</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{trText('风格')}</span>
                 <select
                   value={osdConfig.theme}
                   onChange={(e) => handleUpdateOsdConfig({ ...osdConfig, theme: e.target.value as any })}
                   className="rev-select"
                 >
-                  <option value="cinema">电影字幕</option>
-                  <option value="fade">向右羽化</option>
-                  <option value="pill">磨砂胶囊</option>
+                  <option value="cinema">{trText('电影字幕')}</option>
+                  <option value="fade">{trText('向右羽化')}</option>
+                  <option value="pill">{trText('磨砂胶囊')}</option>
                 </select>
               </div>
 
               {/* 大小 */}
               <div className="sys-row-controls">
-                <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>大小</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{trText('大小')}</span>
                 <select
                   value={osdConfig.scale}
                   onChange={(e) => handleUpdateOsdConfig({ ...osdConfig, scale: e.target.value })}
@@ -573,15 +573,15 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
               {/* 位置 */}
               <div className="sys-row-controls">
-                <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>位置</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{trText('位置')}</span>
                 <select
                   value={osdConfig.position}
                   onChange={(e) => handleUpdateOsdConfig({ ...osdConfig, position: e.target.value as any })}
                   className="rev-select"
                 >
-                  <option value="top-left">左上角</option>
-                  <option value="bottom-center">下方中央</option>
-                  <option value="center">屏幕正中</option>
+                  <option value="top-left">{trText('左上角')}</option>
+                  <option value="bottom-center">{trText('下方中央')}</option>
+                  <option value="center">{trText('屏幕正中')}</option>
                 </select>
               </div>
 
@@ -612,8 +612,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           {/* 开机自动启动 */}
           <div className="quick-row">
             <div>
-              <div className="sys-row-label">开机自动启动 (最小化至托盘)</div>
-              <div className="sys-row-desc">开机自动加载驱动与上次配置</div>
+              <div className="sys-row-label">{trText('开机自动启动 (最小化至托盘)')}</div>
+              <div className="sys-row-desc">{trText('开机自动加载驱动与上次配置')}</div>
             </div>
             <RevSwitch
               checked={!!status.autostart}
@@ -625,9 +625,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row" style={{ alignItems: 'center' }}>
             <div>
               <div className="sys-row-label">
-                <span>解除离电限制</span>
+                <span>{trText('解除离电限制')}</span>
                 <RevBadge variant={unlockBatteryLimit ? 'warning' : 'default'}>
-                  {unlockBatteryLimit ? '已解除限制 (风险自担)' : '出厂安全限制'}
+                  {unlockBatteryLimit ? '已解除限制 (风险自担)' : trText('出厂安全限制')}
                 </RevBadge>
                 <RevBadge variant="accent">Power Gating</RevBadge>
               </div>
@@ -648,7 +648,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row" style={{ alignItems: 'center' }}>
             <div>
               <div className="sys-row-label">
-                <span>唤醒面板形态</span>
+                <span>{trText('唤醒面板形态')}</span>
                 <RevBadge variant="info">Window</RevBadge>
               </div>
               <div className="sys-row-desc">
@@ -701,7 +701,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row" style={{ alignItems: 'center' }}>
             <div>
               <div className="sys-row-label">
-                <span>迷你抽屉点击外部自动收起</span>
+                <span>{trText('迷你抽屉点击外部自动收起')}</span>
                 <RevBadge variant="info">Mini Drawer</RevBadge>
               </div>
               <div className="sys-row-desc">
@@ -720,9 +720,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row" style={{ alignItems: 'center' }}>
             <div>
               <div className="sys-row-label">
-                <span>使用经典 WebView2 前端</span>
+                <span>{trText('使用经典 WebView2 前端')}</span>
                 <RevBadge variant={useClassicWebview ? 'accent' : 'info'}>
-                  {useClassicWebview ? 'WebView2 (经典)' : 'Slint 原生 (默认)'}
+                  {useClassicWebview ? 'WebView2 (经典)' : trText('Slint 原生 (默认)')}
                 </RevBadge>
               </div>
               <div className="sys-row-desc">
@@ -751,19 +751,19 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row">
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div className="sys-row-label">数据存储管理</div>
+                <div className="sys-row-label">{trText('数据存储管理')}</div>
                 <RevBadge variant={dataDirInfo?.mode === 'portable' ? 'success' : dataDirInfo?.mode === 'custom' ? 'warning' : 'accent'}>
                   {dataDirInfo?.mode === 'portable'
-                    ? '便携目录 (./data)'
+                    ? trText('便携目录 (./data)')
                     : dataDirInfo?.mode === 'custom'
-                      ? '自定义路径 (data_dir.ptr)'
-                      : '标准 AppData (%APPDATA%)'}
+                      ? trText('自定义路径 (data_dir.ptr)')
+                      : trText('标准 AppData (%APPDATA%)')}
                 </RevBadge>
               </div>
               <div className="sys-row-desc" title={dataDirInfo?.path || ''}>
                 {dataDirInfo?.path
                   ? `当前目录: ${dataDirInfo.path}`
-                  : '管理用户预设、键盘动效、下载的插件与皮肤等持久化文件'}
+                  : trText('管理用户预设、键盘动效、下载的插件与皮肤等持久化文件')}
               </div>
             </div>
             <div className="sys-row-controls">
@@ -773,7 +773,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 title="直接在文件资源管理器中打开当前用户数据目录"
               >
                 <FolderOpen size={12} />
-                <span>打开目录</span>
+                <span>{trText('打开目录')}</span>
               </button>
               <button
                 onClick={() => {
@@ -784,7 +784,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 title="无损迁移配置预设并建立重定向指针"
               >
                 <HardDrive size={12} />
-                <span>迁移存储</span>
+                <span>{trText('迁移存储')}</span>
               </button>
               <button
                 onClick={() => setShowClearConfirm(true)}
@@ -792,7 +792,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 title="彻底清空 OpenRevo 所有用户数据与预设"
               >
                 <Trash2 size={12} />
-                <span>清除数据</span>
+                <span>{trText('清除数据')}</span>
               </button>
             </div>
           </div>
@@ -801,15 +801,15 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row">
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div className="sys-row-label">软件版本与分发更新</div>
+                <div className="sys-row-label">{trText('软件版本与分发更新')}</div>
                 <RevBadge variant="info">
                   {updateResult?.display_version || 'v0.9.8'}
                 </RevBadge>
               </div>
               <div className="sys-row-desc">
                 {updateChannel === 'beta'
-                  ? '【预览通道】优先接收实验性新特性与先行体验版本；双源智能竞速'
-                  : '【正式通道】仅接收经过充分测试与验证的稳定版本；双源智能竞速'}
+                  ? trText('【预览通道】优先接收实验性新特性与先行体验版本；双源智能竞速')
+                  : trText('【正式通道】仅接收经过充分测试与验证的稳定版本；双源智能竞速')}
               </div>
             </div>
             <div className="sys-row-controls">
@@ -850,7 +850,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 title="立即并发向 GitHub 与 Gitee 查询是否有新版本发布"
               >
                 <RefreshCw size={12} className={checkingUpdate ? 'spin-icon' : ''} />
-                <span>{checkingUpdate ? '正在检测...' : '检查更新'}</span>
+                <span>{checkingUpdate ? '正在检测...' : trText('检查更新')}</span>
               </button>
             </div>
           </div>
@@ -859,7 +859,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row">
             <div>
               <div className="sys-row-label">
-                <span>Windows 基础电源方案</span>
+                <span>{trText('Windows 基础电源方案')}</span>
                 <RevBadge variant="success">powercfg</RevBadge>
                 {restorePlanMsg && (
                   <RevBadge variant={restorePlanMsg.ok ? 'success' : 'error'}>
@@ -879,7 +879,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 style={{ padding: '4px 10px', fontSize: '11px', minWidth: 'auto' }}
                 title="仅限同方/宝龙达游戏本：一键清除异常锁频/待机高温残留，对齐官方控制台，还原官方平衡方案与原生出厂调度"
               >
-                {restoringPowerPlan ? '正在修复...' : '修复/重置计划'}
+                {restoringPowerPlan ? '正在修复...' : trText('修复/重置计划')}
               </button>
               <select
                 value={powerSchemes.find((s) => s.is_active)?.guid || ''}
@@ -912,9 +912,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div className="quick-row">
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div className="sys-row-label">运行与异常调试日志等级</div>
+                    <div className="sys-row-label">{trText('运行与异常调试日志等级')}</div>
                     <RevBadge variant={logStatus.level === 2 ? 'accent' : 'success'}>
-                      {logStatus.level === 2 ? '所有日志 (详细追踪)' : '错误日志 (仅故障及异常崩溃)'}
+                      {logStatus.level === 2 ? '所有日志 (详细追踪)' : trText('错误日志 (仅故障及异常崩溃)')}
                     </RevBadge>
                     {logStatus.level === 2 && (
                       <RevBadge
@@ -922,13 +922,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                         title={
                           logStatus.filter
                             ? `当前仅输出命中 [${logStatus.filter}] 的模块日志 (高频噪音已抑制)`
-                            : '未设置过滤，输出所有模块日志'
+                            : trText('未设置过滤，输出所有模块日志')
                         }
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                           {logStatus.filter
                             ? <><Crosshair size={10} /> 过滤: {logStatus.filter}</>
-                            : <><Globe size={10} /> 全部模块</>}
+                            : <><Globe size={10} /> {trText('全部模块')}</>}
                         </span>
                       </RevBadge>
                     )}
@@ -943,13 +943,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     className={`toggle-btn ${logStatus.level === 2 ? 'active-indigo' : ''}`}
                     style={{ minWidth: '78px' }}
                   >
-                    {logStatus.level === 2 ? '切为错误日志' : '切为所有日志'}
+                    {logStatus.level === 2 ? '切为错误日志' : trText('切为所有日志')}
                   </button>
                   <button
                     onClick={handleOpenLog}
                     className="toggle-btn"
                     style={{ minWidth: '78px' }}
-                    title={logStatus.path || '打开日志文件'}
+                    title={logStatus.path || trText('打开日志文件')}
                   >
                     查看日志
                   </button>
@@ -976,19 +976,19 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     </div>
                     <div className="sys-row-desc">
                       选定模块后将屏蔽数千条 EC 纳秒高频读取噪音；支持命令行{' '}
-                      <code style={{ color: 'var(--color-brand)' }}>--debug=模块名</code>
+                      <code style={{ color: 'var(--color-brand)' }}>{trText('--debug=模块名')}</code>
                     </div>
                   </div>
                   <div className="sys-chip-row">
                     {[
-                      { label: '全部', value: null, Icon: Globe },
-                      { label: '外置水冷', value: 'cooler', Icon: Droplets },
-                      { label: '自定义追踪', value: 'custom', Icon: Gauge },
-                      { label: 'RGB与推流', value: 'light', Icon: Lightbulb },
-                      { label: '电源与风扇', value: 'power', Icon: Zap },
-                      { label: '底层EC', value: 'ec', Icon: Cpu },
-                      { label: '设备外设', value: 'device', Icon: Cable },
-                      { label: '窗口与系统', value: 'ui', Icon: Sliders },
+                      { label: trText('全部'), value: null, Icon: Globe },
+                      { label: trText('外置水冷'), value: 'cooler', Icon: Droplets },
+                      { label: trText('自定义追踪'), value: 'custom', Icon: Gauge },
+                      { label: trText('RGB与推流'), value: 'light', Icon: Lightbulb },
+                      { label: trText('电源与风扇'), value: 'power', Icon: Zap },
+                      { label: trText('底层EC'), value: 'ec', Icon: Cpu },
+                      { label: trText('设备外设'), value: 'device', Icon: Cable },
+                      { label: trText('窗口与系统'), value: 'ui', Icon: Sliders },
                     ].map((item) => {
                       const isActive =
                         (!item.value && !logStatus.filter) ||
@@ -1020,9 +1020,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div className="sys-card-header">
                 <div className="sys-card-title">
                   <Sliders className="sys-card-icon" />
-                  <span>机型形态与能力实时预览 (Dev Mode)</span>
+                  <span>{trText('机型形态与能力实时预览 (Dev Mode)')}</span>
                 </div>
-                <RevBadge color="amber">--debug 专属</RevBadge>
+                <RevBadge color="amber">{trText('--debug 专属')}</RevBadge>
               </div>
               <div className="sys-card-desc">
                 允许开发者在不修改底层通信的前提下，纯前端模拟不同模具插槽裁切效果（如轻薄本隐藏独显/水冷）。
@@ -1031,13 +1031,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div className="sys-rows">
                 <div className="quick-row">
                   <div className="sys-row-label">
-                    <span>当前模拟形态</span>
+                    <span>{trText('当前模拟形态')}</span>
                     <span className="sys-row-desc">
                       {previewMode === 'real'
                         ? `真实硬件: ${capabilities.name || '自适应'} (${capabilities.form_factor || 'gaming'})`
                         : previewMode === 'thin_light'
-                          ? '模拟: 星耀 14 轻薄本 (核显 + 无水冷 + 单色背光)'
-                          : '模拟: 标准全能游戏本 (独显直连 + 水冷 + 全功能)'}
+                          ? trText('模拟: 星耀 14 轻薄本 (核显 + 无水冷 + 单色背光)')
+                          : trText('模拟: 标准全能游戏本 (独显直连 + 水冷 + 全功能)')}
                     </span>
                   </div>
                   <div className="sys-row-controls">
@@ -1083,8 +1083,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <div className="sys-modal-title">清除所有用户数据？</div>
-                <div className="sys-modal-subtitle">此操作将彻底清空本地用户数据目录</div>
+                <div className="sys-modal-title">{trText('清除所有用户数据？')}</div>
+                <div className="sys-modal-subtitle">{trText('此操作将彻底清空本地用户数据目录')}</div>
               </div>
             </div>
 
@@ -1093,10 +1093,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 ⚠️ 请注意，执行后以下所有内容将被永久清除：
               </div>
               <ul className="sys-modal-list">
-                <li>用户自建或调整的模式与功耗预设文件</li>
-                <li>键盘自制灯效、动画脚本与预设</li>
-                <li>已下载安装的第三方插件与自定义皮肤</li>
-                <li>模具库自定义昵称与映射 (models.json)</li>
+                <li>{trText('用户自建或调整的模式与功耗预设文件')}</li>
+                <li>{trText('键盘自制灯效、动画脚本与预设')}</li>
+                <li>{trText('已下载安装的第三方插件与自定义皮肤')}</li>
+                <li>{trText('模具库自定义昵称与映射 (models.json)')}</li>
               </ul>
             </div>
 
@@ -1113,7 +1113,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 onClick={handleClearUserData}
                 className="toggle-btn btn-danger-solid"
               >
-                {clearingData ? '正在清除...' : '确认清除'}
+                {clearingData ? '正在清除...' : trText('确认清除')}
               </button>
             </div>
           </div>
@@ -1135,8 +1135,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <div className="sys-modal-title">解除离电模式限制风险警示</div>
-                <div className="sys-modal-subtitle">硬件放电与电池安全性须知</div>
+                <div className="sys-modal-title">{trText('解除离电模式限制风险警示')}</div>
+                <div className="sys-modal-subtitle">{trText('硬件放电与电池安全性须知')}</div>
               </div>
             </div>
 
@@ -1145,10 +1145,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 ⚠️ 官方固件默认禁止电池状态下开启高功耗模式，请知悉以下潜在风险：
               </div>
               <ul className="sys-modal-list">
-                <li><strong>电池过流保护断电</strong>：游戏本电池瞬时放电功率远低于原装电源适配器，离电下运行重负载可能瞬间触发主板 BMS 电池过流保护，导致突然掉电黑屏或硬件重启。</li>
-                <li><strong>电池寿命加速衰减</strong>：持续的大倍率放电会使锂电池内部剧烈发热，显著加速电池容量老化与衰减。</li>
-                <li><strong>拔电不再强制降级</strong>：拔掉适配器后，系统将保持当前的狂暴或极客模式，不会再自动回切至平衡模式。</li>
-                <li><strong>推荐应用场景</strong>：如果您是为了在离电下进入极客调校“设定比办公模式更低的 CPU/GPU 功耗与温控以追求极致长续航”，可以放心使用；但切勿在离电下运行重度 3D 游戏或高负载渲染。</li>
+                <li><strong>{trText('电池过流保护断电')}</strong>{trText('：游戏本电池瞬时放电功率远低于原装电源适配器，离电下运行重负载可能瞬间触发主板 BMS 电池过流保护，导致突然掉电黑屏或硬件重启。')}</li>
+                <li><strong>{trText('电池寿命加速衰减')}</strong>{trText('：持续的大倍率放电会使锂电池内部剧烈发热，显著加速电池容量老化与衰减。')}</li>
+                <li><strong>{trText('拔电不再强制降级')}</strong>{trText('：拔掉适配器后，系统将保持当前的狂暴或极客模式，不会再自动回切至平衡模式。')}</li>
+                <li><strong>{trText('推荐应用场景')}</strong>{trText('：如果您是为了在离电下进入极客调校“设定比办公模式更低的 CPU/GPU 功耗与温控以追求极致长续航”，可以放心使用；但切勿在离电下运行重度 3D 游戏或高负载渲染。')}</li>
               </ul>
             </div>
 
@@ -1165,7 +1165,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 onClick={handleConfirmUnlockBattery}
                 className="toggle-btn btn-danger-solid"
               >
-                {togglingUnlockBattery ? '正在开启...' : '我已知晓风险，确认解除'}
+                {togglingUnlockBattery ? '正在开启...' : trText('我已知晓风险，确认解除')}
               </button>
             </div>
           </div>
@@ -1187,8 +1187,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <RotateCcw size={20} />
               </div>
               <div>
-                <div className="sys-modal-title">修复并重置为官方出厂电源计划</div>
-                <div className="sys-modal-subtitle">对齐官方控制台逻辑，消除待机高温与异常锁频</div>
+                <div className="sys-modal-title">{trText('修复并重置为官方出厂电源计划')}</div>
+                <div className="sys-modal-subtitle">{trText('对齐官方控制台逻辑，消除待机高温与异常锁频')}</div>
               </div>
             </div>
 
@@ -1197,10 +1197,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 💡 该操作将执行以下安全修复（完全对齐官方出厂标准）：
               </div>
               <ul className="sys-modal-list">
-                <li><strong>消除待机异常高温</strong>：重置激进的性能滑块覆盖层 (Performance Overlay)，恢复 CPU 核心休眠 (Core Parking) 与 Package C-State 深睡，消除待机 20W+ 积热。</li>
-                <li><strong>彻底清除锁频残留</strong>：外科手术式剔除所有电源方案中的静态频率限制键值 (75b0ae3f)，解除 0.8GHz 或 25W 锁频陷阱。</li>
-                <li><strong>重新注入官方 OEM 预配包</strong>：根据当前机型模具自适应注入出厂 PPM 调度包（宝龙达 AMD 官方 Provisioning 套件 / 同方官方 PPM 策略包）。</li>
-                <li><strong>激活官方平衡方案</strong>：切回 Windows 官方标准平衡方案 (Balanced)。若您有自建的个性化电源计划，它们会被完整保留，不会被删除。</li>
+                <li><strong>{trText('消除待机异常高温')}</strong>{trText('：重置激进的性能滑块覆盖层 (Performance Overlay)，恢复 CPU 核心休眠 (Core Parking) 与 Package C-State 深睡，消除待机 20W+ 积热。')}</li>
+                <li><strong>{trText('彻底清除锁频残留')}</strong>{trText('：外科手术式剔除所有电源方案中的静态频率限制键值 (75b0ae3f)，解除 0.8GHz 或 25W 锁频陷阱。')}</li>
+                <li><strong>{trText('重新注入官方 OEM 预配包')}</strong>{trText('：根据当前机型模具自适应注入出厂 PPM 调度包（宝龙达 AMD 官方 Provisioning 套件 / 同方官方 PPM 策略包）。')}</li>
+                <li><strong>{trText('激活官方平衡方案')}</strong>{trText('：切回 Windows 官方标准平衡方案 (Balanced)。若您有自建的个性化电源计划，它们会被完整保留，不会被删除。')}</li>
               </ul>
             </div>
 
@@ -1217,7 +1217,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 onClick={handleRestoreOfficialPowerPlan}
                 className="toggle-btn active-indigo"
               >
-                {restoringPowerPlan ? '正在修复...' : '确认执行修复'}
+                {restoringPowerPlan ? '正在修复...' : trText('确认执行修复')}
               </button>
             </div>
           </div>
@@ -1238,8 +1238,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <HardDrive size={20} />
               </div>
               <div>
-                <div className="sys-modal-title">迁移用户数据存储目录</div>
-                <div className="sys-modal-subtitle">将配置预设迁移至新路径并自动重定向</div>
+                <div className="sys-modal-title">{trText('迁移用户数据存储目录')}</div>
+                <div className="sys-modal-subtitle">{trText('将配置预设迁移至新路径并自动重定向')}</div>
               </div>
             </div>
 
@@ -1284,7 +1284,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 onClick={handleMigrateData}
                 className="toggle-btn active-indigo"
               >
-                {migratingData ? '正在迁移...' : '确认迁移'}
+                {migratingData ? '正在迁移...' : trText('确认迁移')}
               </button>
             </div>
           </div>
@@ -1293,11 +1293,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
       {/* 显卡调度与超频偏好 */}
       <div className="glass-card" style={{ marginTop: '18px' }}>
-        <h3 className="sys-section-title">GPU 调度与超频偏好</h3>
+        <h3 className="sys-section-title">{trText('GPU 调度与超频偏好')}</h3>
         <div className="sys-rows">
           <div className="quick-row">
             <div>
-              <div className="sys-row-label">平衡模式启用 GPU 动态功耗提升 (Dynamic Boost)</div>
+              <div className="sys-row-label">{trText('平衡模式启用 GPU 动态功耗提升 (Dynamic Boost)')}</div>
               <div className="sys-row-desc">
                 允许独立显卡在平衡模式下跑满出厂满血动态功耗（推荐平衡模式玩 3A 游戏的用户开启）；若关闭则限制为基础 TGP，将整机供电与散热优先让渡给 CPU。
               </div>
@@ -1311,8 +1311,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           </div>
           <div className="quick-row">
             <div>
-              <div className="sys-row-label">快捷 GPU OC 核心频率默认偏移</div>
-              <div className="sys-row-desc">点击狂暴模式顶栏 GPU OC 开关时注入的核心频率，下次开启生效</div>
+              <div className="sys-row-label">{trText('快捷 GPU OC 核心频率默认偏移')}</div>
+              <div className="sys-row-desc">{trText('点击狂暴模式顶栏 GPU OC 开关时注入的核心频率，下次开启生效')}</div>
             </div>
             <div className="sys-row-controls">
               <input
@@ -1338,8 +1338,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           </div>
           <div className="quick-row">
             <div>
-              <div className="sys-row-label">快捷 GPU OC 显存频率默认偏移</div>
-              <div className="sys-row-desc">点击狂暴模式顶栏 GPU OC 开关时注入的显存频率，下次开启生效</div>
+              <div className="sys-row-label">{trText('快捷 GPU OC 显存频率默认偏移')}</div>
+              <div className="sys-row-desc">{trText('点击狂暴模式顶栏 GPU OC 开关时注入的显存频率，下次开启生效')}</div>
             </div>
             <div className="sys-row-controls">
               <input
@@ -1388,7 +1388,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   发现新版本 {updateResult.display_version || updateResult.latest_version}
                 </div>
                 <div className="sys-modal-subtitle">
-                  测速首选: {updateResult.chosen_source === 'gitee' ? 'Gitee 国内镜像加速' : updateResult.chosen_source === 'local_mock' ? '本地测试模拟' : 'GitHub 官方源'} · 分发形态: {updateResult.asset_type === 'installer' ? '安装包覆盖升级' : '绿色版脱壳热更'}
+                  测速首选: {updateResult.chosen_source === 'gitee' ? 'Gitee 国内镜像加速' : updateResult.chosen_source === 'local_mock' ? '本地测试模拟' : trText('GitHub 官方源')} · 分发形态: {updateResult.asset_type === 'installer' ? '安装包覆盖升级' : trText('绿色版脱壳热更')}
                 </div>
               </div>
             </div>
@@ -1398,7 +1398,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 更新日志与变更说明：
               </div>
               <div className="updater-changelog-box">
-                {updateResult.notes || '暂无详细更新日志。'}
+                {updateResult.notes || trText('暂无详细更新日志。')}
               </div>
 
               <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
@@ -1439,7 +1439,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 onClick={handleDownloadAndInstall}
                 className="toggle-btn active-indigo"
               >
-                {downloadingUpdate ? '正在下载升级...' : '立即升级'}
+                {downloadingUpdate ? '正在下载升级...' : trText('立即升级')}
               </button>
             </div>
           </div>

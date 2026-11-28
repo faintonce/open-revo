@@ -1,6 +1,7 @@
 import React from 'react';
 import { Power } from 'lucide-react';
 import { RevBadge, RevBadgeVariant } from '../ui/RevBadge';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface LightHeaderBannerProps {
   title: string;
@@ -23,6 +24,7 @@ export const LightHeaderBanner: React.FC<LightHeaderBannerProps> = ({
   disabled = false,
   activeColorClass = 'active-indigo',
 }) => {
+  useI18n();
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
@@ -41,7 +43,7 @@ export const LightHeaderBanner: React.FC<LightHeaderBannerProps> = ({
         style={{ padding: '6px 14px', fontSize: '12px' }}
       >
         <Power className="w-3.5 h-3.5" />
-        <span>{enabled ? '已开启' : '已关闭'}</span>
+        <span>{enabled ? '已开启' : trText('已关闭')}</span>
       </button>
     </div>
   );

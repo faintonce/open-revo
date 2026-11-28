@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Wind, Link2, Link2Off, Plus, Minus, Fan } from 'lucide-react';
 import { FanCurvePoint } from '../../types/hardware';
 import { RevSwitch } from '../ui/RevSwitch';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface FanCurveEditorProps {
   fanCurveTab: 'cpu' | 'gpu';
@@ -48,6 +49,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
   supportFanRampRate = true,
   minDuty: propMinDuty,
 }) => {
+  useI18n();
   const minDuty = propMinDuty ?? (fanBoostMode === 'direct_rpm_clamp' ? 22 : 0);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -177,7 +179,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--color-brand)' }}>
           <Wind className="w-4 h-4" />
-          <span>风扇策略与曲线</span>
+          <span>{trText('风扇策略与曲线')}</span>
         </div>
       </div>
 
@@ -221,7 +223,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
           }}
         >
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>平滑过渡</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>{trText('平滑过渡')}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <select
@@ -264,7 +266,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
           }}
         >
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>风扇独立输出</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0 }}>{trText('风扇独立输出')}</div>
           </div>
           <RevSwitch
             checked={fanIsolated}
@@ -324,7 +326,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   justifyContent: 'center',
                   transition: 'all var(--transition-fast)',
                 }}
-                title={fanCurveLinked ? '双风扇曲线已锁定联动（调节任意一侧将实时镜像同步）' : '双风扇独立调节（点击开启联动同步）'}
+                title={fanCurveLinked ? '双风扇曲线已锁定联动（调节任意一侧将实时镜像同步）' : trText('双风扇独立调节（点击开启联动同步）')}
               >
                 {fanCurveLinked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3 opacity-60" />}
               </button>
@@ -357,7 +359,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
           )}
 
           <span style={{ fontSize: '10px', color: isEditingAllowed ? 'var(--color-brand)' : 'var(--text-dim)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {isEditingAllowed ? '● 8点曲线调校' : '○ 出厂预设托管'}
+            {isEditingAllowed ? '● 8点曲线调校' : trText('○ 出厂预设托管')}
           </span>
         </div>
 
@@ -618,7 +620,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
             padding: '2px 4px',
           }}
         >
-          <span>{minDuty > 0 ? `最低起旋 ${minDuty}% (2200 RPM) · 滚轮微调` : '鼠标悬停滚轮微调'}</span>
+          <span>{minDuty > 0 ? `最低起旋 ${minDuty}% (2200 RPM) · 滚轮微调` : trText('鼠标悬停滚轮微调')}</span>
           <span style={{ color: fanIsolated ? 'var(--color-brand)' : 'var(--text-dim)' }}>
             8 节点单调递增
           </span>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Zap, Battery, Plug, ShieldCheck, Globe, Ban, Lock, Clock, Moon, Snowflake, Info } from 'lucide-react';
 import { RevBadge, RevSwitch } from './ui';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 interface PowerSettingsInfo {
   battery_percent: number;
@@ -26,6 +27,7 @@ interface PowerSettingsInfo {
 }
 
 export const PowerTuningView: React.FC = () => {
+  useI18n();
   const [powerInfo, setPowerInfo] = useState<PowerSettingsInfo>({
     battery_percent: 100,
     is_ac_online: true,
@@ -92,7 +94,7 @@ export const PowerTuningView: React.FC = () => {
       const res = await invoke<PowerSettingsInfo>('set_power_option', { option, enable: !powerInfo[keyMap[option]] });
       if (res) setPowerInfo(res);
     } catch (error) {
-      setControlError('更改电源设置失败：' + String(error));
+      setControlError(trText('更改电源设置失败：') + String(error));
     } finally {
       busy.current = false;
       setLoading(false);
@@ -234,7 +236,7 @@ export const PowerTuningView: React.FC = () => {
                 <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
                   智能睡眠守护 / 背包防烫模式 (Anti-Overheat Sleep Guard)
                 </span>
-                <RevBadge variant="accent">推荐全开</RevBadge>
+                <RevBadge variant="accent">{trText('推荐全开')}</RevBadge>
               </div>
               <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginTop: '1px' }}>
                 封杀 Windows 现代待机后台偷跑；杜绝密闭背包发烫、电池偷耗以及合盖睡死黑屏无法唤醒。
@@ -261,7 +263,7 @@ export const PowerTuningView: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
               <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                 <Globe className="w-3 h-3 text-cyan-400" />
-                <span>待机断开网络连接</span>
+                <span>{trText('待机断开网络连接')}</span>
               </div>
               <div style={{ fontSize: '9px', color: 'var(--text-dim)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 切断休眠 Wi-Fi，阻止系统后台联网唤醒
@@ -284,7 +286,7 @@ export const PowerTuningView: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
               <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                 <Ban className="w-3 h-3 text-rose-400" />
-                <span>封杀离开模式伪睡眠</span>
+                <span>{trText('封杀离开模式伪睡眠')}</span>
               </div>
               <div style={{ fontSize: '9px', color: 'var(--text-dim)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 禁止流氓软件以“离开模式”偷跑发热
@@ -307,7 +309,7 @@ export const PowerTuningView: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
               <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                 <Lock className="w-3 h-3 text-amber-400" />
-                <span>忽略系统所需策略</span>
+                <span>{trText('忽略系统所需策略')}</span>
               </div>
               <div style={{ fontSize: '9px', color: 'var(--text-dim)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 强制无视第三方进程的阻止待机声明
@@ -330,7 +332,7 @@ export const PowerTuningView: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
               <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                 <Clock className="w-3 h-3 text-indigo-400" />
-                <span>禁用 RTC 唤醒定时器</span>
+                <span>{trText('禁用 RTC 唤醒定时器')}</span>
               </div>
               <div style={{ fontSize: '9px', color: 'var(--text-dim)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 杜绝系统任务夜间或包内自启“焖烧”
@@ -353,7 +355,7 @@ export const PowerTuningView: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
               <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                 <Moon className="w-3 h-3 text-purple-400" />
-                <span>启用 ACPI 深度睡眠</span>
+                <span>{trText('启用 ACPI 深度睡眠')}</span>
               </div>
               <div style={{ fontSize: '9px', color: 'var(--text-dim)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 允许 CPU 进入极低功耗 C10/D3cold 状态
@@ -376,7 +378,7 @@ export const PowerTuningView: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
               <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                 <Snowflake className="w-3 h-3 text-sky-400" />
-                <span>30 分钟超时转入休眠</span>
+                <span>{trText('30 分钟超时转入休眠')}</span>
               </div>
               <div style={{ fontSize: '9px', color: 'var(--text-dim)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 待机半小时未唤醒自动存盘切断供电
@@ -418,7 +420,7 @@ export const PowerTuningView: React.FC = () => {
             onClick={() => handleToggleOption('usb_charge')}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>关机下使用USB给电</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>{trText('关机下使用USB给电')}</span>
               <RevSwitch
                 checked={powerInfo.usb_charge_enabled}
                 onChange={() => handleToggleOption('usb_charge')}
@@ -445,7 +447,7 @@ export const PowerTuningView: React.FC = () => {
             onClick={() => handleToggleOption('ac_recovery')}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>来电自动开机 (AC Recovery)</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>{trText('来电自动开机 (AC Recovery)')}</span>
               <RevSwitch
                 checked={powerInfo.ac_recovery_enabled}
                 onChange={() => handleToggleOption('ac_recovery')}
@@ -474,7 +476,7 @@ export const PowerTuningView: React.FC = () => {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>高性能电源模式</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>{trText('高性能电源模式')}</span>
                 <div
                   className="tooltip-container"
                   title="根据选择的模式自动调整 Windows 的电源模式 (已接通电源)：&#10;• 办公模式 → 最佳能效&#10;• 均衡模式 → 平衡&#10;• 狂暴模式 (如有) → 最佳性能&#10;• 自定义模式 (如有) → 平衡"
@@ -522,7 +524,7 @@ export const PowerTuningView: React.FC = () => {
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>长效模式</span>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>{trText('长效模式')}</span>
                 </div>
                 <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', lineHeight: '1.35', marginTop: '1px' }}>
                   适合很长时间使用电池工作的环境。
@@ -540,7 +542,7 @@ export const PowerTuningView: React.FC = () => {
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>平衡模式</span>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>{trText('平衡模式')}</span>
                 </div>
                 <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', lineHeight: '1.35', marginTop: '1px' }}>
                   偶而会携带电脑工作，且不需要多余靠电池供电。
@@ -558,7 +560,7 @@ export const PowerTuningView: React.FC = () => {
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>工作站模式</span>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-primary)' }}>{trText('工作站模式')}</span>
                 </div>
                 <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', lineHeight: '1.35', marginTop: '1px' }}>
                   如果很容易接续适配器工作，无携带电脑外出工作的需求，强烈建议使用此模式，延长电池的寿命。
@@ -629,7 +631,7 @@ export const PowerTuningView: React.FC = () => {
               }}
             >
               {powerInfo.is_ac_online ? <Plug className="w-3.5 h-3.5" /> : <Battery className="w-3.5 h-3.5" />}
-              <span>{powerInfo.is_ac_online ? '已连接电源适配器' : '正在使用电池供电'}</span>
+              <span>{powerInfo.is_ac_online ? '已连接电源适配器' : trText('正在使用电池供电')}</span>
             </div>
           </div>
         </div>

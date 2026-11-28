@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Code2, X, Copy, Check, ExternalLink } from 'lucide-react';
 import { BrfxScript } from '../lightingConstants';
+import { trText, useI18n } from '../../../i18n/I18nContext';
 
 interface BrfxSourceModalProps {
   script: BrfxScript;
@@ -13,6 +14,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
   onClose,
   onOpenInNotepad,
 }) => {
+  useI18n();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -211,7 +213,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
               }}
             >
               {copied ? <Check size={13} /> : <Copy size={13} />}
-              {copied ? '已复制' : '复制代码喂给 AI'}
+              {copied ? '已复制' : trText('复制代码喂给 AI')}
             </button>
             <button
               type="button"

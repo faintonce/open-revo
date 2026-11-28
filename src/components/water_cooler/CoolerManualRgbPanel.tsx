@@ -2,6 +2,7 @@ import React from 'react';
 import { Zap, Fan, Palette } from 'lucide-react';
 import { CoolerTelemetry, COOLER_COLOR_PRESETS } from './coolerTypes';
 import { RevSwitch } from '../ui';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface CoolerManualRgbPanelProps {
   coolerData: CoolerTelemetry;
@@ -14,6 +15,7 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
   onUpdateCooler,
   onUpdateCoolerLed,
 }) => {
+  useI18n();
   return (
     <>
       {/* 1. 手动目标精调栏 (手调后预设高亮全灭，进入自定义) */}
@@ -38,9 +40,9 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
           </span>
           <div style={{ display: 'flex', gap: '5px' }}>
             {[
-              { tier: 0, label: '停泵', desc: '完全关闭 (0%)' },
-              { tier: 2, label: '标准', desc: '标准巡航 (平稳水流 45%)' },
-              { tier: 3, label: '狂暴', desc: '极限狂暴 (100% 满血极速)' },
+              { tier: 0, label: trText('停泵'), desc: trText('完全关闭 (0%)') },
+              { tier: 2, label: trText('标准'), desc: trText('标准巡航 (平稳水流 45%)') },
+              { tier: 3, label: trText('狂暴'), desc: trText('极限狂暴 (100% 满血极速)') },
             ].map(({ tier, label, desc }) => {
               const currentTier = coolerData.pump_tier !== undefined
                 ? coolerData.pump_tier
@@ -72,10 +74,10 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
           </div>
           <span className="cooler-pump-label" style={{ fontSize: '10px', color: 'var(--color-fan)', minWidth: '50px' }}>
             {coolerData.pump_tier === 3 || coolerData.pump_voltage >= 11
-              ? '极速狂暴 (100%)'
+              ? trText('极速狂暴 (100%)')
               : (coolerData.pump_tier === 0 || coolerData.pump_voltage === 0
-                ? '已停机 (0%)'
-                : '标准巡航 (45%)')}
+                ? trText('已停机 (0%)')
+                : trText('标准巡航 (45%)'))}
           </span>
         </div>
 
@@ -133,10 +135,10 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
 
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             {[
-              { id: 2, label: '炫彩流动 (默认)' },
-              { id: 3, label: '七彩呼吸' },
-              { id: 4, label: '旋转光斑' },
-              { id: 1, label: '单色呼吸 (定色)' },
+              { id: 2, label: trText('炫彩流动 (默认)') },
+              { id: 3, label: trText('七彩呼吸') },
+              { id: 4, label: trText('旋转光斑') },
+              { id: 1, label: trText('单色呼吸 (定色)') },
             ].map((m) => (
               <button
                 key={m.id}
@@ -170,7 +172,7 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
         {coolerData.led_on && coolerData.led_mode === 1 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'var(--surface-sunken)', padding: '5px 10px', borderRadius: 'var(--radius-sm)' }}>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>原厂色：</span>
+              <span style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>{trText('原厂色：')}</span>
               {COOLER_COLOR_PRESETS.map((c) => (
                 <div
                   key={c.name}

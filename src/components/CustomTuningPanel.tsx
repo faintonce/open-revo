@@ -16,6 +16,7 @@ import { TuningToolbar } from './tuning/TuningToolbar';
 import { CpuTuningSection } from './tuning/CpuTuningSection';
 import { GpuTuningSection } from './tuning/GpuTuningSection';
 import { BldFanStrategyPanel } from './tuning/BldFanStrategyPanel';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 export const DEFAULT_8_POINT_CURVE: FanCurvePoint[] = [
   { temp: 40, duty: 22 },
@@ -73,6 +74,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   onApplied,
   onToggleFanBoost,
 }) => {
+  useI18n();
   const [modelCaps, setModelCaps] = useState<ModelCapabilities | undefined>(capabilities);
   useEffect(() => {
     const isBldPreview = typeof window !== 'undefined' && window.location.search.includes('preview=bld');
@@ -567,11 +569,11 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
     try {
       const savedPath = await invoke<string | null>('export_profile_preset', { id: activeProfileId });
       if (savedPath) {
-        alert('调教方案已成功导出至：\n' + savedPath);
+        alert(trText('调教方案已成功导出至：\n') + savedPath);
       }
     } catch (e: any) {
       console.error('Failed to export profile:', e);
-      alert('导出调教方案失败: ' + e);
+      alert(trText('导出调教方案失败: ') + e);
     }
   };
 
@@ -590,7 +592,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
         await loadProfilesData();
         await handleSelectProfile(imported.id);
       } catch (err: any) {
-        alert('导入失败: ' + err);
+        alert(trText('导入失败: ') + err);
       }
     };
     reader.readAsText(file);
@@ -755,7 +757,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
   // Toggle BIOS OC switch with cross-generation NVRAM hardware execution
   const handleToggleBiosOc = async () => {
     if (biosStatus?.hardware_read && !biosStatus.supported) {
-      alert('当前机器主板固件或处理器未声明支持高级超频菜单 (Support=0x00)，已安全拦截！');
+      alert(trText('当前机器主板固件或处理器未声明支持高级超频菜单 (Support=0x00)，已安全拦截！'));
       return;
     }
 
@@ -1171,7 +1173,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
           >
             <span style={{ fontSize: '13px', lineHeight: 1 }}>⚠️</span>
             <span>
-              <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>免责声明：</strong>
+              <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{trText('免责声明：')}</strong>
               OpenRevo 仅提供底层硬件操控能力，参数配置权完全归属用户。超出出厂规格的极限功耗、温控或频率偏移可能导致硬件保护性黑屏、断电或重置，请根据整机散热与供电合理调校，相关风险由操作者自负。
             </span>
           </div>

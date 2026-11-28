@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { HardwareState } from '../../types/hardware';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface GpuPresetReferenceCardProps {
   presets?: HardwareState['power_presets'];
@@ -8,6 +9,7 @@ export interface GpuPresetReferenceCardProps {
 }
 
 export const GpuPresetReferenceCard: React.FC<GpuPresetReferenceCardProps> = ({ presets, isDeclarative }) => {
+  useI18n();
   return (
     <div
       className="tuning-sub-card"
@@ -29,10 +31,10 @@ export const GpuPresetReferenceCard: React.FC<GpuPresetReferenceCardProps> = ({ 
         }}
       >
         <AlertTriangle size={13} className="shrink-0" />
-        <span>模具原厂建议功耗参考</span>
+        <span>{trText('模具原厂建议功耗参考')}</span>
         {presets?.hardware_read && (
           <span style={{ fontSize: '10px', color: 'var(--status-ok)', fontWeight: 600, marginLeft: 'auto' }}>
-            {isDeclarative ? '原厂硬件直读' : 'EC 硬件直读'}
+            {isDeclarative ? '原厂硬件直读' : trText('EC 硬件直读')}
           </span>
         )}
       </div>

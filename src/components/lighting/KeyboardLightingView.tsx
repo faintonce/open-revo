@@ -20,6 +20,7 @@ import { KbEngineSelector } from './keyboard/KbEngineSelector';
 import { KeyboardModeGrid } from './keyboard/KeyboardModeGrid';
 import { KeyboardControlsBar } from './keyboard/KeyboardControlsBar';
 import { FourZoneColorPanel } from './keyboard/FourZoneColorPanel';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface KeyboardLightingViewProps {
   lighting: LightingState;
@@ -34,6 +35,7 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
   sendKeyboard,
   sendFourZoneColors,
 }) => {
+  useI18n();
   const isSingleColor = kbHwInfo?.hardware_type === 'SingleColor';
   const isSingleZone = kbHwInfo?.hardware_type === 'SingleZoneRgb';
   const isFourZone = Boolean(kbHwInfo?.is_four_zone || kbHwInfo?.hardware_type === 'FourZoneRgb');
@@ -381,28 +383,28 @@ export const KeyboardLightingView: React.FC<KeyboardLightingViewProps> = ({
   };
 
   const pageTitle = isSingleColor
-    ? '键盘单色背光工作台'
+    ? trText('键盘单色背光工作台')
     : isSingleZone
-    ? '单区 RGB 键盘工作台'
+    ? trText('单区 RGB 键盘工作台')
     : isFourZone
-    ? '4区 RGB 键盘工作台'
-    : '键盘背光工作台';
+    ? trText('4区 RGB 键盘工作台')
+    : trText('键盘背光工作台');
 
   const badgeText = isSingleColor
-    ? '单色白光背光 [EC硬件直通]'
+    ? trText('单色白光背光 [EC硬件直通]')
     : isSingleZone
-    ? '单区同色 RGB [EC硬件调光]'
+    ? trText('单区同色 RGB [EC硬件调光]')
     : isFourZone
-    ? 'ITE 8291 r2 4区 RGB 控制器 (048D:CE00)'
-    : 'ITE 8291 单键 RGB 控制器 (048D 逐键 HID)';
+    ? trText('ITE 8291 r2 4区 RGB 控制器 (048D:CE00)')
+    : trText('ITE 8291 单键 RGB 控制器 (048D 逐键 HID)');
 
   const pageDesc = isSingleColor
-    ? '检测到当前机型为单色 LED 背光，已自动精简无效控制项，支持开关、3档亮度与闲置熄灯'
+    ? trText('检测到当前机型为单色 LED 背光，已自动精简无效控制项，支持开关、3档亮度与闲置熄灯')
     : isSingleZone
-    ? '全键盘同色调光，支持纯色常亮、彩虹呼吸与4档亮度微调'
+    ? trText('全键盘同色调光，支持纯色常亮、彩虹呼吸与4档亮度微调')
     : isFourZone
-    ? '4 分区独立调色与 6 种原厂硬件动效，支持方向、亮度与色彩微调'
-    : '12 种硬件内建与动态特效，支持方向、亮度与色彩毫秒级直接生效';
+    ? trText('4 分区独立调色与 6 种原厂硬件动效，支持方向、亮度与色彩微调')
+    : trText('12 种硬件内建与动态特效，支持方向、亮度与色彩毫秒级直接生效');
 
   const isKbOn = lighting.kb_enabled && lighting.kb_brightness > 0;
 

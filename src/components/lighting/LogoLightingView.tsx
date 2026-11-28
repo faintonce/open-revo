@@ -8,6 +8,7 @@ import {
   PRESET_COLORS,
 } from './lightingConstants';
 import { LightHeaderBanner } from './LightHeaderBanner';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface LogoLightingViewProps {
   lighting: LightingState;
@@ -20,6 +21,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
   kbHwInfo,
   sendLogo,
 }) => {
+  useI18n();
   const isEcDirectLogo = Boolean(kbHwInfo?.is_ec_logo);
   const activeLogoModes = isEcDirectLogo ? EC_LOGO_MODES : LOGO_MODES;
   const isLogoSupported = Boolean(kbHwInfo && kbHwInfo.has_logo);
@@ -35,14 +37,14 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
   }, [isEcDirectLogo, lighting.logo_effect, sendLogo]);
 
   const badgeText = !isLogoSupported
-    ? '未检测到硬件'
+    ? trText('未检测到硬件')
     : isEcDirectLogo
-    ? '主板 EC 直通盾形徽标 (PWM)'
+    ? trText('主板 EC 直通盾形徽标 (PWM)')
     : kbHwInfo?.has_ite7000
-    ? 'ITE 独立徽标控制器 (048D:7000)'
+    ? trText('ITE 独立徽标控制器 (048D:7000)')
     : kbHwInfo?.has_ite7001
-    ? 'ITE 独立炫彩徽标控制器 (048D:7001 文字徽标)'
-    : '全彩发光徽标控制器';
+    ? trText('ITE 独立炫彩徽标控制器 (048D:7001 文字徽标)')
+    : trText('全彩发光徽标控制器');
 
   const badgeVariant = !isLogoSupported
     ? 'default'
@@ -51,10 +53,10 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
     : 'accent';
 
   const description = !isLogoSupported
-    ? '当前机型模具未配置独立 A 面发光徽标硬件，功能已智能停用'
+    ? trText('当前机型模具未配置独立 A 面发光徽标硬件，功能已智能停用')
     : isEcDirectLogo
-    ? '主板 EC 单区硬件直通调控 (盾形徽标，支持单色常亮、呼吸与彩虹呼吸模式)'
-    : 'A面独立炫彩发光徽标 (支持跑马灯、波浪、对冲、流星等全彩流光动效)';
+    ? trText('主板 EC 单区硬件直通调控 (盾形徽标，支持单色常亮、呼吸与彩虹呼吸模式)')
+    : trText('A面独立炫彩发光徽标 (支持跑马灯、波浪、对冲、流星等全彩流光动效)');
 
   return (
     <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -152,7 +154,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
               }}
             />
             <div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>LOGO 即时色彩</div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{trText('LOGO 即时色彩')}</div>
               <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                 RGB: {lighting.logo_color.toUpperCase()}
               </div>
@@ -162,7 +164,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
 
         {/* Right: Color Presets & Direct Picker */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>色彩参考与快速应用：</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{trText('色彩参考与快速应用：')}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {PRESET_COLORS.map((c) => {
               const isSelected = lighting.logo_color.toLowerCase() === c.hex.toLowerCase();
@@ -191,7 +193,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>色盘自定义：</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{trText('色盘自定义：')}</span>
             <input
               type="color"
               value={lighting.logo_color}

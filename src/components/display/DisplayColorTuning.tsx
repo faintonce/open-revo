@@ -1,6 +1,7 @@
 import React from 'react';
 import { Palette, Sliders } from 'lucide-react';
 import { DisplayTuningState } from '../../types/hardware';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface DisplayColorTuningProps {
   tuningState: DisplayTuningState | null;
@@ -17,6 +18,7 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
   onToggle,
   onOpenModal,
 }) => {
+  useI18n();
   const enabled = !!tuningState?.enabled;
 
   return (
@@ -55,7 +57,7 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
           <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
             {enabled
               ? `当前方案：${tuningState!.active_preset.name}`
-              : '当前状态：已关闭 (原厂直出)'}
+              : trText('当前状态：已关闭 (原厂直出)')}
           </div>
         </div>
       </div>
@@ -75,7 +77,7 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
             title="打开全屏沉浸式调色控制面板"
           >
             <Sliders size={13} />
-            <span>调色控制</span>
+            <span>{trText('调色控制')}</span>
           </button>
         )}
 
@@ -97,7 +99,7 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
             boxShadow: enabled ? '0 0 10px rgba(236, 72, 153, 0.5)' : 'none',
             flexShrink: 0,
           }}
-          title={enabled ? '点击关闭色彩增强' : '点击开启色彩增强'}
+          title={enabled ? '点击关闭色彩增强' : trText('点击开启色彩增强')}
         >
           <div
             style={{

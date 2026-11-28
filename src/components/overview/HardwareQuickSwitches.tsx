@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { HardwareState } from '../../types/hardware';
 import { OsdConfig } from '../SystemSettingsView';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface QuickSwitchesState {
   wifi: boolean;
@@ -37,6 +38,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
   osdConfig,
   onUpdateOsdConfig: handleUpdateOsdConfig,
 }) => {
+  useI18n();
   const [switches, setSwitches] = useState<QuickSwitchesState>({
     wifi: true,
     bluetooth: true,
@@ -191,7 +193,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Bluetooth className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">蓝牙</div>
+          <div className="oem-switch-title">{trText('蓝牙')}</div>
         </div>
 
         {/* 3. 触摸板开关 */}
@@ -212,7 +214,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
               <line x1="12" y1="14" x2="12" y2="20" />
             </svg>
           </div>
-          <div className="oem-switch-title">触摸板</div>
+          <div className="oem-switch-title">{trText('触摸板')}</div>
         </div>
 
         {/* 4. 网络摄像头开关 */}
@@ -229,7 +231,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Camera className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">摄像头</div>
+          <div className="oem-switch-title">{trText('摄像头')}</div>
         </div>
 
         {/* 5. 麦克风全局开关 (与摄像头相邻) */}
@@ -246,7 +248,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             {switches.mic ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-rose-400" />}
           </div>
-          <div className="oem-switch-title">{switches.mic ? '麦克风' : '麦克风静音'}</div>
+          <div className="oem-switch-title">{switches.mic ? '麦克风' : trText('麦克风静音')}</div>
         </div>
 
         {/* 6. OSD 悬浮显示开关 */}
@@ -263,7 +265,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Monitor className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">OSD显示</div>
+          <div className="oem-switch-title">{trText('OSD显示')}</div>
         </div>
 
         {/* 7. Win 键 (Only show if hardware supports it) */}
@@ -283,7 +285,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
                 <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801" />
               </svg>
             </div>
-            <div className="oem-switch-title">Win键锁</div>
+            <div className="oem-switch-title">{trText('Win键锁')}</div>
           </div>
         )}
 
@@ -291,7 +293,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {status.support_flags?.has_fn_lock !== false && (
           <div
             onClick={() => handleToggleSwitch('fn_lock')}
-            title={switches.fn_lock ? 'Fn 锁已开启：需按 Fn 组合键' : 'Fn 锁已关闭：F1-F12 键直接触发'}
+            title={switches.fn_lock ? 'Fn 锁已开启：需按 Fn 组合键' : trText('Fn 锁已关闭：F1-F12 键直接触发')}
             className={`oem-switch-card ${switches.fn_lock ? 'active' : ''} ${togglingSwitches.fn_lock ? 'opacity-60 cursor-wait' : ''}`}
           >
             <div className="oem-bracket-tl" />
@@ -320,7 +322,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Coffee className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">防休眠</div>
+          <div className="oem-switch-title">{trText('防休眠')}</div>
         </div>
 
         {/* 10. 关闭屏幕 (3秒防外设误触唤醒) */}
@@ -343,7 +345,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             <Moon className="w-4 h-4" />
           </div>
-          <div className="oem-switch-title">关闭屏幕</div>
+          <div className="oem-switch-title">{trText('关闭屏幕')}</div>
         </div>
       </div>
     </div>

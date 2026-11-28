@@ -12,6 +12,7 @@ import {
 import { HardwareState } from '../../types/hardware';
 
 import { ModelCapabilities } from '../../plugins/plugin_manifest';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface QuickActionCardsProps {
   status: HardwareState;
@@ -29,6 +30,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
   onSwitchRefreshRate,
   checkOemGuard,
 }) => {
+  useI18n();
   const [autoMinRefresh, setAutoMinRefresh] = useState(status.auto_min_refresh_on_battery ?? false);
   const [bldRpm, setBldRpm] = useState<number>(() => {
     const saved = localStorage.getItem('openrevo_bld_target_rpm');
@@ -149,7 +151,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
             <div className="bld-fan-header">
               <div className="bld-fan-title-group">
                 <Fan className={`w-3.5 h-3.5 flex-shrink-0 ${status.fan_boost ? 'text-cyan-400 animate-spin' : 'text-cyan-400'}`} />
-                <span className="bld-fan-title">强冷锁速</span>
+                <span className="bld-fan-title">{trText('强冷锁速')}</span>
                 <span className={`bld-fan-rpm-badge ${status.fan_boost ? '' : 'inactive'}`}>
                   {bldRpm} RPM
                 </span>
@@ -157,9 +159,9 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
               <button
                 onClick={handleBldSwitchToggle}
                 className={`bld-fan-switch ${status.fan_boost ? 'active' : ''}`}
-                title={status.fan_boost ? '点击关闭转速锁定，恢复原厂自动温控' : '点击开启风扇锁定'}
+                title={status.fan_boost ? '点击关闭转速锁定，恢复原厂自动温控' : trText('点击开启风扇锁定')}
               >
-                {status.fan_boost ? '已锁定' : '自动'}
+                {status.fan_boost ? '已锁定' : trText('自动')}
               </button>
             </div>
             <div className="bld-fan-slider-row">
@@ -191,15 +193,15 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Fan className="w-5 h-5 text-cyan-400 flex-shrink-0" />
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 600 }}>一键强冷</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>最高转速极限降温</div>
+                <div style={{ fontSize: '12px', fontWeight: 600 }}>{trText('一键强冷')}</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>{trText('最高转速极限降温')}</div>
               </div>
             </div>
             <button
               onClick={() => checkOemGuard(onToggleFanBoost)}
               className={`toggle-btn ${status.fan_boost ? 'active-cyan' : ''}`}
             >
-              {status.fan_boost ? '已开启' : '关闭'}
+              {status.fan_boost ? '已开启' : trText('关闭')}
             </button>
           </div>
         )
@@ -220,15 +222,15 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <ZapOff className={`w-5 h-5 ${autoMinRefresh ? 'text-indigo-400' : 'text-slate-400'} flex-shrink-0`} />
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 600 }}>拔电自动低刷</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>离电续航最大化</div>
+            <div style={{ fontSize: '12px', fontWeight: 600 }}>{trText('拔电自动低刷')}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>{trText('离电续航最大化')}</div>
           </div>
         </div>
         <button
           onClick={handleToggleAutoMinRefresh}
           className={`toggle-btn ${autoMinRefresh ? 'active-indigo' : ''}`}
         >
-          {autoMinRefresh ? '已开启' : '关闭'}
+          {autoMinRefresh ? '已开启' : trText('关闭')}
         </button>
       </div>
 
@@ -248,10 +250,10 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px', flexShrink: 0 }}>
           <Monitor className="w-5 h-5 text-indigo-400 flex-shrink-0" />
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 600 }}>屏幕刷新率</div>
+            <div style={{ fontSize: '12px', fontWeight: 600 }}>{trText('屏幕刷新率')}</div>
             {monitors.length <= 1 ? (
               <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                {activeMon ? activeMon.friendly_name : '2.5K 屏'}
+                {activeMon ? activeMon.friendly_name : trText('2.5K 屏')}
               </div>
             ) : (
               /* 多屏微型下拉选择器 */
@@ -264,7 +266,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                     {activeMon?.is_internal ? <Laptop size={11} /> : <Tv size={11} />}
-                    {activeMon?.friendly_name?.split(' ')[0] || '屏幕'}
+                    {activeMon?.friendly_name?.split(' ')[0] || trText('屏幕')}
                   </span>
                   <ChevronDown size={10} />
                 </button>

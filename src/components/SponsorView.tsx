@@ -3,8 +3,10 @@ import { Heart, Star, Coffee, ExternalLink, Check, Copy, ShieldAlert } from 'luc
 import { invoke } from '@tauri-apps/api/core';
 import alipayQr from '../../src-tauri/crates/openrevo-main/ui/assets/sponsor/alipay.jpg';
 import wechatQr from '../../src-tauri/crates/openrevo-main/ui/assets/sponsor/wechat.jpg';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 export const SponsorView: React.FC = () => {
+  useI18n();
   const [copied, setCopied] = useState(false);
   const githubUrl = 'https://github.com/faintonce/open-revo'; // 开源项目地址
 
@@ -136,7 +138,7 @@ export const SponsorView: React.FC = () => {
             }}
           >
             <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-            <span>GitHub Star 点赞</span>
+            <span>{trText('GitHub Star 点赞')}</span>
             <ExternalLink className="w-3 h-3 text-rose-200" />
           </button>
           <button
@@ -158,7 +160,7 @@ export const SponsorView: React.FC = () => {
             }}
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? '已复制开源链接' : '复制 GitHub 链接'}</span>
+            <span>{copied ? '已复制开源链接' : trText('复制 GitHub 链接')}</span>
           </button>
         </div>
       </div>
@@ -178,7 +180,7 @@ export const SponsorView: React.FC = () => {
       >
         <ShieldAlert size={22} color="#ef4444" style={{ flexShrink: 0 }} />
         <div style={{ fontSize: '11px', color: '#fca5a5', lineHeight: 1.5 }}>
-          <strong style={{ color: '#fff', marginRight: '6px' }}>【反盗版与防倒卖郑重声明】</strong>
+          <strong style={{ color: '#fff', marginRight: '6px' }}>{trText('【反盗版与防倒卖郑重声明】')}</strong>
           OpenRevo 为 100% 完全免费、公开透明的开源软件，从未授权任何第三方付费分发、加壳改名或二次倒卖。若您通过海鲜市场、贴吧等任何渠道付费购买，请立即向平台申请全额退款并举报不良商家！
         </div>
       </div>
@@ -362,7 +364,7 @@ export const SponsorView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Coffee className="w-4 h-4 text-amber-400" />
           <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-            <strong>打赏须知：</strong> 赞赏完全基于自愿原则，无论是否赞助均享有软件 100% 完整功能与终身免费更新，感谢每一位关注与支持机械革命开源生态的玩家！
+            <strong>{trText('打赏须知：')}</strong> 赞赏完全基于自愿原则，无论是否赞助均享有软件 100% 完整功能与终身免费更新，感谢每一位关注与支持机械革命开源生态的玩家！
           </div>
         </div>
       </div>

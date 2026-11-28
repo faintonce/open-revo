@@ -7,6 +7,7 @@ import {
 } from './lightingConstants';
 import { LightHeaderBanner } from './LightHeaderBanner';
 import { LightColorRow } from './LightColorRow';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface AmbientLightingViewProps {
   lighting: LightingState;
@@ -19,15 +20,16 @@ export const AmbientLightingView: React.FC<AmbientLightingViewProps> = ({
   kbHwInfo,
   sendHinge,
 }) => {
+  useI18n();
   const isHingeSupported = Boolean(kbHwInfo && kbHwInfo.has_hinge);
 
   return (
     <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <LightHeaderBanner
         title="机身尾部氛围灯 (Rear Vent & Hinge Ambient Light)"
-        badgeText={kbHwInfo?.has_ite7000 ? 'ITE Hinge 控制器 (048D:7000)' : '转轴氛围流光硬件'}
+        badgeText={kbHwInfo?.has_ite7000 ? 'ITE Hinge 控制器 (048D:7000)' : trText('转轴氛围流光硬件')}
         badgeVariant="info"
-        description="机身尾部双出风口与转轴氛围流光灯，支持双模波浪、律动呼吸与极速流星"
+        description={trText("机身尾部双出风口与转轴氛围流光灯，支持双模波浪、律动呼吸与极速流星")}
         enabled={lighting.hinge_enabled}
         onToggle={() => sendHinge({ hinge_enabled: !lighting.hinge_enabled })}
         disabled={!isHingeSupported}

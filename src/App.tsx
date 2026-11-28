@@ -6,6 +6,7 @@ import { HardwareState, PowerMode } from './types/hardware';
 import { MiniDrawer } from './components/MiniDrawer';
 import { FullDashboard } from './components/FullDashboard';
 import { ModelCapabilities } from './plugins/plugin_manifest';
+import { trText, useI18n } from './i18n/I18nContext';
 
 const BLD_PREVIEW_STATE: HardwareState = {
   power_mode: 2,
@@ -29,7 +30,7 @@ const BLD_PREVIEW_STATE: HardwareState = {
   monitors: [
     {
       device_name: 'DISPLAY1',
-      friendly_name: '内嵌屏 [2.5K 16:10]',
+      friendly_name: trText('内嵌屏 [2.5K 16:10]'),
       is_primary: true,
       is_internal: true,
       width: 2560,
@@ -127,6 +128,7 @@ const DEFAULT_STATE: HardwareState = {
 };
 
 export default function App() {
+  useI18n();
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const isBldPreview = urlParams?.get('preview') === 'bld';
 

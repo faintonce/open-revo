@@ -14,6 +14,7 @@ import { PluginTabHost } from './PluginTabHost';
 import { ModuleErrorBoundary } from './ModuleErrorBoundary';
 import { BUILTIN_MODULE_SLOTS, BuiltinTabId, isSlotActive, ModelCapabilities } from '../plugins/plugin_manifest';
 import logoImg from '../assets/logo.png';
+import { trText, useI18n } from '../i18n/I18nContext';
 import {
   Palette,
   Minimize2,
@@ -80,6 +81,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
   previewMode: propPreviewMode,
   onPreviewFormFactor: propOnPreviewFormFactor,
 }) => {
+  useI18n();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab || 'overview');
   const [isCustomTuningOpen, setIsCustomTuningOpen] = useState(initialOpenCustomTuning);
   const [showOemModal, setShowOemModal] = useState(false);
@@ -496,7 +498,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
               }}
             >
               {isSwitchingService ? <Loader2 size={11} className="animate-spin" /> : <Shield size={11} />}
-              <span>接管官方控制台</span>
+              <span>{trText('接管官方控制台')}</span>
             </button>
           )}
 
@@ -504,7 +506,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
           {onToggleTheme && (
             <button
               onClick={onToggleTheme}
-              title={theme === 'mono' ? '切换到：多彩风格' : '切换到：极致单色工业风'}
+              title={theme === 'mono' ? '切换到：多彩风格' : trText('切换到：极致单色工业风')}
               style={{
                 background: theme === 'cyber' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
                 border: theme === 'cyber' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -540,13 +542,13 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             }}
           >
             <Minimize2 className="w-3 h-3" />
-            <span>迷你模式</span>
+            <span>{trText('迷你模式')}</span>
           </button>
 
           {/* 窗口 / 全屏切换 */}
           <button
             onClick={handleToggleMaximize}
-            title={isMaximized ? '还原为 960×740 窗口模式' : '最大化全屏显示'}
+            title={isMaximized ? '还原为 960×740 窗口模式' : trText('最大化全屏显示')}
             style={{
               background: 'transparent',
               border: '1px solid rgba(255,255,255,0.1)',
@@ -561,7 +563,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             }}
           >
             {isMaximized ? <Copy className="w-3 h-3" /> : <Square className="w-3 h-3" />}
-            <span>{isMaximized ? '窗口' : '全屏'}</span>
+            <span>{isMaximized ? '窗口' : trText('全屏')}</span>
           </button>
 
           <button
@@ -663,25 +665,25 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'gpu' && (
-          <ModuleErrorBoundary moduleName="显卡模式" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName={trText("显卡模式")} onNavigateToOverview={() => setActiveTab('overview')}>
             <GpuModeView />
           </ModuleErrorBoundary>
         )}
 
         {activeTab === 'tuning' && (
-          <ModuleErrorBoundary moduleName="电源管理" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName={trText("电源管理")} onNavigateToOverview={() => setActiveTab('overview')}>
             <PowerTuningView />
           </ModuleErrorBoundary>
         )}
 
         {activeTab === 'lighting' && (
-          <ModuleErrorBoundary moduleName="RGB 灯效工坊" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName={trText("RGB 灯效工坊")} onNavigateToOverview={() => setActiveTab('overview')}>
             <LightingStudio supportFlags={status.support_flags} />
           </ModuleErrorBoundary>
         )}
 
         {activeTab === 'water' && isWaterCoolerEnabled && (
-          <ModuleErrorBoundary moduleName="水冷魔盒 (BLE)" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName={trText("水冷魔盒 (BLE)")} onNavigateToOverview={() => setActiveTab('overview')}>
             <WaterCoolerView
               status={status}
               onConnectionChange={setIsCoolerConnected}
@@ -690,7 +692,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'system' && (
-          <ModuleErrorBoundary moduleName="系统设置" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName={trText("系统设置")} onNavigateToOverview={() => setActiveTab('overview')}>
             <SystemSettingsView
               status={status}
               osdConfig={osdConfig}
@@ -708,7 +710,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'plugins' && (
-          <ModuleErrorBoundary moduleName="插件管理" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName={trText("插件管理")} onNavigateToOverview={() => setActiveTab('overview')}>
             <PluginsView
               status={status}
               moduleToggles={moduleToggles}
@@ -729,7 +731,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         )}
 
         {activeTab === 'sponsor' && (
-          <ModuleErrorBoundary moduleName="支持作者" onNavigateToOverview={() => setActiveTab('overview')}>
+          <ModuleErrorBoundary moduleName={trText("支持作者")} onNavigateToOverview={() => setActiveTab('overview')}>
             <SponsorView />
           </ModuleErrorBoundary>
         )}
@@ -737,7 +739,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
         {/* 第三方 Tab 插件渲染沙盒 */}
         {tabPlugins.some((p) => p.id === activeTab) && (
           <ModuleErrorBoundary
-            moduleName={tabPlugins.find((p) => p.id === activeTab)?.name || '扩展模块'}
+            moduleName={tabPlugins.find((p) => p.id === activeTab)?.name || trText('扩展模块')}
             onNavigateToOverview={() => setActiveTab('overview')}
           >
             <PluginTabHost
@@ -772,10 +774,10 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
               <div className="sys-modal-icon-badge">
                 <Shield size={24} />
               </div>
-              <div className="sys-modal-title">官方控制中心正在运行</div>
+              <div className="sys-modal-title">{trText('官方控制中心正在运行')}</div>
             </div>
             <div className="sys-modal-body">
-              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>屏幕持续闪烁</strong>，当前处于<strong>安全只读避让模式</strong>。
+              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>{trText('屏幕持续闪烁')}</strong>{trText('，当前处于')}<strong>{trText('安全只读避让模式')}</strong>。
             </div>
             <div className="sys-modal-actions">
               <button
@@ -784,7 +786,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
                 className="toggle-btn btn-warning-solid"
               >
                 {isSwitchingService ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
-                <span>{isSwitchingService ? '正在接管服务并释放硬件...' : '立即一键接管官方服务'}</span>
+                <span>{isSwitchingService ? '正在接管服务并释放硬件...' : trText('立即一键接管官方服务')}</span>
               </button>
               <button
                 onClick={() => setShowOemModal(false)}

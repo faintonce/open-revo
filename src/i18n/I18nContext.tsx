@@ -19,6 +19,7 @@ interface I18nContextValue {
   availableLocales: LocaleMetaOption[];
   i18n: LocaleBundle;
   localeFeedback: string;
+  tr: (keyOrZh: string) => string;
   setLocale: (code: string) => Promise<void>;
   openLocalesDir: () => Promise<void>;
   exportTemplate: () => Promise<void>;
@@ -29,11 +30,52 @@ const DEFAULT_LOCALES: LocaleMetaOption[] = [
   { code: 'en-US', name: 'English', font_priority: 'segoe', is_builtin: true, is_external: false },
 ];
 
+const ZH_TO_KEY_MAP = new Map<string, string>();
+for (const [mod, sec] of Object.entries(zhCN as Record<string, any>)) {
+  if (mod === '_meta' || !sec || typeof sec !== 'object') continue;
+  for (const [k, v] of Object.entries(sec)) {
+    if (typeof v === 'string' && !ZH_TO_KEY_MAP.has(v)) {
+      ZH_TO_KEY_MAP.set(v, `${mod}.${k}`);
+    }
+  }
+}
+
+let activeBundleRef: Record<string, any> = zhCN as Record<string, any>;
+
+function lookupDotPath(bundle: Record<string, any>, dotPath: string): string | undefined {
+  const idx = dotPath.indexOf('.');
+  if (idx <= 0) return undefined;
+  const mod = dotPath.slice(0, idx);
+  const key = dotPath.slice(idx + 1);
+  const val = bundle?.[mod]?.[key];
+  return typeof val === 'string' ? val : undefined;
+}
+
+export function trText(keyOrZh: string): string {
+  if (!keyOrZh) return keyOrZh;
+  const trimmed = keyOrZh.trim();
+  const byKey = lookupDotPath(activeBundleRef, trimmed);
+  if (byKey !== undefined) return byKey;
+
+  const mappedKey = ZH_TO_KEY_MAP.get(trimmed) ?? ZH_TO_KEY_MAP.get(keyOrZh);
+  if (mappedKey) {
+    const resolved = lookupDotPath(activeBundleRef, mappedKey);
+    if (resolved !== undefined) {
+      if (trimmed !== keyOrZh) {
+        return keyOrZh.replace(trimmed, resolved);
+      }
+      return resolved;
+    }
+  }
+  return keyOrZh;
+}
+
 const I18nContext = createContext<I18nContextValue>({
   locale: 'zh-CN',
   availableLocales: DEFAULT_LOCALES,
   i18n: zhCN,
   localeFeedback: '',
+  tr: trText,
   setLocale: async () => {},
   openLocalesDir: async () => {},
   exportTemplate: async () => {},
@@ -69,12 +111,15 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAvailableLocales(payload.available_locales);
     }
     if (payload.bundle && typeof payload.bundle === 'object') {
+      activeBundleRef = payload.bundle as Record<string, any>;
       setBundle(payload.bundle as LocaleBundle);
       applyFontPriority(payload.bundle);
     } else if (payload.locale === 'en-US') {
+      activeBundleRef = enUS as Record<string, any>;
       setBundle(enUS);
       applyFontPriority(enUS);
     } else if (payload.locale === 'zh-CN') {
+      activeBundleRef = zhCN as Record<string, any>;
       setBundle(zhCN);
       applyFontPriority(zhCN);
     }
@@ -92,6 +137,14 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unlistenPromise.then((fn) => fn()).catch(() => {});
     };
   }, [applyPayload]);
+
+  const tr = useCallback(
+    (keyOrZh: string) => {
+      void bundle;
+      return trText(keyOrZh);
+    },
+    [bundle],
+  );
 
   const setLocale = useCallback(async (code: string) => {
     try {
@@ -127,6 +180,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
         availableLocales,
         i18n: bundle,
         localeFeedback,
+        tr,
         setLocale,
         openLocalesDir,
         exportTemplate,

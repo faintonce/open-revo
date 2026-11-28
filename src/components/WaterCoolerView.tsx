@@ -13,6 +13,7 @@ import { CoolerPresetCards } from './water_cooler/CoolerPresetCards';
 import { CoolerCurvePanel } from './water_cooler/CoolerCurvePanel';
 import { CoolerManualRgbPanel } from './water_cooler/CoolerManualRgbPanel';
 import { CoolerDeviceSelectorModal } from './water_cooler/CoolerDeviceSelectorModal';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 export type { CoolerTelemetry, CoolerCurvePoint, WaterCoolerDevice };
 
@@ -25,6 +26,7 @@ export const WaterCoolerView: React.FC<WaterCoolerViewProps> = ({
   status,
   onConnectionChange,
 }) => {
+  useI18n();
   const [coolerData, setCoolerData] = useState<CoolerTelemetry>({
     connected: false,
     is_flow_ok: true,
@@ -173,7 +175,7 @@ export const WaterCoolerView: React.FC<WaterCoolerViewProps> = ({
       }, 1200);
     } catch (e) {
       console.error('Failed to connect cooler:', e);
-      setPairMsg({ status: 'error', text: '连接水冷箱超时，请确认水冷魔盒通电并在蓝牙覆盖范围内' });
+      setPairMsg({ status: 'error', text: trText('连接水冷箱超时，请确认水冷魔盒通电并在蓝牙覆盖范围内') });
       setTimeout(() => setPairMsg(null), 4000);
     } finally {
       setTimeout(() => setIsCoolerConnecting(false), 800);
@@ -223,7 +225,7 @@ export const WaterCoolerView: React.FC<WaterCoolerViewProps> = ({
     try {
       await invoke('fill_water_cooler');
       setCoolerData((prev) => ({ ...prev, is_priming: true }));
-      setPairMsg({ status: 'success', text: '已启动注水排气流程（水泵将脉冲启停 8 次排除管路气泡）' });
+      setPairMsg({ status: 'success', text: trText('已启动注水排气流程（水泵将脉冲启停 8 次排除管路气泡）') });
       setTimeout(() => setPairMsg(null), 4000);
     } catch (e) {
       console.error('Failed to start fill water:', e);
@@ -237,7 +239,7 @@ export const WaterCoolerView: React.FC<WaterCoolerViewProps> = ({
       if (res) {
         setCoolerData(res);
       }
-      setPairMsg({ status: 'disconnect', text: '已安全断开水冷箱连接，水泵与冷排已停机' });
+      setPairMsg({ status: 'disconnect', text: trText('已安全断开水冷箱连接，水泵与冷排已停机') });
       setTimeout(() => setPairMsg(null), 3500);
     } catch (e) {
       console.error('Failed to disconnect cooler:', e);
@@ -251,7 +253,7 @@ export const WaterCoolerView: React.FC<WaterCoolerViewProps> = ({
       const res = await invoke<CoolerTelemetry>('reset_water_cooler');
       if (res) {
         setCoolerData(res);
-        setPairMsg({ status: 'success', text: '已恢复出厂策略：水泵标准巡航 / 冷排 75% / 幻彩流光 RGB' });
+        setPairMsg({ status: 'success', text: trText('已恢复出厂策略：水泵标准巡航 / 冷排 75% / 幻彩流光 RGB') });
         setTimeout(() => setPairMsg(null), 3500);
       }
     } catch (e) {

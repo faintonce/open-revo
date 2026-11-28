@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { WaterCoolerDevice } from './coolerTypes';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface CoolerDeviceSelectorModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
   currentMac,
   onSelectDevice,
 }) => {
+  useI18n();
   const [devices, setDevices] = useState<WaterCoolerDevice[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [selectingMac, setSelectingMac] = useState<string | null>(null);
@@ -38,11 +40,11 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
       const list = await invoke<WaterCoolerDevice[]>('scan_water_cooler_devices');
       setDevices(list || []);
       if (!list || list.length === 0) {
-        setErrorMsg('未搜索到附近的机械革命水冷魔盒，请确认水冷已通电且蓝牙正常广播');
+        setErrorMsg(trText('未搜索到附近的机械革命水冷魔盒，请确认水冷已通电且蓝牙正常广播'));
       }
     } catch (e: any) {
       console.error('Failed to scan water coolers:', e);
-      setErrorMsg(typeof e === 'string' ? e : '扫描失败，请确认系统蓝牙已开启');
+      setErrorMsg(typeof e === 'string' ? e : trText('扫描失败，请确认系统蓝牙已开启'));
     } finally {
       setIsScanning(false);
     }
@@ -65,7 +67,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
       onClose();
     } catch (e: any) {
       console.error('Failed to select water cooler:', e);
-      setErrorMsg(typeof e === 'string' ? e : '连接切换失败，请重试');
+      setErrorMsg(typeof e === 'string' ? e : trText('连接切换失败，请重试'));
     } finally {
       setSelectingMac(null);
     }
@@ -90,7 +92,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
     const isStrong = rssi >= -65;
     const isMedium = rssi >= -80 && rssi < -65;
     const color = isStrong ? 'var(--status-ok)' : isMedium ? 'var(--status-info)' : 'var(--status-warning)';
-    const text = isStrong ? '信号极强 (推荐本机)' : isMedium ? '信号良好' : '信号较弱 (疑似邻机)';
+    const text = isStrong ? '信号极强 (推荐本机)' : isMedium ? '信号良好' : trText('信号较弱 (疑似邻机)');
 
     return (
       <span
@@ -125,7 +127,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
               <Radio size={18} />
             </div>
             <div>
-              <div className="sys-modal-title">专属水冷魔盒匹配与防串连绑定</div>
+              <div className="sys-modal-title">{trText('专属水冷魔盒匹配与防串连绑定')}</div>
               <div className="sys-modal-subtitle">
                 多台电脑在同一局域空间时，请绑定选择专属水冷箱以防止误连邻机
               </div>
@@ -136,7 +138,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
             className="toggle-btn"
             onClick={onClose}
             style={{ padding: '6px', minWidth: 'auto', borderRadius: 'var(--radius-sm)' }}
-            title="关闭"
+            title={trText("关闭")}
           >
             <X size={15} />
           </button>
@@ -170,7 +172,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
               }}
             >
               <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
-              <span>{isScanning ? '正在扫描周围 BLE 设备...' : '重新扫描设备'}</span>
+              <span>{isScanning ? '正在扫描周围 BLE 设备...' : trText('重新扫描设备')}</span>
             </button>
           </div>
 
@@ -364,7 +366,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
           >
             <Lock size={13} style={{ color: 'var(--status-ok)', flexShrink: 0 }} />
             <span>
-              <strong>专属硬件锁定机制已就绪</strong>：锁定后软件仅允许与指定物理 MAC
+              <strong>{trText('专属硬件锁定机制已就绪')}</strong>：锁定后软件仅允许与指定物理 MAC
               的水冷箱建立会话，即使周围有同款水冷广播也绝不自动串连。
             </span>
           </div>

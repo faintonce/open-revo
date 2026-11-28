@@ -7,6 +7,7 @@ import { OsdConfig } from './SystemSettingsView';
 import { HardwareStatCards } from './overview/HardwareStatCards';
 import { QuickActionCards } from './overview/QuickActionCards';
 import { HardwareQuickSwitches, QuickSwitchesState } from './overview/HardwareQuickSwitches';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 export type { QuickSwitchesState };
 
@@ -37,6 +38,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   checkOemGuard,
   profileVersion = 0,
 }) => {
+  useI18n();
   const [activeCustomProfile, setActiveCustomProfile] = useState<{
     cpu_pl1_watts: number;
     gpu_ctgp_enabled: boolean;
@@ -83,7 +85,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       }
 
       return {
-        label: '当前设定',
+        label: trText('当前设定'),
         pl1,
         tgp,
       };
@@ -97,7 +99,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       const pl1Val = capabilities.power_mode_watts[modeKey];
       if (pl1Val !== undefined) {
         return {
-          label: '原厂目标',
+          label: trText('原厂目标'),
           pl1: pl1Val,
           tgp: 0,
         };
@@ -109,7 +111,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     if (isPureIgpu) {
       const thinLightPl1 = status.power_mode === 1 ? 35 : status.power_mode === 3 ? 54 : 45;
       return {
-        label: '原厂目标',
+        label: trText('原厂目标'),
         pl1: thinLightPl1,
         tgp: 0,
       };
@@ -144,7 +146,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     }
 
     return {
-      label: presets?.hardware_read ? '原厂目标' : '参考值 (读取预设值失败)',
+      label: presets?.hardware_read ? '原厂目标' : trText('参考值 (读取预设值失败)'),
       pl1,
       tgp,
     };

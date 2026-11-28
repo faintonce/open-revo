@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Compass, Upload, Trash2, Laptop, Tv, ChevronDown, Check } from 'lucide-react';
 
 import { ColorCalibrationState } from '../GpuModeView';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface DisplayColorCalibrationProps {
   calibrationState: ColorCalibrationState | null;
@@ -27,6 +28,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
   onDelete,
   onSelectMonitor,
 }) => {
+  useI18n();
   const [showMonMenu, setShowMonMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -148,7 +150,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 {currentMon?.is_internal ? <Laptop size={11} /> : <Tv size={11} />}
-                {currentMon?.friendly_name?.split(' ')[0] || '屏幕'}
+                {currentMon?.friendly_name?.split(' ')[0] || trText('屏幕')}
               </span>
               <ChevronDown size={10} />
             </button>
@@ -231,10 +233,10 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             color: isDirty ? 'var(--status-info)' : 'var(--text-dim)',
             transition: 'all var(--transition-fast)',
           }}
-          title={isDirty ? '点击立即将此校色方案应用至屏幕硬件 LUT 与 Windows 颜色管理' : '当前方案已生效'}
+          title={isDirty ? '点击立即将此校色方案应用至屏幕硬件 LUT 与 Windows 颜色管理' : trText('当前方案已生效')}
         >
           <Check size={12} />
-          <span>应用</span>
+          <span>{trText('应用')}</span>
         </button>
 
         {/* Hidden file input */}
@@ -261,7 +263,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
           title="导入外部 .icm / .icc 校色文件"
         >
           <Upload size={12} />
-          <span>导入</span>
+          <span>{trText('导入')}</span>
         </button>
 
         {/* Delete (only for custom profiles) */}
@@ -275,7 +277,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             cursor: isCustomProfileActive && !isCalibrating ? 'pointer' : 'not-allowed',
             padding: '4px 7px',
           }}
-          title={isCustomProfileActive ? '删除此自定义校色文件' : '出厂与系统内置方案不可删除'}
+          title={isCustomProfileActive ? '删除此自定义校色文件' : trText('出厂与系统内置方案不可删除')}
         >
           <Trash2 size={12} />
         </button>

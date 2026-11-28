@@ -13,6 +13,7 @@ import {
   Type,
 } from 'lucide-react';
 import { PRESET_COLORS } from '../lightingConstants';
+import { trText, useI18n } from '../../../i18n/I18nContext';
 
 export interface BrfxTuningValues {
   speed: number;       // 0.2 ~ 3.0
@@ -36,6 +37,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
   onChange,
   onReset,
 }) => {
+  useI18n();
   const isModified =
     Math.abs(values.speed - baselineValues.speed) > 0.05 ||
     Math.abs(values.scale - baselineValues.scale) > 0.05 ||
@@ -83,7 +85,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           }}
         >
           <Undo2 size={11} />
-          <span>恢复默认</span>
+          <span>{trText('恢复默认')}</span>
         </button>
       </div>
 
@@ -159,10 +161,10 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           </span>
           <div style={{ display: 'flex', gap: '4px' }}>
             {[
-              { id: 0, icon: ArrowRight, label: '从左至右' },
-              { id: 1, icon: ArrowLeft, label: '从右至左' },
-              { id: 2, icon: ArrowUp, label: '从下至上' },
-              { id: 3, icon: ArrowDown, label: '从上至下' },
+              { id: 0, icon: ArrowRight, label: trText('从左至右') },
+              { id: 1, icon: ArrowLeft, label: trText('从右至左') },
+              { id: 2, icon: ArrowUp, label: trText('从下至上') },
+              { id: 3, icon: ArrowDown, label: trText('从上至下') },
             ].map((d) => {
               const Icon = d.icon;
               const active = values.direction === d.id;
@@ -218,7 +220,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
             }}
           >
             <Activity size={13} />
-            <span>击键互动: {values.reactive ? '开启' : '关闭'}</span>
+            <span>击键互动: {values.reactive ? '开启' : trText('关闭')}</span>
           </button>
         </div>
       </div>
@@ -284,15 +286,15 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
               <Type size={12} style={{ color: 'var(--color-brand)' }} />
-              <span>滚动弹幕文本 (实时映射物理键盘)</span>
+              <span>{trText('滚动弹幕文本 (实时映射物理键盘)')}</span>
             </span>
-            <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>支持大写英文、数字与符号</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>{trText('支持大写英文、数字与符号')}</span>
           </div>
           <input
             type="text"
             value={values.customText}
             onChange={(e) => onChange({ customText: e.target.value })}
-            placeholder="输入弹幕文字，例如: I LOVE OPEN-REVO"
+            placeholder={trText("输入弹幕文字，例如: I LOVE OPEN-REVO")}
             style={{
               width: '100%',
               background: 'rgba(0, 0, 0, 0.35)',

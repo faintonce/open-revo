@@ -1,6 +1,7 @@
 import React from 'react';
 import { Palette } from 'lucide-react';
 import { PRESET_COLORS } from './lightingConstants';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 export interface LightColorRowProps {
   label?: string;
@@ -10,11 +11,12 @@ export interface LightColorRowProps {
 }
 
 export const LightColorRow: React.FC<LightColorRowProps> = ({
-  label = '主色调：',
+  label = trText('主色调：'),
   color,
   onChangeColor,
   iconColor = 'var(--color-brand)',
 }) => {
+  useI18n();
   return (
     <div
       className="lighting-sub-panel"

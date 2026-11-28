@@ -7,6 +7,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { CoolerCurvePoint, DEFAULT_COOLER_CURVE } from './coolerTypes';
+import { trText, useI18n } from '../../i18n/I18nContext';
 
 interface CoolerCurvePanelProps {
   strategy?: string;
@@ -33,6 +34,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
   onCurveChange,
   onPumpThresholdsChange,
 }) => {
+  useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(910);
   const [localPumpStart, setLocalPumpStart] = useState<number>(pumpStartTemp ?? 55);
@@ -249,15 +251,15 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '9px', color: 'var(--text-muted)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: 'var(--radius-full)', background: 'var(--status-info)' }} />
-            <span>风扇 (0%~100%)</span>
+            <span>{trText('风扇 (0%~100%)')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: 'var(--radius-full)', background: 'var(--color-brand)' }} />
-            <span>水泵工况 (双杆可拖拽: 启泵/狂暴)</span>
+            <span>{trText('水泵工况 (双杆可拖拽: 启泵/狂暴)')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: 'var(--radius-full)', background: 'var(--status-error)' }} />
-            <span>实时探针</span>
+            <span>{trText('实时探针')}</span>
           </div>
         </div>
       </div>
@@ -538,12 +540,12 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
       {/* 曲线底部预设模板 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '3px', borderTop: '1px solid var(--border-subtle)', fontSize: '9.5px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>曲线预设：</span>
+          <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>{trText('曲线预设：')}</span>
           {[
-            { id: 'standard', label: '出厂智慧 (55°起转)', Icon: Star },
-            { id: 'quiet', label: '极致静音 (65°起转)', Icon: VolumeX },
-            { id: 'aggressive', label: '激进压温 (45°起转)', Icon: Flame },
-            { id: 'linear', label: '线性爬升', Icon: Zap },
+            { id: 'standard', label: trText('出厂智慧 (55°起转)'), Icon: Star },
+            { id: 'quiet', label: trText('极致静音 (65°起转)'), Icon: VolumeX },
+            { id: 'aggressive', label: trText('激进压温 (45°起转)'), Icon: Flame },
+            { id: 'linear', label: trText('线性爬升'), Icon: Zap },
           ].map((t) => {
             const IconComponent = t.Icon;
             const isActive = curveTemplate === t.id;
@@ -577,7 +579,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
 
         <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--status-ok)' }} />
-          <span>内置 3°C 迟滞滤波防抖</span>
+          <span>{trText('内置 3°C 迟滞滤波防抖')}</span>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Zap, Sparkles, Star } from 'lucide-react';
+import { trText, useI18n } from '../../../i18n/I18nContext';
 
 export interface KbEngineSelectorProps {
   engine: 'hardware' | 'streamer' | 'custom';
@@ -18,6 +19,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
   onSelectCustom,
   onChangeFps,
 }) => {
+  useI18n();
   return (
     <div
       style={{
@@ -94,7 +96,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
 
       {engine !== 'hardware' ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>推流高刷帧率:</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{trText('推流高刷帧率:')}</span>
           <div style={{ display: 'flex', gap: '3px' }}>
             {[15, 30, 45, 60].map((fpsVal) => {
               const active = fps === fpsVal;

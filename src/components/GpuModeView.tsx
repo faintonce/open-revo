@@ -22,6 +22,7 @@ import { MiniLedControl } from './display/MiniLedControl';
 import { GpuModeCards, GpuModeInfo, PendingSwitch, NoticeState } from './gpu/GpuModeCards';
 import { getModeTitle, getModeHexDisplay } from './gpu/gpuUtils';
 import { DisplayTuningState, DisplayMonitor } from '../types/hardware';
+import { trText, useI18n } from '../i18n/I18nContext';
 
 // ─── Re-exported types (used by child components / plugin API) ────────────────
 
@@ -63,6 +64,7 @@ export interface GpuCapabilities {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const GpuModeView: React.FC = () => {
+  useI18n();
   // ── GPU mode state ─────────────────────────────────────────────────────────
   const [gpuInfo, setGpuInfo] = useState<GpuModeInfo>({
     current_mode: 'dgpu',
@@ -137,7 +139,7 @@ export const GpuModeView: React.FC = () => {
             enabled: nextVal,
             active_preset_id: 'preset_vibrant',
             active_preset: {
-              id: 'preset_vibrant', name: '多彩鲜艳 (Vibrant)',
+              id: 'preset_vibrant', name: trText('多彩鲜艳 (Vibrant)'),
               color_temp_k: 6500, gain_r: 1.0, gain_g: 1.0, gain_b: 1.0,
               saturation: 1.5, contrast: 1.0, gamma: 1.0, is_builtin: true,
             },
@@ -287,12 +289,12 @@ export const GpuModeView: React.FC = () => {
         type: targetMode !== 'igpu' ? 'warning' : 'info',
         text: targetMode !== 'igpu'
           ? `当前机型为纯核显架构轻薄本（未配备独立显卡与 MUX 切换芯片），不支持切换为【${getModeTitle(targetMode)}】。`
-          : '当前机型为原生纯核显架构，硬件已永久处于【核显模式】，无需切换。',
+          : trText('当前机型为原生纯核显架构，硬件已永久处于【核显模式】，无需切换。'),
       });
       return;
     }
     if (targetMode === 'igpu' && !isTriModeSupported) {
-      setNotice({ type: 'warning', text: gpuInfo.capabilities?.reason_igpu_unsupported || '当前机型模具为双显双模硬件架构，主板无物理核显直连开关，已启用安全保护以防止黑屏变砖。' });
+      setNotice({ type: 'warning', text: gpuInfo.capabilities?.reason_igpu_unsupported || trText('当前机型模具为双显双模硬件架构，主板无物理核显直连开关，已启用安全保护以防止黑屏变砖。') });
       return;
     }
     if (gpuInfo.current_mode === targetMode) {
@@ -343,8 +345,8 @@ export const GpuModeView: React.FC = () => {
         setNotice({
           type: unlock ? 'warning' : 'info',
           text: unlock
-            ? '已启用极客自主免责解锁！若电脑在切换核显模式后出现黑屏，请长按电源键强制关机并拔掉电源复位 BIOS。'
-            : '已恢复双显双模硬件安全保护锁定。',
+            ? trText('已启用极客自主免责解锁！若电脑在切换核显模式后出现黑屏，请长按电源键强制关机并拔掉电源复位 BIOS。')
+            : trText('已恢复双显双模硬件安全保护锁定。'),
         });
       }
     } catch (err: any) {
