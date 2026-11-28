@@ -41,6 +41,14 @@ pub fn register(
         }
     });
 
+    let ui_cb = ui_weak.clone();
+    window.on_toggle_lite_mode(move |en| {
+        ipc::send_action_to_host("set_lite_mode", serde_json::json!({ "enabled": en }));
+        if let Some(ui) = ui_cb.upgrade() {
+            ui.set_lite_mode(en);
+        }
+    });
+
     window.on_restart_openrevo(move || {
         ipc::send_action_to_host("restart_openrevo", serde_json::json!({}));
     });

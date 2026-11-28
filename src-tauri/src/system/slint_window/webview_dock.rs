@@ -236,3 +236,15 @@ pub fn hide_embedded_webview(app: &AppHandle) {
     }
 }
 
+/// Lite mode: destroy the legacy Tauri embedded dock window instead of merely
+/// hiding it, so its WebView2 processes are released. No-op when no such
+/// window exists (its attach path is currently unused).
+pub fn destroy_embedded_webview(app: &AppHandle) {
+    use tauri::Manager;
+
+    if let Some(win) = app.get_webview_window(EMBEDDED_LABEL) {
+        let _ = win.destroy();
+        crate::log_info!("EMBEDDED_WEBVIEW", "Embedded WebView2 window destroyed (lite mode).");
+    }
+}
+

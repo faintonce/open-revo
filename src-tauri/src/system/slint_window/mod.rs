@@ -140,6 +140,8 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                         "oem_installed": crate::system::process::is_oem_installed(),
                         "oem_running": crate::system::takeover::is_oem_running(),
                         "use_classic_webview": cfg.use_classic_webview,
+                        "lite_mode": cfg.lite_mode,
+                        "lite_mode_idle_secs": cfg.lite_mode_idle_secs,
                         "update_channel": cfg.update_channel,
                         "full_window_x": cfg.full_window_x,
                         "full_window_y": cfg.full_window_y,
@@ -193,6 +195,10 @@ pub fn ensure_slint_main_process(app: Option<&AppHandle>) {
                             if let Ok(mut g) = SLINT_STDIN.lock() {
                                 *g = None;
                             }
+                            // The companion exits whenever its window is hidden, so
+                            // this is also the moment lite mode starts counting.
+                            let app_fallback = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
+                            crate::system::lite_mode::arm(app_fallback);
                             crate::system::process::trim_process_working_set();
                         })
                         .ok();
@@ -242,6 +248,8 @@ pub fn send_slint_ipc_message(payload: serde_json::Value) {
 }
 
 pub fn show_slint_window() {
+    // Any pending lite-mode destroy is cancelled: the UI is back.
+    crate::system::lite_mode::disarm();
     crate::system::telemetry::set_main_window_visible(true);
     let app_opt = SLINT_APP_HANDLE.lock().ok().and_then(|g| g.clone());
     ensure_slint_main_process(app_opt.as_ref());
@@ -259,6 +267,16 @@ pub fn show_slint_window() {
 
 pub fn hide_slint_window() {
     send_slint_ipc_message(serde_json::json!({ "action": "hide" }));
+}
+
+/// Whether the native Slint main companion process is currently running.
+/// The companion exits whenever its window is hidden, so this doubles as the
+/// host-side "main UI is hidden" signal used by lite mode.
+pub fn is_slint_main_running() -> bool {
+    match SLINT_STDIN.lock() {
+        Ok(guard) => guard.is_some(),
+        Err(poisoned) => poisoned.into_inner().is_some(),
+    }
 }
 
 /// Explicitly shut down and terminate the Slint main companion process

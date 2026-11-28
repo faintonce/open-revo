@@ -187,6 +187,8 @@ pub fn mark_window_woken() {
 
 /// Restores the main window, dismisses the tray overflow flyout, and synchronizes mini/expanded layout.
 pub fn restore_and_sync_window(window: &WebviewWindow) {
+    // The UI is back: cancel any pending lite-mode destroy.
+    crate::system::lite_mode::disarm();
     mark_window_woken();
     #[cfg(windows)]
     {
@@ -596,6 +598,7 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
                         // All validation passed: True external blur detected. Safely collapse window.
                         let _ = win.hide();
                         crate::system::telemetry::set_main_window_visible(false);
+                        crate::system::lite_mode::arm(Some(win.app_handle().clone()));
                         crate::log_info!(
                             "WINDOW",
                             "Mini drawer automatically collapsed on blur (focus confirmed transferred outside)"
@@ -628,6 +631,10 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
             let _ = window.hide();
             if window.label() == "main" {
                 crate::system::telemetry::set_main_window_visible(false);
+                // Classic mode: hiding only parks the WebView2 runtime. Lite mode
+                // destroys it after the configured idle time; the next tray click
+                // recreates the window via `ensure_window_alive`.
+                crate::system::lite_mode::arm(Some(window.app_handle().clone()));
             }
         }
         _ => {}

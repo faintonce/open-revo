@@ -6,7 +6,7 @@ use super::super::sync::{
     sync_slint_power_state, sync_slint_switches_state, sync_slint_tuning_state, sync_slint_water_state,
 };
 
-pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -> bool {
+pub fn handle(action: &str, val: &serde_json::Value, app: Option<&AppHandle>) -> bool {
     match action {
         "save_full_window_pos" => {
             if let (Some(x), Some(y)) = (
@@ -59,6 +59,8 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             cfg.last_window_expanded = true;
             let _ = crate::system::config::save_config(&cfg);
             crate::system::tray::update_tray_window_mode(true);
+            // Expanding is also when a lite-mode plugin view is restored.
+            crate::system::lite_mode::restore_embedded_if_needed();
             true
         }
         "open_lighting_studio" => {
@@ -97,6 +99,8 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
         }
         "slint_window_shown" => {
             crate::system::telemetry::set_main_window_visible(true);
+            crate::system::lite_mode::disarm();
+            crate::system::lite_mode::restore_embedded_if_needed();
             if let Ok(b) = crate::system::display::get_brightness() {
                 send_slint_ipc_message(serde_json::json!({
                     "action": "sync_state",
@@ -107,6 +111,7 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
         }
         "slint_window_hidden" => {
             crate::system::telemetry::set_main_window_visible(false);
+            crate::system::lite_mode::arm(app.cloned());
             crate::log_info!("SLINT_MAIN", "Mini drawer companion hidden / auto-collapsed on blur");
             true
         }
@@ -131,6 +136,32 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
                     crate::system::osd_window::shutdown_osd_process();
                 }
                 crate::log_info!("SLINT_MAIN", "use_classic_webview updated to: {}", en);
+            }
+            true
+        }
+        "set_lite_mode" => {
+            if let Some(en) = val.get("enabled").and_then(|v| v.as_bool()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.lite_mode = en;
+                crate::system::config::save_config(&cfg);
+                if en {
+                    crate::log_info!("SLINT_MAIN", "lite_mode enabled (idle {}s)", cfg.lite_mode_idle_secs);
+                } else {
+                    // Turning lite mode off cancels any pending destroy and any
+                    // pending plugin restore from an earlier destroy.
+                    crate::system::lite_mode::disarm();
+                    crate::system::native_wry::clear_lite_mode_embedded_plugin();
+                    crate::log_info!("SLINT_MAIN", "lite_mode disabled");
+                }
+            }
+            true
+        }
+        "set_lite_mode_idle_secs" => {
+            if let Some(secs) = val.get("secs").and_then(|v| v.as_u64()) {
+                let mut cfg = crate::system::config::load_config();
+                cfg.lite_mode_idle_secs = crate::system::lite_mode::clamp_idle_secs(secs);
+                crate::system::config::save_config(&cfg);
+                crate::log_info!("SLINT_MAIN", "lite_mode_idle_secs updated to: {}", cfg.lite_mode_idle_secs);
             }
             true
         }
@@ -242,7 +273,7 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             true
         }
         "start_download_update" => {
-            let app = _app.cloned();
+            let app = app.cloned();
             let val = val.clone();
             tauri::async_runtime::spawn(async move {
                 if let Some(app) = app {

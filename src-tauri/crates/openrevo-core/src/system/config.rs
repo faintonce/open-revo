@@ -208,6 +208,16 @@ pub struct AppConfig {
     #[serde(default)]
     pub use_classic_webview: bool,
 
+    // Lite Mode: destroy background WebView2 surfaces after the main UI has
+    // stayed hidden for `lite_mode_idle_secs` (opt-in; default off).
+    // Classic mode destroys the `main` WebviewWindow (recreated on tray click);
+    // Slint mode drops the embedded WebView2 plugin view (re-attached on show).
+    // Desktop widgets / popouts, OSD, plugin services and Watcher Hub are untouched.
+    #[serde(default)]
+    pub lite_mode: bool,
+    #[serde(default = "default_lite_mode_idle_secs")]
+    pub lite_mode_idle_secs: u64,
+
     // Startup Window Visibility (Diagnosability override: CLI --visible or config.json)
     #[serde(default)]
     pub launch_visible: bool,
@@ -293,6 +303,7 @@ fn default_cpu_temp_target_min() -> u8 { 85 }
 fn default_cpu_temp_target_max() -> u8 { 95 }
 fn default_cpu_pl4_margin() -> u16 { 20 }
 fn default_wake_window_mode() -> String { "remember".to_string() }
+fn default_lite_mode_idle_secs() -> u64 { 300 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FanCurvePoint {
@@ -520,6 +531,8 @@ impl Default for AppConfig {
             custom_profile: CustomProfileConfig::default(),
             active_profile_id: default_active_profile_id(),
             use_classic_webview: false,
+            lite_mode: false,
+            lite_mode_idle_secs: default_lite_mode_idle_secs(),
             launch_visible: false,
             update_channel: default_update_channel(),
             gpu_offset_step: default_gpu_offset_step(),

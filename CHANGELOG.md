@@ -5,6 +5,16 @@
 
 ---
 
+## [Unreleased]
+
+### ⚡ 轻量模式：主界面后台自动回收 WebView2 (Lite Mode)
+- **新增可选的轻量模式（默认关闭，设置页开关，立即生效、无需重启）**：主界面隐藏超过 5 分钟（`config.json` 的 `lite_mode_idle_secs`，60–3600 秒）后，自动销毁后台 WebView2；再次打开时按需重建。
+  - 经典模式（`use_classic_webview`）：销毁 `main` WebviewWindow，托盘点击时经已有的 `ensure_window_alive` 重建；
+  - Slint 模式：丢弃内嵌 WebView2 插件页（复用 `native_wry` 已有的 drop 路径并注销其遥测消费者），重开/展开时按记住的插件 ID 重新挂载，点插件页签也可随时重建；
+  - 明确不受影响：桌面挂件 / 独立弹窗、OSD、插件后台服务、Watcher Hub 与遥测心跳。
+- **实测依据**：单组空闲 WebView2（7 个 `msedgewebview2.exe` 进程，WebView2 158.0.4370.33）专用工作集 182.4 MB、工作集 437.1 MB、提交 410.2 MB、独占 GPU 内存 105.7 MB、220 线程 / 3647 句柄，截图时刻 CPU 0%、网络 0，而宿主 `open-revo.exe` 本身仅 18.5 MB——与 README “后台常驻 ~4MB” 的体感不符。根因是隐藏 ≠ 销毁：经典模式 `CloseRequested` 只 `hide()` 主窗口，Slint 模式只在切换页签/收起面板时丢弃内嵌 WebView。
+- **取舍**：首次重开需付一次 WebView2 冷启动，插件页的页内 JS 状态不保留（与现在切换页签即丢弃的行为一致）。
+
 ## [0.9.8] - 2026-11-26
 
 ### 🏗️ 内核大一统与 HAL 架构演进 (Core Consolidation & Chassis Architecture)

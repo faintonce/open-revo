@@ -56,6 +56,10 @@ export component SystemSwitchesCard inherits Rectangle {
     callback toggle_classic_webview(bool);
     callback restart_openrevo();
 
+    // 9b. Lite Mode: destroy background WebView2 after the main UI stays hidden
+    in-out property <bool> lite_mode: false;
+    callback toggle_lite_mode(bool);
+
     border-radius: 8px;
     background: AppTheme.surface_card;
     border-width: 1px;
@@ -233,6 +237,76 @@ export component SystemSwitchesCard inherits Rectangle {
                             y: 3px;
                             animate x { duration: 150ms; }
                         }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // Row 1c: 轻量模式（后台回收 WebView2）
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 2px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "轻量模式（后台回收 WebView2）";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        border-radius: 3px;
+                        background: root.lite_mode ? #10b98120 : AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: root.lite_mode ? #10b98160 : AppTheme.border_subtle;
+                        height: 18px;
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 5px;
+                            Text {
+                                text: root.lite_mode ? "已开启" : "已关闭";
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: root.lite_mode ? #10b981 : AppTheme.text_muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "主界面隐藏超过 5 分钟后销毁后台 WebView2：经典模式销毁主窗口，Slint 模式回收内嵌插件页，再次打开时按需重建（插件页需重新加载）。桌面挂件、OSD 与后台自动化不受影响，立即生效，无需重启";
+                    font-size: 10px;
+                    color: AppTheme.text_muted;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 44px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: root.lite_mode ? #38bdf8 : AppTheme.surface_pill;
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.toggle_lite_mode(!root.lite_mode);
+                        }
+                    }
+
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        background: #ffffff;
+                        x: root.lite_mode ? parent.width - 21px : 3px;
+                        y: 3px;
+                        animate x { duration: 150ms; }
                     }
                 }
             }
