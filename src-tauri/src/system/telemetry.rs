@@ -71,7 +71,7 @@ pub fn set_reboot_freeze(freeze: bool) {
     }
 }
 
-/// Report screen lock / display sleep event from power listener
+/// Pause the heartbeat during system suspend or shutdown, and resume it on wake.
 pub fn set_screen_suspended(suspended: bool) {
     let old = SCREEN_SUSPENDED.swap(suspended, Ordering::SeqCst);
     if old != suspended {
@@ -136,7 +136,7 @@ pub fn start_telemetry_loop(
                     continue;
                 }
 
-                // State 3: Screen suspended / Lock screen -> Deep Freeze
+                // State 3: System suspend or shutdown -> park the heartbeat.
                 if SCREEN_SUSPENDED.load(Ordering::Relaxed) {
                     std::thread::sleep(Duration::from_millis(2000));
                     continue;
