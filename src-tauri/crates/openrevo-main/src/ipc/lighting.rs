@@ -188,6 +188,9 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(fz) = val.get("is_four_zone").and_then(|v| v.as_bool()) {
                 ui.set_is_four_zone(fz);
             }
+            if let Some(mx) = val.get("kb_speed_max").and_then(|v| v.as_i64()) {
+                ui.set_kb_speed_max(mx as i32);
+            }
             if let Some(sz) = val.get("is_single_zone").and_then(|v| v.as_bool()) {
                 ui.set_is_single_zone(sz);
             }

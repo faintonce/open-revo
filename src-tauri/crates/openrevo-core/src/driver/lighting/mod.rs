@@ -22,6 +22,153 @@ use crate::driver::wmi_ec::{
     ADDR_TRIGGER_BYTE, ADDR_RGB_CONTROL, ADDR_RGB_RED, ADDR_RGB_GREEN, ADDR_RGB_BLUE,
 };
 
+/// EC 单区「轮换」软件循环的代次：递增即让所有正在运行的轮换线程退出
+static EC_CYCLE_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// EC 单区「轮换」的 8 档帧间隔（毫秒）。档位越大越快，两端对齐官方控制台实测端点
+/// （最慢 ≈1421ms、最快 ≈341ms，中间等间隔）。只有同方单分区 EC 键盘使用这张表。
+const EC_CYCLE_INTERVALS_MS: [u64; 8] = [1421, 1267, 1112, 958, 804, 649, 495, 341];
+
+/// 速度档位数量：界面滑杆上限由它决定，不在视图里写死
+pub fn ec_cycle_speed_levels() -> u8 {
+    EC_CYCLE_INTERVALS_MS.len() as u8
+}
+
+/// 档位 -> 帧间隔。越界档位夹到两端，非法值不会让线程空转。
+fn ec_cycle_interval_ms(speed: u8) -> u64 {
+    let idx = (speed as usize).min(EC_CYCLE_INTERVALS_MS.len() - 1);
+    EC_CYCLE_INTERVALS_MS[idx].clamp(20, 1500)
+}
+
+/// EC 单区呼吸可控的固定色码（1白 2红 3绿 4蓝）：EC 只认色码，不认任意 RGB
+const EC_BREATH_PALETTE: [(u8, u8, u8, u8); 4] = [
+    (1, 255, 255, 255),
+    (2, 255, 0, 0),
+    (3, 0, 255, 0),
+    (4, 0, 0, 255),
+];
+
+/// 任意 RGB → EC 单区呼吸的固定色码（按 RGB 距离取最近色）
+fn ec_breath_code(r: u8, g: u8, b: u8) -> u8 {
+    let mut best_code: u8 = 1;
+    let mut best_dist: u32 = u32::MAX;
+    for &(code, pr, pg, pb) in EC_BREATH_PALETTE.iter() {
+        let dr = (r as i32) - (pr as i32);
+        let dg = (g as i32) - (pg as i32);
+        let db = (b as i32) - (pb as i32);
+        let dist = (dr * dr + dg * dg + db * db) as u32;
+        if dist < best_dist {
+            best_dist = dist;
+            best_code = code;
+        }
+    }
+    best_code
+}
+
+/// EC 单区「轮换」默认 6 段颜色（红/橙/黄/绿/靛/紫）
+const EC_CYCLE_DEFAULT_COLORS: [[u8; 3]; 6] = [
+    [211, 6, 7],
+    [213, 91, 10],
+    [212, 169, 6],
+    [5, 211, 8],
+    [7, 9, 214],
+    [211, 8, 214],
+];
+
+/// EC 单区「轮换」6 段颜色（界面可覆盖，默认见上）
+static EC_CYCLE_COLORS: std::sync::OnceLock<Mutex<Vec<[u8; 3]>>> = std::sync::OnceLock::new();
+
+/// 严格解析 `#RRGGBB` / `RRGGBB`；非法（长度不对、非十六进制）返回 None
+pub fn parse_hex_rgb(v: &str) -> Option<[u8; 3]> {
+    let clean = v.trim().trim_start_matches('#');
+    if clean.len() != 6 || !clean.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some([
+        u8::from_str_radix(&clean[0..2], 16).ok()?,
+        u8::from_str_radix(&clean[2..4], 16).ok()?,
+        u8::from_str_radix(&clean[4..6], 16).ok()?,
+    ])
+}
+
+/// 合法化调色板：最多 6 段；不足 6 段用内置默认补齐，全空才整组回落默认
+fn normalize_cycle_colors(colors: Vec<[u8; 3]>) -> Vec<[u8; 3]> {
+    let mut out: Vec<[u8; 3]> = colors.into_iter().take(EC_CYCLE_DEFAULT_COLORS.len()).collect();
+    for default in EC_CYCLE_DEFAULT_COLORS.iter() {
+        if out.len() >= EC_CYCLE_DEFAULT_COLORS.len() {
+            break;
+        }
+        out.push(*default);
+    }
+    out
+}
+
+fn ec_cycle_colors_slot() -> &'static Mutex<Vec<[u8; 3]>> {
+    EC_CYCLE_COLORS.get_or_init(|| Mutex::new(EC_CYCLE_DEFAULT_COLORS.to_vec()))
+}
+
+/// 覆盖轮换的 6 段颜色（自动合法化：超长截断、空/非法回落默认）
+pub fn set_ec_cycle_colors(colors: Vec<[u8; 3]>) {
+    *ec_cycle_colors_slot().lock() = normalize_cycle_colors(colors);
+}
+
+/// 恢复内置默认 6 色
+pub fn reset_ec_cycle_colors() {
+    *ec_cycle_colors_slot().lock() = EC_CYCLE_DEFAULT_COLORS.to_vec();
+}
+
+/// 读取当前轮换颜色（供界面回显）
+pub fn get_ec_cycle_colors() -> Vec<[u8; 3]> {
+    ec_cycle_colors_slot().lock().clone()
+}
+
+fn stop_ec_color_cycle() {
+    EC_CYCLE_EPOCH.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// EC 单区「六色轮换」：软件逐帧写 RGB 三通道 + 触发锁存逐帧生效
+fn start_ec_color_cycle(interval_ms: u64) {
+    let interval = interval_ms.max(20);
+    stop_ec_color_cycle();
+    let palette = ec_cycle_colors_slot().lock().clone();
+    // 领取唯一代次：只有代次仍等于自己的线程才有权写 EC，旧线程自动失效
+    let my_epoch = EC_CYCLE_EPOCH.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    std::thread::spawn(move || {
+        let still_current = || EC_CYCLE_EPOCH.load(std::sync::atomic::Ordering::SeqCst) == my_epoch;
+        let palette = if palette.is_empty() {
+            EC_CYCLE_DEFAULT_COLORS.to_vec()
+        } else {
+            palette
+        };
+        let mut idx = 0usize;
+        while still_current() {
+            // 背光被关闭时暂停下发，恢复供电后自动续播
+            let powered_off = crate::driver::wmi_ec::wmi_read_ec(ADDR_BACKLIGHT_WHITE)
+                .map(|v| (v & 0x02) != 0)
+                .unwrap_or(false);
+            if powered_off {
+                std::thread::sleep(Duration::from_millis(interval));
+                continue;
+            }
+            if !still_current() {
+                break;
+            }
+            let [r, g, b] = palette[idx % palette.len()];
+            let scale = |v: u8| -> u8 {
+                if v == 0 { 0 } else { ((v as u32 * 50) / 255).clamp(1, 50) as u8 }
+            };
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_RED, scale(r));
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_GREEN, scale(g));
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_BLUE, scale(b));
+            if let Some(trig) = crate::driver::wmi_ec::wmi_read_ec(ADDR_TRIGGER_BYTE) {
+                let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, (trig & !0x80) | 0x20);
+            }
+            idx = idx.wrapping_add(1);
+            std::thread::sleep(Duration::from_millis(interval));
+        }
+    });
+}
+
 pub type SharedIteLightingManager = Arc<IteLightingManager>;
 
 pub struct IteLightingManager {
@@ -448,7 +595,7 @@ impl IteLightingManager {
         enabled: bool,
         effect: u8,
         brightness_idx: u8,
-        _speed_idx: u8,
+        speed_idx: u8,
         color_hex: &str,
     ) -> bool {
         let is_on = enabled && brightness_idx > 0;
@@ -518,13 +665,27 @@ impl IteLightingManager {
 
         let cur_trigger_byte = crate::driver::wmi_ec::wmi_read_ec(ADDR_TRIGGER_BYTE).unwrap_or(0);
         if !is_on {
+            stop_ec_color_cycle();
             // 关闭背光：RGB 三通道调光写 0 (灭灯)，写入触发寄存器生效
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_RED, 0);
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_GREEN, 0);
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_BLUE, 0);
             let next_trigger = (cur_trigger_byte & !0x80) | 0x20;
             let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, next_trigger);
+        } else if effect == 3 {
+            // 单区呼吸（EC 硬件）：RGB_CONTROL 低 3 位 = 固定色码，先停掉软件轮换
+            stop_ec_color_cycle();
+            let (r, g, b) = parse_hex_color(color_hex);
+            let code = ec_breath_code(r, g, b);
+            let cur_ctrl = crate::driver::wmi_ec::wmi_read_ec(ADDR_RGB_CONTROL).unwrap_or(0);
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_RGB_CONTROL, (cur_ctrl & 0xF8) | code);
+            let next_trigger = (cur_trigger_byte & !0x80) | 0x20;
+            let _ = crate::driver::wmi_ec::wmi_write_ec(ADDR_TRIGGER_BYTE, next_trigger);
+        } else if effect == 4 {
+            // 六色轮换（软件驱动）：逐帧写 RGB + 触发锁存，8 档表决定帧间隔
+            start_ec_color_cycle(ec_cycle_interval_ms(speed_idx));
         } else if effect == 2 {
+            stop_ec_color_cycle();
             // 彩虹循环模式:
             // 写入基准亮度种子色（官方为 50, 40, 40 或用户选定色彩），避免部分 EC 因 RGB=0 彻底黑灯
             let (r, g, b) = parse_hex_color(color_hex);
@@ -1687,3 +1848,40 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod ec_single_zone_tests {
+    use super::{
+        ec_breath_code, ec_cycle_interval_ms, ec_cycle_speed_levels, normalize_cycle_colors,
+        EC_CYCLE_DEFAULT_COLORS,
+    };
+
+    #[test]
+    fn speed_level_rounds_to_the_table() {
+        assert_eq!(ec_cycle_speed_levels(), 8);
+        assert_eq!(ec_cycle_interval_ms(0), 1421);
+        assert_eq!(ec_cycle_interval_ms(7), 341);
+        // 越界档位夹到两端，不会返回 0 让线程空转
+        assert_eq!(ec_cycle_interval_ms(200), 341);
+    }
+
+    #[test]
+    fn breath_codes_match_the_four_hardware_colours() {
+        assert_eq!(ec_breath_code(255, 255, 255), 1);
+        assert_eq!(ec_breath_code(255, 0, 0), 2);
+        assert_eq!(ec_breath_code(0, 255, 0), 3);
+        assert_eq!(ec_breath_code(0, 0, 255), 4);
+        // 近似色按最近距离归类
+        assert_eq!(ec_breath_code(240, 30, 20), 2);
+        assert_eq!(ec_breath_code(20, 20, 240), 4);
+    }
+
+    #[test]
+    fn cycle_palette_is_padded_and_truncated_to_six() {
+        assert_eq!(normalize_cycle_colors(vec![]).len(), 6);
+        assert_eq!(normalize_cycle_colors(vec![[1, 2, 3]]).len(), 6);
+        assert_eq!(normalize_cycle_colors(vec![[1, 2, 3]; 9]).len(), 6);
+        assert_eq!(normalize_cycle_colors(vec![]), EC_CYCLE_DEFAULT_COLORS.to_vec());
+        // 不足 6 段时按默认表顺序补齐，最后一段就是默认表的第 6 项
+        assert_eq!(normalize_cycle_colors(vec![[1, 2, 3]]).last(), Some(&[7, 9, 214]));
+    }
+}
