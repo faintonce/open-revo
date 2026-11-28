@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component LightingCeremonyBar inherits Rectangle {
     in-out property <bool> ceremony_enabled: true;
@@ -44,7 +45,7 @@ export component LightingCeremonyBar inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "迎宾仪式";
+                        text: AppI18n.tr(AppI18n.rev, "lighting.welcome_ceremony");
                         font-size: 11px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -82,7 +83,7 @@ export component LightingCeremonyBar inherits Rectangle {
                         }
 
                         Text {
-                            text: root.ceremony_enabled ? "已启用" : "已停用";
+                            text: root.ceremony_enabled ? AppI18n.tr(AppI18n.rev, "lighting.ceremony_on") : AppI18n.tr(AppI18n.rev, "lighting.ceremony_off");
                             font-size: 11px;
                             font-weight: 600;
                             color: root.ceremony_enabled ? AppTheme.text_primary : AppTheme.text_muted;
@@ -123,7 +124,7 @@ export component LightingCeremonyBar inherits Rectangle {
                         }
 
                         Text {
-                            text: root.is_previewing ? "演示中..." : "预览全域仪式";
+                            text: root.is_previewing ? AppI18n.tr(AppI18n.rev, "lighting.previewing") : AppI18n.tr(AppI18n.rev, "lighting.preview_ceremony");
                             font-size: 11px;
                             font-weight: 700;
                             color: AppTheme.tag_brand_text;
@@ -172,7 +173,7 @@ export component LightingCeremonyBar inherits Rectangle {
                         }
 
                         Text {
-                            text: root.save_success ? "已设为开机默认" : "设为默认";
+                            text: root.save_success ? AppI18n.tr(AppI18n.rev, "lighting.set_boot_default_done") : AppI18n.tr(AppI18n.rev, "lighting.set_default");
                             font-size: 11px;
                             font-weight: 600;
                             color: root.save_success ? #10b981 : AppTheme.text_muted;
@@ -211,7 +212,7 @@ export component LightingCeremonyBar inherits Rectangle {
                         }
 
                         Text {
-                            text: "恢复默认";
+                            text: AppI18n.tr(AppI18n.rev, "lighting.reset_default");
                             font-size: 11px;
                             color: AppTheme.text_muted;
                             vertical-alignment: center;
@@ -249,7 +250,7 @@ export component LightingCeremonyBar inherits Rectangle {
                         }
 
                         Text {
-                            text: "硬件纠偏";
+                            text: AppI18n.tr(AppI18n.rev, "lighting.hw_topology");
                             font-size: 11px;
                             font-weight: 700;
                             color: #38bdf8;

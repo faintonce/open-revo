@@ -1,5 +1,6 @@
 import { AppTheme } from "../../../theme.slint";
 import { UpdateResultData } from "../system_types.slint";
+import { AppI18n } from "../../../i18n.slint";
 
 export component SystemUpdaterModal inherits Rectangle {
     in-out property <bool> is_open: false;
@@ -54,7 +55,7 @@ export component SystemUpdaterModal inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         Text {
-                            text: "发现新版本 " + root.update_data.display_version;
+                            text: AppI18n.tr(AppI18n.rev, "system.new_version_found") + root.update_data.display_version;
                             font-size: 15px;
                             font-weight: 800;
                             color: AppTheme.text_primary;
@@ -69,7 +70,7 @@ export component SystemUpdaterModal inherits Rectangle {
                                 padding-left: 5px;
                                 padding-right: 5px;
                                 Text {
-                                    text: root.update_data.chosen_source == "gitee" ? "Gitee 镜像加速" : "GitHub 官方源";
+                                    text: root.update_data.chosen_source == "gitee" ? AppI18n.tr(AppI18n.rev, "system.source_gitee") : AppI18n.tr(AppI18n.rev, "system.source_github");
                                     font-size: 10px;
                                     font-weight: 700;
                                     color: #10b981;
@@ -79,7 +80,7 @@ export component SystemUpdaterModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "形态: " + (root.update_data.asset_type == "installer" ? "安装包覆盖升级" : "绿色版脱壳热更") + " · 文件: " + root.update_data.filename;
+                        text: AppI18n.tr(AppI18n.rev, "system.pkg_type_prefix") + (root.update_data.asset_type == "installer" ? AppI18n.tr(AppI18n.rev, "system.pkg_installer") : AppI18n.tr(AppI18n.rev, "system.pkg_portable")) + AppI18n.tr(AppI18n.rev, "system.pkg_file_sep") + root.update_data.filename;
                         font-size: 11px;
                         color: AppTheme.text_muted;
                     }
@@ -90,7 +91,7 @@ export component SystemUpdaterModal inherits Rectangle {
             VerticalLayout {
                 spacing: 6px;
                 Text {
-                    text: "更新日志与变更说明：";
+                    text: AppI18n.tr(AppI18n.rev, "system.release_notes_label");
                     font-size: 11px;
                     font-weight: 600;
                     color: AppTheme.text_secondary;
@@ -108,7 +109,7 @@ export component SystemUpdaterModal inherits Rectangle {
                         VerticalLayout {
                             padding: 12px;
                             Text {
-                                text: root.update_data.notes != "" ? root.update_data.notes : "暂无详细更新日志。";
+                                text: root.update_data.notes != "" ? root.update_data.notes : AppI18n.tr(AppI18n.rev, "system.no_release_notes");
                                 font-size: 11px;
                                 color: AppTheme.text_secondary;
                                 wrap: word-wrap;
@@ -177,7 +178,7 @@ export component SystemUpdaterModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "稍后再说";
+                        text: AppI18n.tr(AppI18n.rev, "system.later");
                         font-size: 12px;
                         color: AppTheme.text_primary;
                         horizontal-alignment: center;
@@ -202,7 +203,7 @@ export component SystemUpdaterModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: root.update_data.downloading ? "正在下载升级..." : "立即下载并升级";
+                        text: root.update_data.downloading ? AppI18n.tr(AppI18n.rev, "system.downloading_update") : AppI18n.tr(AppI18n.rev, "system.download_now");
                         font-size: 12px;
                         font-weight: 700;
                         color: #ffffff;

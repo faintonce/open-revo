@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component GpuBoostCard inherits Rectangle {
     in-out property <bool> balanced_db_enabled: true;
@@ -33,7 +34,7 @@ export component GpuBoostCard inherits Rectangle {
                 }
             }
             Text {
-                text: "GPU 调度与超频偏好";
+                text: AppI18n.tr(AppI18n.rev, "gpu.gpu_boost_title");
                 font-size: 13px;
                 font-weight: 700;
                 color: AppTheme.text_primary;
@@ -63,7 +64,7 @@ export component GpuBoostCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "平衡模式启用 GPU 动态功耗提升 (Dynamic Boost)";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.db_balance_title");
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -79,7 +80,7 @@ export component GpuBoostCard inherits Rectangle {
                             padding-left: 6px;
                             padding-right: 6px;
                             Text {
-                                text: root.balanced_db_enabled ? "满血释放" : "基础 TGP";
+                                text: root.balanced_db_enabled ? AppI18n.tr(AppI18n.rev, "gpu.full_power") : AppI18n.tr(AppI18n.rev, "gpu.base_tgp");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: root.balanced_db_enabled ? #10b981 : AppTheme.text_muted;
@@ -89,7 +90,7 @@ export component GpuBoostCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: "允许独显在平衡模式下跑满出厂满血动态功耗；若关闭则限制为基础 TGP，优先让渡散热给 CPU";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.db_balance_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -137,13 +138,13 @@ export component GpuBoostCard inherits Rectangle {
             VerticalLayout {
                 spacing: 2px;
                 Text {
-                    text: "快捷 GPU OC 核心频率默认偏移";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.oc_core_title");
                     font-size: 12px;
                     font-weight: 600;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "点击狂暴模式顶栏 GPU OC 开关时注入的核心频率，下次开启生效 (0 ~ 250 MHz)";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.oc_core_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -238,13 +239,13 @@ export component GpuBoostCard inherits Rectangle {
             VerticalLayout {
                 spacing: 2px;
                 Text {
-                    text: "快捷 GPU OC 显存频率默认偏移";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.oc_mem_title");
                     font-size: 12px;
                     font-weight: 600;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "点击狂暴模式顶栏 GPU OC 开关时注入的显存频率，下次开启生效 (0 ~ 1000 MHz)";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.oc_mem_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }

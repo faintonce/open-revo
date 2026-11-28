@@ -2,6 +2,7 @@ import { LineEdit } from "std-widgets.slint";
 import { AppTheme } from "../../theme.slint";
 import { ColorPaletteRow } from "color_palette.slint";
 import { BrfxScriptItem } from "lighting_types.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component KeyboardEffectsGrid inherits VerticalLayout {
     in-out property <int> kb_engine: 1; // 0: hardware, 1: streamer, 2: custom
@@ -12,7 +13,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
     // Custom BRFX Studio Properties
     in-out property <[BrfxScriptItem]> custom_scripts: [];
     in-out property <string> custom_script_id: "kamehameha";
-    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_name: AppI18n.tr(AppI18n.rev, "lighting.brfx_kamehameha");
     in-out property <string> custom_script_file_name: "kamehameha.brfx";
     in-out property <string> custom_script_author: "OpenRevo Community";
     in-out property <string> custom_script_desc: "";
@@ -43,7 +44,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
     alignment: start; // Crucial: tight packing!
 
     Text {
-        text: root.is_single_zone ? "极客高刷流光动效 (BetterRGB 空间投影算法 - 华丽多变):" : (root.is_four_zone ? "4区原厂硬件灯效 (ITE 8291 r2 固件驱动):" : (root.kb_engine == 0 ? "原厂硬件独立灯效 (内置 MCU 固件算法 - 稳定节能):" : (root.kb_engine == 1 ? "轻量级空间流动矩阵 (BetterRGB 空间投影引擎 - 苹果原彩):" : "定制动效脚本工作室 (外部 .brfx 脚本热重载 & 参数微调):")));
+        text: root.is_single_zone ? AppI18n.tr(AppI18n.rev, "lighting.grid_title_perkey") : (root.is_four_zone ? AppI18n.tr(AppI18n.rev, "lighting.grid_title_4zone") : (root.kb_engine == 0 ? AppI18n.tr(AppI18n.rev, "lighting.grid_title_single") : (root.kb_engine == 1 ? AppI18n.tr(AppI18n.rev, "lighting.grid_title_lite") : AppI18n.tr(AppI18n.rev, "lighting.grid_title_script"))));
         font-size: 11px;
         font-weight: 700;
         color: AppTheme.text_muted;
@@ -65,8 +66,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 2px;
-                Text { text: "单色常亮"; font-size: 12px; font-weight: 700; color: root.kb_effect == 1 ? #34d399 : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "全键盘同色静态照明"; font-size: 10px; color: root.kb_effect == 1 ? #34d399 : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_static"); font-size: 12px; font-weight: 700; color: root.kb_effect == 1 ? #34d399 : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_static_all"); font-size: 10px; color: root.kb_effect == 1 ? #34d399 : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
 
@@ -82,8 +83,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 2px;
-                Text { text: "彩虹循环"; font-size: 12px; font-weight: 700; color: root.kb_effect == 2 ? #34d399 : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "全键盘呼吸渐变循环"; font-size: 10px; color: root.kb_effect == 2 ? #34d399 : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow_cycle"); font-size: 12px; font-weight: 700; color: root.kb_effect == 2 ? #34d399 : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_breath_cycle"); font-size: 10px; color: root.kb_effect == 2 ? #34d399 : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
     }
@@ -104,8 +105,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 1px;
-                Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.kb_effect == 1 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "4分区独立配色"; font-size: 9px; color: root.kb_effect == 1 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_static"); font-size: 11px; font-weight: 700; color: root.kb_effect == 1 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_4zone_custom"); font-size: 9px; color: root.kb_effect == 1 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
 
@@ -121,8 +122,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 1px;
-                Text { text: "单色呼吸"; font-size: 11px; font-weight: 700; color: root.kb_effect == 2 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "平滑律动"; font-size: 9px; color: root.kb_effect == 2 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_mono_breath"); font-size: 11px; font-weight: 700; color: root.kb_effect == 2 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_smooth_pulse"); font-size: 9px; color: root.kb_effect == 2 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
 
@@ -138,8 +139,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 1px;
-                Text { text: "全彩波浪"; font-size: 11px; font-weight: 700; color: root.kb_effect == 3 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "流动幻彩波"; font-size: 9px; color: root.kb_effect == 3 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_full_wave"); font-size: 11px; font-weight: 700; color: root.kb_effect == 3 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_flow_wave"); font-size: 9px; color: root.kb_effect == 3 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
 
@@ -155,8 +156,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 1px;
-                Text { text: "彩虹循环"; font-size: 11px; font-weight: 700; color: root.kb_effect == 5 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "七彩同步轮播"; font-size: 9px; color: root.kb_effect == 5 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow_cycle"); font-size: 11px; font-weight: 700; color: root.kb_effect == 5 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_seven_cycle"); font-size: 9px; color: root.kb_effect == 5 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
 
@@ -172,8 +173,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 1px;
-                Text { text: "闪烁跳变"; font-size: 11px; font-weight: 700; color: root.kb_effect == 12 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "动感跳变"; font-size: 9px; color: root.kb_effect == 12 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_flash_jump"); font-size: 11px; font-weight: 700; color: root.kb_effect == 12 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_dynamic_jump"); font-size: 9px; color: root.kb_effect == 12 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
 
@@ -189,8 +190,8 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
             VerticalLayout {
                 alignment: center;
                 spacing: 1px;
-                Text { text: "混合流光"; font-size: 11px; font-weight: 700; color: root.kb_effect == 13 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
-                Text { text: "多色交替流光"; font-size: 9px; color: root.kb_effect == 13 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_mixed_flow"); font-size: 11px; font-weight: 700; color: root.kb_effect == 13 ? #22d3ee : AppTheme.text_primary; horizontal-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.desc_multi_alt"); font-size: 9px; color: root.kb_effect == 13 ? #22d3ee : AppTheme.text_muted; horizontal-alignment: center; }
             }
         }
     }
@@ -213,7 +214,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 101 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(101); } }
-                Text { text: "波浪 (Wave)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 101 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_wave"); font-size: 11px; font-weight: 700; color: root.kb_effect == 101 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 100: 呼吸 (Breath)
@@ -225,7 +226,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 100 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(100); } }
-                Text { text: "呼吸 (Breath)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 100 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_breath"); font-size: 11px; font-weight: 700; color: root.kb_effect == 100 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 102: 涟漪 (Ripple)
@@ -237,7 +238,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 102 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(102); } }
-                Text { text: "涟漪 (Ripple)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 102 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_ripple"); font-size: 11px; font-weight: 700; color: root.kb_effect == 102 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 103: 流沙 (Quicksand)
@@ -249,7 +250,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 103 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(103); } }
-                Text { text: "流沙 (Quicksand)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 103 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_quicksand"); font-size: 11px; font-weight: 700; color: root.kb_effect == 103 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 104: 电流 (Current)
@@ -261,7 +262,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 104 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(104); } }
-                Text { text: "电流 (Current)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 104 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_current"); font-size: 11px; font-weight: 700; color: root.kb_effect == 104 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 105: 色轮 (Wheel)
@@ -273,7 +274,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 105 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(105); } }
-                Text { text: "色轮 (Wheel)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 105 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_wheel"); font-size: 11px; font-weight: 700; color: root.kb_effect == 105 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 106: 彩虹 (Rainbow)
@@ -285,7 +286,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 106 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(106); } }
-                Text { text: "彩虹 (Rainbow)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 106 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow"); font-size: 11px; font-weight: 700; color: root.kb_effect == 106 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
         }
 
@@ -302,7 +303,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 107 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(107); } }
-                Text { text: "矩阵 (Matrix)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 107 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_matrix"); font-size: 11px; font-weight: 700; color: root.kb_effect == 107 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 108: 闪电 (Lightning)
@@ -314,7 +315,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 108 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(108); } }
-                Text { text: "闪电 (Lightning)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 108 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_lightning"); font-size: 11px; font-weight: 700; color: root.kb_effect == 108 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 109: 火焰 (Flame)
@@ -326,7 +327,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 109 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(109); } }
-                Text { text: "火焰 (Flame)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 109 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_flame"); font-size: 11px; font-weight: 700; color: root.kb_effect == 109 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 110: 雨滴 (Rain)
@@ -338,7 +339,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 110 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(110); } }
-                Text { text: "雨滴 (Rain)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 110 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rain"); font-size: 11px; font-weight: 700; color: root.kb_effect == 110 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 111: 星光 (Sparkle)
@@ -350,7 +351,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 111 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(111); } }
-                Text { text: "星光 (Sparkle)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 111 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_sparkle_en"); font-size: 11px; font-weight: 700; color: root.kb_effect == 111 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 112: 极光电流
@@ -362,7 +363,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 112 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(112); } }
-                Text { text: "极光电流"; font-size: 11px; font-weight: 700; color: root.kb_effect == 112 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_aurora_current"); font-size: 11px; font-weight: 700; color: root.kb_effect == 112 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 113: 单色极简 (Static)
@@ -374,7 +375,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 113 ? #6366f1 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(113); } }
-                Text { text: "单色极简 (Static)"; font-size: 11px; font-weight: 700; color: root.kb_effect == 113 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_mono_static"); font-size: 11px; font-weight: 700; color: root.kb_effect == 113 ? #818cf8 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
         }
     }
@@ -396,7 +397,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 1 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
-                Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.kb_effect == 1 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_static"); font-size: 11px; font-weight: 700; color: root.kb_effect == 1 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 2: 单色呼吸
@@ -408,7 +409,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 2 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
-                Text { text: "单色呼吸"; font-size: 11px; font-weight: 700; color: root.kb_effect == 2 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_mono_breath"); font-size: 11px; font-weight: 700; color: root.kb_effect == 2 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 3: 波浪流光
@@ -420,7 +421,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 3 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(3); } }
-                Text { text: "波浪流光"; font-size: 11px; font-weight: 700; color: root.kb_effect == 3 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_wave_flow"); font-size: 11px; font-weight: 700; color: root.kb_effect == 3 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 4: 按键微光
@@ -432,7 +433,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 4 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(4); } }
-                Text { text: "按键微光"; font-size: 11px; font-weight: 700; color: root.kb_effect == 4 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_key_glow"); font-size: 11px; font-weight: 700; color: root.kb_effect == 4 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 5: 彩虹相环
@@ -444,7 +445,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 5 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(5); } }
-                Text { text: "彩虹相环"; font-size: 11px; font-weight: 700; color: root.kb_effect == 5 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow_wheel"); font-size: 11px; font-weight: 700; color: root.kb_effect == 5 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 6: 涟漪扩散
@@ -456,7 +457,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 6 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(6); } }
-                Text { text: "涟漪扩散"; font-size: 11px; font-weight: 700; color: root.kb_effect == 6 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_ripple_spread"); font-size: 11px; font-weight: 700; color: root.kb_effect == 6 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
         }
 
@@ -472,7 +473,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 10 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(10); } }
-                Text { text: "随机雨滴"; font-size: 11px; font-weight: 700; color: root.kb_effect == 10 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_random_rain"); font-size: 11px; font-weight: 700; color: root.kb_effect == 10 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 9: 全彩跑马
@@ -484,7 +485,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 9 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(9); } }
-                Text { text: "全彩跑马"; font-size: 11px; font-weight: 700; color: root.kb_effect == 9 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_full_marquee"); font-size: 11px; font-weight: 700; color: root.kb_effect == 9 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 17: 璀璨烟花
@@ -496,7 +497,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 17 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(17); } }
-                Text { text: "璀璨烟花"; font-size: 11px; font-weight: 700; color: root.kb_effect == 17 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_fireworks"); font-size: 11px; font-weight: 700; color: root.kb_effect == 17 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 14: 幽静极光
@@ -508,7 +509,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 14 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(14); } }
-                Text { text: "幽静极光"; font-size: 11px; font-weight: 700; color: root.kb_effect == 14 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_quiet_aurora"); font-size: 11px; font-weight: 700; color: root.kb_effect == 14 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
 
             // 21: 电竞高亮
@@ -520,7 +521,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.kb_effect == 21 ? #10b981 : AppTheme.border_subtle;
                 TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(21); } }
-                Text { text: "电竞高亮"; font-size: 11px; font-weight: 700; color: root.kb_effect == 21 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_gaming_highlight"); font-size: 11px; font-weight: 700; color: root.kb_effect == 21 ? #10b981 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
             }
         }
     }
@@ -552,7 +553,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                         horizontal-stretch: 1;
 
                         Text {
-                            text: "动效脚本:";
+                            text: AppI18n.tr(AppI18n.rev, "lighting.script_label");
                             font-size: 11px;
                             font-weight: 600;
                             color: AppTheme.text_muted;
@@ -673,7 +674,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                     alignment: center;
                                     Image { source: @image-url("../../assets/icons/refresh-cw.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
                                 }
-                                Text { text: "刷新"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                                Text { text: AppI18n.tr(AppI18n.rev, "lighting.refresh"); font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
                             }
                         }
 
@@ -694,7 +695,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                     alignment: center;
                                     Image { source: @image-url("../../assets/icons/edit.svg"); width: 11px; height: 11px; colorize: #818cf8; }
                                 }
-                                Text { text: "查看源码"; font-size: 11px; font-weight: 600; color: #818cf8; vertical-alignment: center; }
+                                Text { text: AppI18n.tr(AppI18n.rev, "lighting.view_source"); font-size: 11px; font-weight: 600; color: #818cf8; vertical-alignment: center; }
                             }
                         }
 
@@ -722,7 +723,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                             alignment: center;
                                             Image { source: @image-url("../../assets/icons/upload.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
                                         }
-                                        Text { text: "导入"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                                        Text { text: AppI18n.tr(AppI18n.rev, "lighting.import"); font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
                                     }
                                 }
 
@@ -740,7 +741,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                             alignment: center;
                                             Image { source: @image-url("../../assets/icons/download.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
                                         }
-                                        Text { text: "导出"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                                        Text { text: AppI18n.tr(AppI18n.rev, "lighting.export"); font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
                                     }
                                 }
                             }
@@ -787,7 +788,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                             Image { source: @image-url("../../assets/icons/sliders.svg"); width: 13px; height: 13px; colorize: #818cf8; }
                         }
                         Text {
-                            text: "上位通用参数微调 (实时映射物理键盘)";
+                            text: AppI18n.tr(AppI18n.rev, "lighting.script_params_title");
                             font-size: 12px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
@@ -818,7 +819,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                 alignment: center;
                                 Image { source: @image-url("../../assets/icons/rotate-ccw.svg"); width: 11px; height: 11px; colorize: AppTheme.text_primary; }
                             }
-                            Text { text: "恢复默认"; font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
+                            Text { text: AppI18n.tr(AppI18n.rev, "lighting.reset_default"); font-size: 11px; font-weight: 600; color: AppTheme.text_primary; vertical-alignment: center; }
                         }
                     }
                 }
@@ -840,7 +841,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                     alignment: center;
                                     Image { source: @image-url("../../assets/icons/zap.svg"); width: 11px; height: 11px; colorize: #38bdf8; }
                                 }
-                                Text { text: "动效流速"; font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
+                                Text { text: AppI18n.tr(AppI18n.rev, "lighting.script_speed"); font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
                             }
                             Text {
                                 text: Math.floor(root.custom_speed_x10 / 10) + "." + Math.mod(root.custom_speed_x10, 10) + "x";
@@ -901,7 +902,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                     alignment: center;
                                     Image { source: @image-url("../../assets/icons/maximize2.svg"); width: 11px; height: 11px; colorize: #818cf8; }
                                 }
-                                Text { text: "空间尺度 / 扩散"; font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
+                                Text { text: AppI18n.tr(AppI18n.rev, "lighting.script_scale"); font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
                             }
                             Text {
                                 text: root.custom_scale_pct + "%";
@@ -961,7 +962,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                         spacing: 8px;
                         alignment: start;
 
-                        Text { text: "流动方向:"; font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
+                        Text { text: AppI18n.tr(AppI18n.rev, "lighting.script_dir"); font-size: 11px; font-weight: 600; color: AppTheme.text_muted; vertical-alignment: center; }
 
                         HorizontalLayout {
                             spacing: 4px;
@@ -1031,7 +1032,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                                 }
                             }
                             Text {
-                                text: root.custom_reactive ? "击键互动: 开启" : "击键互动: 关闭";
+                                text: root.custom_reactive ? AppI18n.tr(AppI18n.rev, "lighting.key_interact_on") : AppI18n.tr(AppI18n.rev, "lighting.key_interact_off");
                                 font-size: 11px;
                                 font-weight: 600;
                                 color: root.custom_reactive ? #10b981 : AppTheme.text_muted;
@@ -1048,7 +1049,7 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                 ColorPaletteRow {
                     active_color_hex <=> root.kb_color_hex;
                     active_color <=> root.kb_color;
-                    label_text: "定制主色调:";
+                    label_text: AppI18n.tr(AppI18n.rev, "lighting.custom_color_label");
                     color_selected(hex, c) => {
                         root.kb_color_hex = hex;
                         root.kb_color = c;
@@ -1062,12 +1063,12 @@ export component KeyboardEffectsGrid inherits VerticalLayout {
                     Rectangle { height: 1px; background: AppTheme.border_subtle; }
                     HorizontalLayout {
                         alignment: space-between;
-                        Text { text: "滚动弹幕文本 (实时映射物理键盘)"; font-size: 11px; color: AppTheme.text_muted; }
-                        Text { text: "支持大写英文、数字与符号"; font-size: 10px; color: AppTheme.text_muted; }
+                        Text { text: AppI18n.tr(AppI18n.rev, "lighting.marquee_text_title"); font-size: 11px; color: AppTheme.text_muted; }
+                        Text { text: AppI18n.tr(AppI18n.rev, "lighting.marquee_hint"); font-size: 10px; color: AppTheme.text_muted; }
                     }
                     LineEdit {
                         text <=> root.custom_marquee_text;
-                        placeholder-text: "输入弹幕文字，例如: I LOVE OPEN-REVO";
+                        placeholder-text: AppI18n.tr(AppI18n.rev, "lighting.marquee_placeholder");
                         font-size: 12px;
                         edited(txt) => {
                             root.custom_marquee_text = txt;

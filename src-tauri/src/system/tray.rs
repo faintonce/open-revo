@@ -37,11 +37,14 @@ mod tests {
 pub struct TrayMenuControls {
     pub full_panel: CheckMenuItem<tauri::Wry>,
     pub mini_drawer: CheckMenuItem<tauri::Wry>,
+    pub turn_off_screen: MenuItem<tauri::Wry>,
     pub office: CheckMenuItem<tauri::Wry>,
     pub balance: CheckMenuItem<tauri::Wry>,
     pub beast: CheckMenuItem<tauri::Wry>,
     pub custom: CheckMenuItem<tauri::Wry>,
     pub fan_boost: CheckMenuItem<tauri::Wry>,
+    pub oem_toggle: MenuItem<tauri::Wry>,
+    pub quit: MenuItem<tauri::Wry>,
 }
 
 pub struct TrayKeeper(#[allow(dead_code)] pub TrayIcon);
@@ -79,6 +82,30 @@ pub fn update_tray_fan_boost(enabled: bool) {
 /// Hook for future autostart tray checkmark synchronization.
 pub fn update_tray_autostart_state(_enabled: bool) {
     // Reserved for dedicated tray autostart checkmark
+}
+
+pub fn refresh_tauri_tray_locale() {
+    let bundle = crate::system::i18n::get_active_locale_bundle();
+    let tr = |k: &str, fb: &str| crate::system::i18n::lookup_or(&bundle, k, fb);
+    if let Some(ctrl) = TRAY_MENU_CONTROLS.get() {
+        let _ = ctrl.full_panel.set_text(&format!("🖥️ {}", tr("tray.show_full", "Show Full Dashboard")));
+        let _ = ctrl.mini_drawer.set_text(&format!("🪟 {}", tr("tray.show_mini", "Show Mini Drawer")));
+        let _ = ctrl.turn_off_screen.set_text(&format!("🌙 {}", tr("tray.turn_off_screen", "Turn Off Display")));
+        let _ = ctrl.office.set_text(&tr("tray.mode_office", "Office Mode"));
+        let _ = ctrl.balance.set_text(&tr("tray.mode_balance", "Balance Mode"));
+        let _ = ctrl.beast.set_text(&tr("tray.mode_beast", "Beast Mode"));
+        let _ = ctrl.custom.set_text(&tr("tray.mode_custom", "Custom Mode"));
+        let _ = ctrl.fan_boost.set_text(&tr("tray.fan_boost", "Fan Boost"));
+        let _ = ctrl.oem_toggle.set_text(&format!(
+            "🔄 {} / {}",
+            tr("tray.takeover_on", "Takeover OEM"),
+            tr("tray.takeover_off", "Restore OEM")
+        ));
+        let _ = ctrl.quit.set_text(&tr("tray.quit", "Quit OpenRevo"));
+    }
+    if let Some(tray) = GLOBAL_TRAY.get() {
+        let _ = tray.set_tooltip(Some(&tr("tray.tooltip", "OpenRevo Control Center")));
+    }
 }
 
 /// Hook for future log level tray checkmark synchronization.
@@ -141,11 +168,14 @@ pub fn build_tray_menu(
     let _ = TRAY_MENU_CONTROLS.set(TrayMenuControls {
         full_panel: full_panel_item.clone(),
         mini_drawer: mini_drawer_item.clone(),
+        turn_off_screen: turn_off_screen_item.clone(),
         office: office_item.clone(),
         balance: balance_item.clone(),
         beast: beast_item.clone(),
         custom: custom_item.clone(),
         fan_boost: fan_boost_item.clone(),
+        oem_toggle: oem_toggle_item.clone(),
+        quit: quit_item.clone(),
     });
 
     Menu::with_items(

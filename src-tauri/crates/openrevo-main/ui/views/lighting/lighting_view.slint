@@ -7,6 +7,7 @@ import { AmbientLightingView } from "ambient_view.slint";
 import { LogoLightingView } from "logo_view.slint";
 import { LightingTopologyModal } from "topology_modal.slint";
 import { BrfxScriptItem } from "lighting_types.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DashboardLightingView inherits Rectangle {
     background: transparent;
@@ -22,10 +23,10 @@ export component DashboardLightingView inherits Rectangle {
     in property <bool> is_four_zone: false;
     in property <bool> is_single_zone: false;
     in property <bool> is_single_color: false;
-    in property <string> kb_hw_desc: "键盘背光控制器";
-    in property <string> lb_hw_desc: "海岸灯条控制器";
-    in property <string> hinge_hw_desc: "转轴氛围流光硬件";
-    in property <string> logo_hw_desc: "全彩发光徽标控制器";
+    in property <string> kb_hw_desc: AppI18n.tr(AppI18n.rev, "lighting.kbd_controller");
+    in property <string> lb_hw_desc: AppI18n.tr(AppI18n.rev, "lighting.lb_controller");
+    in property <string> hinge_hw_desc: AppI18n.tr(AppI18n.rev, "lighting.ambient_controller");
+    in property <string> logo_hw_desc: AppI18n.tr(AppI18n.rev, "lighting.logo_controller");
     in property <bool> is_ec_logo: false;
 
     // Global settings
@@ -48,7 +49,7 @@ export component DashboardLightingView inherits Rectangle {
     // Custom BRFX state
     in-out property <[BrfxScriptItem]> custom_scripts: [];
     in-out property <string> custom_script_id: "kamehameha";
-    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_name: AppI18n.tr(AppI18n.rev, "lighting.brfx_kamehameha");
     in-out property <string> custom_script_file_name: "kamehameha.brfx";
     in-out property <string> custom_script_author: "OpenRevo Community";
     in-out property <string> custom_script_desc: "";

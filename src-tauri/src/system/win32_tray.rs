@@ -46,6 +46,7 @@ const ID_QUIT: usize = 5302;
 static GLOBAL_EC_BRIDGE: std::sync::OnceLock<SharedEcBridge> = std::sync::OnceLock::new();
 static WM_TASKBAR_CREATED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 static TRAY_ICON_HANDLE: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+static TRAY_HWND: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
 
 const TIMER_ID_TRAY_RETRY: usize = 1;
 const TIMER_ID_TRAY_HEALTH: usize = 2;
@@ -57,7 +58,9 @@ fn to_wide(s: &str) -> Vec<u16> {
 }
 
 fn build_notify_icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
-    let tip = to_wide("OpenRevo 控制中枢");
+    let bundle = crate::system::i18n::get_active_locale_bundle();
+    let tip_text = crate::system::i18n::lookup_or(&bundle, "tray.tooltip", "OpenRevo Control Center");
+    let tip = to_wide(&tip_text);
     let mut tip_arr = [0u16; 128];
     let copy_len = tip.len().min(127);
     tip_arr[..copy_len].copy_from_slice(&tip[..copy_len]);
@@ -82,6 +85,17 @@ unsafe fn ensure_tray_icon_registered(hwnd: HWND) -> bool {
         return true;
     }
     Shell_NotifyIconW(NIM_MODIFY, &nid).as_bool()
+}
+
+pub fn refresh_tray_tooltip() {
+    let raw = TRAY_HWND.load(std::sync::atomic::Ordering::Relaxed);
+    if raw != 0 {
+        let hwnd = HWND(raw as *mut core::ffi::c_void);
+        let nid = build_notify_icon_data(hwnd);
+        unsafe {
+            let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
+        }
+    }
 }
 
 unsafe extern "system" fn tray_window_proc(
@@ -181,10 +195,13 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
         cfg.fan_boost
     };
 
+    let bundle = crate::system::i18n::get_active_locale_bundle();
+    let tr = |k: &str, fb: &str| crate::system::i18n::lookup_or(&bundle, k, fb);
+
     // 1. Presentation Modes
-    let full_w = to_wide("🖥️ 完整面板");
-    let mini_w = to_wide("🪟 迷你抽屉");
-    let screen_off_w = to_wide("🌙 关闭屏幕 (3秒防误触)");
+    let full_w = to_wide(&format!("🖥️ {}", tr("tray.show_full", "Show Full Dashboard")));
+    let mini_w = to_wide(&format!("🪟 {}", tr("tray.show_mini", "Show Mini Drawer")));
+    let screen_off_w = to_wide(&format!("🌙 {}", tr("tray.turn_off_screen", "Turn Off Display")));
 
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_FULL_PANEL, PCWSTR(full_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_MINI_DRAWER, PCWSTR(mini_w.as_ptr()));
@@ -198,10 +215,10 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     }
 
     // 2. Power Modes
-    let office_w = to_wide("办公模式 (Office)");
-    let balance_w = to_wide("均衡模式 (Balance)");
-    let beast_w = to_wide("狂暴模式 (Beast)");
-    let custom_w = to_wide("极客调校 (Custom)");
+    let office_w = to_wide(&tr("tray.mode_office", "Office Mode"));
+    let balance_w = to_wide(&tr("tray.mode_balance", "Balance Mode"));
+    let beast_w = to_wide(&tr("tray.mode_beast", "Beast Mode"));
+    let custom_w = to_wide(&tr("tray.mode_custom", "Custom Mode"));
 
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_OFFICE, PCWSTR(office_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_MODE_BALANCE, PCWSTR(balance_w.as_ptr()));
@@ -225,8 +242,8 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     );
 
     // 3. Hardware Controls
-    let fan_w = to_wide("一键强冷 (Fan Boost)");
-    let oem_w = to_wide("🔄 接管/恢复 官方后台服务");
+    let fan_w = to_wide(&tr("tray.fan_boost", "Fan Boost"));
+    let oem_w = to_wide(&format!("🔄 {} / {}", tr("tray.takeover_on", "Takeover OEM"), tr("tray.takeover_off", "Restore OEM")));
 
     let _ = AppendMenuW(hmenu, MF_STRING, ID_TOGGLE_FAN, PCWSTR(fan_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_TAKEOVER_TOGGLE, PCWSTR(oem_w.as_ptr()));
@@ -239,7 +256,7 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     // 4. Meta & Quit
     let version_str = format!("🛡️ PRO v{}", env!("CARGO_PKG_VERSION"));
     let version_w = to_wide(&version_str);
-    let quit_w = to_wide("退出 OpenRevo");
+    let quit_w = to_wide(&tr("tray.quit", "Quit OpenRevo"));
 
     let _ = AppendMenuW(hmenu, MF_STRING | MF_GRAYED, ID_NOTICE, PCWSTR(version_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_QUIT, PCWSTR(quit_w.as_ptr()));
@@ -419,6 +436,7 @@ pub fn run_tray_loop(ec_instance: SharedEcBridge) {
                 return;
             }
         };
+        TRAY_HWND.store(hwnd.0 as isize, std::sync::atomic::Ordering::Relaxed);
 
         let h_icon = load_best_tray_icon(h_inst.into());
         TRAY_ICON_HANDLE.store(h_icon.0 as isize, std::sync::atomic::Ordering::Relaxed);

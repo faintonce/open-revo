@@ -8,10 +8,11 @@ import { DashboardPowerView } from "../views/power/power_view.slint";
 import { DashboardLightingView } from "../views/lighting/lighting_view.slint";
 import { BrfxScriptItem } from "../views/lighting/lighting_types.slint";
 import { DashboardWaterView } from "../views/water/water_view.slint";
+import { AppI18n } from "../i18n.slint";
 import { WaterCoolerDeviceItem } from "../views/water/cooler_types.slint";
 import { DashboardPluginsView, CustomPluginItem } from "../views/plugins/plugins_view.slint";
 import { DashboardSystemView } from "../views/system/system_view.slint";
-import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, UpdateResultData } from "../views/system/system_types.slint";
+import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, UpdateResultData, LocaleOptionItem } from "../views/system/system_types.slint";
 import { DashboardSponsorView } from "../views/sponsor/sponsor_view.slint";
 import { DashboardPluginWorkspace } from "plugin_workspace.slint";
 
@@ -96,6 +97,13 @@ export component FullDashboard inherits Rectangle {
     callback toggle_classic_webview(bool);
     callback restart_openrevo();
 
+    in-out property <string> current_locale: "zh-CN";
+    in-out property <[LocaleOptionItem]> available_locales: [];
+    in-out property <string> locale_feedback: "";
+    callback change_locale(string);
+    callback open_locales_dir();
+    callback export_i18n_template();
+
     in-out property <UserDataDirInfo> data_dir_info: {
         path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
         mode: "appdata"
@@ -109,9 +117,9 @@ export component FullDashboard inherits Rectangle {
     callback confirm_migrate_user_data(string);
 
     in-out property <[PowerSchemeItem]> power_schemes: [
-        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+        { guid: "balanced", name: AppI18n.tr(AppI18n.rev, "shell.scheme_balanced"), is_active: true }
     ];
-    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> active_power_scheme_name: AppI18n.tr(AppI18n.rev, "shell.scheme_balanced");
     in-out property <string> restore_plan_msg: "";
     in-out property <bool> show_restore_plan_confirm: false;
     in-out property <bool> restoring_power_plan: false;
@@ -176,7 +184,7 @@ export component FullDashboard inherits Rectangle {
     // Display Tuning Engine state
     in-out property <bool> tuning_enabled: false;
     in-out property <string> active_preset_id: "preset_vibrant";
-    in-out property <string> active_display_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <string> active_display_preset_name: AppI18n.tr(AppI18n.rev, "shell.color_vibrant");
     in-out property <int> tuning_temp_k: 6500;
     in-out property <int> tuning_saturation: 150;
     in-out property <int> tuning_contrast: 100;
@@ -188,9 +196,9 @@ export component FullDashboard inherits Rectangle {
     in-out property <string> tuning_toast: "";
 
     // Color Calibration state
-    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile: AppI18n.tr(AppI18n.rev, "shell.icc_default");
     in-out property <string> active_color_profile_id: "default_native";
-    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_list: [AppI18n.tr(AppI18n.rev, "shell.icc_default"), AppI18n.tr(AppI18n.rev, "shell.icc_srgb"), AppI18n.tr(AppI18n.rev, "shell.icc_p3"), AppI18n.tr(AppI18n.rev, "shell.icc_adobe")];
     in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
     in-out property <bool> is_color_dirty: false;
 
@@ -203,10 +211,10 @@ export component FullDashboard inherits Rectangle {
     in-out property <bool> is_four_zone: false;
     in-out property <bool> is_single_zone: false;
     in-out property <bool> is_single_color: false;
-    in-out property <string> kb_hw_desc: "键盘背光控制器";
-    in-out property <string> lb_hw_desc: "海岸灯条控制器";
-    in-out property <string> hinge_hw_desc: "转轴氛围流光硬件";
-    in-out property <string> logo_hw_desc: "全彩发光徽标控制器";
+    in-out property <string> kb_hw_desc: AppI18n.tr(AppI18n.rev, "shell.kbd_controller");
+    in-out property <string> lb_hw_desc: AppI18n.tr(AppI18n.rev, "shell.lightbar_controller");
+    in-out property <string> hinge_hw_desc: AppI18n.tr(AppI18n.rev, "shell.ambient_controller");
+    in-out property <string> logo_hw_desc: AppI18n.tr(AppI18n.rev, "shell.logo_controller");
     in-out property <bool> is_ec_logo: false;
 
     in-out property <int> sleep_minutes: 10;
@@ -226,7 +234,7 @@ export component FullDashboard inherits Rectangle {
 
     in-out property <[BrfxScriptItem]> custom_scripts: [];
     in-out property <string> custom_script_id: "kamehameha";
-    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_name: AppI18n.tr(AppI18n.rev, "shell.brfx_kamehameha");
     in-out property <string> custom_script_file_name: "kamehameha.brfx";
     in-out property <string> custom_script_author: "OpenRevo Community";
     in-out property <string> custom_script_desc: "";
@@ -316,7 +324,7 @@ export component FullDashboard inherits Rectangle {
 
     in-out property <int> cpu_rpm: 2746;
     in-out property <int> gpu_rpm: 2635;
-    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_label: AppI18n.tr(AppI18n.rev, "shell.dual_burn_total");
     in-out property <string> telemetry_total_watts: "--";
 
     in-out property <string> vram_text: "1.7 / 16.0 GB";
@@ -364,12 +372,12 @@ export component FullDashboard inherits Rectangle {
     in-out property <int> bld_fan_rpm: 5800;
     in-out property <bool> auto_min_hz: true;
     in-out property <int> refresh_rate: 240;
-    in-out property <string> monitor_name: "京东方";
+    in-out property <string> monitor_name: AppI18n.tr(AppI18n.rev, "shell.panel_boe");
     in-out property <[int]> rates_row1: [60, 144, 240];
     in-out property <[int]> rates_row2: [];
     in-out property <bool> has_secondary_monitor: false;
-    in-out property <string> primary_monitor_name: "内置主屏";
-    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <string> primary_monitor_name: AppI18n.tr(AppI18n.rev, "shell.internal_display");
+    in-out property <string> secondary_monitor_name: AppI18n.tr(AppI18n.rev, "shell.external_display");
     callback toggle_fan_boost();
     callback toggle_bld_fan_lock(int);
     callback change_bld_fan_rpm(int);
@@ -430,10 +438,10 @@ export component FullDashboard inherits Rectangle {
     callback select_water_device(string);
 
     // Custom Tuning Profile & Hardware Params
-    in-out property <string> active_preset_name: "均衡电竞";
+    in-out property <string> active_preset_name: AppI18n.tr(AppI18n.rev, "shell.preset_gaming");
     in-out property <bool> active_preset_is_builtin: false;
     in-out property <[string]> preset_ids: ["preset_office", "preset_balanced", "preset_turbo"];
-    in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
+    in-out property <[string]> preset_names: [AppI18n.tr(AppI18n.rev, "shell.preset_office"), AppI18n.tr(AppI18n.rev, "shell.preset_gaming"), AppI18n.tr(AppI18n.rev, "shell.preset_beast")];
     in-out property <int> temp_wall: 95;
     in-out property <bool> temp_wall_enabled: true;
     in-out property <int> temp_wall_min: 85;
@@ -454,8 +462,8 @@ export component FullDashboard inherits Rectangle {
     in-out property <int> min_max_pl4: 155;
     in-out property <int> max_max_pl4: 280;
     in-out property <bool> bios_oc_enabled: true;
-    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
-    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <string> bios_oc_desc: AppI18n.tr(AppI18n.rev, "shell.bios_oc_desc");
+    in-out property <string> bios_oc_btn_text: AppI18n.tr(AppI18n.rev, "shell.off");
     in-out property <int> bios_oc_status: 0;
     in-out property <bool> bios_oc_disabled: false;
 
@@ -574,15 +582,15 @@ export component FullDashboard inherits Rectangle {
 
     // Cloud ICC Modal Props & Callbacks
     in-out property <bool> is_cloud_icc_modal_open: false;
-    in-out property <string> cloud_icc_panel_pnp: "未检出";
-    in-out property <string> cloud_icc_panel_sn: "(无独立面板SN)";
-    in-out property <string> cloud_icc_bios_sn: "未检出";
-    in-out property <string> cloud_icc_mac: "未检出";
-    in-out property <string> cloud_icc_arch: "识别中...";
+    in-out property <string> cloud_icc_panel_pnp: AppI18n.tr(AppI18n.rev, "shell.not_detected");
+    in-out property <string> cloud_icc_panel_sn: AppI18n.tr(AppI18n.rev, "shell.no_panel_sn");
+    in-out property <string> cloud_icc_bios_sn: AppI18n.tr(AppI18n.rev, "shell.not_detected");
+    in-out property <string> cloud_icc_mac: AppI18n.tr(AppI18n.rev, "shell.not_detected");
+    in-out property <string> cloud_icc_arch: AppI18n.tr(AppI18n.rev, "shell.detecting");
     in-out property <string> cloud_icc_recommended: "auto";
     in-out property <string> cloud_icc_mode: "auto";
     in-out property <bool> cloud_icc_is_searching: false;
-    in-out property <string> cloud_icc_status: "就绪";
+    in-out property <string> cloud_icc_status: AppI18n.tr(AppI18n.rev, "shell.ready");
     in-out property <bool> cloud_icc_hit_found: false;
     in-out property <string> cloud_icc_hit_file_name: "";
     in-out property <string> cloud_icc_hit_meta: "";
@@ -643,22 +651,22 @@ export component FullDashboard inherits Rectangle {
             VerticalLayout {
                 // 2.1 Top Right Header Bar (Only visible when NOT in tuning sub-view)
             if !root.is_in_tuning_view: DashboardHeader {
-                title: root.active_plugin_id != "" ? "扩展插件面板" :
-                       (root.active_tab == 0 ? "状态总览" :
-                       (root.active_tab == 1 ? "显卡模式调控" :
-                       (root.active_tab == 2 ? "电源与性能释放" :
-                       (root.active_tab == 3 ? "RGB 灯效工坊" :
-                       (root.active_tab == 4 ? "水冷魔盒 (BLE)" :
-                       (root.active_tab == 5 ? "扩展插件中心" :
-                       (root.active_tab == 6 ? "系统通用设置" : "关于与支持作者")))))));
-                subtitle: root.active_plugin_id != "" ? ("当前活跃第三方扩展: " + root.active_plugin_id) :
-                          (root.active_tab == 0 ? "核心硬件实时遥测与性能调控中枢" :
-                          (root.active_tab == 1 ? "独显直连 (dGPU) / 混合模式 / 纯集显低功耗一键切换" :
-                          (root.active_tab == 2 ? "CPU / GPU 功耗墙深度解限与原厂温控策略调校" :
-                          (root.active_tab == 3 ? "电竞矩阵背光与水冷氛围灯动态联动联动" :
-                          (root.active_tab == 4 ? "外置水冷机蓝牙低功耗温控联动" :
-                          (root.active_tab == 5 ? "基于 WebView2 / Slint 微内核生态的社区扩展" :
-                          (root.active_tab == 6 ? "开机自启、原厂控制台接管与深色/亮色外观配置" : "感谢每一位机革玩家与开源贡献者的支持")))))));
+                title: root.active_plugin_id != "" ? AppI18n.tr(AppI18n.rev, "shell.plugin_panel") :
+                       (root.active_tab == 0 ? AppI18n.tr(AppI18n.rev, "shell.tab_overview") :
+                       (root.active_tab == 1 ? AppI18n.tr(AppI18n.rev, "shell.tab_gpu") :
+                       (root.active_tab == 2 ? AppI18n.tr(AppI18n.rev, "shell.tab_tuning") :
+                       (root.active_tab == 3 ? AppI18n.tr(AppI18n.rev, "shell.tab_lighting") :
+                       (root.active_tab == 4 ? AppI18n.tr(AppI18n.rev, "shell.tab_water") :
+                       (root.active_tab == 5 ? AppI18n.tr(AppI18n.rev, "shell.tab_plugins") :
+                       (root.active_tab == 6 ? AppI18n.tr(AppI18n.rev, "shell.tab_system") : AppI18n.tr(AppI18n.rev, "shell.tab_sponsor"))))))));
+                subtitle: root.active_plugin_id != "" ? (AppI18n.tr(AppI18n.rev, "shell.active_plugin_prefix") + root.active_plugin_id) :
+                          (root.active_tab == 0 ? AppI18n.tr(AppI18n.rev, "shell.sub_overview") :
+                          (root.active_tab == 1 ? AppI18n.tr(AppI18n.rev, "shell.sub_gpu") :
+                          (root.active_tab == 2 ? AppI18n.tr(AppI18n.rev, "shell.sub_tuning") :
+                          (root.active_tab == 3 ? AppI18n.tr(AppI18n.rev, "shell.sub_lighting") :
+                          (root.active_tab == 4 ? AppI18n.tr(AppI18n.rev, "shell.sub_water") :
+                          (root.active_tab == 5 ? AppI18n.tr(AppI18n.rev, "shell.sub_plugins") :
+                          (root.active_tab == 6 ? AppI18n.tr(AppI18n.rev, "shell.sub_system") : AppI18n.tr(AppI18n.rev, "shell.sub_sponsor"))))))));
 
                 toggle_theme => { root.toggle_theme(); }
                 collapse_to_mini => { root.collapse_to_mini(); }
@@ -1306,6 +1314,13 @@ export component FullDashboard inherits Rectangle {
                 use_classic_webview: root.use_classic_webview;
                 toggle_classic_webview(en) => { root.toggle_classic_webview(en); }
                 restart_openrevo => { root.restart_openrevo(); }
+
+                current_locale: root.current_locale;
+                available_locales: root.available_locales;
+                locale_feedback: root.locale_feedback;
+                change_locale(c) => { root.change_locale(c); }
+                open_locales_dir => { root.open_locales_dir(); }
+                export_i18n_template => { root.export_i18n_template(); }
 
                 data_dir_info: root.data_dir_info;
                 show_clear_confirm <=> root.show_clear_confirm;

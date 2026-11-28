@@ -1,12 +1,13 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component ColorProfileBar inherits Rectangle {
-    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile: AppI18n.tr(AppI18n.rev, "gpu.icc_default");
     in-out property <string> active_color_profile_id: "default_native";
-    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_list: [AppI18n.tr(AppI18n.rev, "gpu.icc_default"), AppI18n.tr(AppI18n.rev, "gpu.icc_srgb"), AppI18n.tr(AppI18n.rev, "gpu.icc_p3"), AppI18n.tr(AppI18n.rev, "gpu.icc_adobe")];
     in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
     in-out property <bool> is_color_dirty: false;
-    in-out property <string> monitor_name: "京东方";
+    in-out property <string> monitor_name: AppI18n.tr(AppI18n.rev, "gpu.panel_boe");
 
     callback apply_profile(string);
     callback import_profile();
@@ -50,13 +51,13 @@ export component ColorProfileBar inherits Rectangle {
                 alignment: center;
                 spacing: 1px;
                 Text {
-                    text: "屏幕色彩校正 (Color Management)";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.color_mgmt_title");
                     font-size: 12px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "当前方案: " + root.active_color_profile + " · " + root.monitor_name;
+                    text: AppI18n.tr(AppI18n.rev, "gpu.current_profile") + root.active_color_profile + " · " + root.monitor_name;
                     font-size: 9.5px;
                     color: AppTheme.text_muted;
                 }
@@ -172,7 +173,7 @@ export component ColorProfileBar inherits Rectangle {
                             padding-right: 8px;
                             spacing: 4px;
                             Text {
-                                text: "应用";
+                                text: AppI18n.tr(AppI18n.rev, "gpu.apply");
                                 font-size: 10.5px;
                                 font-weight: 600;
                                 color: root.is_color_dirty ? #38bdf8 : AppTheme.text_muted;
@@ -204,7 +205,7 @@ export component ColorProfileBar inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "导入";
+                                text: AppI18n.tr(AppI18n.rev, "gpu.import");
                                 font-size: 10.5px;
                                 font-weight: 600;
                                 color: #38bdf8;
@@ -236,7 +237,7 @@ export component ColorProfileBar inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "原厂校色";
+                                text: AppI18n.tr(AppI18n.rev, "gpu.factory_icc");
                                 font-size: 10.5px;
                                 font-weight: 600;
                                 color: #38bdf8;

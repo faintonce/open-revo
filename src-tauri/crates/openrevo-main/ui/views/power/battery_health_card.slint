@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component BatteryHealthCard inherits Rectangle {
     in-out property <int> battery_percent: 99;
@@ -20,13 +21,13 @@ export component BatteryHealthCard inherits Rectangle {
         HorizontalLayout {
             alignment: space-between;
             Text {
-                text: "电池健康";
+                text: AppI18n.tr(AppI18n.rev, "power.bat_health_title");
                 font-size: 11.5px;
                 font-weight: 700;
                 color: AppTheme.text_muted;
             }
             Text {
-                text: "主板硬件级充电控制 · 电池健康长寿模式";
+                text: AppI18n.tr(AppI18n.rev, "power.bat_health_sub");
                 font-size: 9.5px;
                 color: AppTheme.text_muted;
             }
@@ -83,13 +84,13 @@ export component BatteryHealthCard inherits Rectangle {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: "长效模式";
+                                text: AppI18n.tr(AppI18n.rev, "power.longevity_mode");
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: (root.battery_mode == "long_life" || root.battery_limit == 100) ? #10b981 : AppTheme.text_primary;
                             }
                             Text {
-                                text: "适合很长时间使用电池工作的环境。";
+                                text: AppI18n.tr(AppI18n.rev, "power.longevity_desc");
                                 font-size: 8.5px;
                                 color: AppTheme.text_muted;
                             }
@@ -140,13 +141,13 @@ export component BatteryHealthCard inherits Rectangle {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: "平衡模式";
+                                text: AppI18n.tr(AppI18n.rev, "power.balance_mode");
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: (root.battery_mode == "balance" || root.battery_limit == 80) ? #3b82f6 : AppTheme.text_primary;
                             }
                             Text {
-                                text: "偶而会携带电脑工作，且不需要多余靠电池供电。";
+                                text: AppI18n.tr(AppI18n.rev, "power.balance_desc");
                                 font-size: 8.5px;
                                 color: AppTheme.text_muted;
                             }
@@ -197,13 +198,13 @@ export component BatteryHealthCard inherits Rectangle {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: "工作站模式";
+                                text: AppI18n.tr(AppI18n.rev, "power.station_mode");
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: (root.battery_mode == "station" || root.battery_limit == 60) ? #06b6d4 : AppTheme.text_primary;
                             }
                             Text {
-                                text: "如果很容易接续适配器工作，无携带电脑外出需求，强烈建议使用。";
+                                text: AppI18n.tr(AppI18n.rev, "power.station_desc");
                                 font-size: 8.5px;
                                 color: AppTheme.text_muted;
                             }
@@ -297,7 +298,7 @@ export component BatteryHealthCard inherits Rectangle {
                         }
 
                         Text {
-                            text: root.is_ac_online ? "已连接电源适配器" : "正在使用电池供电";
+                            text: root.is_ac_online ? AppI18n.tr(AppI18n.rev, "power.ac_connected") : AppI18n.tr(AppI18n.rev, "power.on_battery");
                             font-size: 10px;
                             font-weight: 600;
                             color: root.is_ac_online ? #10b981 : #f59e0b;

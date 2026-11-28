@@ -45,6 +45,18 @@ pub fn register(
         ipc::send_action_to_host("restart_openrevo", serde_json::json!({}));
     });
 
+    window.on_change_locale(move |code| {
+        ipc::send_action_to_host("change_locale", serde_json::json!({ "code": code.as_str() }));
+    });
+
+    window.on_open_locales_dir(move || {
+        ipc::send_action_to_host("open_locales_dir", serde_json::json!({}));
+    });
+
+    window.on_export_i18n_template(move || {
+        ipc::send_action_to_host("export_i18n_template", serde_json::json!({}));
+    });
+
     window.on_open_user_data_dir(move || {
         ipc::send_action_to_host("open_user_data_dir", serde_json::json!({}));
     });

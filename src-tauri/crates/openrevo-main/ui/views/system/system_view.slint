@@ -1,11 +1,12 @@
 import { AppTheme } from "../../theme.slint";
-import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, UpdateResultData } from "system_types.slint";
+import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, UpdateResultData, LocaleOptionItem } from "system_types.slint";
 import { SystemSwitchesCard } from "system_switches_card.slint";
 import { SystemUnlockBatteryModal } from "modals/system_unlock_battery_modal.slint";
 import { SystemClearDataModal } from "modals/system_clear_data_modal.slint";
 import { SystemRestorePlanModal } from "modals/system_restore_plan_modal.slint";
 import { SystemMigrateModal } from "modals/system_migrate_modal.slint";
 import { SystemUpdaterModal } from "modals/system_updater_modal.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DashboardSystemView inherits Rectangle {
     background: transparent;
@@ -34,6 +35,14 @@ export component DashboardSystemView inherits Rectangle {
     callback toggle_classic_webview(bool);
     callback restart_openrevo();
 
+    // 5c. i18n Language Settings
+    in-out property <string> current_locale: "zh-CN";
+    in-out property <[LocaleOptionItem]> available_locales: [];
+    in-out property <string> locale_feedback: "";
+    callback change_locale(string);
+    callback open_locales_dir();
+    callback export_i18n_template();
+
     // 6. User Data Directory
     in-out property <UserDataDirInfo> data_dir_info: {
         path: "C:\\Users\\AppData\\Roaming\\OpenRevo",
@@ -50,9 +59,9 @@ export component DashboardSystemView inherits Rectangle {
 
     // 7. Power Schemes
     in-out property <[PowerSchemeItem]> power_schemes: [
-        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+        { guid: "balanced", name: AppI18n.tr(AppI18n.rev, "system.scheme_balanced"), is_active: true }
     ];
-    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> active_power_scheme_name: AppI18n.tr(AppI18n.rev, "system.scheme_balanced");
     in-out property <string> restore_plan_msg: "";
     in-out property <bool> show_restore_plan_confirm: false;
     in-out property <bool> restoring_power_plan: false;
@@ -103,6 +112,13 @@ export component DashboardSystemView inherits Rectangle {
             use_classic_webview: root.use_classic_webview;
             toggle_classic_webview(en) => { root.toggle_classic_webview(en); }
             restart_openrevo => { root.restart_openrevo(); }
+
+            current_locale: root.current_locale;
+            available_locales: root.available_locales;
+            locale_feedback: root.locale_feedback;
+            change_locale(c) => { root.change_locale(c); }
+            open_locales_dir => { root.open_locales_dir(); }
+            export_i18n_template => { root.export_i18n_template(); }
 
             data_dir_info: root.data_dir_info;
             open_user_data_dir => { root.open_user_data_dir(); }

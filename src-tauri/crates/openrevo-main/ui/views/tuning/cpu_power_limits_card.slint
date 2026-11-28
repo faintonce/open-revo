@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CpuPowerLimitsCard inherits VerticalLayout {
     in-out property <bool> is_amd: false;
@@ -35,7 +36,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: root.is_amd ? "长时持续功耗 (SPL):" : "长时功耗 PL1:";
+                    text: root.is_amd ? AppI18n.tr(AppI18n.rev, "tuning.spl_label") : AppI18n.tr(AppI18n.rev, "tuning.pl1_label");
                     font-size: 11px;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
@@ -137,7 +138,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 4px;
                     Text {
-                        text: "上限: " + root.pl1_max + "W";
+                        text: AppI18n.tr(AppI18n.rev, "tuning.limit_prefix") + root.pl1_max + "W";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -204,7 +205,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: root.is_amd ? "短时爆发功耗 (sPPT):" : "短时功耗 PL2:";
+                    text: root.is_amd ? AppI18n.tr(AppI18n.rev, "tuning.sppt_label") : AppI18n.tr(AppI18n.rev, "tuning.pl2_label");
                     font-size: 11px;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
@@ -306,7 +307,7 @@ export component CpuPowerLimitsCard inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 4px;
                     Text {
-                        text: "上限: " + root.pl2_max + "W";
+                        text: AppI18n.tr(AppI18n.rev, "tuning.limit_prefix") + root.pl2_max + "W";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;

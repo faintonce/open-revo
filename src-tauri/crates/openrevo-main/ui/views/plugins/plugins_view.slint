@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export struct CustomPluginItem {
     id: string,
@@ -318,12 +319,12 @@ component CustomPluginCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 12px;
                     Text {
-                        text: "作者: " + root.item.author;
+                        text: AppI18n.tr(AppI18n.rev, "plugins.author_prefix") + root.item.author;
                         font-size: 10px;
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "目录: " + root.item.dir_name;
+                        text: AppI18n.tr(AppI18n.rev, "plugins.dir_prefix") + root.item.dir_name;
                         font-size: 10px;
                         color: AppTheme.text_muted;
                     }
@@ -353,25 +354,25 @@ export component DashboardPluginsView inherits Rectangle {
     in-out property <[CustomPluginItem]> custom_plugins: [
         {
             id: "battery-hardware-limit",
-            name: "电池充电上限守护者",
+            name: AppI18n.tr(AppI18n.rev, "plugins.builtin_bat_title"),
             version: "v2.1.0",
             author: "OpenRevo Official & Community",
-            description: "官方推荐插件，基于内核级驱动精准锁定电池硬件限制充电阈值。智能切换养护模式与安全过放极限锁死，降低鼓包 1-100% 充电阈值，无需常驻后台无锁屏待机功耗。",
+            description: AppI18n.tr(AppI18n.rev, "plugins.builtin_bat_desc"),
             plugin_type: "service",
             enabled: true,
-            tag: "后台守护",
+            tag: AppI18n.tr(AppI18n.rev, "plugins.bg_daemon"),
             min_version: "v0.9.4+",
             dir_name: "battery-hardware-limit"
         },
         {
             id: "cpu-guardian",
-            name: "13/14代 CPU 防缩卫士",
+            name: AppI18n.tr(AppI18n.rev, "plugins.builtin_cpu_title"),
             version: "v1.0.0",
             author: "OpenRevo Community",
-            description: "针对 Intel 13/14 代 HX 处理器高电压缩频隐患，提供动态 CEP 状态监测、PL4 突发电流钳位守护与过热过压拦截预警机制。",
+            description: AppI18n.tr(AppI18n.rev, "plugins.builtin_cpu_desc"),
             plugin_type: "service",
             enabled: true,
-            tag: "后台守护",
+            tag: AppI18n.tr(AppI18n.rev, "plugins.bg_daemon"),
             min_version: "v0.9.4+",
             dir_name: "cpu-guardian"
         }
@@ -418,7 +419,7 @@ export component DashboardPluginsView inherits Rectangle {
                         VerticalLayout {
                             alignment: center;
                             Text {
-                                text: "内置插件";
+                                text: AppI18n.tr(AppI18n.rev, "plugins.builtin_section");
                                 font-size: 13.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -437,7 +438,7 @@ export component DashboardPluginsView inherits Rectangle {
                                     padding-left: 6px;
                                     padding-right: 6px;
                                     Text {
-                                        text: "Safe-Mode 驱动级隔离";
+                                        text: AppI18n.tr(AppI18n.rev, "plugins.safemode_badge");
                                         font-size: 9.5px;
                                         font-weight: 700;
                                         color: AppTheme.accent_active;
@@ -451,7 +452,7 @@ export component DashboardPluginsView inherits Rectangle {
                     VerticalLayout {
                         alignment: center;
                         Text {
-                            text: "共 5 项";
+                            text: AppI18n.tr(AppI18n.rev, "plugins.count_5");
                             font-size: 11px;
                             color: AppTheme.text_muted;
                         }
@@ -459,7 +460,7 @@ export component DashboardPluginsView inherits Rectangle {
                 }
 
                 Text {
-                    text: "系统核心功能组件，可根据您的机型配置与使用偏好随时启用或禁用。关闭的插件将从侧边栏导航与后台调度中隐退";
+                    text: AppI18n.tr(AppI18n.rev, "plugins.builtin_section_desc");
                     font-size: 11px;
                     color: AppTheme.text_muted;
                 }
@@ -469,9 +470,9 @@ export component DashboardPluginsView inherits Rectangle {
                     spacing: 6px;
 
                     BuiltinModuleCard {
-                        title: "状态总览";
+                        title: AppI18n.tr(AppI18n.rev, "plugins.tab_overview");
                         tag_id: "overview";
-                        desc: "整机实时传感器监控、模式切换仪表盘与电池健康看板";
+                        desc: AppI18n.tr(AppI18n.rev, "plugins.desc_overview");
                         icon: @image-url("../../assets/icons/grid.svg");
                         enabled: root.is_overview_enabled;
                         toggled => {
@@ -481,9 +482,9 @@ export component DashboardPluginsView inherits Rectangle {
                     }
 
                     BuiltinModuleCard {
-                        title: "显卡模式";
+                        title: AppI18n.tr(AppI18n.rev, "plugins.tab_gpu");
                         tag_id: "gpu";
-                        desc: "独显直连/混合输出 MUX 切换、动态超频、屏幕亮度与 ICC 校色";
+                        desc: AppI18n.tr(AppI18n.rev, "plugins.desc_gpu");
                         icon: @image-url("../../assets/icons/monitor.svg");
                         enabled: root.is_gpu_enabled;
                         toggled => {
@@ -493,9 +494,9 @@ export component DashboardPluginsView inherits Rectangle {
                     }
 
                     BuiltinModuleCard {
-                        title: "电源管理";
+                        title: AppI18n.tr(AppI18n.rev, "plugins.tab_power");
                         tag_id: "tuning";
-                        desc: "CPU PL1/PL2/PL4 功耗墙精调、风扇双通道曲线与温度保护墙";
+                        desc: AppI18n.tr(AppI18n.rev, "plugins.desc_power");
                         icon: @image-url("../../assets/icons/zap.svg");
                         enabled: root.is_tuning_enabled;
                         toggled => {
@@ -505,9 +506,9 @@ export component DashboardPluginsView inherits Rectangle {
                     }
 
                     BuiltinModuleCard {
-                        title: "RGB 灯效工坊";
+                        title: AppI18n.tr(AppI18n.rev, "plugins.tab_lighting");
                         tag_id: "lighting";
-                        desc: "四区全彩背光键盘、尾翼光带、Logo 灯与自定义流光特效";
+                        desc: AppI18n.tr(AppI18n.rev, "plugins.desc_lighting");
                         icon: @image-url("../../assets/icons/keyboard.svg");
                         enabled: root.is_lighting_enabled;
                         toggled => {
@@ -517,9 +518,9 @@ export component DashboardPluginsView inherits Rectangle {
                     }
 
                     BuiltinModuleCard {
-                        title: "水冷魔盒 (BLE)";
+                        title: AppI18n.tr(AppI18n.rev, "plugins.tab_water");
                         tag_id: "water";
-                        desc: "第二代外置水冷低功耗蓝牙控制、水温遥测与智能温控曲线";
+                        desc: AppI18n.tr(AppI18n.rev, "plugins.desc_water");
                         icon: @image-url("../../assets/icons/droplet.svg");
                         enabled: root.is_water_enabled;
                         toggled => {
@@ -558,7 +559,7 @@ export component DashboardPluginsView inherits Rectangle {
                         VerticalLayout {
                             alignment: center;
                             Text {
-                                text: "自定义插件";
+                                text: AppI18n.tr(AppI18n.rev, "plugins.custom_section");
                                 font-size: 13.5px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -577,7 +578,7 @@ export component DashboardPluginsView inherits Rectangle {
                                     padding-left: 6px;
                                     padding-right: 6px;
                                     Text {
-                                        text: "沙箱安全隔离";
+                                        text: AppI18n.tr(AppI18n.rev, "plugins.sandbox_badge");
                                         font-size: 9.5px;
                                         font-weight: 700;
                                         color: #10b981;
@@ -591,12 +592,12 @@ export component DashboardPluginsView inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         ActionButton {
-                            text: "打开插件目录";
+                            text: AppI18n.tr(AppI18n.rev, "plugins.open_plugins_dir");
                             icon: @image-url("../../assets/icons/folder.svg");
                             clicked => { root.open_plugins_dir(); }
                         }
                         ActionButton {
-                            text: "刷新";
+                            text: AppI18n.tr(AppI18n.rev, "plugins.refresh");
                             icon: @image-url("../../assets/icons/rotate-ccw.svg");
                             clicked => { root.reload_plugins(); }
                         }
@@ -604,7 +605,7 @@ export component DashboardPluginsView inherits Rectangle {
                 }
 
                 Text {
-                    text: "支持社区或自研开发的外置功能扩展（桌面通知插件、后台脚本、自选控制面板等），基于安全沙箱运行";
+                    text: AppI18n.tr(AppI18n.rev, "plugins.custom_section_desc");
                     font-size: 11px;
                     color: AppTheme.text_muted;
                 }
@@ -632,14 +633,14 @@ export component DashboardPluginsView inherits Rectangle {
                             spacing: 6px;
 
                             Text {
-                                text: "暂未检出已激活的自定义扩展包";
+                                text: AppI18n.tr(AppI18n.rev, "plugins.no_custom_plugins");
                                 font-size: 12px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
                                 horizontal-alignment: center;
                             }
                             Text {
-                                text: "您可以点击上方「打开插件目录」，放入插件后点击「刷新」即可载入";
+                                text: AppI18n.tr(AppI18n.rev, "plugins.no_custom_plugins_hint");
                                 font-size: 10px;
                                 color: AppTheme.text_muted;
                                 horizontal-alignment: center;

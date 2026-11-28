@@ -3,6 +3,7 @@ import { CpuTempWallCard } from "cpu_temp_wall_card.slint";
 import { CpuPowerLimitsCard } from "cpu_power_limits_card.slint";
 import { CpuExtraLimitsCard } from "cpu_extra_limits_card.slint";
 import { CpuTelemetryFooter } from "cpu_telemetry_footer.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CpuTuningCol inherits Rectangle {
     background: AppTheme.surface_card;
@@ -41,8 +42,8 @@ export component CpuTuningCol inherits Rectangle {
     in-out property <int> max_max_pl4: 280;
 
     in-out property <bool> bios_oc_enabled: true;
-    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
-    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <string> bios_oc_desc: AppI18n.tr(AppI18n.rev, "tuning.bios_oc_desc");
+    in-out property <string> bios_oc_btn_text: AppI18n.tr(AppI18n.rev, "tuning.off");
     in-out property <int> bios_oc_status: 0;
     in-out property <bool> bios_oc_disabled: false;
 
@@ -53,7 +54,7 @@ export component CpuTuningCol inherits Rectangle {
     in-out property <int> gpu_temp: 54;
     in-out property <int> gpu_rpm: 2123;
     in-out property <string> gpu_watts: "20.4 W";
-    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_label: AppI18n.tr(AppI18n.rev, "tuning.dual_burn_total");
     in-out property <string> telemetry_total_watts: "--";
 
     // Callbacks
@@ -88,7 +89,7 @@ export component CpuTuningCol inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: root.is_amd ? "AMD CPU 功耗与温控" : "CPU 功耗与温控";
+                    text: root.is_amd ? AppI18n.tr(AppI18n.rev, "tuning.amd_cpu_title") : AppI18n.tr(AppI18n.rev, "tuning.intel_cpu_title");
                     font-size: 13px;
                     font-weight: 700;
                     color: #38bdf8;
@@ -107,7 +108,7 @@ export component CpuTuningCol inherits Rectangle {
             VerticalLayout {
                 padding: 8px;
                 Text {
-                    text: "当前机型为轻薄本架构，不支持自定义 CPU 功耗限制与温度墙调节。功耗由预设模式自动调度。";
+                    text: AppI18n.tr(AppI18n.rev, "tuning.cpu_ultrabook_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                     wrap: word-wrap;

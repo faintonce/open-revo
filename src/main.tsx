@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import OsdOverlay from './components/OsdOverlay';
 import { WidgetHost } from './components/WidgetHost';
+import { I18nProvider } from './i18n/I18nContext';
 import './index.css';
 
 function getRouteState() {
@@ -60,6 +61,8 @@ function RootRouter() {
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <RootRouter />
+    <I18nProvider>
+      <RootRouter />
+    </I18nProvider>
   </React.StrictMode>,
 );

@@ -165,7 +165,11 @@ pub fn get_keyboard_hardware_info_internal(
                 has_hinge,
                 is_ec_hinge,
                 is_four_zone: false,
-                description: "独立 ITE 8291 USB 全彩逐键 RGB 键盘".to_string(),
+                description: crate::system::i18n::lookup_or(
+                    &crate::system::i18n::get_active_locale_bundle(),
+                    "lighting.hw_desc_perkey",
+                    "ITE 8291 USB Per-Key RGB",
+                ),
                 brightness_level: cfg_brightness,
                 is_on: actually_active,
             }
@@ -186,7 +190,11 @@ pub fn get_keyboard_hardware_info_internal(
                 has_hinge,
                 is_ec_hinge,
                 is_four_zone,
-                description: "ITE 4区 RGB 幻彩背光键盘 (048D:CE00)".to_string(),
+                description: crate::system::i18n::lookup_or(
+                    &crate::system::i18n::get_active_locale_bundle(),
+                    "lighting.hw_desc_4zone",
+                    "ITE 4-Zone RGB (048D:CE00)",
+                ),
                 brightness_level: cfg_brightness,
                 is_on: actually_active,
             }
@@ -219,7 +227,11 @@ pub fn get_keyboard_hardware_info_internal(
                 has_hinge,
                 is_ec_hinge,
                 is_four_zone: false,
-                description: "主板 EC 单区 RGB 键盘 (全键同色调光)".to_string(),
+                description: crate::system::i18n::lookup_or(
+                    &crate::system::i18n::get_active_locale_bundle(),
+                    "lighting.hw_desc_1zone",
+                    "EC 1-Zone RGB Keyboard",
+                ),
                 brightness_level: effective_br,
                 is_on: is_hw_on,
             }
@@ -256,7 +268,11 @@ pub fn get_keyboard_hardware_info_internal(
                 has_hinge,
                 is_ec_hinge,
                 is_four_zone: false,
-                description: "单色白光背光键盘 (支持档位调节)".to_string(),
+                description: crate::system::i18n::lookup_or(
+                    &crate::system::i18n::get_active_locale_bundle(),
+                    "lighting.hw_desc_white",
+                    "White LED Backlit Keyboard",
+                ),
                 brightness_level: effective_br,
                 is_on: is_hw_on,
             }

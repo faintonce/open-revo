@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component FanControlsCard inherits VerticalLayout {
     in-out property <bool> smooth_transition: true;
@@ -27,7 +28,7 @@ export component FanControlsCard inherits VerticalLayout {
             alignment: space-between;
 
             Text {
-                text: "平滑过渡";
+                text: AppI18n.tr(AppI18n.rev, "tuning.smooth_ramp");
                 font-size: 11px;
                 font-weight: 600;
                 color: AppTheme.text_primary;
@@ -150,7 +151,7 @@ export component FanControlsCard inherits VerticalLayout {
             alignment: space-between;
 
             Text {
-                text: "风扇独立输出";
+                text: AppI18n.tr(AppI18n.rev, "tuning.fan_indep");
                 font-size: 11px;
                 font-weight: 600;
                 color: AppTheme.text_primary;

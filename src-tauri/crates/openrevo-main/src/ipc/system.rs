@@ -1,4 +1,4 @@
-use crate::{AppTheme, MainWindow, UpdateResultData};
+use crate::{AppTheme, LocaleOptionItem, MainWindow, UpdateResultData};
 use slint::ComponentHandle;
 
 fn parse_hex_color(hex: &str) -> Option<slint::Color> {
@@ -124,6 +124,48 @@ fn apply_theme_tokens(ui: &MainWindow, tokens: &serde_json::Value) {
         theme.set_drawer_bg_image(m_img.clone());
     } else {
         theme.set_drawer_bg_image(slint::Image::default());
+    }
+}
+
+fn apply_i18n_bundle(ui: &MainWindow, bundle: &serde_json::Value) {
+    crate::i18n::apply_bundle(ui, bundle);
+    let font_priority = bundle
+        .get("_meta")
+        .and_then(|m| m.get("font_priority"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("cjk");
+    let theme = ui.global::<AppTheme>();
+    if font_priority == "segoe" {
+        theme.set_font_family("Segoe UI, Microsoft YaHei UI, Microsoft YaHei, sans-serif".into());
+    } else {
+        theme.set_font_family("Microsoft YaHei UI, Microsoft YaHei, Segoe UI, sans-serif".into());
+    }
+}
+
+fn apply_i18n_meta(ui: &MainWindow, val: &serde_json::Value) {
+    if let Some(code) = val.get("locale").and_then(|v| v.as_str()) {
+        ui.set_current_locale(code.into());
+    }
+    if let Some(arr) = val.get("available_locales").and_then(|v| v.as_array()) {
+        let items: Vec<LocaleOptionItem> = arr
+            .iter()
+            .filter_map(|item| {
+                let code = item.get("code")?.as_str()?.to_string();
+                let name = item.get("name")?.as_str()?.to_string();
+                let is_external = item.get("is_external").and_then(|v| v.as_bool()).unwrap_or(false);
+                Some(LocaleOptionItem {
+                    code: code.into(),
+                    name: name.into(),
+                    is_external,
+                })
+            })
+            .collect();
+        if !items.is_empty() {
+            ui.set_available_locales(slint::ModelRc::new(slint::VecModel::from(items)));
+        }
+    }
+    if let Some(fb) = val.get("locale_feedback").and_then(|v| v.as_str()) {
+        ui.set_locale_feedback(fb.into());
     }
 }
 
@@ -337,6 +379,10 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(tokens) = val.get("theme_tokens") {
                 apply_theme_tokens(ui, tokens);
             }
+            if let Some(i18n) = val.get("i18n_tokens") {
+                apply_i18n_bundle(ui, i18n);
+            }
+            apply_i18n_meta(ui, val);
             if let Some(exp) = val.get("is_expanded").and_then(|v| v.as_bool()) {
                 ui.set_is_expanded(exp);
                 if let Some(h) = *crate::window::HWND_HOLDER.lock().unwrap() {
@@ -390,6 +436,13 @@ pub fn handle(action: &str, val: &serde_json::Value, ui: &MainWindow) -> bool {
             if let Some(tokens) = val.get("tokens") {
                 apply_theme_tokens(ui, tokens);
             }
+            true
+        }
+        "i18n_tokens" | "sync_i18n" => {
+            if let Some(bundle) = val.get("bundle").or_else(|| val.get("tokens")) {
+                apply_i18n_bundle(ui, bundle);
+            }
+            apply_i18n_meta(ui, val);
             true
         }
         "tray_click_guard" => {

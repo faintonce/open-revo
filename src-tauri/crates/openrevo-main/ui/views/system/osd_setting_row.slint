@@ -1,5 +1,6 @@
 import { AppTheme } from "../../theme.slint";
 import { OsdConfigData } from "system_types.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component OsdSettingRow inherits HorizontalLayout {
     in-out property <OsdConfigData> osd_config: {
@@ -22,7 +23,7 @@ export component OsdSettingRow inherits HorizontalLayout {
         HorizontalLayout {
             spacing: 6px;
             Text {
-                text: "OSD 屏幕悬浮提示";
+                text: AppI18n.tr(AppI18n.rev, "system.osd_title");
                 font-size: 12px;
                 font-weight: 600;
                 color: AppTheme.text_primary;
@@ -42,7 +43,7 @@ export component OsdSettingRow inherits HorizontalLayout {
             }
         }
         Text {
-            text: "快捷键切换时在屏幕弹出状态提示；可选 3 种风格、尺寸与显示位置";
+            text: AppI18n.tr(AppI18n.rev, "system.osd_desc");
             font-size: 10px;
             color: AppTheme.text_muted;
         }
@@ -69,7 +70,7 @@ export component OsdSettingRow inherits HorizontalLayout {
                     padding-right: 8px;
                     spacing: 4px;
                     Text {
-                        text: root.osd_config.theme == "cinema" ? "电影字幕" : (root.osd_config.theme == "fade" ? "向右羽化" : "磨砂胶囊");
+                        text: root.osd_config.theme == "cinema" ? AppI18n.tr(AppI18n.rev, "system.osd_cinema") : (root.osd_config.theme == "fade" ? AppI18n.tr(AppI18n.rev, "system.osd_fade") : AppI18n.tr(AppI18n.rev, "system.osd_pill"));
                         font-size: 11px;
                         color: AppTheme.text_primary;
                         vertical-alignment: center;
@@ -104,7 +105,7 @@ export component OsdSettingRow inherits HorizontalLayout {
                                     mouse-cursor: pointer;
                                     clicked => { root.change_osd_theme("cinema"); }
                                 }
-                                HorizontalLayout { padding-left: 8px; Text { text: "电影字幕"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "system.osd_cinema"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                             }
                             Rectangle {
                                 height: 24px;
@@ -114,7 +115,7 @@ export component OsdSettingRow inherits HorizontalLayout {
                                     mouse-cursor: pointer;
                                     clicked => { root.change_osd_theme("fade"); }
                                 }
-                                HorizontalLayout { padding-left: 8px; Text { text: "向右羽化"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "system.osd_fade"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                             }
                             Rectangle {
                                 height: 24px;
@@ -124,7 +125,7 @@ export component OsdSettingRow inherits HorizontalLayout {
                                     mouse-cursor: pointer;
                                     clicked => { root.change_osd_theme("pill"); }
                                 }
-                                HorizontalLayout { padding-left: 8px; Text { text: "磨砂胶囊"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "system.osd_pill"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                             }
                         }
                     }
@@ -200,7 +201,7 @@ export component OsdSettingRow inherits HorizontalLayout {
                     padding-right: 8px;
                     spacing: 4px;
                     Text {
-                        text: root.osd_config.position == "top-left" ? "左上角" : (root.osd_config.position == "bottom-center" ? "下方中央" : "屏幕正中");
+                        text: root.osd_config.position == "top-left" ? AppI18n.tr(AppI18n.rev, "system.pos_top_left") : (root.osd_config.position == "bottom-center" ? AppI18n.tr(AppI18n.rev, "system.pos_bottom_center") : AppI18n.tr(AppI18n.rev, "system.pos_center"));
                         font-size: 11px;
                         color: AppTheme.text_primary;
                         vertical-alignment: center;
@@ -232,21 +233,21 @@ export component OsdSettingRow inherits HorizontalLayout {
                                 border-radius: 4px;
                                 background: t_p1.has-hover ? AppTheme.surface_pill : transparent;
                                 t_p1 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("top-left"); } }
-                                HorizontalLayout { padding-left: 8px; Text { text: "左上角"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "system.pos_top_left"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                             }
                             Rectangle {
                                 height: 24px;
                                 border-radius: 4px;
                                 background: t_p2.has-hover ? AppTheme.surface_pill : transparent;
                                 t_p2 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("bottom-center"); } }
-                                HorizontalLayout { padding-left: 8px; Text { text: "下方中央"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "system.pos_bottom_center"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                             }
                             Rectangle {
                                 height: 24px;
                                 border-radius: 4px;
                                 background: t_p3.has-hover ? AppTheme.surface_pill : transparent;
                                 t_p3 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("center"); } }
-                                HorizontalLayout { padding-left: 8px; Text { text: "屏幕正中"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "system.pos_center"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                             }
                         }
                     }
@@ -267,7 +268,7 @@ export component OsdSettingRow inherits HorizontalLayout {
                 HorizontalLayout {
                     padding-left: 8px;
                     padding-right: 8px;
-                    Text { text: "预览"; font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "system.preview"); font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
                 }
             }
 

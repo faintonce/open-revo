@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CoolerPresetCards inherits Rectangle {
     background: transparent;
@@ -18,7 +19,7 @@ export component CoolerPresetCards inherits Rectangle {
             alignment: space-between;
 
             Text {
-                text: "散热预设策略与运行模式";
+                text: AppI18n.tr(AppI18n.rev, "water.strategy_title");
                 font-size: 10.5px;
                 font-weight: 700;
                 color: AppTheme.text_muted;
@@ -26,7 +27,7 @@ export component CoolerPresetCards inherits Rectangle {
             }
 
             Text {
-                text: root.strategy == "custom" ? "当前处于手动自定义调节状态（预设全灭）" : "选择【智慧自适应】自动随动；手调水泵或风扇后自动转为自定义";
+                text: root.strategy == "custom" ? AppI18n.tr(AppI18n.rev, "water.custom_active_hint") : AppI18n.tr(AppI18n.rev, "water.smart_hint");
                 font-size: 9.5px;
                 font-weight: 500;
                 color: root.strategy == "custom" ? #f59e0b : AppTheme.text_muted;
@@ -71,7 +72,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: "智慧自适应";
+                                text: AppI18n.tr(AppI18n.rev, "water.smart_adaptive");
                                 font-size: 11px;
                                 font-weight: 800;
                                 color: #38bdf8;
@@ -88,7 +89,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "温控随动";
+                                    text: AppI18n.tr(AppI18n.rev, "water.temp_follow");
                                     font-size: 8px;
                                     font-weight: 800;
                                     color: #38bdf8;
@@ -99,7 +100,7 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "依据核心温度动态调控，<55°C 风扇停转";
+                        text: AppI18n.tr(AppI18n.rev, "water.smart_desc");
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
@@ -114,9 +115,9 @@ export component CoolerPresetCards inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "随动: " + root.live_max_temp + "°C → 风扇 " + root.live_fan_duty + "% | 水泵 " + (
-                                root.live_pump_volt >= 11 || root.live_pump_volt == 3 ? "极限狂暴" : (
-                                    root.live_pump_volt == 0 ? "停机" : "标准巡航"
+                            text: AppI18n.tr(AppI18n.rev, "water.follow_prefix") + root.live_max_temp + AppI18n.tr(AppI18n.rev, "water.follow_fan_sep") + root.live_fan_duty + AppI18n.tr(AppI18n.rev, "water.follow_pump_sep") + (
+                                root.live_pump_volt >= 11 || root.live_pump_volt == 3 ? AppI18n.tr(AppI18n.rev, "water.pump_turbo_short_lbl") : (
+                                    root.live_pump_volt == 0 ? AppI18n.tr(AppI18n.rev, "water.pump_stop_short_lbl") : AppI18n.tr(AppI18n.rev, "water.pump_std_short_lbl")
                                 )
                             );
                             font-size: 8.5px;
@@ -151,7 +152,7 @@ export component CoolerPresetCards inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "静音策略";
+                            text: AppI18n.tr(AppI18n.rev, "water.quiet_strategy");
                             font-size: 11px;
                             font-weight: 800;
                             color: root.strategy == "quiet" ? #38bdf8 : AppTheme.text_primary;
@@ -166,7 +167,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "固定";
+                                    text: AppI18n.tr(AppI18n.rev, "water.fixed_badge");
                                     font-size: 8px;
                                     font-weight: 700;
                                     color: AppTheme.text_muted;
@@ -177,12 +178,12 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "标准巡航水泵 + 40% 风扇";
+                        text: AppI18n.tr(AppI18n.rev, "water.quiet_strategy_desc1");
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "适合安静夜间使用";
+                        text: AppI18n.tr(AppI18n.rev, "water.quiet_strategy_desc2");
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }
@@ -212,7 +213,7 @@ export component CoolerPresetCards inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "均衡策略";
+                            text: AppI18n.tr(AppI18n.rev, "water.balance_strategy");
                             font-size: 11px;
                             font-weight: 800;
                             color: root.strategy == "balance" ? #818cf8 : AppTheme.text_primary;
@@ -227,7 +228,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "固定";
+                                    text: AppI18n.tr(AppI18n.rev, "water.fixed_badge");
                                     font-size: 8px;
                                     font-weight: 700;
                                     color: AppTheme.text_muted;
@@ -238,12 +239,12 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "标准巡航水泵 + 65% 风扇";
+                        text: AppI18n.tr(AppI18n.rev, "water.balance_strategy_desc1");
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "兼顾散热与风噪";
+                        text: AppI18n.tr(AppI18n.rev, "water.balance_strategy_desc2");
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }
@@ -273,7 +274,7 @@ export component CoolerPresetCards inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "极速狂暴";
+                            text: AppI18n.tr(AppI18n.rev, "water.turbo_strategy");
                             font-size: 11px;
                             font-weight: 800;
                             color: root.strategy == "performance" ? #ef4444 : AppTheme.text_primary;
@@ -288,7 +289,7 @@ export component CoolerPresetCards inherits Rectangle {
                                 padding-left: 4px;
                                 padding-right: 4px;
                                 Text {
-                                    text: "满血";
+                                    text: AppI18n.tr(AppI18n.rev, "water.full_badge");
                                     font-size: 8px;
                                     font-weight: 800;
                                     color: #ef4444;
@@ -299,12 +300,12 @@ export component CoolerPresetCards inherits Rectangle {
                     }
 
                     Text {
-                        text: "极限狂暴水泵 + 100% 风扇";
+                        text: AppI18n.tr(AppI18n.rev, "water.turbo_strategy_desc1");
                         font-size: 9px;
                         color: AppTheme.text_muted;
                     }
                     Text {
-                        text: "极限压榨散热性能";
+                        text: AppI18n.tr(AppI18n.rev, "water.turbo_strategy_desc2");
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }

@@ -1,4 +1,5 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerBatteryCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -44,14 +45,14 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "电池健康:";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.battery_health");
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
                 }
                 Text {
-                    text: battery_limit == 60 ? "工作站模式" : (battery_limit == 80 ? "平衡模式" : "长效模式");
+                    text: battery_limit == 60 ? AppI18n.tr(AppI18n.rev, "drawer.bat_station") : (battery_limit == 80 ? AppI18n.tr(AppI18n.rev, "drawer.bat_balance") : AppI18n.tr(AppI18n.rev, "drawer.bat_longevity"));
                     font-size: 11px;
                     font-weight: 700;
                     color: #2dd4bf;
@@ -71,7 +72,7 @@ export component DrawerBatteryCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: is_ac_online ? "AC 已连接" : "电池供电";
+                    text: is_ac_online ? AppI18n.tr(AppI18n.rev, "drawer.ac_connected") : AppI18n.tr(AppI18n.rev, "drawer.on_battery");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                     vertical-alignment: center;
@@ -97,7 +98,7 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "工作站";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.bat_station_short");
                     font-size: 10.5px;
                     font-weight: battery_limit == 60 ? 700 : 500;
                     color: battery_limit == 60 ? #2dd4bf : AppTheme.text_primary;
@@ -119,7 +120,7 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "平衡";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.bat_balance_short");
                     font-size: 10.5px;
                     font-weight: battery_limit == 80 ? 700 : 500;
                     color: battery_limit == 80 ? #2dd4bf : AppTheme.text_primary;
@@ -141,7 +142,7 @@ export component DrawerBatteryCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "长效";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.bat_longevity_short");
                     font-size: 10.5px;
                     font-weight: battery_limit == 100 ? 700 : 500;
                     color: battery_limit == 100 ? #2dd4bf : AppTheme.text_primary;

@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DrawerPowerCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -38,14 +39,14 @@ export component DrawerPowerCard inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "性能模式:";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.power_mode_label");
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
                 }
                 Text {
-                    text: power_mode == 1 ? "办公模式" : (power_mode == 2 ? "均衡模式" : (power_mode == 3 ? "狂暴模式" : "极客自定义调校"));
+                    text: power_mode == 1 ? AppI18n.tr(AppI18n.rev, "drawer.mode_office_full") : (power_mode == 2 ? AppI18n.tr(AppI18n.rev, "drawer.mode_balance_full") : (power_mode == 3 ? AppI18n.tr(AppI18n.rev, "drawer.mode_beast_full") : AppI18n.tr(AppI18n.rev, "drawer.mode_custom_full")));
                     font-size: 11px;
                     font-weight: 700;
                     color: power_mode == 1 ? #10b981 : (power_mode == 2 ? #3b82f6 : (power_mode == 3 ? #f43f5e : #38bdf8));
@@ -92,7 +93,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "办公";
+                        text: AppI18n.tr(AppI18n.rev, "drawer.mode_office");
                         font-size: 10.5px;
                         font-weight: power_mode == 1 ? 700 : 500;
                         color: power_mode == 1 ? #10b981 : AppTheme.text_primary;
@@ -127,7 +128,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "均衡";
+                        text: AppI18n.tr(AppI18n.rev, "drawer.mode_balance");
                         font-size: 10.5px;
                         font-weight: power_mode == 2 ? 700 : 500;
                         color: power_mode == 2 ? #3b82f6 : AppTheme.text_primary;
@@ -187,14 +188,14 @@ export component DrawerPowerCard inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "静音狂暴";
+                                text: AppI18n.tr(AppI18n.rev, "drawer.mode_turbo_silent");
                                 font-size: 9.5px;
                                 font-weight: (power_mode == 3 && root.turbo_silent) ? 700 : 500;
                                 color: is_restricted ? AppTheme.text_muted : AppTheme.text_primary;
                                 horizontal-alignment: center;
                             }
                             Text {
-                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && root.turbo_silent) ? "● 当前" : "静音");
+                                text: is_restricted ? AppI18n.tr(AppI18n.rev, "drawer.requires_dc") : ((power_mode == 3 && root.turbo_silent) ? AppI18n.tr(AppI18n.rev, "drawer.current_dot") : AppI18n.tr(AppI18n.rev, "drawer.silent"));
                                 font-size: 8px;
                                 color: is_restricted ? #f59e0b : ((power_mode == 3 && root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
                                 horizontal-alignment: center;
@@ -262,14 +263,14 @@ export component DrawerPowerCard inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "高能狂暴";
+                                text: AppI18n.tr(AppI18n.rev, "drawer.mode_turbo_high");
                                 font-size: 9.5px;
                                 font-weight: (power_mode == 3 && !root.turbo_silent) ? 700 : 500;
                                 color: is_restricted ? AppTheme.text_muted : AppTheme.text_primary;
                                 horizontal-alignment: center;
                             }
                             Text {
-                                text: is_restricted ? "需圆口DC" : ((power_mode == 3 && !root.turbo_silent) ? "● 当前" : "高能");
+                                text: is_restricted ? AppI18n.tr(AppI18n.rev, "drawer.requires_dc") : ((power_mode == 3 && !root.turbo_silent) ? AppI18n.tr(AppI18n.rev, "drawer.current_dot") : AppI18n.tr(AppI18n.rev, "drawer.high_power"));
                                 font-size: 8px;
                                 color: is_restricted ? #f59e0b : ((power_mode == 3 && !root.turbo_silent) ? #f43f5e : AppTheme.text_muted);
                                 horizontal-alignment: center;
@@ -335,7 +336,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : "狂暴";
+                        text: is_restricted ? AppI18n.tr(AppI18n.rev, "drawer.requires_dc") : AppI18n.tr(AppI18n.rev, "drawer.mode_beast");
                         font-size: 10.5px;
                         font-weight: power_mode == 3 ? 700 : 500;
                         color: is_restricted ? AppTheme.text_muted : (power_mode == 3 ? #f43f5e : AppTheme.text_primary);
@@ -401,7 +402,7 @@ export component DrawerPowerCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: is_restricted ? "需圆口DC" : "极客调校";
+                        text: is_restricted ? AppI18n.tr(AppI18n.rev, "drawer.requires_dc") : AppI18n.tr(AppI18n.rev, "drawer.mode_custom");
                         font-size: 10.5px;
                         font-weight: power_mode == 4 ? 700 : 500;
                         color: is_restricted ? AppTheme.text_muted : (power_mode == 4 ? #38bdf8 : AppTheme.text_primary);

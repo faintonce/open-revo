@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DrawerGpuCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -32,14 +33,14 @@ export component DrawerGpuCard inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "显卡模式:";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.gpu_mode_label");
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
                 }
                 Text {
-                    text: gpu_mode == "dgpu" ? "独显直连 (dGPU)" : (gpu_mode == "hybrid" ? "标准混合 (Dynamic)" : "核显模式 (iGPU)");
+                    text: gpu_mode == "dgpu" ? AppI18n.tr(AppI18n.rev, "drawer.gpu_dgpu_full") : (gpu_mode == "hybrid" ? AppI18n.tr(AppI18n.rev, "drawer.gpu_hybrid_full") : AppI18n.tr(AppI18n.rev, "drawer.gpu_igpu_full"));
                     font-size: 11px;
                     font-weight: 700;
                     color: #10b981;
@@ -91,7 +92,7 @@ export component DrawerGpuCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: root.is_thin_and_light ? "需独显机型" : "独显直连";
+                        text: root.is_thin_and_light ? AppI18n.tr(AppI18n.rev, "drawer.requires_dgpu") : AppI18n.tr(AppI18n.rev, "drawer.gpu_dgpu");
                         font-size: 10.5px;
                         font-weight: gpu_mode == "dgpu" ? 700 : 500;
                         color: root.is_thin_and_light ? AppTheme.text_muted : (gpu_mode == "dgpu" ? #10b981 : AppTheme.text_primary);
@@ -127,7 +128,7 @@ export component DrawerGpuCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "标准混合";
+                        text: AppI18n.tr(AppI18n.rev, "drawer.gpu_hybrid");
                         font-size: 10.5px;
                         font-weight: gpu_mode == "hybrid" ? 700 : 500;
                         color: gpu_mode == "hybrid" ? #10b981 : AppTheme.text_primary;
@@ -166,7 +167,7 @@ export component DrawerGpuCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: !root.is_tri_mode ? "双模锁定" : "纯集显";
+                        text: !root.is_tri_mode ? AppI18n.tr(AppI18n.rev, "drawer.dual_mode_locked") : AppI18n.tr(AppI18n.rev, "drawer.gpu_igpu");
                         font-size: 10.5px;
                         font-weight: (!root.is_tri_mode || gpu_mode != "igpu") ? 500 : 700;
                         color: !root.is_tri_mode ? AppTheme.text_muted : (gpu_mode == "igpu" ? #10b981 : AppTheme.text_primary);

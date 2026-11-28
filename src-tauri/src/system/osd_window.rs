@@ -49,6 +49,14 @@ pub fn ensure_companion_process() {
                         "tokens": tokens,
                     }));
                     let _ = stdin.write_all(tokens_line.as_bytes());
+                    let bundle = crate::system::i18n::load_locale_bundle(&cfg.locale);
+                    if let Some(osd_sec) = bundle.get("osd") {
+                        let i18n_line = format!("{}\n", serde_json::json!({
+                            "action": "i18n_tokens",
+                            "osd": osd_sec,
+                        }));
+                        let _ = stdin.write_all(i18n_line.as_bytes());
+                    }
                     let _ = stdin.flush();
                     *lock = Some(stdin);
                     crate::log_info!("OSD", "Native OSD companion stdin pipe established & initial config synced: theme={}, scale={}, pos={}", cfg.osd_theme, cfg.osd_scale, cfg.osd_position);
@@ -85,6 +93,15 @@ pub fn send_osd_theme_tokens(tokens: &crate::system::slint_theme::SlintThemeToke
         "action": "theme_tokens",
         "tokens": tokens,
     }));
+}
+
+pub fn send_osd_i18n_tokens(bundle: &serde_json::Value) {
+    if let Some(osd_sec) = bundle.get("osd") {
+        send_osd_ipc_message(serde_json::json!({
+            "action": "i18n_tokens",
+            "osd": osd_sec,
+        }));
+    }
 }
 
 pub fn send_osd_ipc_message(payload: serde_json::Value) {

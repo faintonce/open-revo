@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DashboardTelemetryCards inherits Rectangle {
     height: 125px;
@@ -45,7 +46,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "CPU 处理器状态";
+                        text: AppI18n.tr(AppI18n.rev, "overview.cpu_status");
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -184,7 +185,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "GPU 独立显卡";
+                        text: AppI18n.tr(AppI18n.rev, "overview.gpu_status");
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -323,7 +324,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "散热系统状态";
+                        text: AppI18n.tr(AppI18n.rev, "overview.fan_status");
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -345,7 +346,7 @@ export component DashboardTelemetryCards inherits Rectangle {
 
                     VerticalLayout {
                         spacing: 2px;
-                        Text { text: "CPU 扇"; font-size: 9px; color: AppTheme.text_muted; }
+                        Text { text: AppI18n.tr(AppI18n.rev, "overview.cpu_fan"); font-size: 9px; color: AppTheme.text_muted; }
                         HorizontalLayout {
                             spacing: 2px;
                             Text { text: cpu_rpm; font-size: 16px; font-weight: 800; color: AppTheme.text_primary; }
@@ -355,7 +356,7 @@ export component DashboardTelemetryCards inherits Rectangle {
 
                     VerticalLayout {
                         spacing: 2px;
-                        Text { text: "GPU 扇"; font-size: 9px; color: AppTheme.text_muted; }
+                        Text { text: AppI18n.tr(AppI18n.rev, "overview.gpu_fan"); font-size: 9px; color: AppTheme.text_muted; }
                         HorizontalLayout {
                             spacing: 2px;
                             Text { text: gpu_rpm; font-size: 16px; font-weight: 800; color: AppTheme.text_primary; }
@@ -368,7 +369,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "双风扇散热";
+                        text: AppI18n.tr(AppI18n.rev, "overview.dual_fan");
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -383,7 +384,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                             padding-left: 6px;
                             padding-right: 6px;
                             Text {
-                                text: "自动温控";
+                                text: AppI18n.tr(AppI18n.rev, "overview.auto_curve");
                                 font-size: 9.5px;
                                 font-weight: 700;
                                 color: #38bdf8;
@@ -414,7 +415,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "VRAM 显存容量";
+                        text: AppI18n.tr(AppI18n.rev, "overview.vram_title");
                         font-size: 11.5px;
                         font-weight: 700;
                         color: AppTheme.text_secondary;
@@ -461,7 +462,7 @@ export component DashboardTelemetryCards inherits Rectangle {
                 HorizontalLayout {
                     alignment: space-between;
                     Text {
-                        text: "专用显存 (VRAM)";
+                        text: AppI18n.tr(AppI18n.rev, "overview.vram_desc");
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;

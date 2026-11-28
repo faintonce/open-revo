@@ -1,5 +1,6 @@
 import { AppTheme } from "../../theme.slint";
 import { ColorPaletteRow } from "color_palette.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component LightbarView inherits Rectangle {
     in-out property <bool> lb_enabled: true;
@@ -9,7 +10,7 @@ export component LightbarView inherits Rectangle {
     in-out property <string> lb_color_hex: "#00FFFF";
     in-out property <color> lb_color: #00ffff;
 
-    in property <string> hw_desc: "ITE Lightbar4 控制器 (048D:7001)";
+    in property <string> hw_desc: AppI18n.tr(AppI18n.rev, "lighting.lb_chip_sub");
 
     callback toggle_enabled();
     callback select_effect(int);
@@ -40,7 +41,7 @@ export component LightbarView inherits Rectangle {
                     alignment: start;
 
                     Text {
-                        text: "机身前沿海岸灯条";
+                        text: AppI18n.tr(AppI18n.rev, "lighting.lb_title");
                         font-size: 14px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
@@ -72,7 +73,7 @@ export component LightbarView inherits Rectangle {
                 }
 
                 Text {
-                    text: "机身前沿与两侧流光灯带，支持对冲、波浪与流星动效";
+                    text: AppI18n.tr(AppI18n.rev, "lighting.lb_desc");
                     font-size: 11px;
                     color: AppTheme.text_muted;
                 }
@@ -110,7 +111,7 @@ export component LightbarView inherits Rectangle {
                         }
 
                         Text {
-                            text: root.lb_enabled ? "已开启" : "已关闭";
+                            text: root.lb_enabled ? AppI18n.tr(AppI18n.rev, "lighting.enabled") : AppI18n.tr(AppI18n.rev, "lighting.disabled");
                             font-size: 12px;
                             font-weight: 700;
                             color: root.lb_enabled ? #ffffff : AppTheme.text_muted;
@@ -126,7 +127,7 @@ export component LightbarView inherits Rectangle {
             spacing: 8px;
 
             Text {
-                text: "海岸灯效模式 (Lightbar Modes):";
+                text: AppI18n.tr(AppI18n.rev, "lighting.lb_modes_label");
                 font-size: 11px;
                 font-weight: 700;
                 color: AppTheme.text_muted;
@@ -144,7 +145,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 1 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
-                    Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.lb_effect == 1 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_static"); font-size: 11px; font-weight: 700; color: root.lb_effect == 1 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -155,7 +156,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 2 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
-                    Text { text: "能量呼吸"; font-size: 11px; font-weight: 700; color: root.lb_effect == 2 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_energy_breath"); font-size: 11px; font-weight: 700; color: root.lb_effect == 2 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -166,7 +167,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 20 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(20); } }
-                    Text { text: "彩虹呼吸"; font-size: 11px; font-weight: 700; color: root.lb_effect == 20 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow_breath"); font-size: 11px; font-weight: 700; color: root.lb_effect == 20 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -177,7 +178,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 3 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(3); } }
-                    Text { text: "全彩波浪"; font-size: 11px; font-weight: 700; color: root.lb_effect == 3 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_full_wave"); font-size: 11px; font-weight: 700; color: root.lb_effect == 3 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
 
@@ -193,7 +194,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 4 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(4); } }
-                    Text { text: "动态对撞"; font-size: 11px; font-weight: 700; color: root.lb_effect == 4 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_collision"); font-size: 11px; font-weight: 700; color: root.lb_effect == 4 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -204,7 +205,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 6 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(6); } }
-                    Text { text: "极速流星"; font-size: 11px; font-weight: 700; color: root.lb_effect == 6 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_meteor"); font-size: 11px; font-weight: 700; color: root.lb_effect == 6 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -215,7 +216,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 9 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(9); } }
-                    Text { text: "跑马流水"; font-size: 11px; font-weight: 700; color: root.lb_effect == 9 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_marquee"); font-size: 11px; font-weight: 700; color: root.lb_effect == 9 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -226,7 +227,7 @@ export component LightbarView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.lb_effect == 10 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(10); } }
-                    Text { text: "璀璨闪烁"; font-size: 11px; font-weight: 700; color: root.lb_effect == 10 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_sparkle"); font-size: 11px; font-weight: 700; color: root.lb_effect == 10 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
         }
@@ -264,7 +265,7 @@ export component LightbarView inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "灯带亮度";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.lb_brightness");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
@@ -272,7 +273,7 @@ export component LightbarView inherits Rectangle {
                             }
                         }
                         Text {
-                            text: root.lb_brightness == 0 ? "关闭 (0)" : (root.lb_brightness + " 档");
+                            text: root.lb_brightness == 0 ? AppI18n.tr(AppI18n.rev, "lighting.off_zero") : (root.lb_brightness + AppI18n.tr(AppI18n.rev, "lighting.level_unit"));
                             font-size: 10px;
                             font-weight: 700;
                             color: #22d3ee;
@@ -355,7 +356,7 @@ export component LightbarView inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "流动速度";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.flow_speed");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
@@ -363,7 +364,7 @@ export component LightbarView inherits Rectangle {
                             }
                         }
                         Text {
-                            text: (root.lb_speed + 1) + " 档";
+                            text: (root.lb_speed + 1) + AppI18n.tr(AppI18n.rev, "lighting.level_unit");
                             font-size: 10px;
                             font-weight: 700;
                             color: #06b6d4;
@@ -432,7 +433,7 @@ export component LightbarView inherits Rectangle {
         ColorPaletteRow {
             active_color_hex <=> root.lb_color_hex;
             active_color <=> root.lb_color;
-            label_text: "灯条主色调:";
+            label_text: AppI18n.tr(AppI18n.rev, "lighting.lb_color_label");
             color_selected(hex, c) => {
                 root.change_color(hex, c);
             }

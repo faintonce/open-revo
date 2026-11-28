@@ -1,4 +1,5 @@
 import { AppTheme } from "../theme.slint";
+import { AppI18n } from "../i18n.slint";
 
 export component DashboardPluginWorkspace inherits Rectangle {
     in-out property <string> active_plugin_id: "";
@@ -46,7 +47,7 @@ export component DashboardPluginWorkspace inherits Rectangle {
                     }
 
                     Text {
-                        text: "扩展视窗";
+                        text: AppI18n.tr(AppI18n.rev, "shell.ext_window");
                         font-size: 12px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
@@ -98,7 +99,7 @@ export component DashboardPluginWorkspace inherits Rectangle {
                             }
 
                             Text {
-                                text: "沙箱运行中";
+                                text: AppI18n.tr(AppI18n.rev, "shell.sandbox_running");
                                 font-size: 10.5px;
                                 font-weight: 500;
                                 color: AppTheme.text_muted;
@@ -145,7 +146,7 @@ export component DashboardPluginWorkspace inherits Rectangle {
                             }
 
                             Text {
-                                text: "独立视窗";
+                                text: AppI18n.tr(AppI18n.rev, "shell.standalone_window");
                                 font-size: 11px;
                                 font-weight: 500;
                                 color: t_launch.has-hover ? AppTheme.text_primary : AppTheme.text_secondary;
@@ -186,7 +187,7 @@ export component DashboardPluginWorkspace inherits Rectangle {
                             }
 
                             Text {
-                                text: "插件目录";
+                                text: AppI18n.tr(AppI18n.rev, "shell.plugin_dir");
                                 font-size: 11px;
                                 font-weight: 500;
                                 color: AppTheme.text_secondary;
@@ -227,7 +228,7 @@ export component DashboardPluginWorkspace inherits Rectangle {
                             }
 
                             Text {
-                                text: "重新加载";
+                                text: AppI18n.tr(AppI18n.rev, "shell.reload");
                                 font-size: 11px;
                                 font-weight: 500;
                                 color: AppTheme.text_secondary;
@@ -268,7 +269,7 @@ export component DashboardPluginWorkspace inherits Rectangle {
                             }
 
                             Text {
-                                text: "返回列表";
+                                text: AppI18n.tr(AppI18n.rev, "shell.back_to_list");
                                 font-size: 11px;
                                 font-weight: 500;
                                 color: AppTheme.text_muted;

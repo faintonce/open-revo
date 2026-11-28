@@ -1,9 +1,10 @@
 import { AppTheme } from "../../theme.slint";
 import { PowerSchemeItem } from "system_types.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component PowerSchemeRow inherits HorizontalLayout {
     in-out property <[PowerSchemeItem]> power_schemes: [];
-    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> active_power_scheme_name: AppI18n.tr(AppI18n.rev, "system.scheme_balanced");
     in-out property <string> restore_plan_msg: "";
 
     callback request_restore_power_plan();
@@ -17,7 +18,7 @@ export component PowerSchemeRow inherits HorizontalLayout {
         HorizontalLayout {
             spacing: 6px;
             Text {
-                text: "Windows 基础电源方案";
+                text: AppI18n.tr(AppI18n.rev, "system.power_scheme_title");
                 font-size: 12px;
                 font-weight: 600;
                 color: AppTheme.text_primary;
@@ -44,7 +45,7 @@ export component PowerSchemeRow inherits HorizontalLayout {
             }
         }
         Text {
-            text: "系统底层电源计划；完全保留用户自建的降压/降频方案，可随时自由切换";
+            text: AppI18n.tr(AppI18n.rev, "system.power_scheme_desc");
             font-size: 10px;
             color: AppTheme.text_muted;
         }
@@ -69,7 +70,7 @@ export component PowerSchemeRow inherits HorizontalLayout {
                 HorizontalLayout {
                     padding-left: 8px;
                     padding-right: 8px;
-                    Text { text: "修复/重置计划"; font-size: 11px; font-weight: 600; color: #f43f5e; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "system.repair_reset_plan"); font-size: 11px; font-weight: 600; color: #f43f5e; vertical-alignment: center; }
                 }
             }
 
@@ -125,7 +126,7 @@ export component PowerSchemeRow inherits HorizontalLayout {
                                     padding-right: 8px;
                                     alignment: space-between;
                                     Text { text: item.name; font-size: 11px; color: item.is_active ? #38bdf8 : AppTheme.text_primary; vertical-alignment: center; }
-                                    if item.is_active: Text { text: "当前生效"; font-size: 9px; color: #38bdf8; vertical-alignment: center; }
+                                    if item.is_active: Text { text: AppI18n.tr(AppI18n.rev, "system.currently_active"); font-size: 9px; color: #38bdf8; vertical-alignment: center; }
                                 }
                             }
                         }

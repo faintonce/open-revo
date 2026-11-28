@@ -1,5 +1,6 @@
 import { AppTheme } from "../../theme.slint";
 import { OsdConfigData } from "../system/system_types.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DashboardQuickActions inherits Rectangle {
     height: 76px;
@@ -65,7 +66,7 @@ export component DashboardQuickActions inherits Rectangle {
                         }
 
                         Text {
-                            text: "强冷锁速";
+                            text: AppI18n.tr(AppI18n.rev, "overview.fan_lock_speed");
                             font-size: 11.5px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
@@ -115,7 +116,7 @@ export component DashboardQuickActions inherits Rectangle {
                                 padding-left: 8px;
                                 padding-right: 8px;
                                 Text {
-                                    text: fan_boost ? "已锁定" : "自动";
+                                    text: fan_boost ? AppI18n.tr(AppI18n.rev, "overview.locked") : AppI18n.tr(AppI18n.rev, "overview.auto");
                                     font-size: 10px;
                                     font-weight: 700;
                                     color: fan_boost ? #0f172a : AppTheme.text_secondary;
@@ -209,10 +210,12 @@ export component DashboardQuickActions inherits Rectangle {
             HorizontalLayout {
                 padding-left: 12px;
                 padding-right: 12px;
-                alignment: space-between;
+                spacing: 8px;
 
                 HorizontalLayout {
-                    spacing: 10px;
+                    horizontal-stretch: 1;
+                    min-width: 0px;
+                    spacing: 8px;
                     alignment: start;
                     VerticalLayout {
                         alignment: center;
@@ -224,18 +227,22 @@ export component DashboardQuickActions inherits Rectangle {
                         }
                     }
                     VerticalLayout {
+                        horizontal-stretch: 1;
+                        min-width: 0px;
                         alignment: center;
                         spacing: 2px;
                         Text {
-                            text: "一键强冷";
+                            text: AppI18n.tr(AppI18n.rev, "overview.fan_boost");
                             font-size: 12px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
+                            overflow: elide;
                         }
                         Text {
-                            text: "最高转速极限降温";
+                            text: AppI18n.tr(AppI18n.rev, "overview.fan_boost_desc");
                             font-size: 9.5px;
                             color: AppTheme.text_muted;
+                            overflow: elide;
                         }
                     }
                 }
@@ -257,7 +264,7 @@ export component DashboardQuickActions inherits Rectangle {
                             padding-left: 10px;
                             padding-right: 10px;
                             Text {
-                                text: fan_boost ? "已开启" : "关闭";
+                                text: fan_boost ? AppI18n.tr(AppI18n.rev, "overview.enabled") : AppI18n.tr(AppI18n.rev, "overview.off");
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: fan_boost ? #0f172a : AppTheme.text_secondary;
@@ -280,10 +287,12 @@ export component DashboardQuickActions inherits Rectangle {
             HorizontalLayout {
                 padding-left: 12px;
                 padding-right: 12px;
-                alignment: space-between;
+                spacing: 8px;
 
                 HorizontalLayout {
-                    spacing: 10px;
+                    horizontal-stretch: 1;
+                    min-width: 0px;
+                    spacing: 8px;
                     alignment: start;
                     VerticalLayout {
                         alignment: center;
@@ -295,18 +304,22 @@ export component DashboardQuickActions inherits Rectangle {
                         }
                     }
                     VerticalLayout {
+                        horizontal-stretch: 1;
+                        min-width: 0px;
                         alignment: center;
                         spacing: 2px;
                         Text {
-                            text: "拔电自动低刷";
+                            text: AppI18n.tr(AppI18n.rev, "overview.auto_min_hz");
                             font-size: 12px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
+                            overflow: elide;
                         }
                         Text {
-                            text: "离电续航最大化";
+                            text: AppI18n.tr(AppI18n.rev, "overview.auto_min_hz_desc");
                             font-size: 9.5px;
                             color: AppTheme.text_muted;
+                            overflow: elide;
                         }
                     }
                 }
@@ -328,7 +341,7 @@ export component DashboardQuickActions inherits Rectangle {
                             padding-left: 10px;
                             padding-right: 10px;
                             Text {
-                                text: auto_min_hz ? "已开启" : "关闭";
+                                text: auto_min_hz ? AppI18n.tr(AppI18n.rev, "overview.enabled") : AppI18n.tr(AppI18n.rev, "overview.off");
                                 font-size: 11px;
                                 font-weight: 700;
                                 color: auto_min_hz ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -373,7 +386,7 @@ export component DashboardQuickActions inherits Rectangle {
                         HorizontalLayout {
                             spacing: 6px;
                             Text {
-                                text: "OSD 设置";
+                                text: AppI18n.tr(AppI18n.rev, "overview.osd_settings");
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -399,7 +412,7 @@ export component DashboardQuickActions inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "形态控制";
+                            text: AppI18n.tr(AppI18n.rev, "overview.osd_style");
                             font-size: 9.5px;
                             color: AppTheme.text_muted;
                         }
@@ -428,7 +441,7 @@ export component DashboardQuickActions inherits Rectangle {
                                 padding-right: 8px;
                                 spacing: 4px;
                                 Text {
-                                    text: root.osd_config.theme == "cinema" ? "电影字幕" : (root.osd_config.theme == "fade" ? "向右羽化" : "磨砂胶囊");
+                                    text: root.osd_config.theme == "cinema" ? AppI18n.tr(AppI18n.rev, "overview.osd_cinema") : (root.osd_config.theme == "fade" ? AppI18n.tr(AppI18n.rev, "overview.osd_fade") : AppI18n.tr(AppI18n.rev, "overview.osd_pill"));
                                     font-size: 11px;
                                     color: AppTheme.text_primary;
                                     vertical-alignment: center;
@@ -463,7 +476,7 @@ export component DashboardQuickActions inherits Rectangle {
                                                 mouse-cursor: pointer;
                                                 clicked => { root.change_osd_theme("cinema"); }
                                             }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "电影字幕"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "overview.osd_cinema"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
@@ -473,7 +486,7 @@ export component DashboardQuickActions inherits Rectangle {
                                                 mouse-cursor: pointer;
                                                 clicked => { root.change_osd_theme("fade"); }
                                             }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "向右羽化"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "overview.osd_fade"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
@@ -483,7 +496,7 @@ export component DashboardQuickActions inherits Rectangle {
                                                 mouse-cursor: pointer;
                                                 clicked => { root.change_osd_theme("pill"); }
                                             }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "磨砂胶囊"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "overview.osd_pill"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                     }
                                 }
@@ -559,7 +572,7 @@ export component DashboardQuickActions inherits Rectangle {
                                 padding-right: 8px;
                                 spacing: 4px;
                                 Text {
-                                    text: root.osd_config.position == "top-left" ? "左上角" : (root.osd_config.position == "bottom-center" ? "下方中央" : "屏幕正中");
+                                    text: root.osd_config.position == "top-left" ? AppI18n.tr(AppI18n.rev, "overview.pos_top_left") : (root.osd_config.position == "bottom-center" ? AppI18n.tr(AppI18n.rev, "overview.pos_bottom_center") : AppI18n.tr(AppI18n.rev, "overview.pos_center"));
                                     font-size: 11px;
                                     color: AppTheme.text_primary;
                                     vertical-alignment: center;
@@ -591,21 +604,21 @@ export component DashboardQuickActions inherits Rectangle {
                                             border-radius: 4px;
                                             background: t_p1.has-hover ? AppTheme.surface_pill : transparent;
                                             t_p1 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("top-left"); } }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "左上角"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "overview.pos_top_left"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
                                             border-radius: 4px;
                                             background: t_p2.has-hover ? AppTheme.surface_pill : transparent;
                                             t_p2 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("bottom-center"); } }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "下方中央"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "overview.pos_bottom_center"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                         Rectangle {
                                             height: 24px;
                                             border-radius: 4px;
                                             background: t_p3.has-hover ? AppTheme.surface_pill : transparent;
                                             t_p3 := TouchArea { mouse-cursor: pointer; clicked => { root.change_osd_position("center"); } }
-                                            HorizontalLayout { padding-left: 8px; Text { text: "屏幕正中"; font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 8px; Text { text: AppI18n.tr(AppI18n.rev, "overview.pos_center"); font-size: 11px; color: AppTheme.text_primary; vertical-alignment: center; } }
                                         }
                                     }
                                 }
@@ -626,7 +639,7 @@ export component DashboardQuickActions inherits Rectangle {
                             HorizontalLayout {
                                 padding-left: 10px;
                                 padding-right: 10px;
-                                Text { text: "预览"; font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
+                                Text { text: AppI18n.tr(AppI18n.rev, "overview.preview"); font-size: 11px; font-weight: 600; color: #a5b4fc; vertical-alignment: center; }
                             }
                         }
                     }

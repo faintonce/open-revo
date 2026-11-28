@@ -593,7 +593,7 @@ fn detect_initial_gpu() -> (String, u64, u16, u16) {
     // 1. Fallback: Query nvidia-smi with strict timeout to prevent any boot hang
     // CRITICAL: On non-NVIDIA / pure iGPU laptops (e.g. Wujie/Code), completely bypass nvidia-smi!
     if !is_nvidia_dgpu_available() {
-        return ("集成显卡/核显".to_string(), 4096, 0, 0);
+        return (GPU_MARKER_IGPU.to_string(), 4096, 0, 0);
     }
 
     let (tx, rx) = std::sync::mpsc::channel();
@@ -622,10 +622,27 @@ fn detect_initial_gpu() -> (String, u64, u16, u16) {
         }
     }
 
-    ("集成显卡/核显".to_string(), 4096, 0, 0)
+    (GPU_MARKER_IGPU.to_string(), 4096, 0, 0)
 }
 
 static CACHED_GPU_NAME: parking_lot::RwLock<Option<String>> = parking_lot::RwLock::new(None);
+
+pub const GPU_MARKER_IGPU: &str = "__igpu__";
+pub const GPU_MARKER_DGPU: &str = "__dgpu__";
+
+pub fn resolve_gpu_display_name(raw_name: &str) -> String {
+    match raw_name {
+        GPU_MARKER_IGPU | "集成显卡/核显" => {
+            let bundle = crate::system::i18n::get_active_locale_bundle();
+            crate::system::i18n::lookup_or(&bundle, "common.igpu_fallback", "Integrated Graphics")
+        }
+        GPU_MARKER_DGPU | "高性能独立显卡" => {
+            let bundle = crate::system::i18n::get_active_locale_bundle();
+            crate::system::i18n::lookup_or(&bundle, "common.dgpu_fallback", "Discrete GPU")
+        }
+        other => other.to_string(),
+    }
+}
 
 pub fn get_gpu_name_cached() -> String {
     if let Some(ref name) = *CACHED_GPU_NAME.read() {
@@ -636,7 +653,7 @@ pub fn get_gpu_name_cached() -> String {
         *CACHED_GPU_NAME.write() = Some(name.clone());
         return name;
     }
-    "集成显卡/核显".to_string()
+    GPU_MARKER_IGPU.to_string()
 }
 
 impl GpuBridge {
@@ -658,11 +675,11 @@ impl GpuBridge {
         let initial_name = {
             #[cfg(windows)]
             {
-                detect_gpu_from_registry().map(|(name, _)| name).unwrap_or_else(|| "高性能独立显卡".to_string())
+                detect_gpu_from_registry().map(|(name, _)| name).unwrap_or_else(|| GPU_MARKER_DGPU.to_string())
             }
             #[cfg(not(windows))]
             {
-                "高性能独立显卡".to_string()
+                GPU_MARKER_DGPU.to_string()
             }
         };
 
@@ -730,7 +747,7 @@ impl GpuBridge {
     }
 
     pub fn get_name(&self, _index: u32) -> String {
-        self.gpu_name.lock().clone()
+        resolve_gpu_display_name(&self.gpu_name.lock())
     }
 
     pub fn get_temp(&self, _index: u32) -> u32 {
@@ -1181,13 +1198,14 @@ pub fn extract_gpu_generation(gpu_name: &str) -> u32 {
 
 pub fn probe_gpu_tuning_capabilities() -> GpuTuningCapabilities {
     let gpu = get_global_gpu();
-    let mut gpu_name = gpu.lock().get_name(0);
-    if gpu_name == "高性能独立显卡" || gpu_name == "集成显卡/核显" || gpu_name.is_empty() {
+    let mut gpu_name = gpu.lock().gpu_name.lock().clone();
+    if gpu_name == GPU_MARKER_DGPU || gpu_name == GPU_MARKER_IGPU || gpu_name == "高性能独立显卡" || gpu_name == "集成显卡/核显" || gpu_name.is_empty() {
         #[cfg(windows)]
         if let Some((reg_name, _)) = detect_gpu_from_registry() {
             gpu_name = reg_name;
         }
     }
+    let gpu_name = resolve_gpu_display_name(&gpu_name);
     let gen = extract_gpu_generation(&gpu_name);
     let is_dgpu = is_nvidia_dgpu_available();
 

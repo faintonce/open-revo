@@ -1,11 +1,12 @@
 import { AppTheme } from "../theme.slint";
+import { AppI18n } from "../i18n.slint";
 
 export component DashboardHeader inherits Rectangle {
     height: 40px;
     background: transparent;
 
-    in-out property <string> title: "状态总览";
-    in-out property <string> subtitle: "核心硬件实时遥测与性能调控中枢";
+    in-out property <string> title: AppI18n.tr(AppI18n.rev, "shell.tab_overview");
+    in-out property <string> subtitle: AppI18n.tr(AppI18n.rev, "shell.sub_overview");
 
     callback toggle_theme();
     callback collapse_to_mini();

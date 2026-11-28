@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CpuTelemetryFooter inherits Rectangle {
     in-out property <int> cpu_temp: 67;
@@ -7,7 +8,7 @@ export component CpuTelemetryFooter inherits Rectangle {
     in-out property <int> gpu_temp: 54;
     in-out property <int> gpu_rpm: 2123;
     in-out property <string> gpu_watts: "20.4 W";
-    in-out property <string> total_label: "双烤合计:";
+    in-out property <string> total_label: AppI18n.tr(AppI18n.rev, "tuning.dual_burn_total");
     in-out property <string> total_watts: "--";
 
     height: 88px;
@@ -33,7 +34,7 @@ export component CpuTelemetryFooter inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "实时硬件监测";
+                    text: AppI18n.tr(AppI18n.rev, "tuning.live_telemetry");
                     font-size: 10.5px;
                     font-weight: 700;
                     color: #f59e0b;

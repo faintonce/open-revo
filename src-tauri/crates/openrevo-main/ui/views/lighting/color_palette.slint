@@ -1,9 +1,10 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component ColorPaletteRow inherits Rectangle {
     in-out property <string> active_color_hex: "#6366F1";
     in-out property <color> active_color: #6366f1;
-    in property <string> label_text: "定制主色调:";
+    in property <string> label_text: AppI18n.tr(AppI18n.rev, "lighting.custom_color_label");
 
     callback color_selected(string, color);
 

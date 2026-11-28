@@ -1,8 +1,9 @@
 import { AppTheme } from "../../theme.slint";
-import { PowerSchemeItem, UserDataDirInfo, OsdConfigData } from "system_types.slint";
+import { PowerSchemeItem, UserDataDirInfo, OsdConfigData, LocaleOptionItem } from "system_types.slint";
 import { PowerSchemeRow } from "power_scheme_row.slint";
 import { StorageManagementRow } from "storage_management_row.slint";
 import { WakeWindowModeRow } from "wake_window_mode_row.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component SystemSwitchesCard inherits Rectangle {
     property <bool> show_restart_hint: false;
@@ -34,9 +35,9 @@ export component SystemSwitchesCard inherits Rectangle {
 
     // 7. Windows Power Schemes
     in-out property <[PowerSchemeItem]> power_schemes: [
-        { guid: "balanced", name: "平衡 (Balanced)", is_active: true }
+        { guid: "balanced", name: AppI18n.tr(AppI18n.rev, "system.scheme_balanced"), is_active: true }
     ];
-    in-out property <string> active_power_scheme_name: "平衡 (Balanced)";
+    in-out property <string> active_power_scheme_name: AppI18n.tr(AppI18n.rev, "system.scheme_balanced");
     in-out property <string> restore_plan_msg: "";
     callback request_restore_power_plan();
     callback switch_power_scheme(string);
@@ -55,6 +56,14 @@ export component SystemSwitchesCard inherits Rectangle {
     in-out property <bool> use_classic_webview: false;
     callback toggle_classic_webview(bool);
     callback restart_openrevo();
+
+    // 10. i18n Language Settings
+    in-out property <string> current_locale: "zh-CN";
+    in-out property <[LocaleOptionItem]> available_locales: [];
+    in-out property <string> locale_feedback: "";
+    callback change_locale(string);
+    callback open_locales_dir();
+    callback export_i18n_template();
 
     border-radius: 8px;
     background: AppTheme.surface_card;
@@ -78,11 +87,114 @@ export component SystemSwitchesCard inherits Rectangle {
                 }
             }
             Text {
-                text: "系统配置与通用选项";
+                text: AppI18n.tr(AppI18n.rev, "system.general_title");
                 font-size: 13px;
                 font-weight: 700;
                 color: AppTheme.text_primary;
                 vertical-alignment: center;
+            }
+        }
+
+        // Divider
+        Rectangle { height: 1px; background: AppTheme.border_subtle; }
+
+        // =====================================================================
+        // Row 0: Interface Language (i18n + External JSON)
+        // =====================================================================
+        VerticalLayout {
+            spacing: 8px;
+            HorizontalLayout {
+                alignment: space-between;
+                VerticalLayout {
+                    spacing: 2px;
+                    Text {
+                        text: AppI18n.tr(AppI18n.rev, "system.language_title");
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppTheme.text_primary;
+                    }
+                    Text {
+                        text: root.locale_feedback != "" ? root.locale_feedback : AppI18n.tr(AppI18n.rev, "system.language_desc");
+                        font-size: 10px;
+                        color: root.locale_feedback != "" ? #10b981 : AppTheme.text_muted;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: end;
+                    Rectangle {
+                        height: 24px;
+                        border-radius: 5px;
+                        background: AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.open_locales_dir(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text {
+                                text: AppI18n.tr(AppI18n.rev, "system.open_locales_dir");
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                    Rectangle {
+                        height: 24px;
+                        border-radius: 5px;
+                        background: AppTheme.surface_pill;
+                        border-width: 1px;
+                        border-color: AppTheme.border_subtle;
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.export_i18n_template(); }
+                        }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text {
+                                text: AppI18n.tr(AppI18n.rev, "system.export_template");
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: AppTheme.text_secondary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                for loc in root.available_locales : Rectangle {
+                    height: 26px;
+                    border-radius: 6px;
+                    background: loc.code == root.current_locale ? #38bdf822 : AppTheme.surface_pill;
+                    border-width: 1px;
+                    border-color: loc.code == root.current_locale ? #38bdf8 : AppTheme.border_subtle;
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.change_locale(loc.code); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 4px;
+                        Text {
+                            text: loc.name;
+                            font-size: 11px;
+                            font-weight: loc.code == root.current_locale ? 700 : 500;
+                            color: loc.code == root.current_locale ? #38bdf8 : AppTheme.text_secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
             }
         }
 
@@ -97,13 +209,13 @@ export component SystemSwitchesCard inherits Rectangle {
             VerticalLayout {
                 spacing: 2px;
                 Text {
-                    text: "开机自动启动 (最小化至托盘)";
+                    text: AppI18n.tr(AppI18n.rev, "system.autostart_title");
                     font-size: 12px;
                     font-weight: 600;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "系统登录时静默启动并在托盘常驻，保障温控与功耗策略平稳运行";
+                    text: AppI18n.tr(AppI18n.rev, "system.autostart_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -148,7 +260,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "使用经典 WebView2 前端";
+                        text: AppI18n.tr(AppI18n.rev, "system.classic_webview_title");
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -164,7 +276,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             padding-left: 5px;
                             padding-right: 5px;
                             Text {
-                                text: root.use_classic_webview ? "WEBVIEW2" : "SLINT 原生";
+                                text: root.use_classic_webview ? "WEBVIEW2" : AppI18n.tr(AppI18n.rev, "system.slint_native_badge");
                                 font-size: 10px;
                                 font-weight: 700;
                                 color: root.use_classic_webview ? #f59e0b : #10b981;
@@ -174,7 +286,7 @@ export component SystemSwitchesCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: "默认使用 Slint 原生渲染引擎（低内存、零延迟）。开启后切换回经典 Web 前端（需要重启生效）";
+                    text: AppI18n.tr(AppI18n.rev, "system.classic_webview_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -197,7 +309,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             padding-left: 8px;
                             padding-right: 8px;
                             Text {
-                                text: "重启生效";
+                                text: AppI18n.tr(AppI18n.rev, "system.restart_to_apply");
                                 font-size: 10px;
                                 font-weight: 700;
                                 color: #38bdf8;
@@ -251,7 +363,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "解除离电限制";
+                        text: AppI18n.tr(AppI18n.rev, "system.unlock_bat_row_title");
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -267,7 +379,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             padding-left: 5px;
                             padding-right: 5px;
                             Text {
-                                text: root.unlock_battery_limit ? "已解除限制 (风险自担)" : "出厂安全限制";
+                                text: root.unlock_battery_limit ? AppI18n.tr(AppI18n.rev, "system.unlocked_badge") : AppI18n.tr(AppI18n.rev, "system.factory_locked_badge");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: root.unlock_battery_limit ? #f59e0b : AppTheme.text_muted;
@@ -289,7 +401,7 @@ export component SystemSwitchesCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: "允许在拔掉充电器或 Type-C 供电时自由切换狂暴与极客调校，且拔电时不强制降级为平衡模式";
+                    text: AppI18n.tr(AppI18n.rev, "system.unlock_bat_row_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -345,7 +457,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "迷你抽屉点击外部自动收起";
+                        text: AppI18n.tr(AppI18n.rev, "system.mini_autohide_title");
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -365,7 +477,7 @@ export component SystemSwitchesCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: "在迷你抽屉模式下，点击桌面或其他应用窗口时自动回收抽屉；完整面板不受此影响";
+                    text: AppI18n.tr(AppI18n.rev, "system.mini_autohide_desc");
                     font-size: 10px;
                     color: AppTheme.text_muted;
                 }
@@ -442,7 +554,7 @@ export component SystemSwitchesCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: "软件版本与分发更新";
+                        text: AppI18n.tr(AppI18n.rev, "system.updater_title");
                         font-size: 12px;
                         font-weight: 600;
                         color: AppTheme.text_primary;
@@ -465,8 +577,8 @@ export component SystemSwitchesCard inherits Rectangle {
                     text: root.update_feedback != ""
                         ? root.update_feedback
                         : (root.update_channel == "beta"
-                            ? "【预览通道】优先接收实验性新特性与先行体验版本；双源智能竞速"
-                            : "【正式通道】仅接收经过充分测试与验证的稳定版本；双源智能竞速");
+                            ? AppI18n.tr(AppI18n.rev, "system.channel_beta_desc")
+                            : AppI18n.tr(AppI18n.rev, "system.channel_stable_desc"));
                     font-size: 10px;
                     color: root.update_feedback != ""
                         ? (root.update_feedback_type == "error" ? #ef4444 : (root.update_feedback_type == "latest" ? #10b981 : (root.update_feedback_type == "not_found" ? #f59e0b : #38bdf8)))
@@ -504,7 +616,7 @@ export component SystemSwitchesCard inherits Rectangle {
                                 padding-left: 8px;
                                 padding-right: 8px;
                                 Text {
-                                    text: "正式版 (Stable)";
+                                    text: AppI18n.tr(AppI18n.rev, "system.stable_btn");
                                     font-size: 10.5px;
                                     font-weight: root.update_channel == "stable" ? 700 : 500;
                                     color: root.update_channel == "stable" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -526,7 +638,7 @@ export component SystemSwitchesCard inherits Rectangle {
                                 padding-left: 8px;
                                 padding-right: 8px;
                                 Text {
-                                    text: "预览版 (Beta)";
+                                    text: AppI18n.tr(AppI18n.rev, "system.beta_btn");
                                     font-size: 10.5px;
                                     font-weight: root.update_channel == "beta" ? 700 : 500;
                                     color: root.update_channel == "beta" ? AppTheme.tag_brand_text : AppTheme.text_secondary;
@@ -564,7 +676,7 @@ export component SystemSwitchesCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: root.is_checking_update ? "正在检测..." : (root.update_feedback != "" ? (root.update_feedback_type == "latest" ? "已是最新" : (root.update_feedback_type == "not_found" ? "暂无新版" : "重新检测")) : "检查更新");
+                            text: root.is_checking_update ? AppI18n.tr(AppI18n.rev, "system.checking_update") : (root.update_feedback != "" ? (root.update_feedback_type == "latest" ? AppI18n.tr(AppI18n.rev, "system.up_to_date") : (root.update_feedback_type == "not_found" ? AppI18n.tr(AppI18n.rev, "system.no_new_version") : AppI18n.tr(AppI18n.rev, "system.recheck_update"))) : AppI18n.tr(AppI18n.rev, "system.check_update"));
                             font-size: 11px;
                             font-weight: root.is_checking_update ? 700 : 500;
                             color: root.is_checking_update ? #818cf8 : AppTheme.text_primary;

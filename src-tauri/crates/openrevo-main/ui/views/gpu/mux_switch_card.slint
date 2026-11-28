@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component MuxSwitchCard inherits Rectangle {
     in-out property <string> gpu_mode: "dgpu";
@@ -41,17 +42,17 @@ export component MuxSwitchCard inherits Rectangle {
                     alignment: center;
                     spacing: 2px;
                     Text {
-                        text: root.is_thin_and_light ? "显卡模式 (原生核显架构)" : (root.is_tri_mode ? "显卡模式 (双显三模)" : "显卡模式 (双显双模)");
+                        text: root.is_thin_and_light ? AppI18n.tr(AppI18n.rev, "gpu.mux_title_igpu") : (root.is_tri_mode ? AppI18n.tr(AppI18n.rev, "gpu.mux_title_tri") : AppI18n.tr(AppI18n.rev, "gpu.mux_title_dual"));
                         font-size: 13px;
                         font-weight: 800;
                         color: AppTheme.text_primary;
                     }
                     Text {
                         text: root.is_thin_and_light ?
-                            "当前机型模具为高能效纯核显架构，无独立显卡与 MUX 物理开关。屏幕由内建核心显卡直出，享有超长离电续航与极佳静音表现。" :
+                            AppI18n.tr(AppI18n.rev, "gpu.mux_desc_igpu") :
                             (root.is_tri_mode ?
-                                "主板硬件级 MUX 物理切换 · 由 BIOS POST 或高级动态 PCIe 链路与物理开关控制" :
-                                "当前机型模具为双显双模架构（支持独显直连与混合输出），已启用硬件安全保护锁定以防止黑屏变砖。");
+                                AppI18n.tr(AppI18n.rev, "gpu.mux_desc_tri") :
+                                AppI18n.tr(AppI18n.rev, "gpu.mux_desc_dual"));
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         overflow: elide;
@@ -78,7 +79,7 @@ export component MuxSwitchCard inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: root.is_thin_and_light ? (root.cpu_name + " · 内建核心显卡") : (root.gpu_name + " · " + root.cpu_name);
+                        text: root.is_thin_and_light ? (root.cpu_name + AppI18n.tr(AppI18n.rev, "gpu.integrated_gpu_suffix")) : (root.gpu_name + " · " + root.cpu_name);
                         font-size: 10.5px;
                         font-weight: 600;
                         color: AppTheme.text_secondary;
@@ -105,14 +106,14 @@ export component MuxSwitchCard inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: root.is_thin_and_light ? "原生纯核显高能效直驱架构" : (root.is_tri_mode ? "主板原生硬件 MUX 切换架构" : "主板双显双模安全保护架构");
+                        text: root.is_thin_and_light ? AppI18n.tr(AppI18n.rev, "gpu.arch_igpu") : (root.is_tri_mode ? AppI18n.tr(AppI18n.rev, "gpu.arch_tri") : AppI18n.tr(AppI18n.rev, "gpu.arch_dual"));
                         font-size: 10.5px;
                         font-weight: 700;
                         color: root.is_thin_and_light ? #10b981 : (root.is_tri_mode ? #38bdf8 : #f59e0b);
                         vertical-alignment: center;
                     }
                     Text {
-                        text: root.is_intel ? "[Intel 平台架构]" : "[AMD 平台架构]";
+                        text: root.is_intel ? AppI18n.tr(AppI18n.rev, "gpu.platform_intel") : AppI18n.tr(AppI18n.rev, "gpu.platform_amd");
                         font-size: 10px;
                         font-weight: 700;
                         color: root.is_intel ? #60a5fa : #fb923c;
@@ -120,10 +121,10 @@ export component MuxSwitchCard inherits Rectangle {
                     }
                     Text {
                         text: root.is_thin_and_light ?
-                            "· 原生核显直驱：图形与显示信号由 CPU 内建的高能效核显统一接管，无需且不支持 MUX 物理切换。" :
+                            AppI18n.tr(AppI18n.rev, "gpu.tip_igpu") :
                             (root.is_tri_mode ?
-                                "· 物理通道直通信号开关，保证杜绝降频与转接损耗" :
-                                "· 物理硬件重构：自检过程重配 PCIe 通道与屏幕物理开关，彻底杜绝驱动崩溃、掉帧与卡顿。");
+                                AppI18n.tr(AppI18n.rev, "gpu.tip_mux_direct") :
+                                AppI18n.tr(AppI18n.rev, "gpu.tip_mux_reconfig"));
                         font-size: 10px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -205,7 +206,7 @@ export component MuxSwitchCard inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "轻薄本锁定";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.thin_locked");
                                     font-size: 9px;
                                     font-weight: 700;
                                     color: #f59e0b;
@@ -224,7 +225,7 @@ export component MuxSwitchCard inherits Rectangle {
                                 padding-left: 6px;
                                 padding-right: 6px;
                                 Text {
-                                    text: "✔ 硬件生效中";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.hw_active_check");
                                     font-size: 9.5px;
                                     font-weight: 700;
                                     color: #38bdf8;
@@ -236,8 +237,8 @@ export component MuxSwitchCard inherits Rectangle {
 
                     Text {
                         text: root.is_thin_and_light ?
-                            "当前机型为轻薄本架构，未搭载独立显卡硬件，独显直连通道不可用。" :
-                            "独立显卡物理直连内屏幕。避开核显中转，发挥极致电竞帧率与超低显示延迟。";
+                            AppI18n.tr(AppI18n.rev, "gpu.dgpu_unavail_desc") :
+                            AppI18n.tr(AppI18n.rev, "gpu.dgpu_desc");
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                         wrap: word-wrap;
@@ -253,12 +254,12 @@ export component MuxSwitchCard inherits Rectangle {
                             mouse-cursor: root.is_thin_and_light ? not-allowed : pointer;
                             clicked => {
                                 if (!root.is_thin_and_light && root.gpu_mode != "dgpu") {
-                                    root.request_mode_switch("dgpu", "独显直连 (dGPU)");
+                                    root.request_mode_switch("dgpu", AppI18n.tr(AppI18n.rev, "gpu.dgpu_title"));
                                 }
                             }
                         }
                         Text {
-                            text: root.is_thin_and_light ? "独显直连 (无硬件)" : "独显直连";
+                            text: root.is_thin_and_light ? AppI18n.tr(AppI18n.rev, "gpu.dgpu_no_hw") : AppI18n.tr(AppI18n.rev, "gpu.dgpu_direct");
                             font-size: 11px;
                             font-weight: 700;
                             color: root.is_thin_and_light ? AppTheme.text_muted : ((root.gpu_mode == "dgpu") ? #000000 : AppTheme.text_primary);
@@ -320,7 +321,7 @@ export component MuxSwitchCard inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "轻薄本锁定";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.thin_locked");
                                     font-size: 9px;
                                     font-weight: 700;
                                     color: #f59e0b;
@@ -339,7 +340,7 @@ export component MuxSwitchCard inherits Rectangle {
                                 padding-left: 6px;
                                 padding-right: 6px;
                                 Text {
-                                    text: "✔ 硬件生效中";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.hw_active_check");
                                     font-size: 9.5px;
                                     font-weight: 700;
                                     color: #c084fc;
@@ -351,8 +352,8 @@ export component MuxSwitchCard inherits Rectangle {
 
                     Text {
                         text: root.is_thin_and_light ?
-                            "当前机型为纯核显直驱架构，无外部独立显卡介入加速，混合通道不可用。" :
-                            "轻量任务核显输出保证续航，复杂 3D 渲染与电竞游戏时自动介入独显加速。";
+                            AppI18n.tr(AppI18n.rev, "gpu.hybrid_unavail_desc") :
+                            AppI18n.tr(AppI18n.rev, "gpu.hybrid_desc");
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                         wrap: word-wrap;
@@ -368,12 +369,12 @@ export component MuxSwitchCard inherits Rectangle {
                             mouse-cursor: root.is_thin_and_light ? not-allowed : pointer;
                             clicked => {
                                 if (!root.is_thin_and_light && root.gpu_mode != "hybrid") {
-                                    root.request_mode_switch("hybrid", "混合输出 (Hybrid)");
+                                    root.request_mode_switch("hybrid", AppI18n.tr(AppI18n.rev, "gpu.hybrid_title"));
                                 }
                             }
                         }
                         Text {
-                            text: root.is_thin_and_light ? "混合输出 (无硬件)" : "混合输出";
+                            text: root.is_thin_and_light ? AppI18n.tr(AppI18n.rev, "gpu.hybrid_no_hw") : AppI18n.tr(AppI18n.rev, "gpu.hybrid_short");
                             font-size: 11px;
                             font-weight: 700;
                             color: root.is_thin_and_light ? AppTheme.text_muted : ((root.gpu_mode == "hybrid") ? #ffffff : AppTheme.text_primary);
@@ -435,7 +436,7 @@ export component MuxSwitchCard inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "双模保护锁定";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.dual_lock_badge");
                                     font-size: 9px;
                                     font-weight: 700;
                                     color: #f59e0b;
@@ -454,7 +455,7 @@ export component MuxSwitchCard inherits Rectangle {
                                 padding-left: 6px;
                                 padding-right: 6px;
                                 Text {
-                                    text: root.is_thin_and_light ? "✔ 原生核显直驱" : "✔ 硬件生效中";
+                                    text: root.is_thin_and_light ? AppI18n.tr(AppI18n.rev, "gpu.igpu_active_check") : AppI18n.tr(AppI18n.rev, "gpu.hw_active_check");
                                     font-size: 9.5px;
                                     font-weight: 700;
                                     color: #34d399;
@@ -466,10 +467,10 @@ export component MuxSwitchCard inherits Rectangle {
 
                     Text {
                         text: root.is_thin_and_light ?
-                            "图形与屏幕显示由 CPU 内建核心显卡直接接管，无独显与 MUX 开销，享有极高续航。" :
+                            AppI18n.tr(AppI18n.rev, "gpu.igpu_native_desc") :
                             (root.is_tri_mode ?
-                                "彻底切断独显供电与 PCIe 供电链路开关，消除独显待机功耗，超长离电续航。" :
-                                "当前模具硬件为双模架构，无物理核显直连开关。已锁定保护以彻底防止开机黑屏死锁。");
+                                AppI18n.tr(AppI18n.rev, "gpu.igpu_desc") :
+                                AppI18n.tr(AppI18n.rev, "gpu.igpu_locked_desc"));
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                         wrap: word-wrap;
@@ -485,12 +486,12 @@ export component MuxSwitchCard inherits Rectangle {
                             mouse-cursor: (!root.is_thin_and_light && !root.is_tri_mode) ? not-allowed : pointer;
                             clicked => {
                                 if (!root.is_thin_and_light && root.is_tri_mode && root.gpu_mode != "igpu") {
-                                    root.request_mode_switch("igpu", "纯集显模式 (iGPU)");
+                                    root.request_mode_switch("igpu", AppI18n.tr(AppI18n.rev, "gpu.igpu_title"));
                                 }
                             }
                         }
                         Text {
-                            text: root.is_thin_and_light ? "原生核显直出" : (root.is_tri_mode ? "核显模式" : "核显模式 (双模锁定)");
+                            text: root.is_thin_and_light ? AppI18n.tr(AppI18n.rev, "gpu.igpu_direct") : (root.is_tri_mode ? AppI18n.tr(AppI18n.rev, "gpu.igpu_short") : AppI18n.tr(AppI18n.rev, "gpu.igpu_dual_locked"));
                             font-size: 11px;
                             font-weight: 700;
                             color: (!root.is_thin_and_light && !root.is_tri_mode) ? AppTheme.text_muted : ((root.is_thin_and_light || root.gpu_mode == "igpu") ? #000000 : AppTheme.text_primary);

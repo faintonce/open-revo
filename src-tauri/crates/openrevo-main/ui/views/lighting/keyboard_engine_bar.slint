@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component KeyboardEngineBar inherits Rectangle {
     in-out property <int> kb_engine: 1; // 0: hardware, 1: streamer, 2: custom
@@ -27,7 +28,7 @@ export component KeyboardEngineBar inherits Rectangle {
                 alignment: start;
 
                 Text {
-                    text: "驱动引擎:";
+                    text: AppI18n.tr(AppI18n.rev, "lighting.engine_label");
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_muted;
@@ -63,7 +64,7 @@ export component KeyboardEngineBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "原厂固件 (0% CPU)";
+                            text: AppI18n.tr(AppI18n.rev, "lighting.engine_fw");
                             font-size: 11px;
                             font-weight: 600;
                             color: root.kb_engine == 0 ? #10b981 : AppTheme.text_muted;
@@ -101,7 +102,7 @@ export component KeyboardEngineBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "独家算法 (BetterRGB)";
+                            text: AppI18n.tr(AppI18n.rev, "lighting.engine_betterrgb");
                             font-size: 11px;
                             font-weight: 600;
                             color: root.kb_engine == 1 ? #818cf8 : AppTheme.text_muted;
@@ -139,7 +140,7 @@ export component KeyboardEngineBar inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "定制脚本 (BetterRGB)";
+                            text: AppI18n.tr(AppI18n.rev, "lighting.engine_script");
                             font-size: 11px;
                             font-weight: 600;
                             color: root.kb_engine == 2 ? #f43f5e : AppTheme.text_muted;
@@ -159,7 +160,7 @@ export component KeyboardEngineBar inherits Rectangle {
                 alignment: end;
 
                 Text {
-                    text: "独立刷新率:";
+                    text: AppI18n.tr(AppI18n.rev, "lighting.fps_label");
                     font-size: 11px;
                     color: AppTheme.text_muted;
                     vertical-alignment: center;

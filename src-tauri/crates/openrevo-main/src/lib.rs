@@ -7,6 +7,7 @@ pub use slint;
 
 pub mod callbacks;
 pub mod curve_helpers;
+pub mod i18n;
 pub mod ipc;
 pub mod window;
 
@@ -35,6 +36,7 @@ pub fn run_main_standalone() {
 
     // Dynamically inject the package version from CARGO_PKG_VERSION at compile time
     window.set_app_version(format!("v{}", env!("CARGO_PKG_VERSION")).into());
+    i18n::register(&window);
 
     let hwnd_holder: Arc<Mutex<Option<SafeHwnd>>> = Arc::new(Mutex::new(None));
     let ui_weak = window.as_weak();

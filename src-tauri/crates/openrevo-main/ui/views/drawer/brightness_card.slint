@@ -1,4 +1,5 @@
-﻿import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
+import { AppTheme } from "../../theme.slint";
 
 export component DrawerBrightnessCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -28,7 +29,7 @@ export component DrawerBrightnessCard inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "屏幕亮度:";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.brightness_label");
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
@@ -61,7 +62,7 @@ export component DrawerBrightnessCard inherits Rectangle {
                         padding-left: 7px;
                         padding-right: 7px;
                         Text {
-                            text: "暗光 25%";
+                            text: AppI18n.tr(AppI18n.rev, "drawer.bright_dim");
                             font-size: 9.5px;
                             color: AppTheme.text_secondary;
                             vertical-alignment: center;
@@ -83,7 +84,7 @@ export component DrawerBrightnessCard inherits Rectangle {
                         padding-left: 7px;
                         padding-right: 7px;
                         Text {
-                            text: "室内 60%";
+                            text: AppI18n.tr(AppI18n.rev, "drawer.bright_indoor");
                             font-size: 9.5px;
                             color: AppTheme.text_secondary;
                             vertical-alignment: center;
@@ -105,7 +106,7 @@ export component DrawerBrightnessCard inherits Rectangle {
                         padding-left: 7px;
                         padding-right: 7px;
                         Text {
-                            text: "户外 100%";
+                            text: AppI18n.tr(AppI18n.rev, "drawer.bright_outdoor");
                             font-size: 9.5px;
                             color: AppTheme.text_secondary;
                             vertical-alignment: center;

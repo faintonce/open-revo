@@ -371,6 +371,19 @@ fn reveal_osd_window(hwnd_opt: Option<SafeHwnd>) {
 
 static HIDE_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+static OSD_I18N: OnceLock<Mutex<serde_json::Value>> = OnceLock::new();
+
+fn osd_tr(key: &str, fallback: &str) -> String {
+    if let Some(m) = OSD_I18N.get() {
+        if let Ok(g) = m.lock() {
+            if let Some(s) = g.get(key).and_then(|v| v.as_str()) {
+                return s.to_string();
+            }
+        }
+    }
+    fallback.to_string()
+}
+
 pub fn handle_ipc_message(
     raw: &str,
     ui_weak: &slint::Weak<OsdWindow>,
@@ -388,6 +401,14 @@ pub fn handle_ipc_message(
     let hwnd_cloned = hwnd_shared.clone();
 
     match action {
+        "i18n_tokens" => {
+            if let Some(osd_obj) = val.get("osd") {
+                let m = OSD_I18N.get_or_init(|| Mutex::new(serde_json::Value::Null));
+                if let Ok(mut g) = m.lock() {
+                    *g = osd_obj.clone();
+                }
+            }
+        }
         "mode" => {
             let mode = val.get("value").and_then(|v| v.as_u64()).unwrap_or(1) as u8;
             let gen = HIDE_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
@@ -575,10 +596,10 @@ pub fn handle_ipc_message(
 fn show_power_mode_internal(ui: &OsdWindow, mode: u8) {
     let pal = current_palette();
     let (title, icon, color) = match mode {
-        1 => ("办公模式", "🌱", pal.office),
-        2 => ("均衡模式", "⚖️", pal.balance),
-        3 => ("狂暴模式", "⚡", pal.beast),
-        _ => ("极客调校", "💧", pal.geek),
+        1 => (osd_tr("mode_office", "办公模式"), "🌱", pal.office),
+        2 => (osd_tr("mode_balance", "均衡模式"), "⚖️", pal.balance),
+        3 => (osd_tr("mode_beast", "狂暴模式"), "⚡", pal.beast),
+        _ => (osd_tr("mode_custom", "极客调校"), "💧", pal.geek),
     };
 
     ui.set_mode_title(title.into());
@@ -591,9 +612,9 @@ fn show_power_mode_internal(ui: &OsdWindow, mode: u8) {
 fn show_fan_boost_internal(ui: &OsdWindow, enabled: bool) {
     let pal = current_palette();
     let (title, icon, color) = if enabled {
-        ("强冷模式 开启", "🌪️", pal.fan)
+        (osd_tr("fan_boost_on", "强冷模式 开启"), "🌪️", pal.fan)
     } else {
-        ("强冷模式 关闭", "💨", pal.neutral)
+        (osd_tr("fan_boost_off", "强冷模式 关闭"), "💨", pal.neutral)
     };
 
     ui.set_mode_title(title.into());
@@ -608,51 +629,51 @@ fn show_key_lock_toast_internal(ui: &OsdWindow, name: &str, locked: bool) {
     let (title, icon, color) = match name {
         "win" => {
             if locked {
-                ("Win 键锁定 开启", "🔒", pal.disabled)
+                (osd_tr("win_lock_on", "Win 键锁定 开启"), "🔒", pal.disabled)
             } else {
-                ("Win 键锁定 关闭", "🔓", pal.enabled)
+                (osd_tr("win_lock_off", "Win 键锁定 关闭"), "🔓", pal.enabled)
             }
         }
         "fn" => {
             if locked {
-                ("Fn 键锁定 开启", "⚡", pal.balance)
+                (osd_tr("fn_lock_on", "Fn 键锁定 开启"), "⚡", pal.balance)
             } else {
-                ("Fn 键锁定 关闭", "⌨️", pal.neutral)
+                (osd_tr("fn_lock_off", "Fn 键锁定 关闭"), "⌨️", pal.neutral)
             }
         }
         "touchpad" => {
             if locked {
-                ("触摸板 禁用", "🚫", pal.disabled)
+                (osd_tr("touchpad_off", "触摸板 禁用"), "🚫", pal.disabled)
             } else {
-                ("触摸板 启用", "🖱️", pal.enabled)
+                (osd_tr("touchpad_on", "触摸板 启用"), "🖱️", pal.enabled)
             }
         }
         "caps" => {
             if locked {
-                ("大写锁定 开启", "🔠", pal.fan)
+                ("Caps Lock On".to_string(), "🔠", pal.fan)
             } else {
-                ("大写锁定 关闭", "🔡", pal.neutral)
+                ("Caps Lock Off".to_string(), "🔡", pal.neutral)
             }
         }
         "num" => {
             if locked {
-                ("数字锁定 开启", "🔢", pal.fan)
+                ("Num Lock On".to_string(), "🔢", pal.fan)
             } else {
-                ("数字锁定 关闭", "⌨️", pal.neutral)
+                ("Num Lock Off".to_string(), "⌨️", pal.neutral)
             }
         }
         "scroll" => {
             if locked {
-                ("滚动锁定 开启", "📜", pal.fan)
+                ("Scroll Lock On".to_string(), "📜", pal.fan)
             } else {
-                ("滚动锁定 关闭", "📄", pal.neutral)
+                ("Scroll Lock Off".to_string(), "📄", pal.neutral)
             }
         }
         _ => {
             if locked {
-                ("锁定已生效", "🔒", pal.disabled)
+                ("Locked".to_string(), "🔒", pal.disabled)
             } else {
-                ("解锁已生效", "🔓", pal.enabled)
+                ("Unlocked".to_string(), "🔓", pal.enabled)
             }
         }
     };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useI18n } from '../i18n/I18nContext';
 import {
   FolderOpen,
   Trash2,
@@ -472,9 +473,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     }
   };
 
+  const { locale, availableLocales, i18n, localeFeedback, setLocale, openLocalesDir, exportTemplate } = useI18n();
   const [restoringPowerPlan, setRestoringPowerPlan] = useState(false);
   const [showRestorePlanConfirm, setShowRestorePlanConfirm] = useState(false);
-  const [restorePlanMsg, setRestorePlanMsg] = useState<string | null>(null);
+  const [restorePlanMsg, setRestorePlanMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const handleRestoreOfficialPowerPlan = async () => {
     setShowRestorePlanConfirm(false);
@@ -482,11 +484,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     try {
       const res = await invoke<string>('restore_official_power_plan');
       await fetchPowerSchemes();
-      setRestorePlanMsg(res || '已成功恢复官方出厂电源计划与 PPM 调度！');
+      setRestorePlanMsg({ ok: true, text: res || '已成功恢复官方出厂电源计划与 PPM 调度！' });
       setTimeout(() => setRestorePlanMsg(null), 5000);
     } catch (e: any) {
       console.error('Failed to restore official power plan:', e);
-      setRestorePlanMsg('修复失败: ' + String(e));
+      setRestorePlanMsg({ ok: false, text: `${i18n.common.failed}: ${String(e)}` });
       setTimeout(() => setRestorePlanMsg(null), 5000);
     } finally {
       setRestoringPowerPlan(false);
@@ -498,6 +500,35 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       <div className="glass-card">
         <h3 className="sys-section-title">系统功能开关</h3>
         <div className="sys-rows">
+
+          {/* 界面语言 (i18n + 外挂 JSON 语言包) */}
+          <div className="quick-row">
+            <div>
+              <div className="sys-row-label">
+                <span>{i18n.system.language_title}</span>
+                {localeFeedback && <RevBadge variant="success">{localeFeedback}</RevBadge>}
+              </div>
+              <div className="sys-row-desc">{i18n.system.language_desc}</div>
+            </div>
+            <div className="sys-row-controls">
+              {availableLocales.map((loc) => (
+                <button
+                  key={loc.code}
+                  type="button"
+                  onClick={() => setLocale(loc.code)}
+                  className={`toggle-btn ${locale === loc.code ? 'active-cyan' : ''}`}
+                >
+                  {loc.name}
+                </button>
+              ))}
+              <button type="button" onClick={openLocalesDir} className="toggle-btn">
+                {i18n.system.open_locales_dir}
+              </button>
+              <button type="button" onClick={exportTemplate} className="toggle-btn">
+                {i18n.system.export_template}
+              </button>
+            </div>
+          </div>
 
           {/* OSD 屏幕悬浮提示 */}
           <div className="quick-row" style={{ alignItems: 'center' }}>
@@ -831,8 +862,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <span>Windows 基础电源方案</span>
                 <RevBadge variant="success">powercfg</RevBadge>
                 {restorePlanMsg && (
-                  <RevBadge variant={restorePlanMsg.includes('失败') ? 'error' : 'success'}>
-                    {restorePlanMsg}
+                  <RevBadge variant={restorePlanMsg.ok ? 'success' : 'error'}>
+                    {restorePlanMsg.text}
                   </RevBadge>
                 )}
               </div>

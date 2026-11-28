@@ -1,5 +1,6 @@
 import { AppTheme } from "../../theme.slint";
 import { SwitchToggle } from "switch_toggle.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component HardwarePowerOptionsCard inherits Rectangle {
     in-out property <bool> usb_charge_enabled: false;
@@ -20,13 +21,13 @@ export component HardwarePowerOptionsCard inherits Rectangle {
         HorizontalLayout {
             alignment: space-between;
             Text {
-                text: "电源与供电选项";
+                text: AppI18n.tr(AppI18n.rev, "power.hw_options_title");
                 font-size: 11.5px;
                 font-weight: 700;
                 color: AppTheme.text_muted;
             }
             Text {
-                text: "主板硬件 EC 寄存器底层配置";
+                text: AppI18n.tr(AppI18n.rev, "power.hw_options_sub");
                 font-size: 9.5px;
                 color: AppTheme.text_muted;
             }
@@ -56,7 +57,7 @@ export component HardwarePowerOptionsCard inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "关机下使用USB给电";
+                            text: AppI18n.tr(AppI18n.rev, "power.usb_charge_title");
                             font-size: 11px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
@@ -71,7 +72,7 @@ export component HardwarePowerOptionsCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "可在关机或休眠状态下支持USB供电，为手机应急充电";
+                        text: AppI18n.tr(AppI18n.rev, "power.usb_charge_desc");
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }
@@ -99,7 +100,7 @@ export component HardwarePowerOptionsCard inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "来电自动开机 (AC Recovery)";
+                            text: AppI18n.tr(AppI18n.rev, "power.ac_recovery_title");
                             font-size: 11px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
@@ -114,7 +115,7 @@ export component HardwarePowerOptionsCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "关机状态下，接通外部电源适配器瞬间自动开机启动系统";
+                        text: AppI18n.tr(AppI18n.rev, "power.ac_recovery_desc");
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }
@@ -142,7 +143,7 @@ export component HardwarePowerOptionsCard inherits Rectangle {
                     HorizontalLayout {
                         alignment: space-between;
                         Text {
-                            text: "高性能电源模式";
+                            text: AppI18n.tr(AppI18n.rev, "power.high_perf_title");
                             font-size: 11px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
@@ -157,7 +158,7 @@ export component HardwarePowerOptionsCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "开启后四大模式联动调整 Windows 系统电源配置，不妥协响应速度";
+                        text: AppI18n.tr(AppI18n.rev, "power.high_perf_desc");
                         font-size: 8.5px;
                         color: AppTheme.text_muted;
                     }

@@ -1,6 +1,7 @@
 import { AppTheme } from "../../theme.slint";
 import { DisplayTuningPresetsCard } from "display_tuning_presets_card.slint";
 import { DisplayTuningSlidersCard } from "display_tuning_sliders_card.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export struct ColorPresetItem {
     id: string,
@@ -104,7 +105,7 @@ export component DisplayTuningModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 8px;
                                 Text {
-                                    text: "屏幕色彩增强引擎";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.tuning_engine_title");
                                     font-size: 14px;
                                     font-weight: 800;
                                     color: AppTheme.text_primary;
@@ -121,7 +122,7 @@ export component DisplayTuningModal inherits Rectangle {
                                         padding-left: 6px;
                                         padding-right: 6px;
                                         Text {
-                                            text: root.tuning_enabled ? "GPU 硬件生效中" : "调色已暂停";
+                                            text: root.tuning_enabled ? AppI18n.tr(AppI18n.rev, "gpu.gpu_hw_active") : AppI18n.tr(AppI18n.rev, "gpu.tuning_paused");
                                             font-size: 9.5px;
                                             font-weight: 700;
                                             color: root.tuning_enabled ? #34d399 : #94a3b8;
@@ -132,7 +133,7 @@ export component DisplayTuningModal inherits Rectangle {
                             }
 
                             Text {
-                                text: "GPU 硬件级 LUT 查找表与全屏 DWM 渲染管线实时色彩重构";
+                                text: AppI18n.tr(AppI18n.rev, "gpu.tuning_engine_desc");
                                 font-size: 10px;
                                 color: AppTheme.text_muted;
                             }

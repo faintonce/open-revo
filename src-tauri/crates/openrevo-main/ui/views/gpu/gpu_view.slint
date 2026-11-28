@@ -8,6 +8,7 @@ import { BrightnessCard } from "brightness_card.slint";
 import { DisplayTuningBar } from "display_tuning_bar.slint";
 import { ColorProfileBar } from "color_profile_bar.slint";
 import { MuxConfirmModal } from "mux_confirm_modal.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DashboardGpuView inherits Rectangle {
     background: transparent;
@@ -29,19 +30,19 @@ export component DashboardGpuView inherits Rectangle {
     in-out property <int> brightness: 76;
 
     // Display & Refresh Rate
-    in-out property <string> monitor_name: "京东方 (主屏)";
+    in-out property <string> monitor_name: AppI18n.tr(AppI18n.rev, "gpu.boe_main");
     in-out property <int> refresh_rate: 240;
     in-out property <bool> auto_min_hz: true;
     in-out property <[int]> rates_row1: [60, 144, 240];
     in-out property <[int]> rates_row2: [];
     in-out property <bool> has_secondary_monitor: false;
-    in-out property <string> primary_monitor_name: "内置主屏";
-    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <string> primary_monitor_name: AppI18n.tr(AppI18n.rev, "gpu.internal_display");
+    in-out property <string> secondary_monitor_name: AppI18n.tr(AppI18n.rev, "gpu.external_display");
 
     // Display Tuning Engine state
     in-out property <bool> tuning_enabled: true;
     in-out property <string> active_preset_id: "preset_vibrant";
-    in-out property <string> active_preset_name: "多彩鲜艳 (Vibrant)";
+    in-out property <string> active_preset_name: AppI18n.tr(AppI18n.rev, "gpu.vibrant");
     in-out property <int> tuning_temp_k: 6500;
     in-out property <int> tuning_saturation: 150;
     in-out property <int> tuning_contrast: 100;
@@ -58,26 +59,26 @@ export component DashboardGpuView inherits Rectangle {
     // MUX Switch Confirm Dialog State
     in-out property <bool> show_switch_confirm: false;
     in-out property <string> pending_mode: "dgpu";
-    in-out property <string> pending_title: "独显直连";
+    in-out property <string> pending_title: AppI18n.tr(AppI18n.rev, "gpu.dgpu_direct");
 
     // Color Calibration state
-    in-out property <string> active_color_profile: "系统默认 (未校准)";
+    in-out property <string> active_color_profile: AppI18n.tr(AppI18n.rev, "gpu.icc_default");
     in-out property <string> active_color_profile_id: "default_native";
-    in-out property <[string]> color_profiles_list: ["系统默认 (未校准)", "标准 sRGB (出厂校准)", "DCI-P3 广色域 (影院级)", "Adobe RGB (专业设计)"];
+    in-out property <[string]> color_profiles_list: [AppI18n.tr(AppI18n.rev, "gpu.icc_default"), AppI18n.tr(AppI18n.rev, "gpu.icc_srgb"), AppI18n.tr(AppI18n.rev, "gpu.icc_p3"), AppI18n.tr(AppI18n.rev, "gpu.icc_adobe")];
     in-out property <[string]> color_profiles_ids: ["default_native", "std_srgb", "std_p3", "std_adobergb"];
     in-out property <bool> is_color_dirty: false;
 
     // Cloud ICC Modal State
     in-out property <bool> is_cloud_icc_modal_open: false;
-    in-out property <string> cloud_icc_panel_pnp: "未检出";
-    in-out property <string> cloud_icc_panel_sn: "(无独立面板SN)";
-    in-out property <string> cloud_icc_bios_sn: "未检出";
-    in-out property <string> cloud_icc_mac: "未检出";
-    in-out property <string> cloud_icc_arch: "识别中...";
+    in-out property <string> cloud_icc_panel_pnp: AppI18n.tr(AppI18n.rev, "gpu.not_detected");
+    in-out property <string> cloud_icc_panel_sn: AppI18n.tr(AppI18n.rev, "gpu.no_panel_sn");
+    in-out property <string> cloud_icc_bios_sn: AppI18n.tr(AppI18n.rev, "gpu.not_detected");
+    in-out property <string> cloud_icc_mac: AppI18n.tr(AppI18n.rev, "gpu.not_detected");
+    in-out property <string> cloud_icc_arch: AppI18n.tr(AppI18n.rev, "gpu.detecting");
     in-out property <string> cloud_icc_recommended: "auto";
     in-out property <string> cloud_icc_mode: "auto";
     in-out property <bool> cloud_icc_is_searching: false;
-    in-out property <string> cloud_icc_status: "就绪";
+    in-out property <string> cloud_icc_status: AppI18n.tr(AppI18n.rev, "gpu.ready");
     in-out property <bool> cloud_icc_hit_found: false;
     in-out property <string> cloud_icc_hit_file_name: "";
     in-out property <string> cloud_icc_hit_meta: "";
@@ -205,7 +206,7 @@ export component DashboardGpuView inherits Rectangle {
 
         // 5. Monitor & Refresh Rate Card
         MonitorRefreshCard {
-            title: "屏幕刷新率";
+            title: AppI18n.tr(AppI18n.rev, "gpu.refresh_rate_title");
             monitor_name: root.monitor_name;
             refresh_rate: root.refresh_rate;
             rates_row1: root.rates_row1;
@@ -271,11 +272,11 @@ export component DashboardGpuView inherits Rectangle {
         close => { root.is_tuning_modal_open = false; }
         select_preset(id) => {
             root.active_preset_id = id;
-            root.active_preset_name = id == "preset_vibrant" ? "多彩鲜艳 (Vibrant)" :
-                                     (id == "preset_internet" ? "互联网/办公 (Internet)" :
-                                     (id == "preset_video" ? "电影娱乐 (Video)" :
-                                     (id == "preset_eyecare" ? "防蓝光护眼 (Eyecare)" :
-                                     (id == "preset_cinema" ? "影院震撼 (Cinema)" : "标准出厂 (Standard)"))));
+            root.active_preset_name = id == "preset_vibrant" ? AppI18n.tr(AppI18n.rev, "gpu.vibrant") :
+                                     (id == "preset_internet" ? AppI18n.tr(AppI18n.rev, "gpu.internet_full") :
+                                     (id == "preset_video" ? AppI18n.tr(AppI18n.rev, "gpu.video_full") :
+                                     (id == "preset_eyecare" ? AppI18n.tr(AppI18n.rev, "gpu.eyecare_full") :
+                                     (id == "preset_cinema" ? AppI18n.tr(AppI18n.rev, "gpu.cinema_full") : AppI18n.tr(AppI18n.rev, "gpu.standard_full")))));
             root.apply_tuning_preset(id);
         }
         change_temp_k(val) => {

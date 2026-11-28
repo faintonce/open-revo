@@ -43,6 +43,29 @@ pub fn handle(action: &str, val: &serde_json::Value, _app: Option<&AppHandle>) -
             sync_slint_lighting_state();
             sync_slint_water_state(None, None);
             sync_slint_plugins_state();
+            super::super::sync::sync_slint_i18n_tokens(None);
+            true
+        }
+        "change_locale" => {
+            if let Some(code) = val.get("code").and_then(|v| v.as_str()) {
+                let _ = crate::commands::system_cmd::apply_locale_change(code.to_string(), _app);
+            }
+            true
+        }
+        "open_locales_dir" => {
+            let _ = crate::commands::system_cmd::open_locales_dir();
+            true
+        }
+        "export_i18n_template" => {
+            if let Ok(_) = crate::system::i18n::export_i18n_template() {
+                let bundle = crate::system::i18n::get_active_locale_bundle();
+                let msg = crate::system::i18n::lookup_or(
+                    &bundle,
+                    "system.template_exported",
+                    "Template exported to locales folder",
+                );
+                super::super::sync::sync_slint_i18n_tokens(Some(&msg));
+            }
             true
         }
         "window_moved" => {

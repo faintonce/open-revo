@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DisplayTuningPresetsCard inherits Rectangle {
     in-out property <string> active_preset_id: "preset_vibrant";
@@ -23,7 +24,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
             alignment: space-between;
 
             Text {
-                text: "色彩预设方案";
+                text: AppI18n.tr(AppI18n.rev, "gpu.color_presets_title");
                 font-size: 11.5px;
                 font-weight: 700;
                 color: AppTheme.text_primary;
@@ -56,7 +57,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "加载 .json";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.load_json");
                             font-size: 10px;
                             font-weight: 600;
                             color: #60a5fa;
@@ -88,7 +89,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "导出 .json";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.export_json");
                             font-size: 10px;
                             color: AppTheme.text_secondary;
                             vertical-alignment: center;
@@ -124,7 +125,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "撤销更改";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.revert_changes");
                             font-size: 10px;
                             font-weight: 600;
                             color: root.is_modified ? #f87171 : AppTheme.text_muted;
@@ -167,7 +168,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "多彩鲜艳";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.preset_vibrant");
                             font-size: 11px;
                             font-weight: root.active_preset_id == "preset_vibrant" ? 700 : 500;
                             color: AppTheme.text_primary;
@@ -175,7 +176,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                         }
                     }
                     if root.active_preset_id == "preset_vibrant" && root.is_modified: Text {
-                        text: "微调";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.fine_tune");
                         font-size: 9px;
                         font-weight: 700;
                         color: #fbbf24;
@@ -212,7 +213,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "互联网/办公";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.preset_internet");
                             font-size: 11px;
                             font-weight: root.active_preset_id == "preset_internet" ? 700 : 500;
                             color: AppTheme.text_primary;
@@ -220,7 +221,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                         }
                     }
                     if root.active_preset_id == "preset_internet" && root.is_modified: Text {
-                        text: "微调";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.fine_tune");
                         font-size: 9px;
                         font-weight: 700;
                         color: #fbbf24;
@@ -257,7 +258,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "电影娱乐";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.preset_video");
                             font-size: 11px;
                             font-weight: root.active_preset_id == "preset_video" ? 700 : 500;
                             color: AppTheme.text_primary;
@@ -265,7 +266,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                         }
                     }
                     if root.active_preset_id == "preset_video" && root.is_modified: Text {
-                        text: "微调";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.fine_tune");
                         font-size: 9px;
                         font-weight: 700;
                         color: #fbbf24;
@@ -307,7 +308,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "防蓝光护眼";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.preset_eyecare");
                             font-size: 11px;
                             font-weight: root.active_preset_id == "preset_eyecare" ? 700 : 500;
                             color: AppTheme.text_primary;
@@ -315,7 +316,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                         }
                     }
                     if root.active_preset_id == "preset_eyecare" && root.is_modified: Text {
-                        text: "微调";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.fine_tune");
                         font-size: 9px;
                         font-weight: 700;
                         color: #fbbf24;
@@ -352,7 +353,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "影院震撼";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.preset_cinema");
                             font-size: 11px;
                             font-weight: root.active_preset_id == "preset_cinema" ? 700 : 500;
                             color: AppTheme.text_primary;
@@ -360,7 +361,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                         }
                     }
                     if root.active_preset_id == "preset_cinema" && root.is_modified: Text {
-                        text: "微调";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.fine_tune");
                         font-size: 9px;
                         font-weight: 700;
                         color: #fbbf24;
@@ -397,7 +398,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "标准出厂";
+                            text: AppI18n.tr(AppI18n.rev, "gpu.preset_standard");
                             font-size: 11px;
                             font-weight: root.active_preset_id == "preset_standard" ? 700 : 500;
                             color: AppTheme.text_primary;
@@ -405,7 +406,7 @@ export component DisplayTuningPresetsCard inherits Rectangle {
                         }
                     }
                     if root.active_preset_id == "preset_standard" && root.is_modified: Text {
-                        text: "微调";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.fine_tune");
                         font-size: 9px;
                         font-weight: 700;
                         color: #fbbf24;

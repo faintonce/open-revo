@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CoolerHeaderTelemetry inherits Rectangle {
     background: transparent;
@@ -38,7 +39,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                 spacing: 8px;
 
                 Text {
-                    text: "外置水冷魔盒";
+                    text: AppI18n.tr(AppI18n.rev, "water.title");
                     font-size: 13.5px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
@@ -58,7 +59,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                         padding-left: 6px;
                         padding-right: 6px;
                         Text {
-                            text: "BLE 原生直连";
+                            text: AppI18n.tr(AppI18n.rev, "water.ble_direct");
                             font-size: 9px;
                             font-weight: 600;
                             color: #38bdf8;
@@ -95,7 +96,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                         }
 
                         Text {
-                            text: root.mac_address != "" ? "MAC: " + root.mac_address : "选择水冷魔盒";
+                            text: root.mac_address != "" ? "MAC: " + root.mac_address : AppI18n.tr(AppI18n.rev, "water.select_cooler");
                             font-size: 9.5px;
                             font-weight: 600;
                             color: root.mac_address != "" ? AppTheme.text_secondary : #38bdf8;
@@ -133,7 +134,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                         }
 
                         Text {
-                            text: root.is_connected ? "已直连受控" : "未连接";
+                            text: root.is_connected ? AppI18n.tr(AppI18n.rev, "water.connected") : AppI18n.tr(AppI18n.rev, "water.disconnected");
                             font-size: 10px;
                             font-weight: 700;
                             color: root.is_connected ? #10b981 : AppTheme.text_muted;
@@ -173,7 +174,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                             }
 
                             Text {
-                                text: root.is_priming ? "排气注水中..." : "注水排气";
+                                text: root.is_priming ? AppI18n.tr(AppI18n.rev, "water.draining") : AppI18n.tr(AppI18n.rev, "water.drain_air");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: root.is_priming ? #ffffff : AppTheme.text_secondary;
@@ -210,7 +211,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                             }
 
                             Text {
-                                text: "默认曲线";
+                                text: AppI18n.tr(AppI18n.rev, "water.default_curve");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
@@ -238,7 +239,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                             padding-right: 8px;
 
                             Text {
-                                text: "断开水冷";
+                                text: AppI18n.tr(AppI18n.rev, "water.disconnect");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: #f87171;
@@ -279,7 +280,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                             }
 
                             Text {
-                                text: root.is_connecting ? "正在直连..." : "立即直连";
+                                text: root.is_connecting ? AppI18n.tr(AppI18n.rev, "water.connecting") : AppI18n.tr(AppI18n.rev, "water.connect_now");
                                 font-size: 10px;
                                 font-weight: 700;
                                 color: #ffffff;
@@ -316,7 +317,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                             }
 
                             Text {
-                                text: root.is_pairing ? "⟳ 扫描中..." : "搜索配对";
+                                text: root.is_pairing ? AppI18n.tr(AppI18n.rev, "water.scanning_btn") : AppI18n.tr(AppI18n.rev, "water.scan_pair");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
@@ -349,15 +350,15 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                     spacing: 2px;
 
                     Text {
-                        text: "当前水流状态";
+                        text: AppI18n.tr(AppI18n.rev, "water.flow_status");
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                     }
 
                     Text {
                         text: root.is_connected ? (
-                            root.is_flow_ok || root.meter_state == 2 || root.meter_state == 1 ? "正常 (Flowing)" :
-                            (root.meter_state == 3 ? "微流/建立中" : "无流量")
+                            root.is_flow_ok || root.meter_state == 2 || root.meter_state == 1 ? AppI18n.tr(AppI18n.rev, "water.flow_ok") :
+                            (root.meter_state == 3 ? AppI18n.tr(AppI18n.rev, "water.flow_low") : AppI18n.tr(AppI18n.rev, "water.flow_none"))
                         ) : "--";
                         font-size: 13px;
                         font-weight: 800;
@@ -382,7 +383,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                     spacing: 2px;
 
                     Text {
-                        text: "核心综合温度 MAX(CPU, GPU)";
+                        text: AppI18n.tr(AppI18n.rev, "water.core_temp_title");
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                     }
@@ -423,16 +424,16 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                     spacing: 2px;
 
                     Text {
-                        text: "水泵运行工况 / 档位";
+                        text: AppI18n.tr(AppI18n.rev, "water.pump_status_title");
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                     }
 
                     Text {
                         text: !root.is_connected ? "--" : (
-                            root.pump_tier == 0 || root.pump_voltage == 0 ? "已停机 (0%)" : (
-                                root.pump_tier == 3 || root.pump_voltage >= 11 ? "极限狂暴 (100%)" : (
-                                    root.pump_tier == 1 ? "极静巡航 (30%)" : "标准巡航 (45%)"
+                            root.pump_tier == 0 || root.pump_voltage == 0 ? AppI18n.tr(AppI18n.rev, "water.pump_stopped") : (
+                                root.pump_tier == 3 || root.pump_voltage >= 11 ? AppI18n.tr(AppI18n.rev, "water.pump_turbo") : (
+                                    root.pump_tier == 1 ? AppI18n.tr(AppI18n.rev, "water.pump_quiet") : AppI18n.tr(AppI18n.rev, "water.pump_standard")
                                 )
                             )
                         );
@@ -463,7 +464,7 @@ export component CoolerHeaderTelemetry inherits Rectangle {
                     spacing: 2px;
 
                     Text {
-                        text: "冷排风扇实时转速";
+                        text: AppI18n.tr(AppI18n.rev, "water.fan_rpm_title");
                         font-size: 9.5px;
                         color: AppTheme.text_muted;
                     }

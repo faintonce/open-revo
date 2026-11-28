@@ -4,6 +4,7 @@ import { KeyboardEngineBar } from "keyboard_engine_bar.slint";
 import { KeyboardEffectsGrid } from "keyboard_effects_grid.slint";
 import { KeyboardControlsBar } from "keyboard_controls_bar.slint";
 import { BrfxScriptItem } from "lighting_types.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component KeyboardLightingView inherits Rectangle {
     in-out property <bool> kb_enabled: true;
@@ -19,7 +20,7 @@ export component KeyboardLightingView inherits Rectangle {
     // Custom BRFX Script properties
     in-out property <[BrfxScriptItem]> custom_scripts: [];
     in-out property <string> custom_script_id: "kamehameha";
-    in-out property <string> custom_script_name: "龟派气功 vs 终极闪光 (Kamehameha)";
+    in-out property <string> custom_script_name: AppI18n.tr(AppI18n.rev, "lighting.brfx_kamehameha");
     in-out property <string> custom_script_file_name: "kamehameha.brfx";
     in-out property <string> custom_script_author: "OpenRevo Community";
     in-out property <string> custom_script_desc: "";
@@ -34,7 +35,7 @@ export component KeyboardLightingView inherits Rectangle {
     in-out property <bool> custom_default_reactive: false;
     in-out property <string> custom_default_color_hex: "#00F0FF";
 
-    in property <string> hw_desc: "键盘背光控制器";
+    in property <string> hw_desc: AppI18n.tr(AppI18n.rev, "lighting.kbd_controller");
     in property <string> hardware_type: "PerKeyRgb";
     in property <bool> is_four_zone: false;
     in property <bool> is_single_zone: false;
@@ -80,7 +81,7 @@ export component KeyboardLightingView inherits Rectangle {
                     alignment: start;
 
                     Text {
-                        text: root.is_single_color ? "键盘单色背光工作台" : (root.is_single_zone ? "单区 RGB 键盘工作台" : (root.is_four_zone ? "4区 RGB 键盘工作台" : "键盘背光工作台"));
+                        text: root.is_single_color ? AppI18n.tr(AppI18n.rev, "lighting.kb_title_white") : (root.is_single_zone ? AppI18n.tr(AppI18n.rev, "lighting.kb_title_1zone") : (root.is_four_zone ? AppI18n.tr(AppI18n.rev, "lighting.kb_title_4zone") : AppI18n.tr(AppI18n.rev, "lighting.kb_title_perkey")));
                         font-size: 14px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
@@ -100,7 +101,7 @@ export component KeyboardLightingView inherits Rectangle {
                                 padding-left: 6px;
                                 padding-right: 6px;
                                 Text {
-                                    text: root.is_single_color ? "单色白光背光 [EC硬件直通]" : (root.is_single_zone ? "单区同色 RGB [EC硬件调光]" : (root.is_four_zone ? "ITE 8291 r2 4区 RGB 控制器 (048D:CE00)" : root.hw_desc));
+                                    text: root.is_single_color ? AppI18n.tr(AppI18n.rev, "lighting.kb_sub_white") : (root.is_single_zone ? AppI18n.tr(AppI18n.rev, "lighting.kb_sub_1zone") : (root.is_four_zone ? AppI18n.tr(AppI18n.rev, "lighting.kb_sub_4zone") : root.hw_desc));
                                     font-size: 10px;
                                     font-weight: 600;
                                     color: root.is_single_color ? #94a3b8 : (root.is_single_zone ? #34d399 : (root.is_four_zone ? #22d3ee : #818cf8));
@@ -112,7 +113,7 @@ export component KeyboardLightingView inherits Rectangle {
                 }
 
                 Text {
-                    text: root.is_single_color ? "检测到当前机型为单色 LED 背光，已自动精简无效控制项，支持开关、3档亮度与闲置熄灯" : (root.is_single_zone ? "全键盘同色调光，支持纯色常亮、彩虹呼吸与4档亮度微调" : (root.is_four_zone ? "4 分区独立调色与 6 种原厂硬件动效，支持方向、亮度与色彩微调" : "12 种硬件内建与动态特效，支持方向、亮度与色态毫秒级原生生效"));
+                    text: root.is_single_color ? AppI18n.tr(AppI18n.rev, "lighting.kb_desc_white") : (root.is_single_zone ? AppI18n.tr(AppI18n.rev, "lighting.kb_desc_1zone") : (root.is_four_zone ? AppI18n.tr(AppI18n.rev, "lighting.kb_desc_4zone") : AppI18n.tr(AppI18n.rev, "lighting.kb_desc_perkey")));
                     font-size: 11px;
                     color: AppTheme.text_muted;
                 }
@@ -149,7 +150,7 @@ export component KeyboardLightingView inherits Rectangle {
                         }
 
                         Text {
-                            text: root.kb_enabled ? "已开启" : "已关闭";
+                            text: root.kb_enabled ? AppI18n.tr(AppI18n.rev, "lighting.enabled") : AppI18n.tr(AppI18n.rev, "lighting.disabled");
                             font-size: 12px;
                             font-weight: 700;
                             color: root.kb_enabled ? #ffffff : AppTheme.text_muted;
@@ -222,10 +223,10 @@ export component KeyboardLightingView inherits Rectangle {
                             alignment: center;
                             Image { source: @image-url("../../assets/icons/sun.svg"); width: 12px; height: 12px; colorize: #f59e0b; }
                         }
-                        Text { text: "全域键盘亮度"; font-size: 12px; font-weight: 600; color: AppTheme.text_secondary; vertical-alignment: center; }
+                        Text { text: AppI18n.tr(AppI18n.rev, "lighting.kb_brightness_global"); font-size: 12px; font-weight: 600; color: AppTheme.text_secondary; vertical-alignment: center; }
                     }
                     Text {
-                        text: Math.max(1, root.kb_brightness) + " 档";
+                        text: Math.max(1, root.kb_brightness) + AppI18n.tr(AppI18n.rev, "lighting.level_unit");
                         font-size: 12px;
                         font-weight: 700;
                         color: #818cf8;
@@ -288,7 +289,7 @@ export component KeyboardLightingView inherits Rectangle {
         if !root.is_single_color && (root.is_single_zone || root.is_four_zone || root.kb_engine != 2) : ColorPaletteRow {
             active_color_hex <=> root.kb_color_hex;
             active_color <=> root.kb_color;
-            label_text: "定制主色调:";
+            label_text: AppI18n.tr(AppI18n.rev, "lighting.custom_color_label");
             color_selected(hex, c) => {
                 root.change_color(hex, c);
             }

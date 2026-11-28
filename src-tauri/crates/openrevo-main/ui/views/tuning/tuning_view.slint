@@ -2,6 +2,7 @@ import { AppTheme } from "../../theme.slint";
 import { CpuTuningCol } from "cpu_col.slint";
 import { GpuTuningCol } from "gpu_col.slint";
 import { FanTuningCol } from "fan_col.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DashboardCustomTuningView inherits Rectangle {
     background: transparent;
@@ -33,8 +34,8 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <int> min_max_pl4: 155;
     in-out property <int> max_max_pl4: 280;
     in-out property <bool> bios_oc_enabled: true;
-    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
-    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <string> bios_oc_desc: AppI18n.tr(AppI18n.rev, "tuning.bios_oc_desc");
+    in-out property <string> bios_oc_btn_text: AppI18n.tr(AppI18n.rev, "tuning.off");
     in-out property <int> bios_oc_status: 0;
     in-out property <bool> bios_oc_disabled: false;
 
@@ -89,16 +90,16 @@ export component DashboardCustomTuningView inherits Rectangle {
     in-out property <int> gpu_temp: 54;
     in-out property <int> gpu_rpm: 2123;
     in-out property <string> gpu_watts: "20.4 W";
-    in-out property <string> telemetry_total_label: "双烤合计:";
+    in-out property <string> telemetry_total_label: AppI18n.tr(AppI18n.rev, "tuning.dual_burn_total");
     in-out property <string> telemetry_total_watts: "--";
 
     // Presets
-    in-out property <string> active_preset_name: "均衡电竞";
+    in-out property <string> active_preset_name: AppI18n.tr(AppI18n.rev, "tuning.preset_gaming");
     in-out property <bool> active_preset_is_builtin: false;
     in-out property <bool> show_rename_modal: false;
     in-out property <string> rename_input_name: "";
     in-out property <[string]> preset_ids: ["preset_office", "preset_balanced", "preset_turbo"];
-    in-out property <[string]> preset_names: ["办公静音", "均衡电竞", "狂暴极致"];
+    in-out property <[string]> preset_names: [AppI18n.tr(AppI18n.rev, "tuning.preset_office"), AppI18n.tr(AppI18n.rev, "tuning.preset_gaming"), AppI18n.tr(AppI18n.rev, "tuning.preset_beast")];
     in-out property <bool> show_preset_menu: false;
 
     // Callbacks
@@ -195,7 +196,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "返回";
+                            text: AppI18n.tr(AppI18n.rev, "tuning.back");
                             font-size: 11px;
                             font-weight: 700;
                             color: #c084fc;
@@ -214,7 +215,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: "极客自定义调校";
+                        text: AppI18n.tr(AppI18n.rev, "tuning.custom_tuning_title");
                         font-size: 15px;
                         font-weight: 800;
                         color: AppTheme.text_primary;
@@ -228,7 +229,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                 spacing: 6px;
 
                 Text {
-                    text: "方案:";
+                    text: AppI18n.tr(AppI18n.rev, "tuning.profile_label");
                     font-size: 11px;
                     color: AppTheme.text_muted;
                     vertical-alignment: center;
@@ -582,7 +583,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                 padding-right: 8px;
 
                 Text {
-                    text: "⚠ 免责声明: OpenRevo 仅提供底层硬件操控能力，参数配置权完全归属用户。超出出厂规格的极限功耗、温控或频率偏移可能导致硬件保护性黑屏、断电或重置，请谨慎调校。";
+                    text: AppI18n.tr(AppI18n.rev, "tuning.disclaimer");
                     font-size: 9.5px;
                     color: #f59e0b;
                     vertical-alignment: center;
@@ -722,13 +723,13 @@ export component DashboardCustomTuningView inherits Rectangle {
                         alignment: center;
                         spacing: 2px;
                         Text {
-                            text: "重命名调校方案";
+                            text: AppI18n.tr(AppI18n.rev, "tuning.rename_title");
                             font-size: 14px;
                             font-weight: 800;
                             color: AppTheme.text_primary;
                         }
                         Text {
-                            text: "请输入新的方案名称（最多16字）";
+                            text: AppI18n.tr(AppI18n.rev, "tuning.rename_placeholder");
                             font-size: 11px;
                             color: AppTheme.text_muted;
                         }
@@ -786,7 +787,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "取消";
+                            text: AppI18n.tr(AppI18n.rev, "tuning.cancel");
                             font-size: 11px;
                             color: AppTheme.text_secondary;
                             horizontal-alignment: center;
@@ -812,7 +813,7 @@ export component DashboardCustomTuningView inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "确定";
+                            text: AppI18n.tr(AppI18n.rev, "tuning.confirm");
                             font-size: 11px;
                             font-weight: 700;
                             color: root.rename_input_name == "" ? #94a3b8 : #ffffff;

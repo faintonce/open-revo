@@ -1,4 +1,5 @@
 import { AppTheme } from "../theme.slint";
+import { AppI18n } from "../i18n.slint";
 
 export struct PluginItemData {
     id: string,
@@ -187,7 +188,7 @@ export component DashboardSidebar inherits Rectangle {
             spacing: 2px;
 
             if root.is_overview_enabled: SidebarNavItem {
-                text: "状态总览";
+                text: AppI18n.tr(AppI18n.rev, "shell.tab_overview");
                 icon: @image-url("../assets/icons/grid.svg");
                 is_active: root.active_tab == 0 && root.active_plugin_id == "";
                 clicked => {
@@ -197,7 +198,7 @@ export component DashboardSidebar inherits Rectangle {
             }
 
             if root.is_gpu_enabled: SidebarNavItem {
-                text: "显卡模式";
+                text: AppI18n.tr(AppI18n.rev, "shell.nav_gpu");
                 icon: @image-url("../assets/icons/monitor.svg");
                 is_active: root.active_tab == 1 && root.active_plugin_id == "";
                 clicked => {
@@ -207,7 +208,7 @@ export component DashboardSidebar inherits Rectangle {
             }
 
             if root.is_tuning_enabled: SidebarNavItem {
-                text: "电源管理";
+                text: AppI18n.tr(AppI18n.rev, "shell.nav_power");
                 icon: @image-url("../assets/icons/zap.svg");
                 is_active: root.active_tab == 2 && root.active_plugin_id == "";
                 clicked => {
@@ -217,7 +218,7 @@ export component DashboardSidebar inherits Rectangle {
             }
 
             if root.is_lighting_enabled: SidebarNavItem {
-                text: "RGB 灯效工坊";
+                text: AppI18n.tr(AppI18n.rev, "shell.tab_lighting");
                 icon: @image-url("../assets/icons/keyboard.svg");
                 is_active: root.active_tab == 3 && root.active_plugin_id == "";
                 clicked => {
@@ -227,11 +228,11 @@ export component DashboardSidebar inherits Rectangle {
             }
 
             if root.is_water_enabled: SidebarNavItem {
-                text: "水冷魔盒 (BLE)";
+                text: AppI18n.tr(AppI18n.rev, "shell.tab_water");
                 icon: @image-url("../assets/icons/droplet.svg");
                 is_active: root.active_tab == 4 && root.active_plugin_id == "";
                 has_badge: true;
-                badge_text: root.is_water_connected ? "已连" : "未连";
+                badge_text: root.is_water_connected ? AppI18n.tr(AppI18n.rev, "shell.connected") : AppI18n.tr(AppI18n.rev, "shell.disconnected");
                 badge_color: root.is_water_connected ? AppTheme.accent_fan : AppTheme.text_muted;
                 clicked => {
                     root.active_plugin_id = "";
@@ -247,7 +248,7 @@ export component DashboardSidebar inherits Rectangle {
 
         // 3. Plugin Center Item
         SidebarNavItem {
-            text: "插件中心";
+            text: AppI18n.tr(AppI18n.rev, "shell.nav_plugins");
             icon: @image-url("../assets/icons/layers.svg");
             is_active: root.active_tab == 5 && root.active_plugin_id == "";
             clicked => {
@@ -327,7 +328,7 @@ export component DashboardSidebar inherits Rectangle {
                     }
 
                     Text {
-                        text: "系统设置";
+                        text: AppI18n.tr(AppI18n.rev, "shell.nav_system");
                         font-size: 11px;
                         font-weight: (root.active_tab == 6 && root.active_plugin_id == "") ? 700 : 500;
                         color: (root.active_tab == 6 && root.active_plugin_id == "") ? AppTheme.accent_active : (t_sys.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);
@@ -366,7 +367,7 @@ export component DashboardSidebar inherits Rectangle {
                     }
 
                     Text {
-                        text: "支持作者";
+                        text: AppI18n.tr(AppI18n.rev, "shell.nav_sponsor");
                         font-size: 11px;
                         font-weight: (root.active_tab == 7 && root.active_plugin_id == "") ? 700 : 500;
                         color: (root.active_tab == 7 && root.active_plugin_id == "") ? AppTheme.accent_heart : (t_sp.has-hover ? AppTheme.text_primary : AppTheme.text_secondary);

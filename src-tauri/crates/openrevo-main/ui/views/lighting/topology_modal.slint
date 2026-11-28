@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component LightingTopologyModal inherits Rectangle {
     in-out property <bool> is_open: false;
@@ -37,30 +38,30 @@ export component LightingTopologyModal inherits Rectangle {
     property <string> active_preview_id: hovered_id != "" ? hovered_id : ("kb:" + eff_kb);
 
     pure function get_preview_title(id: string) -> string {
-        if id == "kb:per_key" { return "全彩逐键 RGB"; }
-        if id == "kb:four_zone" { return "4区 RGB 硬件分段"; }
-        if id == "kb:single_zone" { return "单区 RGB (整盘同色)"; }
-        if id == "kb:single_white" { return "单色白光背光"; }
-        if id == "kb:none" { return "无键盘背光"; }
+        if id == "kb:per_key" { return AppI18n.tr(AppI18n.rev, "lighting.topo_kb_perkey"); }
+        if id == "kb:four_zone" { return AppI18n.tr(AppI18n.rev, "lighting.topo_kb_4zone"); }
+        if id == "kb:single_zone" { return AppI18n.tr(AppI18n.rev, "lighting.topo_kb_1zone"); }
+        if id == "kb:single_white" { return AppI18n.tr(AppI18n.rev, "lighting.topo_kb_white"); }
+        if id == "kb:none" { return AppI18n.tr(AppI18n.rev, "lighting.topo_kb_none"); }
 
-        if id == "lb:present" { return "前唇海岸流光灯条"; }
-        if id == "lb:none" { return "无前海岸灯"; }
+        if id == "lb:present" { return AppI18n.tr(AppI18n.rev, "lighting.topo_lb_front"); }
+        if id == "lb:none" { return AppI18n.tr(AppI18n.rev, "lighting.topo_lb_none"); }
 
-        if id == "amb:vent" { return "尾部排气格栅氛围灯"; }
-        if id == "amb:shoulder" { return "八字双飞翼肩灯"; }
-        if id == "amb:none" { return "无额外氛围灯"; }
+        if id == "amb:vent" { return AppI18n.tr(AppI18n.rev, "lighting.topo_amb_rear"); }
+        if id == "amb:shoulder" { return AppI18n.tr(AppI18n.rev, "lighting.topo_amb_shoulder"); }
+        if id == "amb:none" { return AppI18n.tr(AppI18n.rev, "lighting.topo_amb_none"); }
 
-        if id == "logo:letter" { return "英文字母透光 LOGO"; }
-        if id == "logo:shield" { return "盾形螺母发光标"; }
-        if id == "logo:none" { return "无 A面 LOGO 背光"; }
-        return "硬件规格预览";
+        if id == "logo:letter" { return AppI18n.tr(AppI18n.rev, "lighting.topo_logo_letters"); }
+        if id == "logo:shield" { return AppI18n.tr(AppI18n.rev, "lighting.topo_logo_shield"); }
+        if id == "logo:none" { return AppI18n.tr(AppI18n.rev, "lighting.topo_logo_none"); }
+        return AppI18n.tr(AppI18n.rev, "lighting.topo_spec_preview");
     }
 
     pure function get_preview_chip(id: string) -> string {
         if id == "kb:per_key" { return "048D:600B / CE00"; }
         if id == "kb:four_zone" { return "048D:CE00"; }
         if id == "kb:single_zone" { return "EC RAM PWM"; }
-        if id == "kb:single_white" { return "EC 白光背光"; }
+        if id == "kb:single_white" { return AppI18n.tr(AppI18n.rev, "lighting.ec_white_bl"); }
         if id == "kb:none" { return "Disabled"; }
 
         if id == "lb:present" { return "048D:7001 / EC"; }
@@ -71,48 +72,48 @@ export component LightingTopologyModal inherits Rectangle {
         if id == "amb:none" { return "None"; }
 
         if id == "logo:letter" { return "USB NewLogo (35)"; }
-        if id == "logo:shield" { return "主板 EC 灯效"; }
+        if id == "logo:shield" { return AppI18n.tr(AppI18n.rev, "lighting.ec_board_fx"); }
         if id == "logo:none" { return "None"; }
         return "Standard";
     }
 
     pure function get_preview_desc(id: string) -> string {
-        if id == "kb:per_key" { return "每个按键独立设色，支持 BetterRGB 60FPS 极客流光、水波涟漪与自定义着色器。"; }
-        if id == "kb:four_zone" { return "键盘横向分为 4 个物理区域独立设色，支持硬件级波浪跑马与呼吸。"; }
-        if id == "kb:single_zone" { return "由主板 EC 直驱，全键盘作为一个整体变色，支持单色常亮、呼吸与整体彩虹渐变。"; }
-        if id == "kb:single_white" { return "纯白光 LED，支持关 / 弱光 (50%) / 强光 (100%) 三档无频闪梯级调光。"; }
-        if id == "kb:none" { return "模具无发光背光，或在软件中彻底隐藏键盘控制卡片。"; }
+        if id == "kb:per_key" { return AppI18n.tr(AppI18n.rev, "lighting.desc_kb_perkey"); }
+        if id == "kb:four_zone" { return AppI18n.tr(AppI18n.rev, "lighting.desc_kb_4zone"); }
+        if id == "kb:single_zone" { return AppI18n.tr(AppI18n.rev, "lighting.desc_kb_1zone"); }
+        if id == "kb:single_white" { return AppI18n.tr(AppI18n.rev, "lighting.desc_kb_white"); }
+        if id == "kb:none" { return AppI18n.tr(AppI18n.rev, "lighting.desc_kb_none"); }
 
-        if id == "lb:present" { return "位于触摸板正下方前边缘的细长多段流光灯条，支持对撞、跑马与全彩波浪。"; }
-        if id == "lb:none" { return "模具前唇物理无发光条，选择此项可彻底移除幽灵海岸灯卡片并停止发包。"; }
+        if id == "lb:present" { return AppI18n.tr(AppI18n.rev, "lighting.desc_lb_front"); }
+        if id == "lb:none" { return AppI18n.tr(AppI18n.rev, "lighting.desc_lb_none"); }
 
-        if id == "amb:vent" { return "后出风口左右对称的跑车式排气灯带，水冷模具经典硬核视觉标识。"; }
-        if id == "amb:shoulder" { return "C面键盘左右上方呈“八”字斜向展开的跑马飞翼双灯条，与键盘同频律动。"; }
-        if id == "amb:none" { return "普通机型无后排出风口灯或肩灯，控制台中不挂载氛围灯控制卡片。"; }
+        if id == "amb:vent" { return AppI18n.tr(AppI18n.rev, "lighting.desc_amb_rear"); }
+        if id == "amb:shoulder" { return AppI18n.tr(AppI18n.rev, "lighting.desc_amb_shoulder"); }
+        if id == "amb:none" { return AppI18n.tr(AppI18n.rev, "lighting.desc_amb_none"); }
 
-        if id == "logo:letter" { return "整串 MECHREVO 英文全拼透光发光，由独立 USB 芯片驱动，支持彩色波浪与跑马流光。"; }
-        if id == "logo:shield" { return "上下两瓣组成的盾形/螺母发光标，由主板 EC 直驱，支持单色常亮、呼吸与三色混光。"; }
-        if id == "logo:none" { return "A面仅为金属贴牌、高光印字或不发光，移除 A 面灯效卡片避免误操作。"; }
-        return "请将鼠标悬停在上方任意选项查看对应协议说明";
+        if id == "logo:letter" { return AppI18n.tr(AppI18n.rev, "lighting.desc_logo_letters"); }
+        if id == "logo:shield" { return AppI18n.tr(AppI18n.rev, "lighting.desc_logo_shield"); }
+        if id == "logo:none" { return AppI18n.tr(AppI18n.rev, "lighting.desc_logo_none"); }
+        return AppI18n.tr(AppI18n.rev, "lighting.hover_spec_hint");
     }
 
     pure function get_preview_example(id: string) -> string {
-        if id == "kb:per_key" { return "典型机型: 耀世16 Pro/Ultra, 苍龙16, 蛟龙 GM7ZG7S(CE00) 等高配"; }
-        if id == "kb:four_zone" { return "典型机型: 蛟龙16, X10 Pro, 极光早期版"; }
-        if id == "kb:single_zone" { return "典型机型: 极光X, 耀世15单区版, 旷世G16"; }
-        if id == "kb:single_white" { return "典型机型: 无界14X, 无界15X 等轻薄本"; }
-        if id == "kb:none" { return "典型机型: 无发光背光通用模具"; }
+        if id == "kb:per_key" { return AppI18n.tr(AppI18n.rev, "lighting.models_kb_perkey"); }
+        if id == "kb:four_zone" { return AppI18n.tr(AppI18n.rev, "lighting.models_kb_4zone"); }
+        if id == "kb:single_zone" { return AppI18n.tr(AppI18n.rev, "lighting.models_kb_1zone"); }
+        if id == "kb:single_white" { return AppI18n.tr(AppI18n.rev, "lighting.models_kb_white"); }
+        if id == "kb:none" { return AppI18n.tr(AppI18n.rev, "lighting.models_kb_none"); }
 
-        if id == "lb:present" { return "典型机型: 耀世16, 蛟龙16 等前唇灯机型"; }
-        if id == "lb:none" { return "典型机型: 极光全系, 旷世普通版"; }
+        if id == "lb:present" { return AppI18n.tr(AppI18n.rev, "lighting.models_lb_front"); }
+        if id == "lb:none" { return AppI18n.tr(AppI18n.rev, "lighting.models_lb_none"); }
 
-        if id == "amb:vent" { return "典型机型: 旷世16 Super 水冷版等旗舰"; }
-        if id == "amb:shoulder" { return "典型机型: 深海幽灵 IDZ 模具系列"; }
-        if id == "amb:none" { return "典型机型: 绝大多数无额外氛围灯机型"; }
+        if id == "amb:vent" { return AppI18n.tr(AppI18n.rev, "lighting.models_amb_rear"); }
+        if id == "amb:shoulder" { return AppI18n.tr(AppI18n.rev, "lighting.models_amb_shoulder"); }
+        if id == "amb:none" { return AppI18n.tr(AppI18n.rev, "lighting.models_amb_none"); }
 
-        if id == "logo:letter" { return "典型机型: GM6IX0B, 耀世早期特殊版"; }
-        if id == "logo:shield" { return "典型机型: 苍龙, 耀世全系列, 极光X, 蛟龙"; }
-        if id == "logo:none" { return "典型机型: 无界轻薄本全系列"; }
+        if id == "logo:letter" { return AppI18n.tr(AppI18n.rev, "lighting.models_logo_letters"); }
+        if id == "logo:shield" { return AppI18n.tr(AppI18n.rev, "lighting.models_logo_shield"); }
+        if id == "logo:none" { return AppI18n.tr(AppI18n.rev, "lighting.models_logo_none"); }
         return "";
     }
 
@@ -175,7 +176,7 @@ export component LightingTopologyModal inherits Rectangle {
                                 alignment: start;
 
                                 Text {
-                                    text: "灯效硬件设备拓扑纠偏";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.topo_modal_title");
                                     font-size: 14px;
                                     font-weight: 700;
                                     color: AppTheme.text_primary;
@@ -194,7 +195,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         padding-left: 6px;
                                         padding-right: 6px;
                                         Text {
-                                            text: "超薄自适应";
+                                            text: AppI18n.tr(AppI18n.rev, "lighting.ultra_adaptive");
                                             font-size: 10px;
                                             font-weight: 600;
                                             color: #38bdf8;
@@ -205,7 +206,7 @@ export component LightingTopologyModal inherits Rectangle {
                             }
 
                             Text {
-                                text: "若自动检测与物理硬件不符，请在此手动指定物理设备。鼠标悬停在选项或 ⓘ 上可查看硬件协议与适用机型。";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.topo_modal_desc");
                                 font-size: 11px;
                                 color: AppTheme.text_muted;
                             }
@@ -266,7 +267,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "⌨️ 1. 键盘背光硬件";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.topo_sec_kb");
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -274,7 +275,7 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.auto_detect_prefix");
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
@@ -324,7 +325,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "全彩逐键 RGB";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.topo_kb_perkey");
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "per_key" ? 700 : 500;
                                         color: root.eff_kb == "per_key" ? #ffffff : AppTheme.text_secondary;
@@ -337,7 +338,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -375,7 +376,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "4区 RGB";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.kb_4zone");
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "four_zone" ? 700 : 500;
                                         color: root.eff_kb == "four_zone" ? #ffffff : AppTheme.text_secondary;
@@ -388,7 +389,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -426,7 +427,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "单区 RGB";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.kb_1zone");
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "single_zone" ? 700 : 500;
                                         color: root.eff_kb == "single_zone" ? #ffffff : AppTheme.text_secondary;
@@ -439,7 +440,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -477,7 +478,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "单色白光";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.kb_white");
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "single_white" ? 700 : 500;
                                         color: root.eff_kb == "single_white" ? #ffffff : AppTheme.text_secondary;
@@ -490,7 +491,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -528,7 +529,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无背光/禁用";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.kb_none");
                                         font-size: 11px;
                                         font-weight: root.eff_kb == "none" ? 700 : 500;
                                         color: root.eff_kb == "none" ? #ffffff : AppTheme.text_secondary;
@@ -541,7 +542,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -569,7 +570,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "🌊 2. 前置海岸灯条";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.topo_sec_lb");
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -577,12 +578,12 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.auto_detect_prefix");
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
                                 Text {
-                                    text: root.base_front_bar == "present" ? "具备灯条" : "未检测到";
+                                    text: root.base_front_bar == "present" ? AppI18n.tr(AppI18n.rev, "lighting.has_lightbar") : AppI18n.tr(AppI18n.rev, "lighting.not_detected");
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: #38bdf8;
@@ -627,7 +628,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "前置海岸灯条 (具备)";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.lb_present");
                                         font-size: 11px;
                                         font-weight: root.eff_front == "present" ? 700 : 500;
                                         color: root.eff_front == "present" ? #ffffff : AppTheme.text_secondary;
@@ -640,7 +641,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -678,7 +679,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无海岸灯条 (屏蔽)";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.lb_disabled");
                                         font-size: 11px;
                                         font-weight: root.eff_front == "none" ? 700 : 500;
                                         color: root.eff_front == "none" ? #ffffff : AppTheme.text_secondary;
@@ -691,7 +692,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -719,7 +720,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "💨 3. 特色氛围灯";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.topo_sec_amb");
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -727,12 +728,12 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.auto_detect_prefix");
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
                                 Text {
-                                    text: root.base_ambient == "vent" ? "尾气灯 (后出风口)" : (root.base_ambient == "shoulder" ? "八字肩灯" : "未检测到");
+                                    text: root.base_ambient == "vent" ? AppI18n.tr(AppI18n.rev, "lighting.amb_rear_short") : (root.base_ambient == "shoulder" ? AppI18n.tr(AppI18n.rev, "lighting.amb_shoulder_short") : AppI18n.tr(AppI18n.rev, "lighting.not_detected"));
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: #38bdf8;
@@ -777,7 +778,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "尾气灯 (后出风口氛围灯)";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.amb_rear_opt");
                                         font-size: 11px;
                                         font-weight: root.eff_amb == "vent" ? 700 : 500;
                                         color: root.eff_amb == "vent" ? #ffffff : AppTheme.text_secondary;
@@ -790,7 +791,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -828,7 +829,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "八字肩灯 (飞翼同步灯)";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.amb_shoulder_opt");
                                         font-size: 11px;
                                         font-weight: root.eff_amb == "shoulder" ? 700 : 500;
                                         color: root.eff_amb == "shoulder" ? #ffffff : AppTheme.text_secondary;
@@ -841,7 +842,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -879,7 +880,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无氛围灯 (默认)";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.amb_none_opt");
                                         font-size: 11px;
                                         font-weight: root.eff_amb == "none" ? 700 : 500;
                                         color: root.eff_amb == "none" ? #ffffff : AppTheme.text_secondary;
@@ -892,7 +893,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -920,7 +921,7 @@ export component LightingTopologyModal inherits Rectangle {
                             min-width: 160px;
 
                             Text {
-                                text: "✨ 4. A面 LOGO 灯";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.topo_sec_logo");
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: AppTheme.text_primary;
@@ -928,12 +929,12 @@ export component LightingTopologyModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 4px;
                                 Text {
-                                    text: "自动探测: ";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.auto_detect_prefix");
                                     font-size: 11px;
                                     color: AppTheme.text_muted;
                                 }
                                 Text {
-                                    text: root.base_logo == "letter" ? "英文字母全彩" : (root.base_logo == "shield" ? "盾形螺母标" : "未检测到");
+                                    text: root.base_logo == "letter" ? AppI18n.tr(AppI18n.rev, "lighting.logo_letters_short") : (root.base_logo == "shield" ? AppI18n.tr(AppI18n.rev, "lighting.logo_shield_short") : AppI18n.tr(AppI18n.rev, "lighting.not_detected"));
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: #38bdf8;
@@ -978,7 +979,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "字母 LOGO (MECHREVO)";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.logo_letters_opt");
                                         font-size: 11px;
                                         font-weight: root.eff_logo == "letter" ? 700 : 500;
                                         color: root.eff_logo == "letter" ? #ffffff : AppTheme.text_secondary;
@@ -991,7 +992,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -1029,7 +1030,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "盾形 LOGO (上下螺母标)";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.logo_shield_opt");
                                         font-size: 11px;
                                         font-weight: root.eff_logo == "shield" ? 700 : 500;
                                         color: root.eff_logo == "shield" ? #ffffff : AppTheme.text_secondary;
@@ -1042,7 +1043,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -1080,7 +1081,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         y: (parent.height - self.height) / 2;
                                     }
                                     Text {
-                                        text: "无 A面 LOGO 灯";
+                                        text: AppI18n.tr(AppI18n.rev, "lighting.logo_none_opt");
                                         font-size: 11px;
                                         font-weight: root.eff_logo == "none" ? 700 : 500;
                                         color: root.eff_logo == "none" ? #ffffff : AppTheme.text_secondary;
@@ -1093,7 +1094,7 @@ export component LightingTopologyModal inherits Rectangle {
                                         border-width: 1px;
                                         border-color: #38bdf877;
                                         y: (parent.height - self.height) / 2;
-                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: "自动"; font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
+                                        HorizontalLayout { padding-left: 4px; padding-right: 4px; Text { text: AppI18n.tr(AppI18n.rev, "lighting.auto"); font-size: 9px; font-weight: 700; color: #38bdf8; vertical-alignment: center; } }
                                     }
                                     Text { text: "ⓘ"; font-size: 11px; color: #64748b; vertical-alignment: center; }
                                 }
@@ -1241,7 +1242,7 @@ export component LightingTopologyModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "恢复全自动探测";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.restore_auto_detect");
                                     font-size: 11px;
                                     font-weight: 500;
                                     color: AppTheme.text_secondary;
@@ -1251,7 +1252,7 @@ export component LightingTopologyModal inherits Rectangle {
                         }
 
                         Text {
-                            text: root.diff_count == 0 ? "与自动探测一致" : (root.diff_count + " 项已手动纠偏");
+                            text: root.diff_count == 0 ? AppI18n.tr(AppI18n.rev, "lighting.matches_auto_detect") : (root.diff_count + AppI18n.tr(AppI18n.rev, "lighting.overrides_count_suffix"));
                             font-size: 11px;
                             font-weight: root.diff_count == 0 ? 500 : 700;
                             color: root.diff_count == 0 ? AppTheme.text_muted : #f59e0b;
@@ -1282,7 +1283,7 @@ export component LightingTopologyModal inherits Rectangle {
                                 padding-right: 14px;
                                 alignment: center;
                                 Text {
-                                    text: "取消";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.cancel");
                                     font-size: 11px;
                                     color: AppTheme.text_secondary;
                                     vertical-alignment: center;
@@ -1322,7 +1323,7 @@ export component LightingTopologyModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "保存并重新初始化硬件";
+                                    text: AppI18n.tr(AppI18n.rev, "lighting.save_reinit_hw");
                                     font-size: 11px;
                                     font-weight: 700;
                                     color: #ffffff;

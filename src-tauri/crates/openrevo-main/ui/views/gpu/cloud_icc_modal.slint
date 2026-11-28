@@ -1,20 +1,21 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CloudIccModal inherits Rectangle {
     in-out property <bool> is_open: false;
 
     // Hardware Identity Properties
-    in-out property <string> panel_pnp: "未检出";
-    in-out property <string> panel_sn: "(无独立面板SN)";
-    in-out property <string> bios_sn: "未检出";
-    in-out property <string> mac_address: "未检出";
-    in-out property <string> arch_name: "识别中...";
+    in-out property <string> panel_pnp: AppI18n.tr(AppI18n.rev, "gpu.not_detected");
+    in-out property <string> panel_sn: AppI18n.tr(AppI18n.rev, "gpu.no_panel_sn");
+    in-out property <string> bios_sn: AppI18n.tr(AppI18n.rev, "gpu.not_detected");
+    in-out property <string> mac_address: AppI18n.tr(AppI18n.rev, "gpu.not_detected");
+    in-out property <string> arch_name: AppI18n.tr(AppI18n.rev, "gpu.detecting");
     in-out property <string> recommended_method: "auto"; // "auto" | "50" | "40"
     in-out property <string> selected_mode: "auto";
 
     // Query & Hit State
     in-out property <bool> is_searching: false;
-    in-out property <string> status_text: "就绪";
+    in-out property <string> status_text: AppI18n.tr(AppI18n.rev, "gpu.ready");
     in-out property <bool> hit_found: false;
     in-out property <string> hit_file_name: "";
     in-out property <string> hit_meta: "";
@@ -86,7 +87,7 @@ export component CloudIccModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 8px;
                                 Text {
-                                    text: "同方原厂云端校色助手";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.cloud_icc_title");
                                     font-size: 14px;
                                     font-weight: 700;
                                     color: AppTheme.text_primary;
@@ -102,7 +103,7 @@ export component CloudIccModal inherits Rectangle {
                                         padding-left: 6px;
                                         padding-right: 6px;
                                         Text {
-                                            text: "Win32 原生纯净";
+                                            text: AppI18n.tr(AppI18n.rev, "gpu.win32_native");
                                             font-size: 9.5px;
                                             font-weight: 600;
                                             color: #38bdf8;
@@ -112,7 +113,7 @@ export component CloudIccModal inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "出厂硬件指纹智能识别 · Uniwill 40系 & Aistone 50系双节点并发拉取 · 一键应用生效";
+                                text: AppI18n.tr(AppI18n.rev, "gpu.cloud_icc_desc");
                                 font-size: 10px;
                                 color: AppTheme.text_muted;
                             }
@@ -182,7 +183,7 @@ export component CloudIccModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "本机硬件识别真值";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.hw_truth_title");
                                     font-size: 12px;
                                     font-weight: 700;
                                     color: AppTheme.text_primary;
@@ -216,7 +217,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "声明式主板架构";
+                                        text: AppI18n.tr(AppI18n.rev, "gpu.board_arch");
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
@@ -242,7 +243,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "屏幕面板 PnP ID";
+                                        text: AppI18n.tr(AppI18n.rev, "gpu.panel_pnp");
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
@@ -268,12 +269,12 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "BIOS 序列号";
+                                        text: AppI18n.tr(AppI18n.rev, "gpu.bios_sn");
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
                                     Text {
-                                        text: root.bios_sn != "" ? root.bios_sn : "(标准)";
+                                        text: root.bios_sn != "" ? root.bios_sn : AppI18n.tr(AppI18n.rev, "gpu.standard_tag");
                                         font-size: 11px;
                                         font-weight: 700;
                                         color: AppTheme.text_primary;
@@ -294,7 +295,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 2px;
                                     Text {
-                                        text: "物理网卡 MAC";
+                                        text: AppI18n.tr(AppI18n.rev, "gpu.nic_mac");
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                     }
@@ -334,7 +335,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "智能推荐模式";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.smart_mode");
                                     font-size: 10.5px;
                                     font-weight: root.selected_mode == "auto" ? 700 : 500;
                                     color: root.selected_mode == "auto" ? #38bdf8 : AppTheme.text_muted;
@@ -358,7 +359,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "50系专属 (Aistone / SN)";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.mode_50_aistone");
                                     font-size: 10.5px;
                                     font-weight: root.selected_mode == "50" ? 700 : 500;
                                     color: root.selected_mode == "50" ? #38bdf8 : AppTheme.text_muted;
@@ -382,7 +383,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "40系及更早 (Uniwill / MAC)";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.mode_40_uniwill");
                                     font-size: 10.5px;
                                     font-weight: root.selected_mode == "40" ? 700 : 500;
                                     color: root.selected_mode == "40" ? #38bdf8 : AppTheme.text_muted;
@@ -419,7 +420,7 @@ export component CloudIccModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "重新探测";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.reprobe");
                                     font-size: 10.5px;
                                     color: AppTheme.text_primary;
                                     vertical-alignment: center;
@@ -454,7 +455,7 @@ export component CloudIccModal inherits Rectangle {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: root.is_searching ? "正在检索云端..." : "开始检索原厂校色";
+                                    text: root.is_searching ? AppI18n.tr(AppI18n.rev, "gpu.searching_cloud") : AppI18n.tr(AppI18n.rev, "gpu.start_search_icc");
                                     font-size: 11px;
                                     font-weight: 700;
                                     color: root.is_searching ? #38bdf8 : #000000;
@@ -485,7 +486,7 @@ export component CloudIccModal inherits Rectangle {
                             }
                         }
                         Text {
-                            text: root.is_searching ? "正在连接原厂校色数据库检索候选哈希队列，请稍候..." : "点击上方【开始检索原厂校色】，系统将自动匹配专属出厂色彩文件";
+                            text: root.is_searching ? AppI18n.tr(AppI18n.rev, "gpu.searching_desc") : AppI18n.tr(AppI18n.rev, "gpu.idle_search_desc");
                             font-size: 11px;
                             color: AppTheme.text_muted;
                             horizontal-alignment: center;
@@ -515,7 +516,7 @@ export component CloudIccModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 8px;
                                 Text {
-                                    text: "🎯 成功命中原厂校色配置包！";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.icc_matched");
                                     font-size: 13px;
                                     font-weight: 700;
                                     color: #10b981;
@@ -540,7 +541,7 @@ export component CloudIccModal inherits Rectangle {
                                 padding-right: 10px;
                                 spacing: 6px;
                                 Text {
-                                    text: "命中文件:";
+                                    text: AppI18n.tr(AppI18n.rev, "gpu.matched_file");
                                     font-size: 10.5px;
                                     color: AppTheme.text_muted;
                                     vertical-alignment: center;
@@ -559,7 +560,7 @@ export component CloudIccModal inherits Rectangle {
                         if root.hit_profiles.length > 1: HorizontalLayout {
                             spacing: 8px;
                             Text {
-                                text: "当前选用档位:";
+                                text: AppI18n.tr(AppI18n.rev, "gpu.selected_tier");
                                 font-size: 10.5px;
                                 color: AppTheme.text_muted;
                                 vertical-alignment: center;
@@ -606,7 +607,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 5px;
                                     Text {
-                                        text: "✔ 一键应用生效至当前显示器";
+                                        text: AppI18n.tr(AppI18n.rev, "gpu.apply_icc_now");
                                         font-size: 11.5px;
                                         font-weight: 700;
                                         color: #000000;
@@ -631,7 +632,7 @@ export component CloudIccModal inherits Rectangle {
                                     alignment: center;
                                     spacing: 5px;
                                     Text {
-                                        text: "批量导入全部档位至方案库";
+                                        text: AppI18n.tr(AppI18n.rev, "gpu.import_all_tiers");
                                         font-size: 11.5px;
                                         font-weight: 700;
                                         color: #38bdf8;

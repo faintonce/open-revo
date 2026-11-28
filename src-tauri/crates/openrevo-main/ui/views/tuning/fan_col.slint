@@ -2,6 +2,7 @@ import { AppTheme } from "../../theme.slint";
 import { FanBldPanel } from "fan_bld_panel.slint";
 import { FanControlsCard } from "fan_controls_card.slint";
 import { FanCurveCanvas } from "fan_curve_canvas.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component FanTuningCol inherits Rectangle {
     background: AppTheme.surface_card;
@@ -67,7 +68,7 @@ export component FanTuningCol inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: !root.fan_custom_curve ? "原厂散热策略与闭环温控" : "风扇策略与曲线";
+                    text: !root.fan_custom_curve ? AppI18n.tr(AppI18n.rev, "tuning.oem_fan_policy") : AppI18n.tr(AppI18n.rev, "tuning.fan_strategy_title");
                     font-size: 13px;
                     font-weight: 700;
                     color: #818cf8;
@@ -87,7 +88,7 @@ export component FanTuningCol inherits Rectangle {
                     clicked => { root.restore_bld_auto(); }
                 }
                 Text {
-                    text: "恢复默认";
+                    text: AppI18n.tr(AppI18n.rev, "tuning.restore_default");
                     font-size: 9.5px;
                     color: AppTheme.text_secondary;
                     horizontal-alignment: center;
@@ -129,14 +130,14 @@ export component FanTuningCol inherits Rectangle {
                         min-width: 0px;
                         spacing: 2px;
                         Text {
-                            text: "双风扇强制狂暴加速";
+                            text: AppI18n.tr(AppI18n.rev, "tuning.bld_force_boost");
                             font-size: 11px;
                             font-weight: 700;
                             color: root.bld_boost ? #38bdf8 : AppTheme.text_primary;
                             wrap: word-wrap;
                         }
                         Text {
-                            text: "无视温度曲线强制全速拉满 5800 RPM (BM5235 直接总线写入)";
+                            text: AppI18n.tr(AppI18n.rev, "tuning.bld_force_boost_desc");
                             font-size: 9px;
                             color: AppTheme.text_muted;
                             wrap: word-wrap;

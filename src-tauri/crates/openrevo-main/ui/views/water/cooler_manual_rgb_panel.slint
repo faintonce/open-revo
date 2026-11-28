@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CoolerManualRgbPanel inherits Rectangle {
     background: transparent;
@@ -51,7 +52,7 @@ export component CoolerManualRgbPanel inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "水泵档位：";
+                            text: AppI18n.tr(AppI18n.rev, "water.pump_tier_label");
                             font-size: 10.5px;
                             font-weight: 700;
                             color: AppTheme.text_muted;
@@ -74,7 +75,7 @@ export component CoolerManualRgbPanel inherits Rectangle {
                         }
 
                         Text {
-                            text: "停泵";
+                            text: AppI18n.tr(AppI18n.rev, "water.pump_stop_btn");
                             font-size: 10px;
                             font-weight: 700;
                             color: root.pump_tier == 0 || root.pump_voltage == 0 ? #06b6d4 : AppTheme.text_secondary;
@@ -98,7 +99,7 @@ export component CoolerManualRgbPanel inherits Rectangle {
                         }
 
                         Text {
-                            text: "标准";
+                            text: AppI18n.tr(AppI18n.rev, "water.pump_std_btn");
                             font-size: 10px;
                             font-weight: 700;
                             color: root.pump_tier == 2 || (root.pump_tier != 0 && root.pump_tier != 3 && root.pump_voltage < 11 && root.pump_voltage > 0) ? #06b6d4 : AppTheme.text_secondary;
@@ -122,7 +123,7 @@ export component CoolerManualRgbPanel inherits Rectangle {
                         }
 
                         Text {
-                            text: "狂暴";
+                            text: AppI18n.tr(AppI18n.rev, "water.pump_turbo_btn");
                             font-size: 10px;
                             font-weight: 700;
                             color: root.pump_tier == 3 || root.pump_voltage >= 11 ? #f43f5e : AppTheme.text_secondary;
@@ -132,8 +133,8 @@ export component CoolerManualRgbPanel inherits Rectangle {
                     }
 
                     Text {
-                        text: root.pump_tier == 3 || root.pump_voltage >= 11 ? "极速狂暴 (100%)" : (
-                            root.pump_tier == 0 || root.pump_voltage == 0 ? "已停机 (0%)" : "标准巡航 (45%)"
+                        text: root.pump_tier == 3 || root.pump_voltage >= 11 ? AppI18n.tr(AppI18n.rev, "water.pump_turbo_full") : (
+                            root.pump_tier == 0 || root.pump_voltage == 0 ? AppI18n.tr(AppI18n.rev, "water.pump_stopped") : AppI18n.tr(AppI18n.rev, "water.pump_standard")
                         );
                         font-size: 9.5px;
                         color: #06b6d4;
@@ -155,7 +156,7 @@ export component CoolerManualRgbPanel inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "冷排风扇目标转速 (Duty)：";
+                            text: AppI18n.tr(AppI18n.rev, "water.fan_duty_label");
                             font-size: 10.5px;
                             font-weight: 700;
                             color: AppTheme.text_muted;
@@ -262,7 +263,7 @@ export component CoolerManualRgbPanel inherits Rectangle {
                             y: (parent.height - self.height) / 2;
                         }
                         Text {
-                            text: "水箱与冷排 RGB 灯效：";
+                            text: AppI18n.tr(AppI18n.rev, "water.rgb_label");
                             font-size: 10.5px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
@@ -304,10 +305,10 @@ export component CoolerManualRgbPanel inherits Rectangle {
                     spacing: 6px;
 
                     for m in [
-                        { id: 2, label: "炫彩流动 (默认)" },
-                        { id: 3, label: "七彩呼吸" },
-                        { id: 4, label: "旋转光斑" },
-                        { id: 1, label: "单色呼吸" },
+                        { id: 2, label: AppI18n.tr(AppI18n.rev, "water.rgb_flow") },
+                        { id: 3, label: AppI18n.tr(AppI18n.rev, "water.rgb_rainbow_breath") },
+                        { id: 4, label: AppI18n.tr(AppI18n.rev, "water.rgb_spin") },
+                        { id: 1, label: AppI18n.tr(AppI18n.rev, "water.rgb_mono_breath") },
                     ]: Rectangle {
                         height: 22px;
                         border-radius: AppTheme.radius_xs;
@@ -343,12 +344,12 @@ export component CoolerManualRgbPanel inherits Rectangle {
                     spacing: 5px;
 
                     for cp in [
-                        { r: 0, g: 128, b: 0, col: #008000, name: "翡翠绿" },
-                        { r: 0, g: 229, b: 255, col: #00e5ff, name: "赛博青" },
-                        { r: 255, g: 23, b: 68, col: #ff1744, name: "烈焰红" },
-                        { r: 213, g: 0, b: 249, col: #d500f9, name: "魅影紫" },
-                        { r: 255, g: 145, b: 0, col: #ff9100, name: "暖阳橙" },
-                        { r: 255, g: 255, b: 255, col: #ffffff, name: "天际白" },
+                        { r: 0, g: 128, b: 0, col: #008000, name: AppI18n.tr(AppI18n.rev, "water.c_emerald") },
+                        { r: 0, g: 229, b: 255, col: #00e5ff, name: AppI18n.tr(AppI18n.rev, "water.c_cyan") },
+                        { r: 255, g: 23, b: 68, col: #ff1744, name: AppI18n.tr(AppI18n.rev, "water.c_red") },
+                        { r: 213, g: 0, b: 249, col: #d500f9, name: AppI18n.tr(AppI18n.rev, "water.c_purple") },
+                        { r: 255, g: 145, b: 0, col: #ff9100, name: AppI18n.tr(AppI18n.rev, "water.c_orange") },
+                        { r: 255, g: 255, b: 255, col: #ffffff, name: AppI18n.tr(AppI18n.rev, "water.c_white") },
                     ]: Rectangle {
                         width: 16px;
                         height: 16px;

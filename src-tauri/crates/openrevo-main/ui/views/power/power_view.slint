@@ -3,6 +3,7 @@ import { SwitchToggle } from "switch_toggle.slint";
 import { SleepGuardCard } from "sleep_guard_card.slint";
 import { HardwarePowerOptionsCard } from "hardware_power_options_card.slint";
 import { BatteryHealthCard } from "battery_health_card.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DashboardPowerView inherits Rectangle {
     background: transparent;
@@ -70,13 +71,13 @@ export component DashboardPowerView inherits Rectangle {
                     alignment: center;
                     spacing: 2px;
                     Text {
-                        text: "电源与电池管理 (Power & Battery Management)";
+                        text: AppI18n.tr(AppI18n.rev, "power.page_title");
                         font-size: 13.5px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
                     }
                     Text {
-                        text: "主板硬件充放电控制 · 电池健康长寿模式 · 关机反向供电";
+                        text: AppI18n.tr(AppI18n.rev, "power.page_sub");
                         font-size: 10px;
                         color: AppTheme.text_muted;
                     }
@@ -107,13 +108,13 @@ export component DashboardPowerView inherits Rectangle {
                         alignment: center;
                         spacing: 1px;
                         Text {
-                            text: "睡眠时自动进入办公模式";
+                            text: AppI18n.tr(AppI18n.rev, "power.sleep_auto_office");
                             font-size: 11px;
                             font-weight: 700;
                             color: AppTheme.text_primary;
                         }
                         Text {
-                            text: "合盖前自动降频限功耗 · 防狂暴模式带热入睡";
+                            text: AppI18n.tr(AppI18n.rev, "power.sleep_auto_office_desc");
                             font-size: 9px;
                             color: AppTheme.text_muted;
                         }

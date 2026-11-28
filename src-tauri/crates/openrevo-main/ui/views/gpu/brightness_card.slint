@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component BrightnessCard inherits Rectangle {
     in-out property <int> brightness: 76; // 0 - 100
@@ -47,13 +48,13 @@ export component BrightnessCard inherits Rectangle {
                 alignment: center;
                 spacing: 1px;
                 Text {
-                    text: "屏幕亮度调节";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.brightness_title");
                     font-size: 12px;
                     font-weight: 700;
                     color: AppTheme.text_primary;
                 }
                 Text {
-                    text: "当前亮度: " + root.brightness + "%";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.brightness_current") + root.brightness + "%";
                     font-size: 9.5px;
                     color: AppTheme.text_muted;
                 }
@@ -187,7 +188,7 @@ export component BrightnessCard inherits Rectangle {
                                 y: (parent.height - self.height) / 2;
                             }
                             Text {
-                                text: root.miniled_enabled ? "MiniLED 开" : "MiniLED 关";
+                                text: root.miniled_enabled ? AppI18n.tr(AppI18n.rev, "gpu.miniled_on") : AppI18n.tr(AppI18n.rev, "gpu.miniled_off");
                                 font-size: 10px;
                                 font-weight: root.miniled_enabled ? 700 : 500;
                                 color: root.miniled_enabled ? #38bdf8 : AppTheme.text_secondary;

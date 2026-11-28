@@ -767,6 +767,73 @@ pub fn open_user_data_dir() -> Result<(), String> {
     Ok(())
 }
 
+pub fn apply_locale_change(code: String, app: Option<&tauri::AppHandle>) -> Result<serde_json::Value, String> {
+    let mut cfg = crate::system::config::load_config();
+    cfg.locale = code.clone();
+    let _ = crate::system::config::save_config(&cfg);
+    let bundle = crate::system::i18n::load_locale_bundle(&cfg.locale);
+    let locales = crate::system::i18n::list_available_locales();
+
+    crate::system::slint_window::sync::sync_slint_i18n_tokens(None);
+    crate::system::slint_window::sync::sync_slint_lighting_state();
+    crate::system::slint_window::sync::sync_slint_power_targets(cfg.power_mode);
+    crate::system::win32_tray::refresh_tray_tooltip();
+    crate::system::tray::refresh_tauri_tray_locale();
+    crate::system::osd_window::send_osd_i18n_tokens(&bundle);
+    crate::system::native_wry::broadcast_event(
+        "locale-changed",
+        &serde_json::json!({ "locale": cfg.locale }),
+    );
+    if let Some(a) = app {
+        use tauri::Emitter;
+        let _ = a.emit(
+            "locale-changed",
+            serde_json::json!({ "locale": cfg.locale, "bundle": bundle, "available_locales": locales }),
+        );
+    }
+
+    Ok(serde_json::json!({
+        "locale": cfg.locale,
+        "bundle": bundle,
+        "available_locales": locales,
+    }))
+}
+
+#[tauri::command]
+pub fn get_i18n_state() -> Result<serde_json::Value, String> {
+    let cfg = crate::system::config::load_config();
+    let bundle = crate::system::i18n::load_locale_bundle(&cfg.locale);
+    let locales = crate::system::i18n::list_available_locales();
+    Ok(serde_json::json!({
+        "locale": cfg.locale,
+        "bundle": bundle,
+        "available_locales": locales,
+    }))
+}
+
+#[tauri::command]
+pub fn set_locale(code: String, app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    apply_locale_change(code, Some(&app))
+}
+
+#[tauri::command]
+pub fn open_locales_dir() -> Result<String, String> {
+    let dir = crate::system::i18n::ensure_locales_dir()?;
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("explorer")
+            .arg(dir.to_string_lossy().to_string())
+            .spawn();
+    }
+    Ok(dir.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn export_i18n_template() -> Result<String, String> {
+    let path = crate::system::i18n::export_i18n_template()?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 pub fn clear_user_data_dir() -> Result<String, String> {
     let dir = crate::system::config::get_config_dir();

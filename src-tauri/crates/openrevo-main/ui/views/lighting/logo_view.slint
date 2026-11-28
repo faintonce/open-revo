@@ -1,5 +1,6 @@
 import { AppTheme } from "../../theme.slint";
 import { ColorPaletteRow } from "color_palette.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component LogoLightingView inherits Rectangle {
     in-out property <bool> logo_enabled: true;
@@ -8,7 +9,7 @@ export component LogoLightingView inherits Rectangle {
     in-out property <string> logo_color_hex: "#00FFFF";
     in-out property <color> logo_color: #00ffff;
 
-    in property <string> hw_desc: "全彩发光徽标控制器";
+    in property <string> hw_desc: AppI18n.tr(AppI18n.rev, "lighting.logo_controller");
     in property <bool> is_ec_logo: false;
 
     callback toggle_enabled();
@@ -39,7 +40,7 @@ export component LogoLightingView inherits Rectangle {
                     alignment: start;
 
                     Text {
-                        text: "A面 炫彩徽标";
+                        text: AppI18n.tr(AppI18n.rev, "lighting.logo_title");
                         font-size: 14px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
@@ -71,7 +72,7 @@ export component LogoLightingView inherits Rectangle {
                 }
 
                 Text {
-                    text: "A面独立炫彩发光徽标，支持跑马灯、波浪、对冲、流星等全彩流光动效";
+                    text: AppI18n.tr(AppI18n.rev, "lighting.logo_desc");
                     font-size: 11px;
                     color: AppTheme.text_muted;
                 }
@@ -109,7 +110,7 @@ export component LogoLightingView inherits Rectangle {
                         }
 
                         Text {
-                            text: root.logo_enabled ? "已开启" : "已关闭";
+                            text: root.logo_enabled ? AppI18n.tr(AppI18n.rev, "lighting.enabled") : AppI18n.tr(AppI18n.rev, "lighting.disabled");
                             font-size: 12px;
                             font-weight: 700;
                             color: root.logo_enabled ? #ffffff : AppTheme.text_muted;
@@ -125,7 +126,7 @@ export component LogoLightingView inherits Rectangle {
             spacing: 8px;
 
             Text {
-                text: "LOGO 发光模式 (Logo Modes):";
+                text: AppI18n.tr(AppI18n.rev, "lighting.logo_modes_label");
                 font-size: 11px;
                 font-weight: 700;
                 color: AppTheme.text_muted;
@@ -143,7 +144,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 1 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
-                    Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.logo_effect == 1 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_static"); font-size: 11px; font-weight: 700; color: root.logo_effect == 1 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -154,7 +155,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 2 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
-                    Text { text: "单色呼吸"; font-size: 11px; font-weight: 700; color: root.logo_effect == 2 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_mono_breath"); font-size: 11px; font-weight: 700; color: root.logo_effect == 2 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -165,7 +166,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 20 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(20); } }
-                    Text { text: "彩虹呼吸"; font-size: 11px; font-weight: 700; color: root.logo_effect == 20 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow_breath"); font-size: 11px; font-weight: 700; color: root.logo_effect == 20 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
 
@@ -181,7 +182,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 1 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
-                    Text { text: "单色常亮"; font-size: 10px; font-weight: 700; color: root.logo_effect == 1 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_static"); font-size: 10px; font-weight: 700; color: root.logo_effect == 1 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -192,7 +193,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 2 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
-                    Text { text: "单色呼吸"; font-size: 10px; font-weight: 700; color: root.logo_effect == 2 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_mono_breath"); font-size: 10px; font-weight: 700; color: root.logo_effect == 2 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -203,7 +204,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 20 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(20); } }
-                    Text { text: "彩虹呼吸"; font-size: 10px; font-weight: 700; color: root.logo_effect == 20 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow_breath"); font-size: 10px; font-weight: 700; color: root.logo_effect == 20 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -214,7 +215,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 3 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(3); } }
-                    Text { text: "全彩波浪"; font-size: 10px; font-weight: 700; color: root.logo_effect == 3 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_full_wave"); font-size: 10px; font-weight: 700; color: root.logo_effect == 3 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -225,7 +226,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 4 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(4); } }
-                    Text { text: "动态对撞"; font-size: 10px; font-weight: 700; color: root.logo_effect == 4 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_collision"); font-size: 10px; font-weight: 700; color: root.logo_effect == 4 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -236,7 +237,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 6 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(6); } }
-                    Text { text: "穿梭流星"; font-size: 10px; font-weight: 700; color: root.logo_effect == 6 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_shuttle_meteor"); font-size: 10px; font-weight: 700; color: root.logo_effect == 6 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -247,7 +248,7 @@ export component LogoLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.logo_effect == 9 ? #f43f5e : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(9); } }
-                    Text { text: "全彩跑马"; font-size: 10px; font-weight: 700; color: root.logo_effect == 9 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_full_marquee"); font-size: 10px; font-weight: 700; color: root.logo_effect == 9 ? #fb7185 : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
         }
@@ -282,7 +283,7 @@ export component LogoLightingView inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "LOGO 亮度";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.logo_brightness");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
@@ -290,7 +291,7 @@ export component LogoLightingView inherits Rectangle {
                             }
                         }
                         Text {
-                            text: root.logo_brightness == 0 ? "关闭 (0)" : (root.logo_brightness + " 档");
+                            text: root.logo_brightness == 0 ? AppI18n.tr(AppI18n.rev, "lighting.off_zero") : (root.logo_brightness + AppI18n.tr(AppI18n.rev, "lighting.level_unit"));
                             font-size: 10px;
                             font-weight: 700;
                             color: #fb7185;
@@ -357,7 +358,7 @@ export component LogoLightingView inherits Rectangle {
         ColorPaletteRow {
             active_color_hex <=> root.logo_color_hex;
             active_color <=> root.logo_color;
-            label_text: "LOGO主色调:";
+            label_text: AppI18n.tr(AppI18n.rev, "lighting.logo_color_label");
             color_selected(hex, c) => {
                 root.change_color(hex, c);
             }

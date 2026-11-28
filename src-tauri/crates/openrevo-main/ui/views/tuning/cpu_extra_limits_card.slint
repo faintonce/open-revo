@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CpuExtraLimitsCard inherits VerticalLayout {
     in-out property <bool> is_amd: false;
@@ -11,8 +12,8 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
     in-out property <int> max_max_pl4: 280;
 
     in-out property <bool> bios_oc_enabled: true;
-    in-out property <string> bios_oc_desc: "同步解锁 CPU 与内存超频菜单";
-    in-out property <string> bios_oc_btn_text: "关闭";
+    in-out property <string> bios_oc_desc: AppI18n.tr(AppI18n.rev, "tuning.bios_oc_desc");
+    in-out property <string> bios_oc_btn_text: AppI18n.tr(AppI18n.rev, "tuning.off");
     in-out property <int> bios_oc_status: 0; // 0: 关闭, 1: 已开启, 2: 部分开启, 3: 不支持
     in-out property <bool> bios_oc_disabled: false;
 
@@ -35,7 +36,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: root.is_amd ? (root.cpu_supports_fppt ? "极速峰值 (fPPT):" : "极速峰值 (未开放):") : "瞬时峰值 PL4:";
+                    text: root.is_amd ? (root.cpu_supports_fppt ? AppI18n.tr(AppI18n.rev, "tuning.fppt_label") : AppI18n.tr(AppI18n.rev, "tuning.fppt_locked")) : AppI18n.tr(AppI18n.rev, "tuning.pl4_label");
                     font-size: 11px;
                     color: AppTheme.text_secondary;
                     vertical-alignment: center;
@@ -137,7 +138,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 4px;
                     Text {
-                        text: "上限: " + root.pl4_max + "W";
+                        text: AppI18n.tr(AppI18n.rev, "tuning.limit_prefix") + root.pl4_max + "W";
                         font-size: 9px;
                         color: AppTheme.text_muted;
                         vertical-alignment: center;
@@ -207,7 +208,7 @@ export component CpuExtraLimitsCard inherits VerticalLayout {
                 min-width: 0px;
                 spacing: 2px;
                 Text {
-                    text: "高级 BIOS 超频菜单";
+                    text: AppI18n.tr(AppI18n.rev, "tuning.adv_bios_oc");
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_primary;

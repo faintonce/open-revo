@@ -34,9 +34,10 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
     } else {
         "-- W".to_string()
     };
+    let bundle = crate::system::i18n::get_active_locale_bundle();
     let (telemetry_total_label, telemetry_total_watts) = if !discrete_gpu {
         (
-            "APU 封装功耗:",
+            "APU:",
             if state.cpu_power_w > 0.0 {
                 format!("{:.1} W", state.cpu_power_w)
             } else {
@@ -46,7 +47,7 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
     } else {
         let total_w = state.cpu_power_w.max(0.0) + state.gpu_power_w.max(0.0);
         (
-            "双烤合计:",
+            crate::system::i18n::lookup_str(&bundle, "shell.dual_burn_total").unwrap_or("Combined:"),
             if total_w > 0.0 {
                 format!("{:.0} W", total_w)
             } else {
@@ -60,7 +61,11 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
         let m = if sel_idx < state.monitors.len() { &state.monitors[sel_idx] } else { &state.monitors[0] };
         (m.friendly_name.clone(), m.current_hz, m.supported_rates.clone())
     } else {
-        ("京东方 (主屏)".to_string(), state.refresh_rate, vec![60, 144, 240])
+        (
+            crate::system::i18n::lookup_or(&bundle, "gpu.boe_main", "BOE (Primary)"),
+            state.refresh_rate,
+            vec![60, 144, 240],
+        )
     };
 
     let (rates_row1, rates_row2) = if supported_rates.len() > 5 {
@@ -83,7 +88,11 @@ pub fn sync_slint_telemetry(state: &crate::commands::system_cmd::HardwareState) 
 
     let (live_battery, live_ac, _) = crate::commands::power_cmd::get_live_power_status();
     let has_secondary_monitor = state.monitors.len() > 1;
-    let primary_monitor_name = if !state.monitors.is_empty() { state.monitors[0].friendly_name.clone() } else { "内置主屏".to_string() };
+    let primary_monitor_name = if !state.monitors.is_empty() {
+        state.monitors[0].friendly_name.clone()
+    } else {
+        crate::system::i18n::lookup_or(&bundle, "shell.internal_display", "Built-in Display")
+    };
     let secondary_monitor_name = if state.monitors.len() > 1 { state.monitors[1].friendly_name.clone() } else { "".to_string() };
 
     let (pl1_target, tgp_target, power_target_text) = get_current_power_targets(state.power_mode);
@@ -790,6 +799,20 @@ pub fn sync_slint_theme_tokens() {
     crate::system::osd_window::send_osd_theme_tokens(&tokens);
 }
 
+pub fn sync_slint_i18n_tokens(feedback: Option<&str>) {
+    let cfg = crate::system::config::load_config();
+    let bundle = crate::system::i18n::load_locale_bundle(&cfg.locale);
+    let locales = crate::system::i18n::list_available_locales();
+    send_slint_ipc_message(serde_json::json!({
+        "action": "i18n_tokens",
+        "bundle": bundle,
+        "locale": cfg.locale,
+        "available_locales": locales,
+        "locale_feedback": feedback.unwrap_or(""),
+    }));
+    crate::system::osd_window::send_osd_i18n_tokens(&bundle);
+}
+
 pub fn sync_slint_power_schemes(restore_msg: Option<&str>) {
     if let Ok(schemes) = crate::commands::power_cmd::get_windows_power_schemes() {
         let list: Vec<serde_json::Value> = schemes.into_iter().map(|s| {
@@ -838,7 +861,8 @@ pub fn compute_power_targets(
             175
         };
 
-        let label = "当前设定";
+        let bundle = crate::system::i18n::get_active_locale_bundle();
+        let label = crate::system::i18n::lookup_or(&bundle, "overview.target_custom", "Target");
         let text = if tgp > 0 {
             format!("{} PL1: {}W | TGP: {}W", label, pl1, tgp)
         } else if !is_pure_igpu {
@@ -851,7 +875,12 @@ pub fn compute_power_targets(
     }
 
     let is_hw = presets.hardware_read;
-    let label = if is_hw { "原厂目标" } else { "参考值" };
+    let bundle = crate::system::i18n::get_active_locale_bundle();
+    let label = if is_hw {
+        crate::system::i18n::lookup_or(&bundle, "overview.target_oem", "OEM Target")
+    } else {
+        crate::system::i18n::lookup_or(&bundle, "overview.target_ref", "Ref")
+    };
 
     let (pl1, tgp) = match power_mode {
         1 => {

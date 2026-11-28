@@ -232,6 +232,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub theme_mode: u8,
 
+    // Interface Locale ("zh-CN", "en-US", or external pack code)
+    #[serde(default = "default_locale")]
+    pub locale: String,
+
     // Custom Performance Tuning & Fan Strategy (Decoupled into %APPDATA%\OpenRevo\profiles\*.json)
     #[serde(skip_serializing, default)]
     pub custom_profile: CustomProfileConfig,
@@ -548,8 +552,13 @@ impl Default for AppConfig {
             active_skin: None,
             active_background: None,
             theme_mode: 0,
+            locale: default_locale(),
         }
     }
+}
+
+fn default_locale() -> String {
+    super::i18n::detect_system_locale()
 }
 
 fn default_log_level() -> u8 {

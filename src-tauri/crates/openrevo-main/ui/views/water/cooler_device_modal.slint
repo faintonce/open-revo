@@ -1,5 +1,6 @@
 import { AppTheme } from "../../theme.slint";
 import { WaterCoolerDeviceItem } from "cooler_types.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component CoolerDeviceModal inherits Rectangle {
     in-out property <bool> is_open: false;
@@ -75,13 +76,13 @@ export component CoolerDeviceModal inherits Rectangle {
                             spacing: 1px;
 
                             Text {
-                                text: "选择水冷魔盒 (BLE 设备列表)";
+                                text: AppI18n.tr(AppI18n.rev, "water.modal_title");
                                 font-size: 13.5px;
                                 font-weight: 800;
                                 color: AppTheme.text_primary;
                             }
                             Text {
-                                text: "绑定专属水冷箱，防止与邻近机型产生串联冲突";
+                                text: AppI18n.tr(AppI18n.rev, "water.modal_sub");
                                 font-size: 10px;
                                 color: AppTheme.text_muted;
                             }
@@ -120,7 +121,7 @@ export component CoolerDeviceModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: root.is_scanning ? "扫描中..." : "重新扫描";
+                                    text: root.is_scanning ? AppI18n.tr(AppI18n.rev, "water.scanning") : AppI18n.tr(AppI18n.rev, "water.rescan");
                                     font-size: 10.5px;
                                     font-weight: 600;
                                     color: #38bdf8;
@@ -232,7 +233,7 @@ export component CoolerDeviceModal inherits Rectangle {
                                         spacing: 6px;
 
                                         Text {
-                                            text: dev.name != "" ? dev.name : "机械革命水冷魔盒";
+                                            text: dev.name != "" ? dev.name : AppI18n.tr(AppI18n.rev, "water.default_cooler_name");
                                             font-size: 12px;
                                             font-weight: 700;
                                             color: AppTheme.text_primary;
@@ -251,7 +252,7 @@ export component CoolerDeviceModal inherits Rectangle {
                                                 padding-left: 5px;
                                                 padding-right: 5px;
                                                 Text {
-                                                    text: "当前受控";
+                                                    text: AppI18n.tr(AppI18n.rev, "water.currently_controlled");
                                                     font-size: 8.5px;
                                                     font-weight: 700;
                                                     color: #10b981;
@@ -273,8 +274,8 @@ export component CoolerDeviceModal inherits Rectangle {
                                         }
 
                                         Text {
-                                            text: dev.rssi >= -65 ? "● 信号极强 (推荐本机)" : (
-                                                dev.rssi >= -80 ? "● 信号良好" : "○ 信号较弱 (疑似邻机)"
+                                            text: dev.rssi >= -65 ? AppI18n.tr(AppI18n.rev, "water.rssi_strong") : (
+                                                dev.rssi >= -80 ? AppI18n.tr(AppI18n.rev, "water.rssi_good") : AppI18n.tr(AppI18n.rev, "water.rssi_weak")
                                             );
                                             font-size: 9px;
                                             font-weight: 600;
@@ -304,7 +305,7 @@ export component CoolerDeviceModal inherits Rectangle {
                                     padding-right: 10px;
 
                                     Text {
-                                        text: dev.mac_address == root.current_mac ? "已绑定" : "绑定并连接";
+                                        text: dev.mac_address == root.current_mac ? AppI18n.tr(AppI18n.rev, "water.bound") : AppI18n.tr(AppI18n.rev, "water.bind_connect");
                                         font-size: 10.5px;
                                         font-weight: 700;
                                         color: dev.mac_address == root.current_mac ? #10b981 : #ffffff;
@@ -334,7 +335,7 @@ export component CoolerDeviceModal inherits Rectangle {
                         }
 
                         Text {
-                            text: root.is_scanning ? "正在扫描附近的机械革命水冷魔盒..." : "未搜索到附近的机械革命水冷魔盒，请确认水冷已通电且蓝牙正常广播";
+                            text: root.is_scanning ? AppI18n.tr(AppI18n.rev, "water.scanning_desc") : AppI18n.tr(AppI18n.rev, "water.none_found_desc");
                             font-size: 11px;
                             color: AppTheme.text_muted;
                             horizontal-alignment: center;

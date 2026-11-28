@@ -1,5 +1,6 @@
 import { AppTheme } from "../../theme.slint";
 import { ColorPaletteRow } from "color_palette.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component AmbientLightingView inherits Rectangle {
     in-out property <bool> hinge_enabled: true;
@@ -9,7 +10,7 @@ export component AmbientLightingView inherits Rectangle {
     in-out property <string> hinge_color_hex: "#00FFFF";
     in-out property <color> hinge_color: #00ffff;
 
-    in property <string> hw_desc: "转轴氛围流光硬件";
+    in property <string> hw_desc: AppI18n.tr(AppI18n.rev, "lighting.ambient_controller");
 
     callback toggle_enabled();
     callback select_effect(int);
@@ -40,7 +41,7 @@ export component AmbientLightingView inherits Rectangle {
                     alignment: start;
 
                     Text {
-                        text: "机身尾部氛围灯";
+                        text: AppI18n.tr(AppI18n.rev, "lighting.ambient_title");
                         font-size: 14px;
                         font-weight: 700;
                         color: AppTheme.text_primary;
@@ -72,7 +73,7 @@ export component AmbientLightingView inherits Rectangle {
                 }
 
                 Text {
-                    text: "机身尾部双出风口与转轴氛围流光灯，支持双模波浪、律动呼吸与极速流星";
+                    text: AppI18n.tr(AppI18n.rev, "lighting.ambient_desc");
                     font-size: 11px;
                     color: AppTheme.text_muted;
                 }
@@ -110,7 +111,7 @@ export component AmbientLightingView inherits Rectangle {
                         }
 
                         Text {
-                            text: root.hinge_enabled ? "已开启" : "已关闭";
+                            text: root.hinge_enabled ? AppI18n.tr(AppI18n.rev, "lighting.enabled") : AppI18n.tr(AppI18n.rev, "lighting.disabled");
                             font-size: 12px;
                             font-weight: 700;
                             color: root.hinge_enabled ? #ffffff : AppTheme.text_muted;
@@ -126,7 +127,7 @@ export component AmbientLightingView inherits Rectangle {
             spacing: 8px;
 
             Text {
-                text: "氛围灯效模式 (Ambient Modes):";
+                text: AppI18n.tr(AppI18n.rev, "lighting.ambient_modes_label");
                 font-size: 11px;
                 font-weight: 700;
                 color: AppTheme.text_muted;
@@ -143,7 +144,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 1 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(1); } }
-                    Text { text: "单色常亮"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 1 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_static"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 1 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -154,7 +155,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 2 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(2); } }
-                    Text { text: "能量呼吸"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 2 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_energy_breath"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 2 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -165,7 +166,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 20 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(20); } }
-                    Text { text: "彩虹呼吸"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 20 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_rainbow_breath"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 20 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -176,7 +177,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 3 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(3); } }
-                    Text { text: "全彩波浪"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 3 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_full_wave"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 3 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
 
@@ -191,7 +192,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 4 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(4); } }
-                    Text { text: "动态对撞"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 4 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_collision"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 4 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -202,7 +203,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 6 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(6); } }
-                    Text { text: "极速流星"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 6 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_meteor"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 6 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -213,7 +214,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 9 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(9); } }
-                    Text { text: "跑马流水"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 9 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_marquee"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 9 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
 
                 Rectangle {
@@ -224,7 +225,7 @@ export component AmbientLightingView inherits Rectangle {
                     border-width: 1px;
                     border-color: root.hinge_effect == 10 ? #06b6d4 : AppTheme.border_subtle;
                     TouchArea { mouse-cursor: pointer; clicked => { root.select_effect(10); } }
-                    Text { text: "璀璨闪烁"; font-size: 11px; font-weight: 700; color: root.hinge_effect == 10 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: AppI18n.tr(AppI18n.rev, "lighting.fx_sparkle"); font-size: 11px; font-weight: 700; color: root.hinge_effect == 10 ? #22d3ee : AppTheme.text_secondary; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
         }
@@ -262,7 +263,7 @@ export component AmbientLightingView inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "氛围灯亮度";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.ambient_brightness");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
@@ -270,7 +271,7 @@ export component AmbientLightingView inherits Rectangle {
                             }
                         }
                         Text {
-                            text: root.hinge_brightness == 0 ? "关闭 (0)" : (root.hinge_brightness + " 档");
+                            text: root.hinge_brightness == 0 ? AppI18n.tr(AppI18n.rev, "lighting.off_zero") : (root.hinge_brightness + AppI18n.tr(AppI18n.rev, "lighting.level_unit"));
                             font-size: 10px;
                             font-weight: 700;
                             color: #22d3ee;
@@ -351,7 +352,7 @@ export component AmbientLightingView inherits Rectangle {
                                 }
                             }
                             Text {
-                                text: "流动速度";
+                                text: AppI18n.tr(AppI18n.rev, "lighting.flow_speed");
                                 font-size: 10px;
                                 font-weight: 600;
                                 color: AppTheme.text_secondary;
@@ -359,7 +360,7 @@ export component AmbientLightingView inherits Rectangle {
                             }
                         }
                         Text {
-                            text: (root.hinge_speed + 1) + " 档";
+                            text: (root.hinge_speed + 1) + AppI18n.tr(AppI18n.rev, "lighting.level_unit");
                             font-size: 10px;
                             font-weight: 700;
                             color: #06b6d4;
@@ -426,7 +427,7 @@ export component AmbientLightingView inherits Rectangle {
         ColorPaletteRow {
             active_color_hex <=> root.hinge_color_hex;
             active_color <=> root.hinge_color;
-            label_text: "氛围主色调:";
+            label_text: AppI18n.tr(AppI18n.rev, "lighting.ambient_color_label");
             color_selected(hex, c) => {
                 root.change_color(hex, c);
             }

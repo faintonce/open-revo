@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DrawerFooter inherits Rectangle {
     height: 32px;
@@ -52,7 +53,7 @@ export component DrawerFooter inherits Rectangle {
                     }
 
                     Text {
-                        text: "开机自启";
+                        text: AppI18n.tr(AppI18n.rev, "drawer.autostart");
                         font-size: 10.5px;
                         font-weight: autostart ? 600 : 400;
                         color: autostart ? AppTheme.text_primary : AppTheme.text_muted;
@@ -86,7 +87,7 @@ export component DrawerFooter inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: root.oem_running ? "接管官方控制台" : "恢复官方控制台";
+                        text: root.oem_running ? AppI18n.tr(AppI18n.rev, "drawer.takeover_oem") : AppI18n.tr(AppI18n.rev, "drawer.restore_oem");
                         font-size: 10px;
                         font-weight: 600;
                         color: root.oem_running ? #fbbf24 : AppTheme.text_secondary;
@@ -121,7 +122,7 @@ export component DrawerFooter inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "展开大面板";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.expand_dashboard");
                     font-size: 10.5px;
                     font-weight: 600;
                     color: AppTheme.text_primary;

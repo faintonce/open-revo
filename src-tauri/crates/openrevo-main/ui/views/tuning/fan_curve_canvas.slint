@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component FanCurveCanvas inherits VerticalLayout {
     in-out property <int> active_fan_tab: 0; // 0: CPU, 1: GPU
@@ -41,7 +42,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: root.single_fan_channel ? "双风扇曲线" : "CPU风扇";
+                    text: root.single_fan_channel ? AppI18n.tr(AppI18n.rev, "tuning.dual_fan_curve") : AppI18n.tr(AppI18n.rev, "tuning.cpu_fan_short");
                     font-size: 10px;
                     font-weight: root.active_fan_tab == 0 ? 700 : 500;
                     color: root.active_fan_tab == 0 ? (AppTheme.is_light ? #4338ca : #ffffff) : AppTheme.text_muted;
@@ -90,7 +91,7 @@ export component FanCurveCanvas inherits VerticalLayout {
                     }
                 }
                 Text {
-                    text: "GPU风扇";
+                    text: AppI18n.tr(AppI18n.rev, "tuning.gpu_fan_short");
                     font-size: 10px;
                     font-weight: root.active_fan_tab == 1 ? 700 : 500;
                     color: root.active_fan_tab == 1 ? (AppTheme.is_light ? #065f46 : #ffffff) : AppTheme.text_muted;
@@ -101,7 +102,7 @@ export component FanCurveCanvas inherits VerticalLayout {
         }
 
         Text {
-            text: root.is_editing_allowed ? "● 8点曲线调校" : "○ 出厂预设托管";
+            text: root.is_editing_allowed ? AppI18n.tr(AppI18n.rev, "tuning.curve_8pt") : AppI18n.tr(AppI18n.rev, "tuning.curve_oem");
             font-size: 10px;
             font-weight: 700;
             color: root.is_editing_allowed ? #818cf8 : AppTheme.text_muted;
@@ -415,12 +416,12 @@ export component FanCurveCanvas inherits VerticalLayout {
     HorizontalLayout {
         alignment: space-between;
         Text {
-            text: "鼠标悬停滚轮微调";
+            text: AppI18n.tr(AppI18n.rev, "tuning.wheel_hint");
             font-size: 8.5px;
             color: AppTheme.text_muted;
         }
         Text {
-            text: "8 节点单调递增";
+            text: AppI18n.tr(AppI18n.rev, "tuning.monotonic_hint");
             font-size: 8.5px;
             color: AppTheme.text_muted;
         }

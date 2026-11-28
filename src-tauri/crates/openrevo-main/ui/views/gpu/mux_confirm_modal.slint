@@ -1,8 +1,9 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component MuxConfirmModal inherits Rectangle {
     in-out property <string> pending_mode: "dgpu";
-    in-out property <string> pending_title: "独显直连";
+    in-out property <string> pending_title: AppI18n.tr(AppI18n.rev, "gpu.dgpu_direct");
 
     callback cancel();
     callback confirm(string, bool); // (mode, restart_now)
@@ -35,7 +36,7 @@ export component MuxConfirmModal inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "切换显卡输出模式";
+                    text: AppI18n.tr(AppI18n.rev, "gpu.mux_modal_title");
                     font-size: 14px;
                     font-weight: 800;
                     color: AppTheme.text_primary;
@@ -44,7 +45,7 @@ export component MuxConfirmModal inherits Rectangle {
             }
 
             Text {
-                text: "即将切换主板硬件 MUX 至【" + root.pending_title + "】。\n\n配置写入 UEFI NVRAM 后需要重启电脑以生效物理链路。请选择是否立即重启电脑？";
+                text: AppI18n.tr(AppI18n.rev, "gpu.mux_modal_prefix") + root.pending_title + AppI18n.tr(AppI18n.rev, "gpu.mux_modal_suffix");
                 font-size: 11px;
                 color: AppTheme.text_secondary;
                 wrap: word-wrap;
@@ -67,7 +68,7 @@ export component MuxConfirmModal inherits Rectangle {
                         clicked => { root.cancel(); }
                     }
                     Text {
-                        text: "取消";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.cancel");
                         font-size: 11px;
                         color: AppTheme.text_secondary;
                         horizontal-alignment: center;
@@ -90,7 +91,7 @@ export component MuxConfirmModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "仅写入稍后重启";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.write_only_reboot_later");
                         font-size: 11px;
                         color: AppTheme.text_primary;
                         horizontal-alignment: center;
@@ -111,7 +112,7 @@ export component MuxConfirmModal inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "立即重启电脑";
+                        text: AppI18n.tr(AppI18n.rev, "gpu.reboot_now");
                         font-size: 11px;
                         font-weight: 700;
                         color: #ffffff;

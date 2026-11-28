@@ -1,4 +1,5 @@
 import { AppTheme } from "../../theme.slint";
+import { AppI18n } from "../../i18n.slint";
 
 export component DrawerDisplayCard inherits Rectangle {
     background: AppTheme.surface_card;
@@ -12,10 +13,10 @@ export component DrawerDisplayCard inherits Rectangle {
     in-out property <int> min_refresh_rate: 60;
     in-out property <int> max_refresh_rate: 240;
     in-out property <[int]> intermediate_rates: [144];
-    in-out property <string> monitor_name: "京东方";
+    in-out property <string> monitor_name: AppI18n.tr(AppI18n.rev, "drawer.panel_boe");
     in-out property <bool> has_secondary_monitor: false;
-    in-out property <string> primary_monitor_name: "内置主屏";
-    in-out property <string> secondary_monitor_name: "外接副屏";
+    in-out property <string> primary_monitor_name: AppI18n.tr(AppI18n.rev, "drawer.internal_display");
+    in-out property <string> secondary_monitor_name: AppI18n.tr(AppI18n.rev, "drawer.external_display");
 
     property <bool> is_intermediate: (refresh_rate != min_refresh_rate && refresh_rate != max_refresh_rate);
 
@@ -41,7 +42,7 @@ export component DrawerDisplayCard inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                 }
                 Text {
-                    text: "屏幕刷新率:";
+                    text: AppI18n.tr(AppI18n.rev, "drawer.refresh_rate_label");
                     font-size: 11px;
                     font-weight: 700;
                     color: AppTheme.text_secondary;
@@ -123,7 +124,7 @@ export component DrawerDisplayCard inherits Rectangle {
                                     padding-left: 8px;
                                     padding-right: 8px;
                                     Text {
-                                        text: root.primary_monitor_name != "" ? root.primary_monitor_name : "内置主屏";
+                                        text: root.primary_monitor_name != "" ? root.primary_monitor_name : AppI18n.tr(AppI18n.rev, "drawer.internal_display");
                                         font-size: 10px;
                                         color: AppTheme.text_primary;
                                         vertical-alignment: center;
@@ -147,7 +148,7 @@ export component DrawerDisplayCard inherits Rectangle {
                                     padding-left: 8px;
                                     padding-right: 8px;
                                     Text {
-                                        text: root.secondary_monitor_name != "" ? root.secondary_monitor_name : "外接显示器";
+                                        text: root.secondary_monitor_name != "" ? root.secondary_monitor_name : AppI18n.tr(AppI18n.rev, "drawer.ext_monitor");
                                         font-size: 10px;
                                         color: AppTheme.text_secondary;
                                         vertical-alignment: center;
@@ -200,7 +201,7 @@ export component DrawerDisplayCard inherits Rectangle {
                         }
                     }
                     Text {
-                        text: "拔电低刷";
+                        text: AppI18n.tr(AppI18n.rev, "drawer.battery_low_hz");
                         font-size: 10px;
                         font-weight: auto_min_hz ? 600 : 400;
                         color: auto_min_hz ? #a5b4fc : AppTheme.text_primary;
@@ -273,7 +274,7 @@ export component DrawerDisplayCard inherits Rectangle {
                     alignment: center;
                     spacing: 3px;
                     Text {
-                        text: is_intermediate ? (refresh_rate + "Hz") : "更多";
+                        text: is_intermediate ? (refresh_rate + "Hz") : AppI18n.tr(AppI18n.rev, "drawer.more");
                         font-size: 10px;
                         font-weight: is_intermediate ? 700 : 500;
                         color: is_intermediate ? #a5b4fc : AppTheme.text_secondary;
@@ -342,7 +343,7 @@ export component DrawerDisplayCard inherits Rectangle {
                                 HorizontalLayout {
                                     alignment: center;
                                     Text {
-                                        text: "无中间档位";
+                                        text: AppI18n.tr(AppI18n.rev, "drawer.no_intermediate_hz");
                                         font-size: 9.5px;
                                         color: AppTheme.text_muted;
                                         vertical-alignment: center;
