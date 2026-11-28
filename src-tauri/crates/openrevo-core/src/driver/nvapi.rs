@@ -238,6 +238,88 @@ fn clock_offset_buffer(domain_id: u32, delta_mhz: i32) -> Vec<u32> {
     words
 }
 
+/// P0 每个时钟域的偏移允许范围，来自驱动/VBIOS 上报的 `ParamDelta`。
+///
+/// 布局（每项 4 字节）：`DomainId, ClockType, IsEditable, DeltaValue, RangeMinimum, RangeMaximum, Data[5]`，
+/// 数值单位是 kHz。约定：下限向上取整、上限向下取整到 MHz，宁紧勿松。
+fn parse_pstates20_offset_ranges(words: &[u32]) -> Option<((i32, i32), (i32, i32))> {
+    const MAX_PSTATES: usize = 16;
+    const MAX_CLOCKS: usize = 8;
+    const PSTATE_WORDS: usize = 456 / 4;
+    const CLOCK_WORDS: usize = 44 / 4;
+
+    if words.len() != PSTATES20_SIZE_V2 / 4 || words[0] != PSTATES20_VER2 {
+        return None;
+    }
+    let num_pstates = words[2] as usize;
+    let num_clocks = words[3] as usize;
+    if !(1..=MAX_PSTATES).contains(&num_pstates) || !(1..=MAX_CLOCKS).contains(&num_clocks) {
+        return None;
+    }
+
+    let ceil_mhz = |khz: i32| -> i32 { if khz >= 0 { (khz + 999) / 1000 } else { -((-khz) / 1000) } };
+    let floor_mhz = |khz: i32| -> i32 { khz / 1000 };
+
+    for pstate in 0..num_pstates {
+        let state_start = 5 + pstate * PSTATE_WORDS;
+        if words[state_start] != 0 {
+            continue; // 只看 P0
+        }
+
+        let mut core: Option<(i32, i32)> = None;
+        let mut memory: Option<(i32, i32)> = None;
+        for clock in 0..num_clocks {
+            let start = state_start + 2 + clock * CLOCK_WORDS;
+            let slot = match words[start] {
+                CLOCK_DOMAIN_GRAPHICS => &mut core,
+                CLOCK_DOMAIN_MEMORY => &mut memory,
+                _ => continue,
+            };
+            let min = ceil_mhz(words[start + 4] as i32);
+            let max = floor_mhz(words[start + 5] as i32);
+            slot.replace((min, max));
+        }
+
+        let (core_min, core_max) = core?;
+        let (mem_min, mem_max) = memory?;
+        if core_max < core_min || mem_max < mem_min {
+            return None;
+        }
+        return Some(((core_min, core_max), (mem_min, mem_max)));
+    }
+    None
+}
+
+/// 驱动不回答时使用的保守兜底范围（MHz）。刻意收紧，宁可少给也不越界。
+pub const GPU_OC_CORE_OFFSET_FALLBACK_MHZ: (i32, i32) = (-500, 500);
+pub const GPU_OC_MEM_OFFSET_FALLBACK_MHZ: (i32, i32) = (-1000, 3000);
+
+/// 读取当前显卡允许的核心/显存偏移范围（MHz），由驱动与 VBIOS 上报，不是拍出来的常量。
+///
+/// 读取失败（老驱动 / 非 NV 平台）返回 `None`，调用方自行决定兜底值。
+pub fn get_gpu_clock_offset_ranges_mhz() -> Option<((i32, i32), (i32, i32))> {
+    let drv = get_driver()?;
+    let _guard = NVAPI_MUTEX.lock();
+
+    let mut words = vec![0u32; PSTATES20_SIZE_V2 / 4];
+    words[0] = PSTATES20_VER2;
+    let ret = unsafe { (drv.get_pstates20)(drv.primary_gpu_handle, words.as_mut_ptr().cast()) };
+    if ret != NVAPI_OK {
+        crate::log_warn!("NVAPI", "GetPstates20(V2) for offset ranges failed: code {}", ret);
+        return None;
+    }
+    parse_pstates20_offset_ranges(&words)
+}
+
+/// 与 get_gpu_clock_offset_ranges_mhz 相同，但读不到时返回保守兜底值。
+/// 调用方（GPU 桥接）用它做越界校验，保证老驱动上也有可用的判断依据。
+pub fn gpu_clock_offset_ranges_with_fallback_mhz() -> ((i32, i32), (i32, i32)) {
+    get_gpu_clock_offset_ranges_mhz().unwrap_or((
+        GPU_OC_CORE_OFFSET_FALLBACK_MHZ,
+        GPU_OC_MEM_OFFSET_FALLBACK_MHZ,
+    ))
+}
+
 /// Apply a single clock offset (Core or Memory) via NvAPI_GPU_SetPstates20
 /// domain_id: 0 = Graphics (Core), 4 = Memory
 /// delta_mhz: Frequency offset in MHz (-1000 ~ +1000)
@@ -793,5 +875,42 @@ mod pstates20_tests {
                 assert_eq!(actual, expected);
             }
         }
+    }
+
+    /// 用 V2 结构构造一份带 range 的 P0，验证逐域读取。
+    fn v2_with_ranges(core_khz: (i32, i32), mem_khz: (i32, i32)) -> Vec<u32> {
+        let mut words = vec![0u32; PSTATES20_SIZE_V2 / 4];
+        words[0] = PSTATES20_VER2;
+        words[2] = 1;
+        words[3] = 2;
+        words[5] = 0;
+        let g = 7; // state_start + 2
+        words[g] = CLOCK_DOMAIN_GRAPHICS;
+        words[g + 4] = core_khz.0 as u32;
+        words[g + 5] = core_khz.1 as u32;
+        let m = g + 11;
+        words[m] = CLOCK_DOMAIN_MEMORY;
+        words[m + 4] = mem_khz.0 as u32;
+        words[m + 5] = mem_khz.1 as u32;
+        words
+    }
+
+    #[test]
+    fn reads_offset_ranges_per_domain() {
+        let words = v2_with_ranges((-1_000_000, 1_000_000), (-1_000_000, 3_000_000));
+        assert_eq!(
+            parse_pstates20_offset_ranges(&words),
+            Some(((-1000, 1000), (-1000, 3000)))
+        );
+    }
+
+    #[test]
+    fn offset_range_rounding_tightens_both_ends() {
+        // 1500.5 -> 1501（下限向上）、2999.999 -> 2999（上限向下）
+        let words = v2_with_ranges((1_500_500, 2_999_999), (1_000, 1_999));
+        assert_eq!(
+            parse_pstates20_offset_ranges(&words),
+            Some(((1501, 2999), (1, 1)))
+        );
     }
 }
