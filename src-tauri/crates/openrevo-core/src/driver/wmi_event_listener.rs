@@ -286,6 +286,15 @@ fn dispatch_acpi_event(
             }
         }
         _ => {
+            // 未知码不等于「没事发生」：固件可能已经自己处理了无线电/飞行模式开关，
+            // 这里只把真实状态同步回来（只读），绝不主动切换，避免与固件互相打架。
+            if super::super::system::switches::radio::sync_radio_state_from_system() {
+                crate::log_info!(
+                    "WMI_LISTENER",
+                    "Unknown ACPI event {} (0x{:X}) synced radio state from system",
+                    code, code
+                );
+            }
             crate::log_debug!("WMI_LISTENER", "Received other ACPI Event code: {} (0x{:X})", code, code);
         }
     }
