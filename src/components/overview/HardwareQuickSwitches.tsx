@@ -152,20 +152,16 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: '4px', height: '14px', background: '#38bdf8', borderRadius: '2px' }} />
-          <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.04em', color: '#f1f5f9' }}>
-            快捷设备硬件开关
-          </span>
+          <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.04em', color: '#f1f5f9' }}> {trText('快捷设备硬件开关')} </span>
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-          原厂电竞级热键与外设直控
-        </span>
+        <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}> {trText('原厂电竞级热键与外设直控')} </span>
       </div>
 
       <div className="oem-switch-grid">
         {/* 1. WIFI 开关 */}
         <div
           onClick={() => handleToggleSwitch('wifi')}
-          title="启用 / 禁用无线网络 (Wi-Fi)"
+          title={trText(trText("启用 / 禁用无线网络 (Wi-Fi)"))}
           className={`oem-switch-card ${switches.wifi ? 'active' : ''} ${togglingSwitches.wifi ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -182,7 +178,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {/* 2. 蓝牙开关 */}
         <div
           onClick={() => handleToggleSwitch('bluetooth')}
-          title="启用 / 禁用蓝牙 (Bluetooth)"
+          title={trText(trText("启用 / 禁用蓝牙 (Bluetooth)"))}
           className={`oem-switch-card ${switches.bluetooth ? 'active' : ''} ${togglingSwitches.bluetooth ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -220,7 +216,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {/* 4. 网络摄像头开关 */}
         <div
           onClick={() => handleToggleSwitch('camera')}
-          title="启用 / 禁用内置网络摄像头 (Webcam)"
+          title={trText(trText("启用 / 禁用内置网络摄像头 (Webcam)"))}
           className={`oem-switch-card ${switches.camera ? 'active' : ''} ${togglingSwitches.camera ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -237,7 +233,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {/* 5. 麦克风全局开关 (与摄像头相邻) */}
         <div
           onClick={() => handleToggleSwitch('mic')}
-          title="启用 / 静音全局麦克风输入 (Microphone)"
+          title={trText(trText("启用 / 静音全局麦克风输入 (Microphone)"))}
           className={`oem-switch-card ${switches.mic ? 'active' : ''} ${togglingSwitches.mic ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -248,13 +244,13 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
           <div className="oem-icon-badge">
             {switches.mic ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-rose-400" />}
           </div>
-          <div className="oem-switch-title">{switches.mic ? '麦克风' : trText('麦克风静音')}</div>
+          <div className="oem-switch-title">{switches.mic ? trText('麦克风') : trText('麦克风静音')}</div>
         </div>
 
         {/* 6. OSD 悬浮显示开关 */}
         <div
           onClick={() => handleToggleSwitch('osd')}
-          title="启用 / 禁用屏幕快捷键 OSD 悬浮提示"
+          title={trText(trText("启用 / 禁用屏幕快捷键 OSD 悬浮提示"))}
           className={`oem-switch-card ${switches.osd ? 'active' : ''} ${togglingSwitches.osd ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />
@@ -272,7 +268,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {status.support_flags?.has_win_lock !== false && (
           <div
             onClick={() => handleToggleSwitch('win_key')}
-            title="游戏模式：锁定 / 放行 Windows 徽标键"
+            title={trText(trText("游戏模式：锁定 / 放行 Windows 徽标键"))}
             className={`oem-switch-card ${switches.win_key ? 'active' : ''} ${togglingSwitches.win_key ? 'opacity-60 cursor-wait' : ''}`}
           >
             <div className="oem-bracket-tl" />
@@ -293,7 +289,7 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
         {status.support_flags?.has_fn_lock !== false && (
           <div
             onClick={() => handleToggleSwitch('fn_lock')}
-            title={switches.fn_lock ? 'Fn 锁已开启：需按 Fn 组合键' : trText('Fn 锁已关闭：F1-F12 键直接触发')}
+            title={switches.fn_lock ? trText('Fn 锁已开启：需按 Fn 组合键') : trText('Fn 锁已关闭：F1-F12 键直接触发')}
             className={`oem-switch-card ${switches.fn_lock ? 'active' : ''} ${togglingSwitches.fn_lock ? 'opacity-60 cursor-wait' : ''}`}
           >
             <div className="oem-bracket-tl" />
@@ -304,14 +300,14 @@ export const HardwareQuickSwitches: React.FC<HardwareQuickSwitchesProps> = ({
             <div className="oem-icon-badge">
               <span style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '0.04em' }}>FN</span>
             </div>
-            <div className="oem-switch-title">{switches.fn_lock ? 'Fn锁定' : 'F1-F12'}</div>
+            <div className="oem-switch-title">{switches.fn_lock ? trText('Fn锁定') : 'F1-F12'}</div>
           </div>
         )}
 
         {/* 9. 防休眠常亮开关 */}
         <div
           onClick={() => handleToggleSwitch('keep_awake')}
-          title="防休眠常亮：挂机下载大游戏、渲染或演示时阻止屏幕变暗关闭与系统休眠"
+          title={trText(trText("防休眠常亮：挂机下载大游戏、渲染或演示时阻止屏幕变暗关闭与系统休眠"))}
           className={`oem-switch-card ${switches.keep_awake ? 'active' : ''} ${togglingSwitches.keep_awake ? 'opacity-60 cursor-wait' : ''}`}
         >
           <div className="oem-bracket-tl" />

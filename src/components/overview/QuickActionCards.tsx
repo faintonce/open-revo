@@ -159,9 +159,9 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
               <button
                 onClick={handleBldSwitchToggle}
                 className={`bld-fan-switch ${status.fan_boost ? 'active' : ''}`}
-                title={status.fan_boost ? '点击关闭转速锁定，恢复原厂自动温控' : trText('点击开启风扇锁定')}
+                title={status.fan_boost ? trText('点击关闭转速锁定，恢复原厂自动温控') : trText('点击开启风扇锁定')}
               >
-                {status.fan_boost ? '已锁定' : trText('自动')}
+                {status.fan_boost ? trText('已锁定') : trText('自动')}
               </button>
             </div>
             <div className="bld-fan-slider-row">
@@ -201,7 +201,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
               onClick={() => checkOemGuard(onToggleFanBoost)}
               className={`toggle-btn ${status.fan_boost ? 'active-cyan' : ''}`}
             >
-              {status.fan_boost ? '已开启' : trText('关闭')}
+              {status.fan_boost ? trText('已开启') : trText('关闭')}
             </button>
           </div>
         )
@@ -230,7 +230,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
           onClick={handleToggleAutoMinRefresh}
           className={`toggle-btn ${autoMinRefresh ? 'active-indigo' : ''}`}
         >
-          {autoMinRefresh ? '已开启' : trText('关闭')}
+          {autoMinRefresh ? trText('已开启') : trText('关闭')}
         </button>
       </div>
 
@@ -260,7 +260,7 @@ export const QuickActionCards: React.FC<QuickActionCardsProps> = ({
               <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => setShowMonMenu(!showMonMenu)}
-                  title="点击选择调控的显示器"
+                  title={trText(trText("点击选择调控的显示器"))}
                   className="monitor-select-btn"
                   style={{ marginTop: '2px' }}
                 >

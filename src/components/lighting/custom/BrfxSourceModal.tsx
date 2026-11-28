@@ -126,9 +126,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
             color: 'var(--text-secondary)',
           }}
         >
-          <span>
-            提示：可直接点击下方按钮复制纯文本喂给各大 AI 助手改写或生成新特效，或用记事本直接修改。
-          </span>
+          <span> {trText('提示：可直接点击下方按钮复制纯文本喂给各大 AI 助手改写或生成新特效，或用记事本直接修改。')} </span>
           {onOpenInNotepad && (
             <button
               type="button"
@@ -147,9 +145,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
                 whiteSpace: 'nowrap',
               }}
             >
-              <ExternalLink size={11} />
-              用记事本打开
-            </button>
+              <ExternalLink size={11} /> {trText('用记事本打开')} </button>
           )}
         </div>
 
@@ -190,7 +186,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
           }}
         >
           <span style={{ fontSize: '11px', color: copied ? 'var(--status-ok)' : 'var(--text-dim)' }}>
-            {copied ? '已复制到剪贴板！可直接粘贴给 AI 助手' : `${script.code.split('\n').length} 行代码`}
+            {copied ? trText('已复制到剪贴板！可直接粘贴给 AI 助手') : `${script.code.split('\n').length} 行代码`}
           </span>
 
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -213,7 +209,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
               }}
             >
               {copied ? <Check size={13} /> : <Copy size={13} />}
-              {copied ? '已复制' : trText('复制代码喂给 AI')}
+              {copied ? trText('已复制') : trText('复制代码喂给 AI')}
             </button>
             <button
               type="button"
@@ -227,9 +223,7 @@ export const BrfxSourceModal: React.FC<BrfxSourceModalProps> = ({
                 background: 'var(--surface-pill)',
                 color: 'var(--text-primary)',
               }}
-            >
-              关闭
-            </button>
+            > {trText('关闭')} </button>
           </div>
         </div>
       </div>

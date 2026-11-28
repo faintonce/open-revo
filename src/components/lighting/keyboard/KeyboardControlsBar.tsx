@@ -90,9 +90,7 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
-              <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} />
-              亮度等级
-            </span>
+              <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} /> {trText('亮度等级')} </span>
             <span style={{ color: 'var(--color-brand)', fontWeight: 700 }}>
               {displayBrightness === 0
                 ? trText('关闭 (0)')
@@ -118,11 +116,9 @@ export const KeyboardControlsBar: React.FC<KeyboardControlsBarProps> = ({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
-                <Zap className="w-3.5 h-3.5" style={{ color: 'var(--status-info)' }} />
-                流动速度
-              </span>
+                <Zap className="w-3.5 h-3.5" style={{ color: 'var(--status-info)' }} /> {trText('流动速度')} </span>
               <span style={{ color: 'var(--status-info)', fontWeight: 700 }}>
-                {displaySpeed + 1} 档 ({displaySpeed === 4 ? '极速' : displaySpeed === 0 ? '平缓' : trText('适中')})
+                {displaySpeed + 1} 档 ({displaySpeed === 4 ? trText('极速') : displaySpeed === 0 ? trText('平缓') : trText('适中')})
               </span>
             </div>
             <input

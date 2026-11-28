@@ -44,6 +44,7 @@ pub struct TrayMenuControls {
     pub custom: CheckMenuItem<tauri::Wry>,
     pub fan_boost: CheckMenuItem<tauri::Wry>,
     pub oem_toggle: MenuItem<tauri::Wry>,
+    pub widget_lock: MenuItem<tauri::Wry>,
     pub quit: MenuItem<tauri::Wry>,
 }
 
@@ -101,6 +102,7 @@ pub fn refresh_tauri_tray_locale() {
             tr("tray.takeover_on", "Takeover OEM"),
             tr("tray.takeover_off", "Restore OEM")
         ));
+        let _ = ctrl.widget_lock.set_text(&format!("🧲 {}", tr("tray.widget_lock", "Lock / Unlock Widgets")));
         let _ = ctrl.quit.set_text(&tr("tray.quit", "Quit OpenRevo"));
     }
     if let Some(tray) = GLOBAL_TRAY.get() {
@@ -141,29 +143,32 @@ pub fn build_tray_menu(
         .map(|w| crate::system::window::is_window_expanded(&w))
         .unwrap_or(false);
 
-    let full_panel_item = CheckMenuItem::with_id(app, "mode_full_panel", "🖥️ 完整面板", true, is_expanded, None::<&str>)?;
-    let mini_drawer_item = CheckMenuItem::with_id(app, "mode_mini_drawer", "🪟 迷你抽屉", true, !is_expanded, None::<&str>)?;
-    let turn_off_screen_item = MenuItem::with_id(app, "turn_off_screen", "🌙 关闭屏幕 (3秒防误触)", true, None::<&str>)?;
+    let bundle = crate::system::i18n::get_active_locale_bundle();
+    let tr = |k: &str, fb: &str| crate::system::i18n::lookup_or(&bundle, k, fb);
+
+    let full_panel_item = CheckMenuItem::with_id(app, "mode_full_panel", &format!("🖥️ {}", tr("tray.show_full", "Show Full Dashboard")), true, is_expanded, None::<&str>)?;
+    let mini_drawer_item = CheckMenuItem::with_id(app, "mode_mini_drawer", &format!("🪟 {}", tr("tray.show_mini", "Show Mini Drawer")), true, !is_expanded, None::<&str>)?;
+    let turn_off_screen_item = MenuItem::with_id(app, "turn_off_screen", &format!("🌙 {}", tr("tray.turn_off_screen", "Turn Off Display")), true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
 
     let initial_mode = ec.lock().get_power_mode();
     let initial_fan = ec.lock().is_fan_boost();
 
-    let office_item = CheckMenuItem::with_id(app, "mode_office", "办公模式 (Office)", true, initial_mode == 1, None::<&str>)?;
-    let balance_item = CheckMenuItem::with_id(app, "mode_balance", "均衡模式 (Balance)", true, initial_mode == 2, None::<&str>)?;
-    let beast_item = CheckMenuItem::with_id(app, "mode_beast", "狂暴模式 (Beast)", true, initial_mode == 3, None::<&str>)?;
-    let custom_item = CheckMenuItem::with_id(app, "mode_custom", "极客调校 (Custom)", true, initial_mode == 4, None::<&str>)?;
+    let office_item = CheckMenuItem::with_id(app, "mode_office", &tr("tray.mode_office", "Office Mode"), true, initial_mode == 1, None::<&str>)?;
+    let balance_item = CheckMenuItem::with_id(app, "mode_balance", &tr("tray.mode_balance", "Balance Mode"), true, initial_mode == 2, None::<&str>)?;
+    let beast_item = CheckMenuItem::with_id(app, "mode_beast", &tr("tray.mode_beast", "Beast Mode"), true, initial_mode == 3, None::<&str>)?;
+    let custom_item = CheckMenuItem::with_id(app, "mode_custom", &tr("tray.mode_custom", "Custom Mode"), true, initial_mode == 4, None::<&str>)?;
 
     let sep2 = PredefinedMenuItem::separator(app)?;
 
-    let fan_boost_item = CheckMenuItem::with_id(app, "toggle_fan", "一键强冷 (Fan Boost)", true, initial_fan, None::<&str>)?;
-    let oem_toggle_item = MenuItem::with_id(app, "takeover_toggle", "🔄 接管/恢复 官方后台服务", true, None::<&str>)?;
-    let widget_lock_item = MenuItem::with_id(app, "toggle_widget_lock", "🧲 挂件穿透锁定 / 解锁拖动 (或按住Ctrl)", true, None::<&str>)?;
+    let fan_boost_item = CheckMenuItem::with_id(app, "toggle_fan", &tr("tray.fan_boost", "Fan Boost"), true, initial_fan, None::<&str>)?;
+    let oem_toggle_item = MenuItem::with_id(app, "takeover_toggle", &format!("🔄 {} / {}", tr("tray.takeover_on", "Takeover OEM"), tr("tray.takeover_off", "Restore OEM")), true, None::<&str>)?;
+    let widget_lock_item = MenuItem::with_id(app, "toggle_widget_lock", &format!("🧲 {}", tr("tray.widget_lock", "Lock / Unlock Widgets")), true, None::<&str>)?;
 
     let sep3 = PredefinedMenuItem::separator(app)?;
 
     let notice_item = MenuItem::with_id(app, "notice", &format!("🛡️ {}", app_version_display()), false, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "退出 OpenRevo", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", &tr("tray.quit", "Quit OpenRevo"), true, None::<&str>)?;
 
     let _ = TRAY_MENU_CONTROLS.set(TrayMenuControls {
         full_panel: full_panel_item.clone(),
@@ -175,6 +180,7 @@ pub fn build_tray_menu(
         custom: custom_item.clone(),
         fan_boost: fan_boost_item.clone(),
         oem_toggle: oem_toggle_item.clone(),
+        widget_lock: widget_lock_item.clone(),
         quit: quit_item.clone(),
     });
 

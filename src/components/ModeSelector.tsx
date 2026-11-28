@@ -183,25 +183,25 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
                   disabled={disabled || isRestricted || turboSub.busy}
                   onClick={() => applyTurboSeg(true, isRestricted)}
                   className={`mode-btn mode-seg-btn mode-beast ${silentActive ? 'active-beast' : ''}`}
-                  title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : trText('静音狂暴：狂暴档内的安静子模式')}
+                  title={isRestricted ? trText('电池供电或受限供电下不可用，需接入原装电源适配器') : trText('静音狂暴：狂暴档内的安静子模式')}
                   style={isRestricted ? { opacity: 0.45, cursor: 'not-allowed', filter: 'grayscale(0.6)' } : undefined}
                 >
                   {silentActive && !isRestricted && gcuOcChip()}
                   <div style={{ marginBottom: '2px' }}><Snowflake className="w-4 h-4 text-cyan-300" /></div>
                   <div className="mode-title">{trText('静音狂暴')}</div>
-                  <div className="mode-sub">{isRestricted ? '需圆口DC' : silentActive ? '● 当前' : trText('静音')}</div>
+                  <div className="mode-sub">{isRestricted ? trText('需圆口DC') : silentActive ? trText('● 当前') : trText('静音')}</div>
                 </button>
                 <button
                   disabled={disabled || isRestricted || turboSub.busy}
                   onClick={() => applyTurboSeg(false, isRestricted)}
                   className={`mode-btn mode-seg-btn mode-beast ${extremeActive ? 'active-beast' : ''}`}
-                  title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : trText('高能狂暴：狂暴档内的高能/极限子模式')}
+                  title={isRestricted ? trText('电池供电或受限供电下不可用，需接入原装电源适配器') : trText('高能狂暴：狂暴档内的高能/极限子模式')}
                   style={isRestricted ? { opacity: 0.45, cursor: 'not-allowed', filter: 'grayscale(0.6)' } : undefined}
                 >
                   {extremeActive && !isRestricted && gcuOcChip()}
                   <div style={{ marginBottom: '2px' }}><Flame className="w-4 h-4 text-rose-400" /></div>
                   <div className="mode-title">{trText('高能狂暴')}</div>
-                  <div className="mode-sub">{isRestricted ? '需圆口DC' : extremeActive ? '● 当前' : trText('高能')}</div>
+                  <div className="mode-sub">{isRestricted ? trText('需圆口DC') : extremeActive ? trText('● 当前') : trText('高能')}</div>
                 </button>
               </div>
               {turboSub.error && <div role="alert" className="mode-sub">{turboSub.error}</div>}
@@ -226,8 +226,8 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
               isRestricted
                 ? trText('电池供电或受限供电下不可用，需接入原装电源适配器')
                 : isCustom
-                ? (isLight ? '点击直接打开自定义风扇曲线调校' : (isActive ? '已激活自定义模式，点击可直接打开硬件参数调校' : `${mode.nameEn} - ${mode.desc}`))
-                : `${mode.nameEn} - ${mode.desc}`
+                ? (isLight ? trText('点击直接打开自定义风扇曲线调校') : (isActive ? trText('已激活自定义模式，点击可直接打开硬件参数调校') : `${trText(mode.name)} - ${trText(mode.desc)}`))
+                : `${trText(mode.name)} - ${trText(mode.desc)}`
             }
             style={{
               position: 'relative',
@@ -275,7 +275,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
             )}
 
             <div style={{ marginBottom: '2px' }}>{getIcon(mode.id)}</div>
-            <div className="mode-title">{mode.name.replace(trText('模式'), '')}</div>
+            <div className="mode-title">{trText(mode.name)}</div>
             <div className="mode-sub">
               {isRestricted
                 ? trText('需圆口DC')

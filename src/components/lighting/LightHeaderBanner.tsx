@@ -43,7 +43,7 @@ export const LightHeaderBanner: React.FC<LightHeaderBannerProps> = ({
         style={{ padding: '6px 14px', fontSize: '12px' }}
       >
         <Power className="w-3.5 h-3.5" />
-        <span>{enabled ? '已开启' : trText('已关闭')}</span>
+        <span>{enabled ? trText('已开启') : trText('已关闭')}</span>
       </button>
     </div>
   );

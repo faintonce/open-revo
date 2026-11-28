@@ -146,7 +146,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     }
 
     return {
-      label: presets?.hardware_read ? '原厂目标' : trText('参考值 (读取预设值失败)'),
+      label: presets?.hardware_read ? trText('原厂目标') : trText('参考值 (读取预设值失败)'),
       pl1,
       tgp,
     };
@@ -165,11 +165,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="glass-card overview-slot-power" data-slot="power" style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mech)' }}>
-              性能释放模式 (Power Profiles)
-            </h3>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              当前配置：{currentModeInfo.name} ({currentModeInfo.nameEn}) - {currentModeInfo.desc}
+            <h3 style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mech)' }}> {trText('性能释放模式 (Power Profiles)')} </h3>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}> {trText('当前配置：')} {trText(currentModeInfo.name)} ({currentModeInfo.nameEn}) - {trText(currentModeInfo.desc)}
             </p>
           </div>
           <div

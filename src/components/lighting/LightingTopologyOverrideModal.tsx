@@ -178,9 +178,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
                     borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--status-info)',
                   }}
-                >
-                  超薄自适应
-                </span>
+                > {trText('超薄自适应')} </span>
               </div>
               <div className="sys-modal-subtitle">
                 若自动检测与物理硬件不符，请在此手动指定物理设备。鼠标悬停在选项或 <strong>ⓘ</strong> 上可查看硬件协议与适用机型。
@@ -202,8 +200,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
                 fontSize: '12px',
                 border: '1px solid var(--status-error)',
               }}
-            >
-              应用失败: {errorMessage}
+            > {trText('应用失败:')} {errorMessage}
             </div>
           )}
           <div className="topology-container">
@@ -212,8 +209,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
             <div className="topology-row">
               <div className="topology-row-left">
                 <span className="topology-row-title">{trText('⌨️ 1. 键盘背光硬件')}</span>
-                <span className="topology-row-hint">
-                  自动探测: <strong>{baseline.keyboard || trText('检测中')}</strong>
+                <span className="topology-row-hint"> {trText('自动探测:')} <strong>{baseline.keyboard || trText('检测中')}</strong>
                 </span>
               </div>
               <div className="topology-radio-group">
@@ -316,8 +312,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
             <div className="topology-row">
               <div className="topology-row-left">
                 <span className="topology-row-title">{trText('🌊 2. 前置海岸灯条')}</span>
-                <span className="topology-row-hint">
-                  自动探测: <strong>{baseline.front_bar === 'present' ? '具备灯条' : trText('未检测到')}</strong>
+                <span className="topology-row-hint"> {trText('自动探测:')} <strong>{baseline.front_bar === 'present' ? trText('具备灯条') : trText('未检测到')}</strong>
                 </span>
               </div>
               <div className="topology-radio-group">
@@ -362,8 +357,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
             <div className="topology-row">
               <div className="topology-row-left">
                 <span className="topology-row-title">{trText('💨 3. 特色氛围灯')}</span>
-                <span className="topology-row-hint">
-                  自动探测: <strong>{baseline.ambient || trText('未检测到')}</strong>
+                <span className="topology-row-hint"> {trText('自动探测:')} <strong>{baseline.ambient || trText('未检测到')}</strong>
                 </span>
               </div>
               <div className="topology-radio-group">
@@ -426,8 +420,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
             <div className="topology-row">
               <div className="topology-row-left">
                 <span className="topology-row-title">{trText('✨ 4. A面 LOGO 灯')}</span>
-                <span className="topology-row-hint">
-                  自动探测: <strong>{baseline.logo || trText('未检测到')}</strong>
+                <span className="topology-row-hint"> {trText('自动探测:')} <strong>{baseline.logo || trText('未检测到')}</strong>
                 </span>
               </div>
               <div className="topology-radio-group">
@@ -518,9 +511,7 @@ export const LightingTopologyOverrideModal: React.FC<LightingTopologyOverrideMod
               className="toggle-btn"
               onClick={onClose}
               disabled={isApplying}
-            >
-              取消
-            </button>
+            > {trText('取消')} </button>
             <button
               type="button"
               className="toggle-btn active-indigo"

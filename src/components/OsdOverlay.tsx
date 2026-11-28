@@ -308,7 +308,7 @@ export const OsdOverlay: React.FC = () => {
       const pctMap = [0, 25, 50, 75, 100];
       const pct = pctMap[lvl] ?? 100;
       showOsd({
-        title: lvl === 0 ? '键盘背光 关闭' : `键盘背光 ${pct}%`,
+        title: lvl === 0 ? trText('键盘背光 关闭') : `键盘背光 ${pct}%`,
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -330,7 +330,7 @@ export const OsdOverlay: React.FC = () => {
     addListener<any>('keyboard-sleep-timeout-changed', (payload) => {
       const sec = typeof payload === 'number' ? payload : parseInt(String(payload), 10);
       showOsd({
-        title: sec === 0 ? '键盘背光 常亮' : `背光 ${sec}秒无操作熄灭`,
+        title: sec === 0 ? trText('键盘背光 常亮') : `背光 ${sec}秒无操作熄灭`,
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -351,7 +351,7 @@ export const OsdOverlay: React.FC = () => {
     // 4. Touchpad toggle
     addListener<boolean>('touchpad-state-changed', (enabled) => {
       showOsd({
-        title: enabled ? '触控板 开启' : trText('触控板 禁用'),
+        title: enabled ? trText('触控板 开启') : trText('触控板 禁用'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <rect x="2" y="4" width="20" height="16" rx="3" />
@@ -367,7 +367,7 @@ export const OsdOverlay: React.FC = () => {
     // 5. Fan Boost toggle
     const handleFanBoost = (enabled: boolean) => {
       showOsd({
-        title: enabled ? '一键强冷 开启' : trText('一键强冷 关闭'),
+        title: enabled ? trText('一键强冷 开启') : trText('一键强冷 关闭'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <circle cx="12" cy="12" r="3" />
@@ -384,7 +384,7 @@ export const OsdOverlay: React.FC = () => {
     // 6. Win Key Lock toggle
     addListener<boolean>('win-lock-state-changed', (locked) => {
       showOsd({
-        title: locked ? 'Win键 锁定' : trText('Win键 解锁'),
+        title: locked ? trText('Win键 锁定') : trText('Win键 解锁'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -399,7 +399,7 @@ export const OsdOverlay: React.FC = () => {
     // 7. Fn Key Lock toggle
     addListener<boolean>('fn-lock-state-changed', (locked) => {
       showOsd({
-        title: locked ? 'Fn键 锁定' : trText('Fn键 解锁'),
+        title: locked ? trText('Fn键 锁定') : trText('Fn键 解锁'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -414,7 +414,7 @@ export const OsdOverlay: React.FC = () => {
     // 8. Camera toggle
     addListener<boolean>('camera-state-changed', (enabled) => {
       showOsd({
-        title: enabled ? '摄像头 开启' : trText('摄像头 关闭'),
+        title: enabled ? trText('摄像头 开启') : trText('摄像头 关闭'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -429,7 +429,7 @@ export const OsdOverlay: React.FC = () => {
     // 9. Mic toggle
     addListener<boolean>('mic-state-changed', (enabled) => {
       showOsd({
-        title: enabled ? '麦克风 开启' : trText('麦克风 静音'),
+        title: enabled ? trText('麦克风 开启') : trText('麦克风 静音'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
@@ -446,7 +446,7 @@ export const OsdOverlay: React.FC = () => {
     // 10. Caps Lock toggle
     addListener<boolean>('caps-lock-changed', (isCapsOn) => {
       showOsd({
-        title: isCapsOn ? '大写锁定 开启' : trText('大写锁定 关闭'),
+        title: isCapsOn ? trText('大写锁定 开启') : trText('大写锁定 关闭'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <path d="M12 4L6 10h4v6h4v-6h4z" />
@@ -461,7 +461,7 @@ export const OsdOverlay: React.FC = () => {
     // 11. Num Lock toggle
     addListener<boolean>('num-lock-changed', (isNumOn) => {
       showOsd({
-        title: isNumOn ? '数字锁定 开启' : trText('数字锁定 关闭'),
+        title: isNumOn ? trText('数字锁定 开启') : trText('数字锁定 关闭'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -479,7 +479,7 @@ export const OsdOverlay: React.FC = () => {
     // 12. Scroll Lock toggle
     addListener<boolean>('scroll-lock-changed', (isScrollOn) => {
       showOsd({
-        title: isScrollOn ? '滚动锁定 开启' : trText('滚动锁定 关闭'),
+        title: isScrollOn ? trText('滚动锁定 开启') : trText('滚动锁定 关闭'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <rect x="4" y="2" width="16" height="20" rx="3" />
@@ -495,7 +495,7 @@ export const OsdOverlay: React.FC = () => {
     // 13. Wi-Fi toggle
     addListener<boolean>('wifi-state-changed', (enabled) => {
       showOsd({
-        title: enabled ? 'Wi-Fi 无线网 开启' : trText('Wi-Fi 无线网 关闭'),
+        title: enabled ? trText('Wi-Fi 无线网 开启') : trText('Wi-Fi 无线网 关闭'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <path d="M5 12.55a11 11 0 0 1 14.08 0" />
@@ -512,7 +512,7 @@ export const OsdOverlay: React.FC = () => {
     // 14. Bluetooth toggle
     addListener<boolean>('bluetooth-state-changed', (enabled) => {
       showOsd({
-        title: enabled ? '蓝牙 开启' : trText('蓝牙 关闭'),
+        title: enabled ? trText('蓝牙 开启') : trText('蓝牙 关闭'),
         icon: (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
             <path d="m7 7 10 10-5 5V2l5 5L7 17" />

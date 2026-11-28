@@ -66,7 +66,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               userSelect: 'none',
             }}
             onClick={onToggleAutostart}
-            title={status.autostart ? '已启用开机自启动 (最小化至托盘)' : trText('未启用开机自启')}
+            title={status.autostart ? trText('已启用开机自启动 (最小化至托盘)') : trText('未启用开机自启')}
           >
             <input
               type="checkbox"
@@ -74,9 +74,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               readOnly
               style={{ accentColor: '#38bdf8', cursor: 'pointer', margin: 0 }}
             />
-            <span style={{ color: status.autostart ? '#f1f5f9' : 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-              开机自启
-            </span>
+            <span style={{ color: status.autostart ? '#f1f5f9' : 'var(--text-dim)', whiteSpace: 'nowrap' }}> {trText('开机自启')} </span>
           </label>
 
           {/* 接管/恢复官方控制台按钮 (若机器未安装官方控制台则隐藏) */}
@@ -112,7 +110,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               ) : (
                 <Repeat size={10} />
               )}
-              <span>{status.oem_running ? '接管官方控制台' : trText('恢复官方控制台')}</span>
+              <span>{status.oem_running ? trText('接管官方控制台') : trText('恢复官方控制台')}</span>
             </button>
           )}
         </div>
@@ -173,12 +171,9 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
               </div>
             </div>
 
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
-              官方控制中心正在运行
-            </div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}> {trText('官方控制中心正在运行')} </div>
 
-            <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5, marginBottom: '16px', textAlign: 'left' }}>
-              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>{trText('屏幕持续闪烁')}</strong>{trText('，当前处于')}<strong>{trText('安全只读避让模式')}</strong>。
+            <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.5, marginBottom: '16px', textAlign: 'left' }}> {trText('检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致')}<strong>{trText('屏幕持续闪烁')}</strong>{trText('，当前处于')}<strong>{trText('安全只读避让模式')}</strong>。
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -208,7 +203,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
                 }}
               >
                 {isSwitchingService ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-                <span>{isSwitchingService ? '正在接管服务并释放硬件...' : trText('立即一键接管官方服务')}</span>
+                <span>{isSwitchingService ? trText('正在接管服务并释放硬件...') : trText('立即一键接管官方服务')}</span>
               </button>
 
               <button
@@ -222,9 +217,7 @@ export const DrawerFooter: React.FC<DrawerFooterProps> = ({
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   cursor: 'pointer',
                 }}
-              >
-                暂不接管，保持只读监控
-              </button>
+              > {trText('暂不接管，保持只读监控')} </button>
             </div>
           </div>
         </div>

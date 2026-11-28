@@ -226,9 +226,9 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
       const max = validSteps[0] || 1;
       let name = '';
       if (validSteps.length === 2) {
-        name = lvl === 2 ? '100% 强光' : trText('50% 弱光');
+        name = lvl === 2 ? trText('100% 强光') : trText('50% 弱光');
       } else if (validSteps.length === 3) {
-        name = lvl === 3 ? '100% 满亮' : lvl === 2 ? '60% 柔和' : trText('30% 微光');
+        name = lvl === 3 ? trText('100% 满亮') : lvl === 2 ? trText('60% 柔和') : trText('30% 微光');
       } else {
         const pct = Math.round((lvl / max) * 100);
         name = lvl === max ? `${pct}% 满亮` : `${pct}% 档位`;
@@ -407,9 +407,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
             <span>{trText('键盘背光休眠延时')}</span>
           </div>
 
-          <div className="m-header-right" style={{ color: 'var(--theme-kbd)', fontSize: '10px' }}>
-            Fn+F8 硬件调光
-          </div>
+          <div className="m-header-right" style={{ color: 'var(--theme-kbd)', fontSize: '10px' }}> {trText('Fn+F8 硬件调光')} </div>
         </div>
 
         <div className="m-grid-4">
@@ -433,7 +431,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
                   : {}
               }
               onClick={() => handleSetTimeout(item.sec)}
-              title={item.sec === 0 ? '背光常亮不灭' : `无人操作 ${item.label} 后自动熄灭节能`}
+              title={item.sec === 0 ? trText('背光常亮不灭') : `无人操作 ${item.label} 后自动熄灭节能`}
             >
               <span style={{ fontSize: '11px', fontWeight: 600 }}>{item.label}</span>
             </button>
@@ -460,7 +458,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
                   fontWeight: 600,
                 }}
               >
-                {isSingleColor ? '单色白光' : isSingleZone ? '单区RGB' : trText('全彩RGB')}
+                {isSingleColor ? trText('单色白光') : isSingleZone ? trText('单区RGB') : trText('全彩RGB')}
               </span>
             )}
           </div>
@@ -516,7 +514,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
                   setShowKbdModeMenu(false);
                   setShowKbdColorMenu(false);
                 }}
-                title={isKbdTurnedOn ? "选择单色白光背光亮度档位" : "背光已关闭，点击选择档位开启照明"}
+                title={isKbdTurnedOn ? trText("选择单色白光背光亮度档位") : "背光已关闭，点击选择档位开启照明"}
               >
                 <span>{isKbdTurnedOn ? `档位 ${currentSingleColorLevel}档` : trText('已灭灯')}</span>
                 <ChevronDown size={11} style={{ opacity: 0.7, flexShrink: 0, marginLeft: '3px' }} />
@@ -611,7 +609,7 @@ export const DrawerLightingCard: React.FC<DrawerLightingCardProps> = ({
                 justifyContent: 'center',
                 gap: '4px',
               }}
-              title="展开控制中心大面板并直达 RGB 灯效工坊"
+              title={trText(trText("展开控制中心大面板并直达 RGB 灯效工坊"))}
               onClick={() => onExpandDashboard('lighting')}
             >
               <Palette size={12} />

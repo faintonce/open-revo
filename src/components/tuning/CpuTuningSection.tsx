@@ -112,7 +112,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
       <div className="tuning-header">
         <div className="tuning-header-title" style={{ color: 'var(--color-balance)' }}>
           <Cpu className="w-4 h-4" />
-          <span>{isAmdPlatform ? 'AMD CPU 功耗与温控' : trText('CPU 功耗与温控')}</span>
+          <span>{isAmdPlatform ? trText('AMD CPU 功耗与温控') : trText('CPU 功耗与温控')}</span>
         </div>
       </div>
 
@@ -128,9 +128,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
             color: 'var(--text-dim)',
             lineHeight: 1.4,
           }}
-        >
-          当前机型为轻薄本架构，不支持自定义 CPU 功耗限制与温度墙调节。功耗由预设模式自动调度。
-        </div>
+        > {trText('当前机型为轻薄本架构，不支持自定义 CPU 功耗限制与温度墙调节。功耗由预设模式自动调度。')} </div>
       )}
 
       {/* Controls Container (dimmed & pointer-events disabled when tuning is unsupported) */}
@@ -150,7 +148,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
             <div className="tuning-row">
               <div className="tuning-row-header">
                 <span className="tuning-row-label">
-                  {isAmdPlatform ? '温度墙上限 (TjMax):' : trText('温度墙上限:')}
+                  {isAmdPlatform ? trText('温度墙上限 (TjMax):') : trText('温度墙上限:')}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span
@@ -189,7 +187,7 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
                       transition: 'all var(--transition-fast)',
                     }}
                   >
-                    {tempTargetEnabled ? '已开启' : trText('关闭')}
+                    {tempTargetEnabled ? trText('已开启') : trText('关闭')}
                   </button>
                 </div>
               </div>
@@ -263,9 +261,9 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
 
       {/* PL1 Long Duration / AMD SPL */}
       <CpuPlSliderRow
-        label={isAmdPlatform ? '长时持续功耗 (SPL):' : trText('长时功耗 PL1:')}
-        hint={isAmdPlatform ? '等效 PL1' : undefined}
-        tooltip={isAmdPlatform ? 'AMD Sustained Power Limit (持续稳定功耗，等效 Intel PL1)' : 'Intel Long Duration Power Limit (PL1)'}
+        label={isAmdPlatform ? trText('长时持续功耗 (SPL):') : trText('长时功耗 PL1:')}
+        hint={isAmdPlatform ? trText('等效 PL1') : undefined}
+        tooltip={isAmdPlatform ? trText('AMD Sustained Power Limit (持续稳定功耗，等效 Intel PL1)') : 'Intel Long Duration Power Limit (PL1)'}
         value={pl1}
         onChange={onChangePl1}
         min={minPl}
@@ -278,9 +276,9 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
 
       {/* PL2 Short Duration / AMD sPPT */}
       <CpuPlSliderRow
-        label={isAmdPlatform ? '短时爆发功耗 (sPPT):' : trText('短时功耗 PL2:')}
-        hint={isAmdPlatform ? '等效 PL2' : undefined}
-        tooltip={isAmdPlatform ? 'AMD Slow Package Power Tracking (通常持续 28 秒的高负荷爆发功耗，等效 Intel PL2)' : 'Intel Short Duration Power Limit (PL2)'}
+        label={isAmdPlatform ? trText('短时爆发功耗 (sPPT):') : trText('短时功耗 PL2:')}
+        hint={isAmdPlatform ? trText('等效 PL2') : undefined}
+        tooltip={isAmdPlatform ? trText('AMD Slow Package Power Tracking (通常持续 28 秒的高负荷爆发功耗，等效 Intel PL2)') : 'Intel Short Duration Power Limit (PL2)'}
         value={pl2}
         onChange={onChangePl2}
         min={minPl}
@@ -293,8 +291,8 @@ export const CpuTuningSection: React.FC<CpuTuningSectionProps> = ({
 
       {/* PL4 Peak Power / AMD fPPT */}
       <CpuPlSliderRow
-        label={isAmdPlatform ? '极速峰值 (fPPT):' : trText('瞬时峰值 PL4:')}
-        hint={isAmdPlatform ? (!cpuSupportsFppt ? '未开放 (硬件由SPL管理)' : trText('等效 PL4')) : undefined}
+        label={isAmdPlatform ? trText('极速峰值 (fPPT):') : trText('瞬时峰值 PL4:')}
+        hint={isAmdPlatform ? (!cpuSupportsFppt ? trText('未开放 (硬件由SPL管理)') : trText('等效 PL4')) : undefined}
         tooltip={
           isAmdPlatform
             ? (!cpuSupportsFppt

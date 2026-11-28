@@ -271,8 +271,8 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '0.03em', margin: 0, color: 'var(--text-primary)' }}>
               {hasDgpu
-                ? (isTriModeSupported ? '显卡模式 (双显三模)' : trText('显卡模式 (双显双模)'))
-                : (hasPhysicalDgpu ? '显卡架构 (独显混合输出架构)' : trText('显卡架构 (纯核显轻薄架构)'))}
+                ? (isTriModeSupported ? trText('显卡模式 (双显三模)') : trText('显卡模式 (双显双模)'))
+                : (hasPhysicalDgpu ? trText('显卡架构 (独显混合输出架构)') : trText('显卡架构 (纯核显轻薄架构)'))}
             </h2>
           </div>
           <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
@@ -319,8 +319,8 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
             <h3 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '0.03em' }}>
               {hasDgpu
-                ? (isTriModeSupported ? '主板原生硬件 MUX 切换架构' : trText('主板双显双模安全保护架构'))
-                : (hasPhysicalDgpu ? 'NVIDIA Optimus 动态混合协同架构' : trText('高能效纯核显轻薄架构 (iGPU Only)'))}
+                ? (isTriModeSupported ? trText('主板原生硬件 MUX 切换架构') : trText('主板双显双模安全保护架构'))
+                : (hasPhysicalDgpu ? trText('NVIDIA Optimus 动态混合协同架构') : trText('高能效纯核显轻薄架构 (iGPU Only)'))}
             </h3>
             <span style={{ fontSize: '10px', color: isIntel ? '#60a5fa' : '#fb923c', fontWeight: 700 }}>
               [{isIntel ? 'Intel' : 'AMD'} 平台架构]
@@ -329,19 +329,13 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
           <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
             {hasDgpu ? (
               <div>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{trText('物理硬件重构：')}</span>
-                自检过程重配 PCIe 通道与屏幕物理开关，彻底杜绝驱动崩溃、掉帧与卡顿。
-              </div>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{trText('物理硬件重构：')}</span> {trText('自检过程重配 PCIe 通道与屏幕物理开关，彻底杜绝驱动崩溃、掉帧与卡顿。')} </div>
             ) : hasPhysicalDgpu ? (
               <div>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{trText('动态混合协同：')}</span>
-                轻载静音省电，高负载自动调用物理独显硬件加速。主板无物理 MUX 切换芯片，无需手动重启切换。
-              </div>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{trText('动态混合协同：')}</span> {trText('轻载静音省电，高负载自动调用物理独显硬件加速。主板无物理 MUX 切换芯片，无需手动重启切换。')} </div>
             ) : (
               <div>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{trText('原生核显直驱：')}</span>
-                图形与显示信号由 CPU 内建的高能效核显统一接管，无需且不支持 MUX 物理切换。
-              </div>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{trText('原生核显直驱：')}</span> {trText('图形与显示信号由 CPU 内建的高能效核显统一接管，无需且不支持 MUX 物理切换。')} </div>
             )}
           </div>
         </div>
@@ -399,7 +393,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
           desc: !hasPhysicalDgpu
             ? trText('当前机型为轻薄本架构，未搭载独立显卡硬件，独显直连通道不可用。')
             : trText('独立显卡物理直连内置屏幕。避开核显中转，发挥极致电竞帧率与超低延迟。'),
-          titleText: !hasPhysicalDgpu ? '独显直连 (无硬件)' : trText('独显直连'),
+          titleText: !hasPhysicalDgpu ? trText('独显直连 (无硬件)') : trText('独显直连'),
           isActive: hasPhysicalDgpu && gpuInfo.current_mode === 'dgpu',
           isDisabled: !hasPhysicalDgpu || !hasDgpu,
           disabledBadge: !hasPhysicalDgpu ? (
@@ -435,7 +429,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
           desc: !hasPhysicalDgpu
             ? trText('当前机型为纯核显直驱架构，无外部独立显卡介入加速，混合通道不可用。')
             : trText('轻载时核显输出以省电静音，高负载 3D 图形与游戏时自动介入独显加速。'),
-          titleText: !hasPhysicalDgpu ? '混合输出 (无硬件)' : trText('混合输出'),
+          titleText: !hasPhysicalDgpu ? trText('混合输出 (无硬件)') : trText('混合输出'),
           isActive: hasPhysicalDgpu && gpuInfo.current_mode === 'hybrid',
           isDisabled: !hasPhysicalDgpu || !hasDgpu,
           disabledBadge: !hasPhysicalDgpu ? (
@@ -473,7 +467,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
             : (!isTriModeSupported
                 ? trText('当前模具硬件为双模架构，无物理核显直连开关。已锁定保护以彻底防止开机黑屏死锁。')
                 : trText('彻底切断独立显卡 PCIe 供电与待机功耗，极致降低整机能耗与发热，极大提升续航。')),
-          titleText: !hasPhysicalDgpu ? '原生核显直出' : (!isTriModeSupported ? '核显模式 (双模锁定)' : trText('核显模式')),
+          titleText: !hasPhysicalDgpu ? trText('原生核显直出') : (!isTriModeSupported ? trText('核显模式 (双模锁定)') : trText('核显模式')),
           isActive: !hasPhysicalDgpu || (isTriModeSupported && gpuInfo.current_mode === 'igpu'),
           isDisabled: hasPhysicalDgpu && !isTriModeSupported,
           disabledBadge: hasPhysicalDgpu && !isTriModeSupported ? (
@@ -519,7 +513,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
             </div>
           ) : undefined),
           activeBadgeColor: '#34d399',
-          activeBadgeText: !hasPhysicalDgpu ? '原生核显生效中' : trText('硬件生效中'),
+          activeBadgeText: !hasPhysicalDgpu ? trText('原生核显生效中') : trText('硬件生效中'),
         })}
       </div>
     ) : (
@@ -553,9 +547,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                混合输出模式 (NVIDIA Optimus)
-              </span>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}> {trText('混合输出模式 (NVIDIA Optimus)')} </span>
               <span
                 style={{
                   fontSize: '10px',
@@ -566,13 +558,9 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
                   borderRadius: '4px',
                   padding: '1px 6px',
                 }}
-              >
-                硬件生效中
-              </span>
+              > {trText('硬件生效中')} </span>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: 1.5 }}>
-              当前机型为独显混合输出架构（由核显直连屏幕输出，独立显卡负责高性能 3D 加速）。主板硬件未设计 MUX 物理切换开关，固定由 Windows 与显卡驱动自动协同调度，无需手动切换，杜绝任何切换黑屏与死机风险。下方亮度控制、色彩增强与 ICC 校色均可正常调节。
-            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: 1.5 }}> {trText('当前机型为独显混合输出架构（由核显直连屏幕输出，独立显卡负责高性能 3D 加速）。主板硬件未设计 MUX 物理切换开关，固定由 Windows 与显卡驱动自动协同调度，无需手动切换，杜绝任何切换黑屏与死机风险。下方亮度控制、色彩增强与 ICC 校色均可正常调节。')} </div>
           </div>
         </div>
         <div
@@ -583,9 +571,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
             whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
-        >
-          无物理 MUX 开关 (自动协同)
-        </div>
+        > {trText('无物理 MUX 开关 (自动协同)')} </div>
       </div>
     )}
 
@@ -624,12 +610,8 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
                   <RotateCcw className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    切换显卡模式提示
-                  </h3>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-                    机械革命原厂 UEFI 硬件总线配置变更
-                  </p>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}> {trText('切换显卡模式提示')} </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}> {trText('机械革命原厂 UEFI 硬件总线配置变更')} </p>
                 </div>
               </div>
               {!loading && !rebooting && (
@@ -679,12 +661,8 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
               <div>
                 切换至【<strong style={{ color: 'var(--text-primary)' }}>{pendingSwitch.targetTitle}</strong>】涉及显示内屏物理走线 MUX 芯片重配，需要通过系统重启由主板 BIOS POST 阶段生效。
               </div>
-              <div style={{ marginTop: '6px', color: 'var(--status-info)', fontSize: '11px', fontWeight: 600 }}>
-                🛡️ OpenRevo 强化防黑屏保护：重启前自动唤醒核显供电总线、刷新 PnP 设备树并执行 SPI NVRAM 稳定写入，跳过快速启动陷阱。
-              </div>
-              <div style={{ marginTop: '4px', color: 'var(--text-muted)', fontSize: '10.5px' }}>
-                💡 极客急救锦囊：若个别机型在极端情况下重启遭遇黑屏，长按电源键 15 秒即可彻底复位 EC/BIOS 恢复默认显示。
-              </div>
+              <div style={{ marginTop: '6px', color: 'var(--status-info)', fontSize: '11px', fontWeight: 600 }}> {trText('🛡️ OpenRevo 强化防黑屏保护：重启前自动唤醒核显供电总线、刷新 PnP 设备树并执行 SPI NVRAM 稳定写入，跳过快速启动陷阱。')} </div>
+              <div style={{ marginTop: '4px', color: 'var(--text-muted)', fontSize: '10.5px' }}> {trText('💡 极客急救锦囊：若个别机型在极端情况下重启遭遇黑屏，长按电源键 15 秒即可彻底复位 EC/BIOS 恢复默认显示。')} </div>
             </div>
 
             {/* Actions */}
@@ -712,7 +690,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
                 }}
               >
                 <RotateCcw className={`w-4 h-4 ${rebooting ? 'animate-spin' : ''}`} />
-                <span>{rebooting ? '正在平稳安全重启...' : trText('立即平稳重启 (推荐)')}</span>
+                <span>{rebooting ? trText('正在平稳安全重启...') : trText('立即平稳重启 (推荐)')}</span>
               </button>
 
               <button
@@ -749,9 +727,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
                         color: 'var(--text-muted)', fontSize: '12px',
                         cursor: 'pointer', transition: 'color 0.2s ease',
                       }}
-                    >
-                      取消
-                    </button>
+                    > {trText('取消')} </button>
                   )}
             </div>
           </div>
@@ -820,9 +796,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
                   onChange={(e) => setGeekConfirmedRisk(e.target.checked)}
                   style={{ marginTop: '2px', cursor: 'pointer' }}
                 />
-                <span>
-                  我已在主板 BIOS 中亲眼确认具备纯核显选项，已知晓黑屏变砖风险并自愿承担硬件后果。
-                </span>
+                <span> {trText('我已在主板 BIOS 中亲眼确认具备纯核显选项，已知晓黑屏变砖风险并自愿承担硬件后果。')} </span>
               </label>
             </div>
 
@@ -833,9 +807,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
                   setGeekConfirmedRisk(false);
                 }}
                 className="toggle-btn"
-              >
-                取消 (推荐保持安全锁定)
-              </button>
+              > {trText('取消 (推荐保持安全锁定)')} </button>
               <button
                 disabled={!geekConfirmedRisk}
                 onClick={() => {
@@ -848,9 +820,7 @@ export const GpuModeCards: React.FC<GpuModeCardsProps> = ({
                   opacity: geekConfirmedRisk ? 1 : 0.45,
                   cursor: geekConfirmedRisk ? 'pointer' : 'not-allowed',
                 }}
-              >
-                强制解除保护锁定 (自负风险)
-              </button>
+              > {trText('强制解除保护锁定 (自负风险)')} </button>
             </div>
           </div>
         </div>

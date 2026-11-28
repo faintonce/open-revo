@@ -31,6 +31,16 @@ const DEFAULT_LOCALES: LocaleMetaOption[] = [
 ];
 
 const ZH_TO_KEY_MAP = new Map<string, string>();
+const PREFERRED_FIRST = ['overview', 'drawer', 'tuning', 'lighting', 'gpu', 'power', 'water', 'plugins', 'system', 'sponsor', 'shell', 'common', 'web'];
+for (const mod of PREFERRED_FIRST) {
+  const sec = (zhCN as Record<string, any>)[mod];
+  if (!sec || typeof sec !== 'object') continue;
+  for (const [k, v] of Object.entries(sec)) {
+    if (typeof v === 'string' && !ZH_TO_KEY_MAP.has(v)) {
+      ZH_TO_KEY_MAP.set(v, `${mod}.${k}`);
+    }
+  }
+}
 for (const [mod, sec] of Object.entries(zhCN as Record<string, any>)) {
   if (mod === '_meta' || !sec || typeof sec !== 'object') continue;
   for (const [k, v] of Object.entries(sec)) {

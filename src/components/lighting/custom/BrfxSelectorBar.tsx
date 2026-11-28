@@ -72,9 +72,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            动效脚本:
-          </span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}> {trText('动效脚本:')} </span>
           <select
             value={activeScriptId}
             onChange={(e) => onSelectScript(e.target.value)}
@@ -103,7 +101,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             type="button"
             onClick={handleRefreshClick}
             disabled={isRefreshing}
-            title="从本地目录重新读取脚本文件，立即加载外部修改"
+            title={trText(trText("从本地目录重新读取脚本文件，立即加载外部修改"))}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -128,7 +126,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
           <button
             type="button"
             onClick={onViewSource}
-            title="查看源码：在记事本中打开或直接复制纯文本喂给各大 AI 助手改写/生成新特效"
+            title={trText(trText("查看源码：在记事本中打开或直接复制纯文本喂给各大 AI 助手改写/生成新特效"))}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -154,7 +152,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              title="导入外部 .brfx 动效脚本文件"
+              title={trText(trText("导入外部 .brfx 动效脚本文件"))}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -176,7 +174,7 @@ export const BrfxSelectorBar: React.FC<BrfxSelectorBarProps> = ({
             <button
               type="button"
               onClick={onExport}
-              title="将当前调整后的脚本与参数导出为 .brfx 文件"
+              title={trText(trText("将当前调整后的脚本与参数导出为 .brfx 文件"))}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

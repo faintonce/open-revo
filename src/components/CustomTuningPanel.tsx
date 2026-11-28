@@ -969,9 +969,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
                 color: 'var(--text-main)',
                 marginBottom: '8px',
               }}
-            >
-              当前机型尚未适配硬件契约
-            </div>
+            > {trText('当前机型尚未适配硬件契约')} </div>
             <div
               style={{
                 fontSize: '13px',
@@ -979,9 +977,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
                 lineHeight: 1.6,
                 maxWidth: '460px',
               }}
-            >
-              为保障硬件与供电安全，OpenRevo 已自动启用硬件只读保护，暂不支持对未适配机型下发功耗控制与风扇曲线调节。
-            </div>
+            > {trText('为保障硬件与供电安全，OpenRevo 已自动启用硬件只读保护，暂不支持对未适配机型下发功耗控制与风扇曲线调节。')} </div>
           </div>
         ) : (
           /* 3-Column Grid with Comfortable Padding */
@@ -1173,9 +1169,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
           >
             <span style={{ fontSize: '13px', lineHeight: 1 }}>⚠️</span>
             <span>
-              <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{trText('免责声明：')}</strong>
-              OpenRevo 仅提供底层硬件操控能力，参数配置权完全归属用户。超出出厂规格的极限功耗、温控或频率偏移可能导致硬件保护性黑屏、断电或重置，请根据整机散热与供电合理调校，相关风险由操作者自负。
-            </span>
+              <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{trText('免责声明：')}</strong> {trText('OpenRevo 仅提供底层硬件操控能力，参数配置权完全归属用户。超出出厂规格的极限功耗、温控或频率偏移可能导致硬件保护性黑屏、断电或重置，请根据整机散热与供电合理调校，相关风险由操作者自负。')} </span>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
@@ -1208,9 +1202,7 @@ export const CustomTuningPanel: React.FC<CustomTuningPanelProps> = ({
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
                   e.currentTarget.style.color = '#cbd5e1';
                 }}
-              >
-                关闭
-              </button>
+              > {trText('关闭')} </button>
             )}
           </div>
         </div>

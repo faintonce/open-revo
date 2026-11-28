@@ -231,8 +231,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <TrendingUp size={13} style={{ color: 'var(--status-info)' }} /> 自适应温控曲线 (Fan Duty & Pump Voltage vs Temp)
-          </span>
+            <TrendingUp size={13} style={{ color: 'var(--status-info)' }} /> {trText('自适应温控曲线 (Fan Duty & Pump Voltage vs Temp)')} </span>
           <span
             style={{
               fontSize: '8.5px',
@@ -243,9 +242,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
               borderRadius: 'var(--radius-xs)',
               fontWeight: 700,
             }}
-          >
-            支持节点与水泵阈值拖拽
-          </span>
+          > {trText('支持节点与水泵阈值拖拽')} </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '9px', color: 'var(--text-muted)' }}>
@@ -311,8 +308,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
             fill="rgba(16, 185, 129, 0.04)"
           />
           {xStart - startX > 65 && (
-            <text x={startX + 8} y="42" fill="#34d399" fontSize="9" fontWeight="700" opacity="0.7">
-              低温停转区 (&lt;{displayStart}°C)
+            <text x={startX + 8} y="42" fill="#34d399" fontSize="9" fontWeight="700" opacity="0.7"> {trText('低温停转区 (&lt;')}{displayStart}°C)
             </text>
           )}
 
@@ -337,8 +333,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
             fill="rgba(244, 63, 94, 0.08)"
           />
           {endX - xTurbo > 65 && (
-            <text x={xTurbo + 8} y="42" fill="#f43f5e" fontSize="9" fontWeight="700" opacity="0.85">
-              水泵极限狂暴区 (≥{displayTurbo}°C)
+            <text x={xTurbo + 8} y="42" fill="#f43f5e" fontSize="9" fontWeight="700" opacity="0.85"> {trText('水泵极限狂暴区 (≥')}{displayTurbo}°C)
             </text>
           )}
 
@@ -361,11 +356,9 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
             );
           })}
           <text x={xStart} y="134" fill="#34d399" fontSize="9" fontWeight="800" textAnchor="middle">
-            {displayStart}°启泵
-          </text>
+            {displayStart}{trText('°启泵')} </text>
           <text x={xTurbo} y="134" fill="#f43f5e" fontSize="9" fontWeight="800" textAnchor="middle">
-            {displayTurbo}°狂暴
-          </text>
+            {displayTurbo}{trText('°狂暴')} </text>
 
           {/* 填充面积与平滑折线 */}
           <path d={curveAreaD} fill="url(#coolerFanFill)" />
@@ -421,8 +414,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
                 strokeWidth={activeDragPump === 'start' ? 1.4 : 0.8}
               />
               <text x="0" y="10" fill="#ffffff" fontSize="8.5" fontWeight="700" textAnchor="middle">
-                {displayStart}° 启泵
-              </text>
+                {displayStart}{trText('° 启泵')} </text>
             </g>
             {/* 中间握持滑块 Thumb */}
             <g transform={`translate(${xStart}, 64)`}>
@@ -477,8 +469,7 @@ export const CoolerCurvePanel: React.FC<CoolerCurvePanelProps> = ({
                 strokeWidth={activeDragPump === 'turbo' ? 1.4 : 0.8}
               />
               <text x="0" y="10" fill="#ffffff" fontSize="8.5" fontWeight="700" textAnchor="middle">
-                {displayTurbo}° 狂暴
-              </text>
+                {displayTurbo}{trText('° 狂暴')} </text>
             </g>
             {/* 中间握持滑块 Thumb */}
             <g transform={`translate(${xTurbo}, 64)`}>

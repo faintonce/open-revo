@@ -59,16 +59,14 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Sliders size={13} style={{ color: 'var(--color-brand)' }} />
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            上位通用参数微调 (实时映射物理键盘)
-          </span>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}> {trText('上位通用参数微调 (实时映射物理键盘)')} </span>
         </div>
 
         <button
           type="button"
           onClick={onReset}
           disabled={!isModified}
-          title="恢复至当前脚本载入时的初始默认参数"
+          title={trText(trText("恢复至当前脚本载入时的初始默认参数"))}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -101,9 +99,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
-              <Zap size={12} style={{ color: 'var(--status-info)' }} />
-              动效流速
-            </span>
+              <Zap size={12} style={{ color: 'var(--status-info)' }} /> {trText('动效流速')} </span>
             <span style={{ color: 'var(--status-info)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
               {values.speed.toFixed(1)}x
             </span>
@@ -123,9 +119,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
-              <Maximize2 size={12} style={{ color: 'var(--color-brand)' }} />
-              空间尺度 / 扩散
-            </span>
+              <Maximize2 size={12} style={{ color: 'var(--color-brand)' }} /> {trText('空间尺度 / 扩散')} </span>
             <span style={{ color: 'var(--color-brand)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
               {Math.round(values.scale * 100)}%
             </span>
@@ -156,9 +150,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
       >
         {/* Direction Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-            流动方向:
-          </span>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}> {trText('流动方向:')} </span>
           <div style={{ display: 'flex', gap: '4px' }}>
             {[
               { id: 0, icon: ArrowRight, label: trText('从左至右') },
@@ -220,7 +212,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
             }}
           >
             <Activity size={13} />
-            <span>击键互动: {values.reactive ? '开启' : trText('关闭')}</span>
+            <span>击键互动: {values.reactive ? trText('开启') : trText('关闭')}</span>
           </button>
         </div>
       </div>
@@ -237,9 +229,7 @@ export const BrfxTuningPanel: React.FC<BrfxTuningPanelProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Palette size={13} style={{ color: 'var(--color-brand)' }} />
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-            定制主色调:
-          </span>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}> {trText('定制主色调:')} </span>
           <div style={{ display: 'flex', gap: '6px' }}>
             {PRESET_COLORS.map((c) => {
               const active = values.color.toLowerCase() === c.hex.toLowerCase();

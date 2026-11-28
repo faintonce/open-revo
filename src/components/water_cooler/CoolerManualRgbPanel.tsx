@@ -36,8 +36,7 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
         {/* 左侧：水泵电压手动挡 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <Zap size={11} className="text-cyan-400 cooler-pump-icon" /> 水泵档位：
-          </span>
+            <Zap size={11} className="text-cyan-400 cooler-pump-icon" /> {trText('水泵档位：')} </span>
           <div style={{ display: 'flex', gap: '5px' }}>
             {[
               { tier: 0, label: trText('停泵'), desc: trText('完全关闭 (0%)') },
@@ -84,8 +83,7 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
         {/* 右侧：冷排风扇手动滑块 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <Fan size={11} className="text-purple-400 cooler-fan-icon" /> 冷排风扇目标转速 (Duty)：
-          </span>
+            <Fan size={11} className="text-purple-400 cooler-fan-icon" /> {trText('冷排风扇目标转速 (Duty)：')} </span>
           <input
             type="range"
             min="0"
@@ -123,9 +121,7 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
               onClick={() => onUpdateCoolerLed(!coolerData.led_on)}
               style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none' }}
               title="点击开关水冷 RGB 灯效"
-            >
-              水箱与冷排 RGB 灯效：
-            </span>
+            > {trText('水箱与冷排 RGB 灯效：')} </span>
             <RevSwitch
               checked={coolerData.led_on}
               onChange={(checked) => onUpdateCoolerLed(checked)}
@@ -177,7 +173,7 @@ export const CoolerManualRgbPanel: React.FC<CoolerManualRgbPanelProps> = ({
                 <div
                   key={c.name}
                   onClick={() => onUpdateCoolerLed(true, c.r, c.g, c.b, 1)}
-                  title={c.name}
+                  title={trText(c.name)}
                   style={{
                     width: '16px',
                     height: '16px',

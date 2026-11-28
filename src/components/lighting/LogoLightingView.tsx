@@ -72,9 +72,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
       />
 
       <div>
-        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-          LOGO 发光模式 (Logo Modes)
-        </div>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}> {trText('LOGO 发光模式 (Logo Modes)')} </div>
         <div
           style={{
             display: 'grid',
@@ -101,7 +99,7 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
                 }}
               >
                 <div style={{ fontSize: '13px', fontWeight: 700, color: isActive ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {m.name}
+                  {trText(m.name)}
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>{m.desc}</div>
               </button>
@@ -124,11 +122,9 @@ export const LogoLightingView: React.FC<LogoLightingViewProps> = ({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
-                <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} />
-                LOGO 发光亮度
-              </span>
+                <Sun className="w-3.5 h-3.5" style={{ color: 'var(--status-warn)' }} /> {trText('LOGO 发光亮度')} </span>
               <span style={{ color: 'var(--color-beast)', fontWeight: 700 }}>
-                {lighting.logo_brightness === 0 ? '关闭 (0)' : `${lighting.logo_brightness} 档`}
+                {lighting.logo_brightness === 0 ? trText('关闭 (0)') : `${lighting.logo_brightness} 档`}
               </span>
             </div>
             <input

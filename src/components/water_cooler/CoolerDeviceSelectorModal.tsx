@@ -85,14 +85,13 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
             gap: '3px',
           }}
         >
-          <Signal size={11} /> 离线/未广播
-        </span>
+          <Signal size={11} /> {trText('离线/未广播')} </span>
       );
     }
     const isStrong = rssi >= -65;
     const isMedium = rssi >= -80 && rssi < -65;
     const color = isStrong ? 'var(--status-ok)' : isMedium ? 'var(--status-info)' : 'var(--status-warning)';
-    const text = isStrong ? '信号极强 (推荐本机)' : isMedium ? '信号良好' : trText('信号较弱 (疑似邻机)');
+    const text = isStrong ? trText('信号极强 (推荐本机)') : isMedium ? trText('信号良好') : trText('信号较弱 (疑似邻机)');
 
     return (
       <span
@@ -128,9 +127,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
             </div>
             <div>
               <div className="sys-modal-title">{trText('专属水冷魔盒匹配与防串连绑定')}</div>
-              <div className="sys-modal-subtitle">
-                多台电脑在同一局域空间时，请绑定选择专属水冷箱以防止误连邻机
-              </div>
+              <div className="sys-modal-subtitle"> {trText('多台电脑在同一局域空间时，请绑定选择专属水冷箱以防止误连邻机')} </div>
             </div>
           </div>
           <button
@@ -155,8 +152,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
               marginBottom: '10px',
             }}
           >
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              发现水冷设备: <strong>{devices.length}</strong> 台
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}> {trText('发现水冷设备:')} <strong>{devices.length}</strong> 台
             </span>
             <button
               type="button"
@@ -172,7 +168,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
               }}
             >
               <RefreshCw size={12} className={isScanning ? 'animate-spin' : ''} />
-              <span>{isScanning ? '正在扫描周围 BLE 设备...' : trText('重新扫描设备')}</span>
+              <span>{isScanning ? trText('正在扫描周围 BLE 设备...') : trText('重新扫描设备')}</span>
             </button>
           </div>
 
@@ -242,8 +238,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                             gap: '3px',
                           }}
                         >
-                          <CheckCircle2 size={10} /> 当前锁定
-                        </span>
+                          <CheckCircle2 size={10} /> {trText('当前锁定')} </span>
                       )}
                       {dev.is_paired && (
                         <span
@@ -255,9 +250,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                             color: 'var(--text-secondary)',
                             border: '1px solid var(--border-subtle)',
                           }}
-                        >
-                          Windows已配对
-                        </span>
+                        > {trText('Windows已配对')} </span>
                       )}
                     </div>
 
@@ -290,9 +283,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                           borderColor: 'rgba(16, 185, 129, 0.4)',
                         }}
                       >
-                        <Lock size={12} style={{ marginRight: '4px' }} />
-                        专属受控中
-                      </button>
+                        <Lock size={12} style={{ marginRight: '4px' }} /> {trText('专属受控中')} </button>
                     ) : (
                       <button
                         type="button"
@@ -309,14 +300,10 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                       >
                         {isBusy ? (
                           <>
-                            <Loader2 size={12} className="animate-spin" />
-                            正在切换...
-                          </>
+                            <Loader2 size={12} className="animate-spin" /> {trText('正在切换...')} </>
                         ) : (
                           <>
-                            <Bluetooth size={12} />
-                            绑定并连接
-                          </>
+                            <Bluetooth size={12} /> {trText('绑定并连接')} </>
                         )}
                       </button>
                     )}
@@ -336,9 +323,7 @@ export const CoolerDeviceSelectorModal: React.FC<CoolerDeviceSelectorModalProps>
                   borderRadius: 'var(--radius-md)',
                   border: '1px dashed var(--border-subtle)',
                 }}
-              >
-                未发现可用水冷设备。请确认水冷机接通电源且水箱指示灯点亮。
-              </div>
+              > {trText('未发现可用水冷设备。请确认水冷机接通电源且水箱指示灯点亮。')} </div>
             )}
           </div>
         </div>

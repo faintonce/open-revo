@@ -66,9 +66,7 @@ export const CpuBiosOcRow: React.FC<CpuBiosOcRowProps> = ({
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-          高级 BIOS 超频菜单
-        </span>
+        <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px', whiteSpace: 'nowrap' }}> {trText('高级 BIOS 超频菜单')} </span>
         <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
           {descText}
         </div>

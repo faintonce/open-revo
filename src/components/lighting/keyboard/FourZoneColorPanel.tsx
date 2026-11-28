@@ -39,15 +39,13 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Palette className="w-4 h-4" style={{ color: 'var(--status-info)' }} />
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            4 分区独立调色面板 (048D:CE00 专属):
-          </span>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}> {trText('4 分区独立调色面板 (048D:CE00 专属):')} </span>
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
             type="button"
             onClick={() => onApplyZonePreset([mainColor, mainColor, mainColor, mainColor])}
-            title="将当前主色调应用到全部 4 个分区"
+            title={trText(trText("将当前主色调应用到全部 4 个分区"))}
             style={{
               padding: '3px 8px',
               fontSize: '11px',
@@ -58,13 +56,11 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
               cursor: 'pointer',
               fontWeight: 600,
             }}
-          >
-            一键同步主色
-          </button>
+          > {trText('一键同步主色')} </button>
           <button
             type="button"
             onClick={() => onApplyZonePreset(['#00FFFF', '#0000FF', '#FF00FF', '#FF0000'])}
-            title="预设：霓虹幻彩四区"
+            title={trText(trText("预设：霓虹幻彩四区"))}
             style={{
               padding: '3px 8px',
               fontSize: '11px',
@@ -74,13 +70,11 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
               color: 'var(--text-muted)',
               cursor: 'pointer',
             }}
-          >
-            霓虹幻彩
-          </button>
+          > {trText('霓虹幻彩')} </button>
           <button
             type="button"
             onClick={() => onApplyZonePreset(['#FF0055', '#FF0055', '#00D4FF', '#00D4FF'])}
-            title="预设：红蓝对冲"
+            title={trText(trText("预设：红蓝对冲"))}
             style={{
               padding: '3px 8px',
               fontSize: '11px',
@@ -90,13 +84,11 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
               color: 'var(--text-muted)',
               cursor: 'pointer',
             }}
-          >
-            红蓝对冲
-          </button>
+          > {trText('红蓝对冲')} </button>
           <button
             type="button"
             onClick={() => onApplyZonePreset(['#10B981', '#059669', '#34D399', '#6EE7B7'])}
-            title="预设：极客矩阵"
+            title={trText(trText("预设：极客矩阵"))}
             style={{
               padding: '3px 8px',
               fontSize: '11px',
@@ -106,9 +98,7 @@ export const FourZoneColorPanel: React.FC<FourZoneColorPanelProps> = ({
               color: 'var(--text-muted)',
               cursor: 'pointer',
             }}
-          >
-            极客矩阵
-          </button>
+          > {trText('极客矩阵')} </button>
         </div>
       </div>
 

@@ -141,9 +141,7 @@ export const BUILTIN_MODULE_SLOTS: BuiltinModuleSlot[] = [
             borderRadius: 'var(--radius-xs)',
             background: 'var(--surface-badge)',
           }}
-        >
-          未连
-        </span>
+        > {trText('未连')} </span>
       );
     },
   },

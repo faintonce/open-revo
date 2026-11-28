@@ -163,7 +163,7 @@ export const BldFanStrategyPanel: React.FC<BldFanStrategyPanelProps> = ({
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-dim)' }}>
           <span>{trText('2800 RPM (静音限速)')}</span>
-          <span>{maxRpm} RPM (满速上限)</span>
+          <span>{maxRpm} {trText('RPM (满速上限)')}</span>
         </div>
       </div>
     </div>

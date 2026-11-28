@@ -535,7 +535,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
           <button
             type="button"
             onClick={handleToggleCeremony}
-            title="开机启动或休眠唤醒时，自动上演全域硬件协同迎宾灯效秀（全机型自适应）"
+            title={trText(trText("开机启动或休眠唤醒时，自动上演全域硬件协同迎宾灯效秀（全机型自适应）"))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -562,14 +562,14 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
                 boxShadow: (lighting.ceremony_enabled ?? true) ? '0 0 8px var(--color-brand)' : 'none',
               }}
             />
-            <span>{(lighting.ceremony_enabled ?? true) ? '已启用' : trText('已停用')}</span>
+            <span>{(lighting.ceremony_enabled ?? true) ? trText('已启用') : trText('已停用')}</span>
           </button>
 
           <button
             type="button"
             onClick={handleTriggerWelcome}
             disabled={isApplying}
-            title="立即触发一次全矩阵迎宾仪式灯效演示"
+            title={trText(trText("立即触发一次全矩阵迎宾仪式灯效演示"))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -589,7 +589,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{isApplying ? '演示中...' : trText('预览全域仪式')}</span>
+            <span>{isApplying ? trText('演示中...') : trText('预览全域仪式')}</span>
           </button>
         </div>
 
@@ -598,7 +598,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
           <button
             type="button"
             onClick={handleSaveAsStartup}
-            title="将当前调好的各项灯效设定为系统开机及唤醒恢复的默认底色"
+            title={trText(trText("将当前调好的各项灯效设定为系统开机及唤醒恢复的默认底色"))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -617,13 +617,13 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
             }}
           >
             {saveSuccess ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--status-ok)' }} /> : <Save className="w-3.5 h-3.5" />}
-            <span>{saveSuccess ? '已设为开机默认' : trText('设为默认')}</span>
+            <span>{saveSuccess ? trText('已设为开机默认') : trText('设为默认')}</span>
           </button>
 
           <button
             type="button"
             onClick={handleResetDefaults}
-            title="恢复当前设备出厂默认灯效设置"
+            title={trText(trText("恢复当前设备出厂默认灯效设置"))}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -647,7 +647,7 @@ export const LightingStudio: React.FC<LightingStudioProps> = ({ supportFlags }) 
           <button
             type="button"
             onClick={() => setIsTopologyModalOpen(true)}
-            title="手动纠正模具与物理灯效硬件设备拓扑映射（如单区误判为4区、或开启漏检外设）"
+            title={trText(trText("手动纠正模具与物理灯效硬件设备拓扑映射（如单区误判为4区、或开启漏检外设）"))}
             style={{
               display: 'flex',
               alignItems: 'center',

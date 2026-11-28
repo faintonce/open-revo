@@ -132,7 +132,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
       case 3:
         return trText('狂暴模式');
       case 4:
-        return hasCustomMode ? '极客自定义调校' : trText('均衡模式');
+        return hasCustomMode ? trText('极客自定义调校') : trText('均衡模式');
       default:
         return trText('均衡模式');
     }
@@ -198,25 +198,25 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
                   <button
                     className={`m-btn-action turbo-seg-item${status.power_mode === 3 && turboSub.silent ? ' active' : ''}`}
                     disabled={isRestricted || turboSub.busy}
-                    title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : trText('静音狂暴：狂暴档内的安静子模式')}
+                    title={isRestricted ? trText('电池供电或受限供电下不可用，需接入原装电源适配器') : trText('静音狂暴：狂暴档内的安静子模式')}
                     onClick={() => { if (!isRestricted) applyTurboSeg(true); }}
                   >
                     {status.power_mode === 3 && turboSub.silent && renderOcChip(isRestricted)}
                     <Snowflake size={14} />
                     <span style={{ fontSize: '9.5px', fontWeight: 600 }}>
-                      {isRestricted ? '静音' : trText('静音狂暴')}
+                      {isRestricted ? trText('静音') : trText('静音狂暴')}
                     </span>
                   </button>
                   <button
                     className={`m-btn-action turbo-seg-item${status.power_mode === 3 && !turboSub.silent ? ' active' : ''}`}
                     disabled={isRestricted || turboSub.busy}
-                    title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : trText('高能狂暴：狂暴档内的高能/极限子模式')}
+                    title={isRestricted ? trText('电池供电或受限供电下不可用，需接入原装电源适配器') : trText('高能狂暴：狂暴档内的高能/极限子模式')}
                     onClick={() => { if (!isRestricted) applyTurboSeg(false); }}
                   >
                     {status.power_mode === 3 && !turboSub.silent && renderOcChip(isRestricted)}
                     <Flame size={14} />
                     <span style={{ fontSize: '9.5px', fontWeight: 600 }}>
-                      {isRestricted ? '高能' : trText('高能狂暴')}
+                      {isRestricted ? trText('高能') : trText('高能狂暴')}
                     </span>
                   </button>
                   {turboSub.error && (
@@ -244,7 +244,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
                       }
                       : {}),
                   }}
-                  title={isRestricted ? '电池供电或受限供电下不可用，需接入原装电源适配器' : trText('狂暴模式')}
+                  title={isRestricted ? trText('电池供电或受限供电下不可用，需接入原装电源适配器') : trText('狂暴模式')}
                   onClick={() => {
                     if (isRestricted) return;
                     checkOemGuard(() => onSetPowerMode(3));
@@ -253,7 +253,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
                   {renderOcChip(isRestricted)}
                   <Flame size={14} />
                   <span style={{ fontSize: '10.5px', fontWeight: 600 }}>
-                    {isRestricted ? '狂暴 (需电源)' : trText('狂暴')}
+                    {isRestricted ? trText('狂暴 (需电源)') : trText('狂暴')}
                   </span>
                 </button>
               )}
@@ -300,7 +300,7 @@ export const DrawerPowerModeCard: React.FC<DrawerPowerModeCardProps> = ({
                 >
                   <Sliders size={14} />
                   <span style={{ fontSize: '10.5px', fontWeight: 600 }}>
-                    {isRestricted ? '极客 (需电源)' : trText('极客调校')}
+                    {isRestricted ? trText('极客 (需电源)') : trText('极客调校')}
                   </span>
                 </button>
               )}

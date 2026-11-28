@@ -480,7 +480,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
             <button
               onClick={() => handleTakeoverOem()}
               disabled={isSwitchingService}
-              title="检测到机械革命官方电竞服务正在运行。点击后将一键停止并禁用官方服务，避免与 OpenRevo 争抢主板 EC 寄存器与屏幕闪烁。"
+              title={trText("检测到机械革命官方电竞服务正在运行。点击后将一键停止并禁用官方服务，避免与 OpenRevo 争抢主板 EC 寄存器与屏幕闪烁。")}
               style={{
                 padding: '3px 8px',
                 borderRadius: '5px',
@@ -527,7 +527,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
           {/* 迷你抽屉模式切换 */}
           <button
             onClick={onCollapseDashboard}
-            title="折叠为迷你抽屉模式"
+            title={trText("折叠为迷你抽屉模式")}
             style={{
               background: 'transparent',
               border: '1px solid rgba(255,255,255,0.1)',
@@ -568,7 +568,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
 
           <button
             onClick={onMinimize}
-            title="最小化"
+            title={trText("最小化")}
             style={{
               background: 'transparent',
               border: 'none',
@@ -582,7 +582,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
           </button>
           <button
             onClick={onClose}
-            title="关闭窗口"
+            title={trText("关闭窗口")}
             style={{
               background: 'transparent',
               border: 'none',
@@ -621,7 +621,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
                   className={`nav-tab ${slot.tabClassName} ${isActive ? 'active' : ''}`}
                 >
                   <IconComponent size={14} className={slot.iconClass || 'w-3.5 h-3.5'} />
-                  <span>{slot.name}</span>
+                  <span>{trText(slot.name)}</span>
                   {slot.renderBadge && slot.renderBadge({ status, isWaterCoolerEnabled, isCoolerConnected })}
                 </button>
               );
@@ -776,8 +776,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
               </div>
               <div className="sys-modal-title">{trText('官方控制中心正在运行')}</div>
             </div>
-            <div className="sys-modal-body">
-              检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致<strong>{trText('屏幕持续闪烁')}</strong>{trText('，当前处于')}<strong>{trText('安全只读避让模式')}</strong>。
+            <div className="sys-modal-body"> {trText('检测到机械革命官方电竞后台正在运行。为防止与官方争抢主板 EC 寄存器并导致')}<strong>{trText('屏幕持续闪烁')}</strong>{trText('，当前处于')}<strong>{trText('安全只读避让模式')}</strong>。
             </div>
             <div className="sys-modal-actions">
               <button
@@ -791,9 +790,7 @@ export const FullDashboard: React.FC<FullDashboardProps> = ({
               <button
                 onClick={() => setShowOemModal(false)}
                 className="toggle-btn"
-              >
-                暂不接管，保持只读监控
-              </button>
+              > {trText('暂不接管，保持只读监控')} </button>
             </div>
           </div>
         </div>

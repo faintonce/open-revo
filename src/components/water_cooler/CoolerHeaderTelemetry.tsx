@@ -56,15 +56,13 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
               borderRadius: 'var(--radius-xs)',
               fontWeight: 600,
             }}
-          >
-            BLE 原生直连
-          </span>
+          > {trText('BLE 原生直连')} </span>
           {coolerData.mac_address ? (
             <button
               type="button"
               onClick={onOpenDeviceSelector}
               className="cooler-mac-badge-btn"
-              title="点击打开水冷魔盒列表，绑定专属水冷箱以防止邻机串连"
+              title={trText(trText("点击打开水冷魔盒列表，绑定专属水冷箱以防止邻机串连"))}
               style={{
                 fontSize: '9px',
                 color: 'var(--text-secondary)',
@@ -88,7 +86,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
               type="button"
               onClick={onOpenDeviceSelector}
               className="cooler-mac-badge-btn"
-              title="点击搜索并选择专属水冷箱"
+              title={trText(trText("点击搜索并选择专属水冷箱"))}
               style={{
                 fontSize: '9px',
                 color: 'var(--status-info)',
@@ -134,7 +132,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 boxShadow: coolerData.connected ? '0 0 6px var(--status-ok)' : 'none',
               }}
             />
-            <span>{coolerData.connected ? '已直连受控' : trText('未连接')}</span>
+            <span>{coolerData.connected ? trText('已直连受控') : trText('未连接')}</span>
           </div>
 
           {coolerData.connected ? (
@@ -143,7 +141,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 type="button"
                 onClick={onFillWater}
                 className="cooler-prime-btn"
-                title="脉冲启停水泵 8 次，排除水冷管道中的微小气泡"
+                title={trText(trText("脉冲启停水泵 8 次，排除水冷管道中的微小气泡"))}
                 style={{
                   background: coolerData.is_priming ? 'var(--color-beast)' : 'var(--surface-pill)',
                   border: '1px solid var(--border-medium)',
@@ -160,13 +158,13 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 }}
               >
                 <Droplets className="w-3 h-3" />
-                <span>{coolerData.is_priming ? '排气注水中...' : trText('注水排气')}</span>
+                <span>{coolerData.is_priming ? trText('排气注水中...') : trText('注水排气')}</span>
               </button>
               <button
                 type="button"
                 onClick={onResetToDefault}
                 className="cooler-curve-default-btn"
-                title="恢复出厂推荐的智慧自适应温控曲线与出厂策略"
+                title={trText(trText("恢复出厂推荐的智慧自适应温控曲线与出厂策略"))}
                 style={{
                   background: 'var(--surface-pill)',
                   border: '1px solid var(--border-medium)',
@@ -189,7 +187,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 type="button"
                 onClick={onDisconnectCooler}
                 className="cooler-disconnect-btn"
-                title="安全停机水泵与冷排风扇，并断开蓝牙直连"
+                title={trText(trText("安全停机水泵与冷排风扇，并断开蓝牙直连"))}
                 style={{
                   background: 'var(--status-error-dim)',
                   border: '1px solid rgba(239, 68, 68, 0.28)',
@@ -226,7 +224,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                   {isCoolerConnecting ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
-                  {isCoolerConnecting ? '正在直连...' : trText('立即直连')}
+                  {isCoolerConnecting ? trText('正在直连...') : trText('立即直连')}
                 </span>
               </button>
               <button
@@ -250,7 +248,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                 }}
               >
                 <Bluetooth className="w-3 h-3" />
-                <span>{isPairing ? '⟳ 扫描配对中...' : trText('搜索配对')}</span>
+                <span>{isPairing ? trText('⟳ 扫描配对中...') : trText('搜索配对')}</span>
               </button>
             </>
           )}
@@ -272,7 +270,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
             }}
           >
             {coolerData.connected
-              ? (coolerData.is_flow_ok || coolerData.meter_state === 2 || coolerData.meter_state === 1 ? '正常 (Flowing)' : coolerData.meter_state === 3 ? '微流/建立中' : trText('无流量'))
+              ? (coolerData.is_flow_ok || coolerData.meter_state === 2 || coolerData.meter_state === 1 ? trText('正常 (Flowing)') : coolerData.meter_state === 3 ? trText('微流/建立中') : trText('无流量'))
               : '--'}
           </div>
         </div>
@@ -323,7 +321,7 @@ export const CoolerHeaderTelemetry: React.FC<CoolerHeaderTelemetryProps> = ({
                   color: coolerData.fan_duty === 0 ? 'var(--status-ok)' : 'var(--color-brand)',
                 }}
               >
-                {coolerData.fan_duty === 0 ? '0 RPM 停转 (静音)' : `${Math.round(coolerData.fan_duty * 24)} RPM`}
+                {coolerData.fan_duty === 0 ? trText('0 RPM 停转 (静音)') : `${Math.round(coolerData.fan_duty * 24)} RPM`}
               </span>
             )}
           </div>

@@ -87,9 +87,7 @@ export const SponsorView: React.FC = () => {
             >
               <Heart size={16} color="#ff3366" fill="#ff3366" style={{ filter: 'drop-shadow(0 0 6px rgba(255, 51, 102, 0.7))' }} />
             </div>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#fff', letterSpacing: '0.02em' }}>
-              支持 OpenRevo 持续开源
-            </h2>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#fff', letterSpacing: '0.02em' }}> {trText('支持 OpenRevo 持续开源')} </h2>
             <span
               style={{
                 fontSize: '10px',
@@ -100,14 +98,9 @@ export const SponsorView: React.FC = () => {
                 fontWeight: 700,
                 border: '1px solid rgba(244, 63, 94, 0.4)',
               }}
-            >
-              永久免费 · 无广告 · 纯净逆向
-            </span>
+            > {trText('永久免费 · 无广告 · 纯净逆向')} </span>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, maxWidth: '620px', lineHeight: 1.5 }}>
-            OpenRevo 历经数百小时底层逆向、WMI 通信破解与出厂 EC 深度对齐，打造纯净秒开的机械革命全功能控制台。
-            软件不设任何付费门槛与收费功能，如果它切实改善了您的电脑体验，欢迎自愿打赏请作者喝杯咖啡 <Coffee size={13} className="inline text-amber-400 align-text-bottom" /> 您的认可就是项目持续迭代的最佳动力！
-          </p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, maxWidth: '620px', lineHeight: 1.5 }}> {trText('OpenRevo 历经数百小时底层逆向、WMI 通信破解与出厂 EC 深度对齐，打造纯净秒开的机械革命全功能控制台。 软件不设任何付费门槛与收费功能，如果它切实改善了您的电脑体验，欢迎自愿打赏请作者喝杯咖啡')} <Coffee size={13} className="inline text-amber-400 align-text-bottom" /> {trText('您的认可就是项目持续迭代的最佳动力！')} </p>
         </div>
 
         <div
@@ -180,9 +173,7 @@ export const SponsorView: React.FC = () => {
       >
         <ShieldAlert size={22} color="#ef4444" style={{ flexShrink: 0 }} />
         <div style={{ fontSize: '11px', color: '#fca5a5', lineHeight: 1.5 }}>
-          <strong style={{ color: '#fff', marginRight: '6px' }}>{trText('【反盗版与防倒卖郑重声明】')}</strong>
-          OpenRevo 为 100% 完全免费、公开透明的开源软件，从未授权任何第三方付费分发、加壳改名或二次倒卖。若您通过海鲜市场、贴吧等任何渠道付费购买，请立即向平台申请全额退款并举报不良商家！
-        </div>
+          <strong style={{ color: '#fff', marginRight: '6px' }}>{trText('【反盗版与防倒卖郑重声明】')}</strong> {trText('OpenRevo 为 100% 完全免费、公开透明的开源软件，从未授权任何第三方付费分发、加壳改名或二次倒卖。若您通过海鲜市场、贴吧等任何渠道付费购买，请立即向平台申请全额退款并举报不良商家！')} </div>
       </div>
 
       {/* QR Codes Grid */}
@@ -220,12 +211,8 @@ export const SponsorView: React.FC = () => {
                 fontSize: '12px',
                 fontWeight: 900,
               }}
-            >
-              微
-            </div>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#10b981', letterSpacing: '0.02em' }}>
-              微信支付 (WeChat Pay)
-            </span>
+            > {trText('微')} </div>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#10b981', letterSpacing: '0.02em' }}> {trText('微信支付 (WeChat Pay)')} </span>
           </div>
 
           {/* QR Container */}
@@ -246,7 +233,7 @@ export const SponsorView: React.FC = () => {
           >
             <img
               src={wechatQr}
-              alt="微信收款码 - 鱼子饭"
+              alt={trText("微信收款码 - 鱼子饭")}
               style={{
                 width: '100%',
                 height: '100%',
@@ -259,12 +246,8 @@ export const SponsorView: React.FC = () => {
 
           {/* Account Label */}
           <div style={{ marginTop: '14px', textAlign: 'center' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>
-              收款人：鱼子饭 (*昱)
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              打开微信 [扫一扫] · 任意金额支持
-            </div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}> {trText('收款人：鱼子饭 (*昱)')} </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}> {trText('打开微信 [扫一扫] · 任意金额支持')} </div>
           </div>
         </div>
 
@@ -301,12 +284,8 @@ export const SponsorView: React.FC = () => {
                 fontSize: '12px',
                 fontWeight: 900,
               }}
-            >
-              支
-            </div>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#60a5fa', letterSpacing: '0.02em' }}>
-              支付宝 (Alipay)
-            </span>
+            > {trText('支')} </div>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#60a5fa', letterSpacing: '0.02em' }}> {trText('支付宝 (Alipay)')} </span>
           </div>
 
           {/* QR Container */}
@@ -327,7 +306,7 @@ export const SponsorView: React.FC = () => {
           >
             <img
               src={alipayQr}
-              alt="支付宝收款码 - 鱼子饭"
+              alt={trText("支付宝收款码 - 鱼子饭")}
               style={{
                 width: '100%',
                 height: '100%',
@@ -340,12 +319,8 @@ export const SponsorView: React.FC = () => {
 
           {/* Account Label */}
           <div style={{ marginTop: '14px', textAlign: 'center' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>
-              收款人：鱼子饭 (*昱)
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              打开支付宝 [扫一扫] · 任意金额支持
-            </div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}> {trText('收款人：鱼子饭 (*昱)')} </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}> {trText('打开支付宝 [扫一扫] · 任意金额支持')} </div>
           </div>
         </div>
       </div>
@@ -364,8 +339,7 @@ export const SponsorView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Coffee className="w-4 h-4 text-amber-400" />
           <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-            <strong>{trText('打赏须知：')}</strong> 赞赏完全基于自愿原则，无论是否赞助均享有软件 100% 完整功能与终身免费更新，感谢每一位关注与支持机械革命开源生态的玩家！
-          </div>
+            <strong>{trText('打赏须知：')}</strong> {trText('赞赏完全基于自愿原则，无论是否赞助均享有软件 100% 完整功能与终身免费更新，感谢每一位关注与支持机械革命开源生态的玩家！')} </div>
         </div>
       </div>
     </div>

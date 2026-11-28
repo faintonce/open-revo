@@ -33,7 +33,7 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
         </div>
         <div className="m-header-right" style={{ color: 'var(--theme-bat)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: status.is_dc_online ? '#34d399' : '#fbbf24' }} />
-          {status.is_dc_online ? 'AC 已连接' : trText('电池供电')}
+          {status.is_dc_online ? trText('AC 已连接') : trText('电池供电')}
         </div>
       </div>
 
@@ -51,11 +51,9 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
               }
               : {}
           }
-          title="工作站模式 (限制 60%)"
+          title={trText(trText("工作站模式 (限制 60%)"))}
           onClick={() => checkOemGuard(() => onToggleBatteryLimit(60))}
-        >
-          工作站
-        </button>
+        > {trText('工作站')} </button>
 
         <button
           className="m-btn-bat"
@@ -70,11 +68,9 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
               }
               : {}
           }
-          title="平衡模式 (限制 80%)"
+          title={trText(trText("平衡模式 (限制 80%)"))}
           onClick={() => checkOemGuard(() => onToggleBatteryLimit(80))}
-        >
-          平衡
-        </button>
+        > {trText('平衡')} </button>
 
         <button
           className="m-btn-bat"
@@ -89,11 +85,9 @@ export const DrawerBatteryCard: React.FC<DrawerBatteryCardProps> = ({
               }
               : {}
           }
-          title="长效模式 (100% 充满)"
+          title={trText(trText("长效模式 (100% 充满)"))}
           onClick={() => checkOemGuard(() => onToggleBatteryLimit(100))}
-        >
-          长效
-        </button>
+        > {trText('长效')} </button>
       </div>
     </div>
   );

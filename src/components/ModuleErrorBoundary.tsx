@@ -78,11 +78,8 @@ export class ModuleErrorBoundary extends Component<Props, State> {
             </div>
             <div>
               <div style={{ fontSize: '15px', fontWeight: 600, color: '#f87171' }}>
-                {moduleName} 运行异常 (模块已安全隔离)
-              </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-                该模块发生未捕获异常，系统已拦截并隔离故障，未影响控制中心其余功能。
-              </div>
+                {moduleName} {trText('运行异常 (模块已安全隔离)')} </div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}> {trText('该模块发生未捕获异常，系统已拦截并隔离故障，未影响控制中心其余功能。')} </div>
             </div>
           </div>
 
@@ -119,7 +116,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
               }}
             >
               {showDetails ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <span>{showDetails ? '收起技术堆栈详情' : trText('展开技术堆栈详情')}</span>
+              <span>{showDetails ? trText('收起技术堆栈详情') : trText('展开技术堆栈详情')}</span>
             </button>
 
             {showDetails && (

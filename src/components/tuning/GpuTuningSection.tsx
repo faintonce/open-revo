@@ -134,9 +134,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
             color: 'var(--text-dim)',
             lineHeight: 1.4,
           }}
-        >
-          当前机型未配备独立显卡或模具不支持独立 GPU 功耗调节，超频与 cTGP 释放功能已停用。
-        </div>
+        > {trText('当前机型未配备独立显卡或模具不支持独立 GPU 功耗调节，超频与 cTGP 释放功能已停用。')} </div>
       )}
 
       {/* Main Controls Wrapper (Grayed out on non-dGPU or 10/20 series) */}
@@ -173,9 +171,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
-          >
-            超性能 (Super Perf)
-          </span>
+          > {trText('超性能 (Super Perf)')} </span>
           <RevSwitch
             checked={effectiveSuperPerf}
             onChange={onToggleSuperPerf}
@@ -404,7 +400,7 @@ export const GpuTuningSection: React.FC<GpuTuningSectionProps> = ({
               {isPending ? '--' : `${totalCalculatedTgp} W`}
             </span>
             <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              {isPending ? '(显卡冷启动检测中...)' : `(基础 ${currentBaseWatts}W + DB ${currentDbWatts}W)`}
+              {isPending ? trText('(显卡冷启动检测中...)') : `(基础 ${currentBaseWatts}W + DB ${currentDbWatts}W)`}
             </span>
           </div>
         )}

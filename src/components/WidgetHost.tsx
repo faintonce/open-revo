@@ -367,7 +367,7 @@ html, body {
   const isOverheat = cpuTemp > 80;
   const isWarm = cpuTemp > 68;
   const coreGlow = isOverheat ? '#ef4444' : isWarm ? '#f59e0b' : '#38bdf8';
-  const modeName = hardware.power_mode === 1 ? '办公' : hardware.power_mode === 3 ? '狂暴' : trText('均衡');
+  const modeName = hardware.power_mode === 1 ? trText('办公') : hardware.power_mode === 3 ? trText('狂暴') : trText('均衡');
 
   return (
     <div
@@ -439,7 +439,7 @@ html, body {
 
           <button
             onClick={handleClose}
-            title="关闭挂件"
+            title={trText(trText("关闭挂件"))}
             style={{
               background: 'transparent',
               border: 'none',
@@ -501,7 +501,7 @@ html, body {
         >
           <button
             onClick={handleCyclePowerMode}
-            title="点击轮转性能模式"
+            title={trText(trText("点击轮转性能模式"))}
             style={{
               flex: 1,
               height: '26px',
@@ -524,7 +524,7 @@ html, body {
 
           <button
             onClick={handleToggleFanBoost}
-            title="一键全速强冷 (Fan Boost)"
+            title={trText(trText("一键全速强冷 (Fan Boost)"))}
             style={{
               flex: 1,
               height: '26px',
@@ -544,7 +544,7 @@ html, body {
             }}
           >
             <Fan size={12} className={hardware.fan_boost ? 'animate-spin' : ''} />
-            <span>{hardware.fan_boost ? '强冷中' : trText('强冷')}</span>
+            <span>{hardware.fan_boost ? trText('强冷中') : trText('强冷')}</span>
           </button>
         </div>
       </div>

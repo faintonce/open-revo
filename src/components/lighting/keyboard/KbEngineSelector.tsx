@@ -33,9 +33,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-          驱动引擎:
-        </span>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}> {trText('驱动引擎:')} </span>
         <div style={{ display: 'flex', gap: '4px' }}>
           <button
             type="button"
@@ -53,8 +51,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
             }}
             title="由 ITE 8291 单片机固件内部硬件定时器渲染，系统 0% CPU 占用"
           >
-            <ShieldCheck size={12} className="inline mr-1" /> 原厂固件 (0% CPU)
-          </button>
+            <ShieldCheck size={12} className="inline mr-1" /> {trText('原厂固件 (0% CPU)')} </button>
           <button
             type="button"
             onClick={onSelectStreamer}
@@ -71,8 +68,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
             }}
             title="由 BetterRGB 空间几何算法计算并由驱动以 60FPS 逐帧推流到键盘"
           >
-            <Zap size={12} className="inline mr-1" /> 极客高刷 (BetterRGB 算法)
-          </button>
+            <Zap size={12} className="inline mr-1" /> {trText('极客高刷 (BetterRGB 算法)')} </button>
           <button
             type="button"
             onClick={onSelectCustom}
@@ -89,8 +85,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
             }}
             title="自定义动效脚本工作室：支持导入外部 .brfx 脚本与实时参数微调"
           >
-            <Sparkles size={12} className="inline mr-1" /> 定制脚本 (BetterRGB)
-          </button>
+            <Sparkles size={12} className="inline mr-1" /> {trText('定制脚本 (BetterRGB)')} </button>
         </div>
       </div>
 
@@ -128,9 +123,7 @@ export const KbEngineSelector: React.FC<KbEngineSelectorProps> = ({
         </div>
       ) : (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--status-ok)', opacity: 0.9 }}>
-          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--status-ok)' }} />
-          硬件自主运算，无需主机推流
-        </span>
+          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--status-ok)' }} /> {trText('硬件自主运算，无需主机推流')} </span>
       )}
     </div>
   );

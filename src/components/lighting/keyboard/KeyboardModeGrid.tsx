@@ -110,7 +110,7 @@ export const KeyboardModeGrid: React.FC<KeyboardModeGridProps> = ({
                   color: isCurrentActive ? 'var(--text-primary)' : 'var(--text-muted)',
                 }}
               >
-                {m.name}
+                {trText(m.name)}
               </div>
               <div
                 style={{
@@ -123,7 +123,7 @@ export const KeyboardModeGrid: React.FC<KeyboardModeGridProps> = ({
                   maxWidth: '100%',
                 }}
               >
-                {m.desc}
+                {trText(m.desc)}
               </div>
             </button>
           );

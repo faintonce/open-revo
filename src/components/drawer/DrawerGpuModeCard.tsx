@@ -110,7 +110,7 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
         >
           {isIgpuLocked ? <Lock size={14} /> : <Cpu size={14} />}
           <span style={{ fontSize: '10.5px', fontWeight: 600 }}>
-            {gpuModeInfo?.has_dgpu === false ? '纯集显 (生效)' : isIgpuLocked ? '双模锁定' : trText('纯集显')}
+            {gpuModeInfo?.has_dgpu === false ? trText('纯集显 (生效)') : isIgpuLocked ? trText('双模锁定') : trText('纯集显')}
           </span>
         </button>
 
@@ -130,7 +130,7 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
               ? { opacity: 0.35, cursor: 'not-allowed' }
               : {}),
           }}
-          title={gpuModeInfo?.has_dgpu === false ? '纯核显架构无独立显卡，不可用' : trText('点击打开高级显卡切换面板')}
+          title={gpuModeInfo?.has_dgpu === false ? trText('纯核显架构无独立显卡，不可用') : trText('点击打开高级显卡切换面板')}
           onClick={() => {
             if (gpuModeInfo?.has_dgpu !== false) onExpandDashboard('gpu');
           }}
@@ -155,7 +155,7 @@ export const DrawerGpuModeCard: React.FC<DrawerGpuModeCardProps> = ({
               ? { opacity: 0.35, cursor: 'not-allowed' }
               : {}),
           }}
-          title={gpuModeInfo?.has_dgpu === false ? '纯核显架构无独立显卡，不可用' : trText('点击打开高级显卡切换面板')}
+          title={gpuModeInfo?.has_dgpu === false ? trText('纯核显架构无独立显卡，不可用') : trText('点击打开高级显卡切换面板')}
           onClick={() => {
             if (gpuModeInfo?.has_dgpu !== false) onExpandDashboard('gpu');
           }}

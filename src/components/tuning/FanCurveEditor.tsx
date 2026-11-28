@@ -306,9 +306,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   color: fanCurveTab === 'cpu' ? 'var(--text-primary)' : 'var(--text-dim)',
                   transition: 'all var(--transition-fast)',
                 }}
-              >
-                CPU风扇
-              </button>
+              > {trText('CPU风扇')} </button>
 
               {/* Sync Link Chain Button */}
               <button
@@ -326,7 +324,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   justifyContent: 'center',
                   transition: 'all var(--transition-fast)',
                 }}
-                title={fanCurveLinked ? '双风扇曲线已锁定联动（调节任意一侧将实时镜像同步）' : trText('双风扇独立调节（点击开启联动同步）')}
+                title={fanCurveLinked ? trText('双风扇曲线已锁定联动（调节任意一侧将实时镜像同步）') : trText('双风扇独立调节（点击开启联动同步）')}
               >
                 {fanCurveLinked ? <Link2 className="w-3 h-3" /> : <Link2Off className="w-3 h-3 opacity-60" />}
               </button>
@@ -345,21 +343,17 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
                   color: fanCurveTab === 'gpu' ? 'var(--text-primary)' : 'var(--text-dim)',
                   transition: 'all var(--transition-fast)',
                 }}
-              >
-                GPU风扇
-              </button>
+              > {trText('GPU风扇')} </button>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <Link2 className="w-3.5 h-3.5" style={{ color: 'var(--status-info)' }} />
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                双风扇联动
-              </span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}> {trText('双风扇联动')} </span>
             </div>
           )}
 
           <span style={{ fontSize: '10px', color: isEditingAllowed ? 'var(--color-brand)' : 'var(--text-dim)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {isEditingAllowed ? '● 8点曲线调校' : trText('○ 出厂预设托管')}
+            {isEditingAllowed ? trText('● 8点曲线调校') : trText('○ 出厂预设托管')}
           </span>
         </div>
 
@@ -621,9 +615,7 @@ export const FanCurveEditor: React.FC<FanCurveEditorProps> = ({
           }}
         >
           <span>{minDuty > 0 ? `最低起旋 ${minDuty}% (2200 RPM) · 滚轮微调` : trText('鼠标悬停滚轮微调')}</span>
-          <span style={{ color: fanIsolated ? 'var(--color-brand)' : 'var(--text-dim)' }}>
-            8 节点单调递增
-          </span>
+          <span style={{ color: fanIsolated ? 'var(--color-brand)' : 'var(--text-dim)' }}> {trText('8 节点单调递增')} </span>
         </div>
       </div>
     </div>

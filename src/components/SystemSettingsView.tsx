@@ -537,9 +537,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <span>{trText('OSD 屏幕悬浮提示')}</span>
                 <RevBadge variant="info">HUD</RevBadge>
               </div>
-              <div className="sys-row-desc">
-                快捷键切换时在屏幕弹出状态提示；可选3种风格、尺寸与显示位置
-              </div>
+              <div className="sys-row-desc"> {trText('快捷键切换时在屏幕弹出状态提示；可选3种风格、尺寸与显示位置')} </div>
             </div>
             <div className="sys-row-controls">
               {/* 风格 */}
@@ -595,11 +593,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   }
                 }}
                 className="toggle-btn"
-                title="在屏幕上立即弹出当前配置的 OSD 效果演示"
+                title={trText(trText("在屏幕上立即弹出当前配置的 OSD 效果演示"))}
                 style={{ borderColor: 'rgba(99, 102, 241, 0.3)', color: '#a5b4fc' }}
-              >
-                预览
-              </button>
+              > {trText('预览')} </button>
 
               {/* 启用/关闭切换 */}
               <RevSwitch
@@ -627,13 +623,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div className="sys-row-label">
                 <span>{trText('解除离电限制')}</span>
                 <RevBadge variant={unlockBatteryLimit ? 'warning' : 'default'}>
-                  {unlockBatteryLimit ? '已解除限制 (风险自担)' : trText('出厂安全限制')}
+                  {unlockBatteryLimit ? trText('已解除限制 (风险自担)') : trText('出厂安全限制')}
                 </RevBadge>
                 <RevBadge variant="accent">Power Gating</RevBadge>
               </div>
-              <div className="sys-row-desc">
-                允许在拔掉电源或 Type-C 供电时自由切换狂暴模式与极客自定义调校，且拔电时不会强制降级为平衡模式；适合进自定义设置极致低功耗或离电性能释放
-              </div>
+              <div className="sys-row-desc"> {trText('允许在拔掉电源或 Type-C 供电时自由切换狂暴模式与极客自定义调校，且拔电时不会强制降级为平衡模式；适合进自定义设置极致低功耗或离电性能释放')} </div>
             </div>
             <div className="sys-row-controls">
               <RevSwitch
@@ -651,9 +645,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <span>{trText('唤醒面板形态')}</span>
                 <RevBadge variant="info">Window</RevBadge>
               </div>
-              <div className="sys-row-desc">
-                从系统托盘或后台双击唤醒时展现的界面形态；可记忆最后状态或锁定首选模式
-              </div>
+              <div className="sys-row-desc"> {trText('从系统托盘或后台双击唤醒时展现的界面形态；可记忆最后状态或锁定首选模式')} </div>
             </div>
             <div className="sys-row-controls">
               <div
@@ -672,27 +664,21 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   onClick={() => handleUpdateWakeMode('remember')}
                   style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
                   title="记忆最后关闭时的窗口形态（关闭时是完整面板就开完整面板，是迷你抽屉就开迷你抽屉）"
-                >
-                  记忆上次形态
-                </button>
+                > {trText('记忆上次形态')} </button>
                 <button
                   type="button"
                   className={`toggle-btn ${wakeWindowMode === 'mini' ? 'active-indigo' : ''}`}
                   onClick={() => handleUpdateWakeMode('mini')}
                   style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
                   title="无论何时唤醒，默认进入右下角轻量迷你抽屉"
-                >
-                  始终迷你抽屉
-                </button>
+                > {trText('始终迷你抽屉')} </button>
                 <button
                   type="button"
                   className={`toggle-btn ${wakeWindowMode === 'full' ? 'active-indigo' : ''}`}
                   onClick={() => handleUpdateWakeMode('full')}
                   style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
                   title="无论何时唤醒，直接居中/记忆位置展开 960×740 完整控制面板"
-                >
-                  始终完整面板
-                </button>
+                > {trText('始终完整面板')} </button>
               </div>
             </div>
           </div>
@@ -704,9 +690,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <span>{trText('迷你抽屉点击外部自动收起')}</span>
                 <RevBadge variant="info">Mini Drawer</RevBadge>
               </div>
-              <div className="sys-row-desc">
-                在迷你抽屉模式下，点击桌面或其他应用窗口时自动回收抽屉；完整面板不受此影响
-              </div>
+              <div className="sys-row-desc"> {trText('在迷你抽屉模式下，点击桌面或其他应用窗口时自动回收抽屉；完整面板不受此影响')} </div>
             </div>
             <div className="sys-row-controls">
               <RevSwitch
@@ -722,12 +706,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <div className="sys-row-label">
                 <span>{trText('使用经典 WebView2 前端')}</span>
                 <RevBadge variant={useClassicWebview ? 'accent' : 'info'}>
-                  {useClassicWebview ? 'WebView2 (经典)' : trText('Slint 原生 (默认)')}
+                  {useClassicWebview ? trText('WebView2 (经典)') : trText('Slint 原生 (默认)')}
                 </RevBadge>
               </div>
-              <div className="sys-row-desc">
-                切换主界面与 OSD 提示的前端渲染引擎。默认采用极低资源开销的 Slint 原生 GUI；开启时恢复使用经典 WebView2 网页渲染前端 (修改后重启生效)
-              </div>
+              <div className="sys-row-desc"> {trText('切换主界面与 OSD 提示的前端渲染引擎。默认采用极低资源开销的 Slint 原生 GUI；开启时恢复使用经典 WebView2 网页渲染前端 (修改后重启生效)')} </div>
             </div>
             <div className="sys-row-controls">
               {showRestartHint && (
@@ -736,9 +718,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   onClick={handleRestartApp}
                   className="toggle-btn active-cyan"
                   title="立即重启 OpenRevo 载入新前端引擎"
-                >
-                  立即重启生效
-                </button>
+                > {trText('立即重启生效')} </button>
               )}
               <RevSwitch
                 checked={useClassicWebview}
@@ -830,18 +810,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   onClick={() => handleUpdateChannel('stable')}
                   style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
                   title="仅检查正式发布版本 (latest.json)"
-                >
-                  正式版 (Stable)
-                </button>
+                > {trText('正式版 (Stable)')} </button>
                 <button
                   type="button"
                   className={`toggle-btn ${updateChannel === 'beta' ? 'active-indigo' : ''}`}
                   onClick={() => handleUpdateChannel('beta')}
                   style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
                   title="优先检查先行体验与预发布版本 (preview.json)"
-                >
-                  预览版 (Beta)
-                </button>
+                > {trText('预览版 (Beta)')} </button>
               </div>
               <button
                 onClick={() => handleCheckForUpdates(false)}
@@ -850,7 +826,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 title="立即并发向 GitHub 与 Gitee 查询是否有新版本发布"
               >
                 <RefreshCw size={12} className={checkingUpdate ? 'spin-icon' : ''} />
-                <span>{checkingUpdate ? '正在检测...' : trText('检查更新')}</span>
+                <span>{checkingUpdate ? trText('正在检测...') : trText('检查更新')}</span>
               </button>
             </div>
           </div>
@@ -867,9 +843,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   </RevBadge>
                 )}
               </div>
-              <div className="sys-row-desc">
-                系统底层电源计划；完全保留用户自建的降压/降频方案，可随时自由切换
-              </div>
+              <div className="sys-row-desc"> {trText('系统底层电源计划；完全保留用户自建的降压/降频方案，可随时自由切换')} </div>
             </div>
             <div className="sys-row-controls">
               <button
@@ -879,7 +853,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 style={{ padding: '4px 10px', fontSize: '11px', minWidth: 'auto' }}
                 title="仅限同方/宝龙达游戏本：一键清除异常锁频/待机高温残留，对齐官方控制台，还原官方平衡方案与原生出厂调度"
               >
-                {restoringPowerPlan ? '正在修复...' : trText('修复/重置计划')}
+                {restoringPowerPlan ? trText('正在修复...') : trText('修复/重置计划')}
               </button>
               <select
                 value={powerSchemes.find((s) => s.is_active)?.guid || ''}
@@ -890,7 +864,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               >
                 {powerSchemes.map((s) => (
                   <option key={s.guid} value={s.guid}>
-                    {s.name} {s.is_active ? '(当前生效)' : ''}
+                    {s.name} {s.is_active ? trText('(当前生效)') : ''}
                   </option>
                 ))}
               </select>
@@ -914,7 +888,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div className="sys-row-label">{trText('运行与异常调试日志等级')}</div>
                     <RevBadge variant={logStatus.level === 2 ? 'accent' : 'success'}>
-                      {logStatus.level === 2 ? '所有日志 (详细追踪)' : trText('错误日志 (仅故障及异常崩溃)')}
+                      {logStatus.level === 2 ? trText('所有日志 (详细追踪)') : trText('错误日志 (仅故障及异常崩溃)')}
                     </RevBadge>
                     {logStatus.level === 2 && (
                       <RevBadge
@@ -927,15 +901,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                           {logStatus.filter
-                            ? <><Crosshair size={10} /> 过滤: {logStatus.filter}</>
+                            ? <><Crosshair size={10} /> {trText('过滤:')} {logStatus.filter}</>
                             : <><Globe size={10} /> {trText('全部模块')}</>}
                         </span>
                       </RevBadge>
                     )}
                   </div>
-                  <div className="sys-row-desc">
-                    当前已通过调试参数启动；排查完毕可点击关闭隐藏以节省磁盘
-                  </div>
+                  <div className="sys-row-desc"> {trText('当前已通过调试参数启动；排查完毕可点击关闭隐藏以节省磁盘')} </div>
                 </div>
                 <div className="sys-row-controls">
                   <button
@@ -943,24 +915,20 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     className={`toggle-btn ${logStatus.level === 2 ? 'active-indigo' : ''}`}
                     style={{ minWidth: '78px' }}
                   >
-                    {logStatus.level === 2 ? '切为错误日志' : trText('切为所有日志')}
+                    {logStatus.level === 2 ? trText('切为错误日志') : trText('切为所有日志')}
                   </button>
                   <button
                     onClick={handleOpenLog}
                     className="toggle-btn"
                     style={{ minWidth: '78px' }}
                     title={logStatus.path || trText('打开日志文件')}
-                  >
-                    查看日志
-                  </button>
+                  > {trText('查看日志')} </button>
                   <button
                     onClick={() => handleSetLogLevel(0)}
                     className="toggle-btn"
                     style={{ minWidth: '65px', color: 'var(--text-dim)' }}
                     title="关闭日志并重新向普通用户隐藏"
-                  >
-                    关闭隐藏
-                  </button>
+                  > {trText('关闭隐藏')} </button>
                 </div>
               </div>
 
@@ -971,11 +939,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)', borderTop: '1px solid var(--border-subtle)' }}
                 >
                   <div>
-                    <div className="sys-row-label" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      排障模块精准过滤 (二级参数)
-                    </div>
-                    <div className="sys-row-desc">
-                      选定模块后将屏蔽数千条 EC 纳秒高频读取噪音；支持命令行{' '}
+                    <div className="sys-row-label" style={{ fontSize: '11px', color: 'var(--text-muted)' }}> {trText('排障模块精准过滤 (二级参数)')} </div>
+                    <div className="sys-row-desc"> {trText('选定模块后将屏蔽数千条 EC 纳秒高频读取噪音；支持命令行')}{' '}
                       <code style={{ color: 'var(--color-brand)' }}>{trText('--debug=模块名')}</code>
                     </div>
                   </div>
@@ -1024,9 +989,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 </div>
                 <RevBadge color="amber">{trText('--debug 专属')}</RevBadge>
               </div>
-              <div className="sys-card-desc">
-                允许开发者在不修改底层通信的前提下，纯前端模拟不同模具插槽裁切效果（如轻薄本隐藏独显/水冷）。
-              </div>
+              <div className="sys-card-desc"> {trText('允许开发者在不修改底层通信的前提下，纯前端模拟不同模具插槽裁切效果（如轻薄本隐藏独显/水冷）。')} </div>
 
               <div className="sys-rows">
                 <div className="quick-row">
@@ -1044,21 +1007,15 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     <button
                       className={`toggle-btn ${previewMode === 'real' ? 'active-emerald' : ''}`}
                       onClick={() => onPreviewFormFactor('real')}
-                    >
-                      真实本机
-                    </button>
+                    > {trText('真实本机')} </button>
                     <button
                       className={`toggle-btn ${previewMode === 'thin_light' ? 'active-cyan' : ''}`}
                       onClick={() => onPreviewFormFactor('thin_light')}
-                    >
-                      星耀 14 轻薄本
-                    </button>
+                    > {trText('星耀 14 轻薄本')} </button>
                     <button
                       className={`toggle-btn ${previewMode === 'gaming' ? 'active-indigo' : ''}`}
                       onClick={() => onPreviewFormFactor('gaming')}
-                    >
-                      游戏本形态
-                    </button>
+                    > {trText('游戏本形态')} </button>
                   </div>
                 </div>
               </div>
@@ -1105,15 +1062,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 disabled={clearingData}
                 onClick={() => setShowClearConfirm(false)}
                 className="toggle-btn"
-              >
-                取消
-              </button>
+              > {trText('取消')} </button>
               <button
                 disabled={clearingData}
                 onClick={handleClearUserData}
                 className="toggle-btn btn-danger-solid"
               >
-                {clearingData ? '正在清除...' : trText('确认清除')}
+                {clearingData ? trText('正在清除...') : trText('确认清除')}
               </button>
             </div>
           </div>
@@ -1157,15 +1112,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 disabled={togglingUnlockBattery}
                 onClick={() => setShowUnlockBatteryConfirm(false)}
                 className="toggle-btn"
-              >
-                取消
-              </button>
+              > {trText('取消')} </button>
               <button
                 disabled={togglingUnlockBattery}
                 onClick={handleConfirmUnlockBattery}
                 className="toggle-btn btn-danger-solid"
               >
-                {togglingUnlockBattery ? '正在开启...' : trText('我已知晓风险，确认解除')}
+                {togglingUnlockBattery ? trText('正在开启...') : trText('我已知晓风险，确认解除')}
               </button>
             </div>
           </div>
@@ -1193,9 +1146,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             </div>
 
             <div className="sys-modal-body">
-              <div className="sys-modal-warning-label">
-                💡 该操作将执行以下安全修复（完全对齐官方出厂标准）：
-              </div>
+              <div className="sys-modal-warning-label"> {trText('💡 该操作将执行以下安全修复（完全对齐官方出厂标准）：')} </div>
               <ul className="sys-modal-list">
                 <li><strong>{trText('消除待机异常高温')}</strong>{trText('：重置激进的性能滑块覆盖层 (Performance Overlay)，恢复 CPU 核心休眠 (Core Parking) 与 Package C-State 深睡，消除待机 20W+ 积热。')}</li>
                 <li><strong>{trText('彻底清除锁频残留')}</strong>{trText('：外科手术式剔除所有电源方案中的静态频率限制键值 (75b0ae3f)，解除 0.8GHz 或 25W 锁频陷阱。')}</li>
@@ -1209,15 +1160,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 disabled={restoringPowerPlan}
                 onClick={() => setShowRestorePlanConfirm(false)}
                 className="toggle-btn"
-              >
-                取消
-              </button>
+              > {trText('取消')} </button>
               <button
                 disabled={restoringPowerPlan}
                 onClick={handleRestoreOfficialPowerPlan}
                 className="toggle-btn active-indigo"
               >
-                {restoringPowerPlan ? '正在修复...' : trText('确认执行修复')}
+                {restoringPowerPlan ? trText('正在修复...') : trText('确认执行修复')}
               </button>
             </div>
           </div>
@@ -1244,13 +1193,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             </div>
 
             <div className="sys-modal-body">
-              <div className="sys-modal-warning-label">
-                💡 说明：程序将自动把当前所有用户数据无损复制至新目录，并在原位置创建数据重定向指针 (data_dir.ptr)。
-              </div>
+              <div className="sys-modal-warning-label"> {trText('💡 说明：程序将自动把当前所有用户数据无损复制至新目录，并在原位置创建数据重定向指针 (data_dir.ptr)。')} </div>
               <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  目标目录绝对路径（例如：D:\OpenRevoData）：
-                </label>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}> {trText('目标目录绝对路径（例如：D:\\OpenRevoData）：')} </label>
                 <input
                   type="text"
                   value={migrateTargetPath}
@@ -1276,15 +1221,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 disabled={migratingData}
                 onClick={() => setShowMigrateModal(false)}
                 className="toggle-btn"
-              >
-                取消
-              </button>
+              > {trText('取消')} </button>
               <button
                 disabled={migratingData || !migrateTargetPath.trim()}
                 onClick={handleMigrateData}
                 className="toggle-btn active-indigo"
               >
-                {migratingData ? '正在迁移...' : trText('确认迁移')}
+                {migratingData ? trText('正在迁移...') : trText('确认迁移')}
               </button>
             </div>
           </div>
@@ -1298,9 +1241,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="quick-row">
             <div>
               <div className="sys-row-label">{trText('平衡模式启用 GPU 动态功耗提升 (Dynamic Boost)')}</div>
-              <div className="sys-row-desc">
-                允许独立显卡在平衡模式下跑满出厂满血动态功耗（推荐平衡模式玩 3A 游戏的用户开启）；若关闭则限制为基础 TGP，将整机供电与散热优先让渡给 CPU。
-              </div>
+              <div className="sys-row-desc"> {trText('允许独立显卡在平衡模式下跑满出厂满血动态功耗（推荐平衡模式玩 3A 游戏的用户开启）；若关闭则限制为基础 TGP，将整机供电与散热优先让渡给 CPU。')} </div>
             </div>
             <div className="sys-row-controls">
               <RevSwitch
@@ -1384,19 +1325,16 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <Download size={20} />
               </div>
               <div>
-                <div className="sys-modal-title">
-                  发现新版本 {updateResult.display_version || updateResult.latest_version}
+                <div className="sys-modal-title"> {trText('发现新版本')} {updateResult.display_version || updateResult.latest_version}
                 </div>
                 <div className="sys-modal-subtitle">
-                  测速首选: {updateResult.chosen_source === 'gitee' ? 'Gitee 国内镜像加速' : updateResult.chosen_source === 'local_mock' ? '本地测试模拟' : trText('GitHub 官方源')} · 分发形态: {updateResult.asset_type === 'installer' ? '安装包覆盖升级' : trText('绿色版脱壳热更')}
+                  测速首选: {updateResult.chosen_source === 'gitee' ? trText('Gitee 国内镜像加速') : updateResult.chosen_source === 'local_mock' ? trText('本地测试模拟') : trText('GitHub 官方源')} · 分发形态: {updateResult.asset_type === 'installer' ? trText('安装包覆盖升级') : trText('绿色版脱壳热更')}
                 </div>
               </div>
             </div>
 
             <div className="sys-modal-body">
-              <div style={{ marginBottom: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                更新日志与变更说明：
-              </div>
+              <div style={{ marginBottom: '8px', fontSize: '11px', color: 'var(--text-muted)' }}> {trText('更新日志与变更说明：')} </div>
               <div className="updater-changelog-box">
                 {updateResult.notes || trText('暂无详细更新日志。')}
               </div>
@@ -1431,15 +1369,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 disabled={downloadingUpdate}
                 onClick={() => setShowUpdateModal(false)}
                 className="toggle-btn"
-              >
-                稍后再说
-              </button>
+              > {trText('稍后再说')} </button>
               <button
                 disabled={downloadingUpdate}
                 onClick={handleDownloadAndInstall}
                 className="toggle-btn active-indigo"
               >
-                {downloadingUpdate ? '正在下载升级...' : trText('立即升级')}
+                {downloadingUpdate ? trText('正在下载升级...') : trText('立即升级')}
               </button>
             </div>
           </div>

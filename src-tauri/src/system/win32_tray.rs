@@ -39,6 +39,7 @@ const ID_MODE_CUSTOM: usize = 5104;
 
 const ID_TOGGLE_FAN: usize = 5201;
 const ID_TAKEOVER_TOGGLE: usize = 5202;
+const ID_TOGGLE_WIDGET_LOCK: usize = 5203;
 
 const ID_NOTICE: usize = 5301;
 const ID_QUIT: usize = 5302;
@@ -244,9 +245,11 @@ unsafe fn show_tray_context_menu(hwnd: HWND) {
     // 3. Hardware Controls
     let fan_w = to_wide(&tr("tray.fan_boost", "Fan Boost"));
     let oem_w = to_wide(&format!("🔄 {} / {}", tr("tray.takeover_on", "Takeover OEM"), tr("tray.takeover_off", "Restore OEM")));
+    let widget_lock_w = to_wide(&format!("🧲 {}", tr("tray.widget_lock", "Lock / Unlock Widgets")));
 
     let _ = AppendMenuW(hmenu, MF_STRING, ID_TOGGLE_FAN, PCWSTR(fan_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_STRING, ID_TAKEOVER_TOGGLE, PCWSTR(oem_w.as_ptr()));
+    let _ = AppendMenuW(hmenu, MF_STRING, ID_TOGGLE_WIDGET_LOCK, PCWSTR(widget_lock_w.as_ptr()));
     let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
 
     if current_fan {
@@ -327,6 +330,26 @@ fn handle_tray_menu_command(_hwnd: HWND, cmd_id: usize) {
             } else {
                 let _ = crate::system::service_mgr::resume_oem_services();
             }
+        }
+        ID_TOGGLE_WIDGET_LOCK => {
+            let mut cfg = crate::system::config::load_config();
+            let any_locked = cfg.widget_click_through.values().any(|&v| v);
+            let next_locked = !any_locked;
+            for val in cfg.widget_click_through.values_mut() {
+                *val = next_locked;
+            }
+            for pid in crate::system::native_wry::get_running_popouts() {
+                cfg.widget_click_through.insert(pid.clone(), next_locked);
+                crate::system::native_wry::set_popout_click_through(&pid, next_locked);
+            }
+            for (pid, &enabled) in cfg.custom_plugin_toggles.iter() {
+                if enabled {
+                    cfg.widget_click_through.insert(pid.clone(), next_locked);
+                    crate::system::slint_window::actions::plugins::send_slint_widget_click_through(pid, next_locked);
+                }
+            }
+            let _ = crate::system::config::save_config(&cfg);
+            crate::log_info!("TRAY", "Toggled all desktop widgets click-through lock state to {}", next_locked);
         }
         ID_QUIT => {
             crate::log_info!("TRAY", "Win32 tray quit triggered. Performing safe shutdown...");

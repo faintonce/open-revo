@@ -71,7 +71,7 @@ export const HardwareTelemetryBar: React.FC<HardwareTelemetryBarProps> = ({
           <span>{trText('实时硬件监测')}</span>
         </div>
         <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-          {isApuOrIgpu ? 'APU 封装功耗:' : trText('双烤合计:')}{' '}
+          {isApuOrIgpu ? trText('APU 封装功耗:') : trText('双烤合计:')}{' '}
           <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
             {isApuOrIgpu
               ? cpuPowerW !== undefined && cpuPowerW > 0

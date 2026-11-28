@@ -568,7 +568,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
                   onClick={handleStopService}
                   disabled={serviceActionLoading}
                   className="toggle-btn"
-                  title="停止此插件的本地伴随服务"
+                  title={trText(trText("停止此插件的本地伴随服务"))}
                   style={{ height: '22px', padding: '0 8px', fontSize: '11px' }}
                 >
                   <Square size={10} />
@@ -579,7 +579,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
                   onClick={handleStartService}
                   disabled={serviceActionLoading}
                   className="toggle-btn active-emerald"
-                  title="拉起此插件的本地提权伴随服务"
+                  title={trText(trText("拉起此插件的本地提权伴随服务"))}
                   style={{ height: '22px', padding: '0 8px', fontSize: '11px' }}
                 >
                   {serviceActionLoading ? (
@@ -596,7 +596,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
           <button
             onClick={fetchHtml}
             className="toggle-btn"
-            title="重新加载插件"
+            title={trText(trText("重新加载插件"))}
             style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
           >
             <RotateCcw size={12} />
@@ -606,7 +606,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
             <button
               onClick={handleClosePopOut}
               className="toggle-btn active-cyan"
-              title="当前正以独立原生视窗运行，点击收回并关闭独立视窗"
+              title={trText(trText("当前正以独立原生视窗运行，点击收回并关闭独立视窗"))}
               style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
             >
               <Minimize2 size={12} />
@@ -616,7 +616,7 @@ export const PluginTabHost: React.FC<PluginTabHostProps> = ({ plugin, status }) 
             <button
               onClick={handlePopOut}
               className="toggle-btn active-indigo"
-              title="以独立原生窗口弹出运行，支持在玩游戏或脱离主控制台时随时调优"
+              title={trText(trText("以独立原生窗口弹出运行，支持在玩游戏或脱离主控制台时随时调优"))}
               style={{ height: '26px', padding: '0 10px', fontSize: '11px' }}
             >
               <ExternalLink size={12} />

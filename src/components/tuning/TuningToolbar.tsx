@@ -122,9 +122,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
               letterSpacing: '-0.01em',
               whiteSpace: 'nowrap',
             }}
-          >
-            极客自定义调校
-          </div>
+          > {trText('极客自定义调校')} </div>
         </div>
 
         {/* Profile Controls in Top Right */}
@@ -227,7 +225,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
           <button
             type="button"
             className="toolbar-icon-btn"
-            title={activePreset?.is_builtin ? '将当前参数另存为新方案' : trText('将当前参数另存为新方案副本')}
+            title={activePreset?.is_builtin ? trText('将当前参数另存为新方案') : trText('将当前参数另存为新方案副本')}
             onClick={() => {
               setModalInputName(`${activePreset?.name || '方案'}_副本`.slice(0, 12));
               setModalMode('new');
@@ -243,7 +241,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
               color: resetSuccess ? 'var(--status-ok)' : 'var(--text-muted)',
               borderColor: resetSuccess ? 'var(--status-ok)' : 'var(--border-medium)',
             }}
-            title="还原为默认参数（同时重置 EC 功耗握手，解除 CPU 锁 55W / GPU 锁功耗异常）"
+            title={trText(trText("还原为默认参数（同时重置 EC 功耗握手，解除 CPU 锁 55W / GPU 锁功耗异常）"))}
             onClick={onResetCurrentProfile}
           >
             {resetSuccess ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--status-ok)' }} /> : <RotateCcw className="w-3.5 h-3.5" />}
@@ -252,7 +250,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
           <button
             type="button"
             className="toolbar-icon-btn"
-            title={activePreset?.is_builtin ? '原厂预设不可重命名' : trText('重命名当前方案')}
+            title={activePreset?.is_builtin ? trText('原厂预设不可重命名') : trText('重命名当前方案')}
             disabled={activePreset?.is_builtin}
             onClick={() => {
               if (activePreset && !activePreset.is_builtin) {
@@ -304,7 +302,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
             style={{
               color: activePreset?.is_builtin ? 'var(--text-dim)' : 'var(--status-error)',
             }}
-            title={activePreset?.is_builtin ? '原厂预设不可删除' : trText('删除当前方案文件')}
+            title={activePreset?.is_builtin ? trText('原厂预设不可删除') : trText('删除当前方案文件')}
             disabled={activePreset?.is_builtin}
             onClick={onDeleteProfile}
           >
@@ -357,14 +355,14 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>
-              {modalMode === 'new' ? '新建方案副本' : trText('重命名方案')}
+              {modalMode === 'new' ? trText('新建方案副本') : trText('重命名方案')}
             </div>
             <input
               type="text"
               value={modalInputName}
               maxLength={12}
               autoFocus
-              placeholder="输入方案名称 (最多12字)..."
+              placeholder={trText(trText("输入方案名称 (最多12字)..."))}
               onChange={(e) => setModalInputName(e.target.value.slice(0, 12))}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -401,9 +399,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
                 }}
-              >
-                取消
-              </button>
+              > {trText('取消')} </button>
               <button
                 type="button"
                 onClick={() => {
@@ -424,9 +420,7 @@ export const TuningToolbar: React.FC<TuningToolbarProps> = ({
                   color: 'var(--text-primary)',
                   cursor: 'pointer',
                 }}
-              >
-                确定
-              </button>
+              > {trText('确定')} </button>
             </div>
           </div>
         </div>

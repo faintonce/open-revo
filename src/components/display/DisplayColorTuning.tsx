@@ -51,9 +51,7 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
           <Palette className={`w-4 h-4 ${enabled ? 'text-pink-400' : 'text-slate-400'}`} />
         </div>
         <div>
-          <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            屏幕色彩增强 (Display Tuning)
-          </div>
+          <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}> {trText('屏幕色彩增强 (Display Tuning)')} </div>
           <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
             {enabled
               ? `当前方案：${tuningState!.active_preset.name}`
@@ -99,7 +97,7 @@ export const DisplayColorTuning: React.FC<DisplayColorTuningProps> = ({
             boxShadow: enabled ? '0 0 10px rgba(236, 72, 153, 0.5)' : 'none',
             flexShrink: 0,
           }}
-          title={enabled ? '点击关闭色彩增强' : trText('点击开启色彩增强')}
+          title={enabled ? trText('点击关闭色彩增强') : trText('点击开启色彩增强')}
         >
           <div
             style={{

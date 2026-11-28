@@ -288,12 +288,10 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                   border: `1px solid ${state.enabled ? 'rgba(16, 185, 129, 0.4)' : 'rgba(148, 163, 184, 0.3)'}`,
                 }}
               >
-                {state.enabled ? 'GPU 硬件生效中' : trText('调色已暂停')}
+                {state.enabled ? trText('GPU 硬件生效中') : trText('调色已暂停')}
               </span>
             </div>
-            <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-              GPU 硬件级 LUT 查找表与全屏 DWM 渲染管线实时色彩重构
-            </div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}> {trText('GPU 硬件级 LUT 查找表与全屏 DWM 渲染管线实时色彩重构')} </div>
           </div>
         </div>
 
@@ -362,9 +360,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
               marginBottom: '12px',
             }}
           >
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1' }}>
-              色彩预设方案
-            </div>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1' }}> {trText('色彩预设方案')} </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {/* Load .json Button */}
               <button
@@ -431,7 +427,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                   fontWeight: 600,
                   transition: 'all 0.2s ease',
                 }}
-                title={isModified ? "撤销对当前方案的滑块微调，恢复初始参数" : "当前方案未做任何修改"}
+                title={isModified ? trText("撤销对当前方案的滑块微调，恢复初始参数") : "当前方案未做任何修改"}
               >
                 <RotateCcw size={12} />
                 <span>{trText('撤销更改')}</span>
@@ -505,9 +501,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                           whiteSpace: 'nowrap',
                         }}
                         title="当前方案参数已微调，点击右上角【撤销更改】可一键恢复官方初始参数"
-                      >
-                        微调
-                      </span>
+                      > {trText('微调')} </span>
                     ) : (
                       <Check size={12} className="text-pink-400" style={{ flexShrink: 0, marginLeft: '4px' }} />
                     )
@@ -530,9 +524,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
             gap: '14px',
           }}
         >
-          <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '2px' }}>
-            实时显卡硬件微调 (所见即所得，毫秒级生效)
-          </div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '2px' }}> {trText('实时显卡硬件微调 (所见即所得，毫秒级生效)')} </div>
 
           {/* Slider 1: Color Temp */}
           <div>
@@ -640,7 +632,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 padding: '4px 0',
               }}
             >
-              <span>{showRgbChannels ? '收起' : trText('展开')} RGB 独立原色增益微调</span>
+              <span>{showRgbChannels ? trText('收起') : trText('展开')} {trText('RGB 独立原色增益微调')}</span>
               {showRgbChannels ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
 
@@ -648,7 +640,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                 {/* R Gain */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ width: '50px', fontSize: '11px', color: '#f87171' }}>红 (R): {Math.round(activePreset.gain_r * 100)}%</span>
+                  <span style={{ width: '50px', fontSize: '11px', color: '#f87171' }}>{trText('红 (R):')} {Math.round(activePreset.gain_r * 100)}%</span>
                   <input
                     type="range"
                     min={0.5}
@@ -661,7 +653,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 </div>
                 {/* G Gain */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ width: '50px', fontSize: '11px', color: '#4ade80' }}>绿 (G): {Math.round(activePreset.gain_g * 100)}%</span>
+                  <span style={{ width: '50px', fontSize: '11px', color: '#4ade80' }}>{trText('绿 (G):')} {Math.round(activePreset.gain_g * 100)}%</span>
                   <input
                     type="range"
                     min={0.5}
@@ -674,7 +666,7 @@ export const DisplayTuningModal: React.FC<DisplayTuningModalProps> = ({ onClose,
                 </div>
                 {/* B Gain */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ width: '50px', fontSize: '11px', color: '#60a5fa' }}>蓝 (B): {Math.round(activePreset.gain_b * 100)}%</span>
+                  <span style={{ width: '50px', fontSize: '11px', color: '#60a5fa' }}>{trText('蓝 (B):')} {Math.round(activePreset.gain_b * 100)}%</span>
                   <input
                     type="range"
                     min={0.5}

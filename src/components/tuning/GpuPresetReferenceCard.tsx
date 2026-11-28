@@ -34,7 +34,7 @@ export const GpuPresetReferenceCard: React.FC<GpuPresetReferenceCardProps> = ({ 
         <span>{trText('模具原厂建议功耗参考')}</span>
         {presets?.hardware_read && (
           <span style={{ fontSize: '10px', color: 'var(--status-ok)', fontWeight: 600, marginLeft: 'auto' }}>
-            {isDeclarative ? '原厂硬件直读' : trText('EC 硬件直读')}
+            {isDeclarative ? trText('原厂硬件直读') : trText('EC 硬件直读')}
           </span>
         )}
       </div>
@@ -54,8 +54,7 @@ export const GpuPresetReferenceCard: React.FC<GpuPresetReferenceCardProps> = ({ 
               • CPU 推荐: 持续 PL1 {presets?.office_pl1 || 45}W~{presets?.balance_pl1 || 75}W / 爆发 PL2 {presets?.balance_pl2 || 75}W~{presets?.turbo_pl2 || 115}W
             </div>
             <div>
-              • GPU 推荐: 基础 {presets?.base_tgp || 'Base'}W + DB {presets?.max_db ? `+${presets.max_db}W` : '15W~25W'} 动态分配
-            </div>
+              • GPU 推荐: 基础 {presets?.base_tgp || 'Base'}W + DB {presets?.max_db ? `+${presets.max_db}W` : '15W~25W'} {trText('动态分配')} </div>
           </>
         )}
       </div>

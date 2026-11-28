@@ -23,8 +23,7 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
         <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
           {strategy === 'custom' ? (
             <>
-              <Sparkles size={11} style={{ color: 'var(--status-warn)' }} /> 当前处于手动自定义调节状态（预设全灭）
-            </>
+              <Sparkles size={11} style={{ color: 'var(--status-warn)' }} /> {trText('当前处于手动自定义调节状态（预设全灭）')} </>
           ) : (
             trText('选择【智慧自适应】自动随动；手调水泵或风扇后自动转为自定义')
           )}
@@ -51,8 +50,7 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span className="cooler-strat-title" style={{ fontSize: '11px', fontWeight: 800, color: 'var(--status-info)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-              <ShieldCheck size={13} /> 智慧自适应
-            </span>
+              <ShieldCheck size={13} /> {trText('智慧自适应')} </span>
             <span
               className="cooler-strat-badge"
               style={{
@@ -63,9 +61,7 @@ export const CoolerPresetCards: React.FC<CoolerPresetCardsProps> = ({
                 background: 'var(--status-info-dim)',
                 color: 'var(--status-info)',
               }}
-            >
-              温控随动
-            </span>
+            > {trText('温控随动')} </span>
           </div>
           <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>
             依据核心温度动态调控，<strong style={{ color: 'var(--status-ok)' }}>{trText('&lt;55°C 风扇停转')}</strong>

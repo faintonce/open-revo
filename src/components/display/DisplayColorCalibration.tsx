@@ -102,9 +102,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              屏幕色彩校正 (Color Management)
-            </span>
+            <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}> {trText('屏幕色彩校正 (Color Management)')} </span>
             {calibrationState?.hdr_active && (
               <span
                 style={{
@@ -116,9 +114,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
                   border: '1px solid rgba(245, 158, 11, 0.3)',
                 }}
                 title="检测到 Windows HDR 已开启，SDR 色彩管理可能被系统接管"
-              >
-                HDR 运行中
-              </span>
+              > {trText('HDR 运行中')} </span>
             )}
           </div>
           <div
@@ -145,7 +141,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
           <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setShowMonMenu(!showMonMenu)}
-              title="点击选择调控的显示器"
+              title={trText(trText("点击选择调控的显示器"))}
               className="monitor-select-btn"
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
@@ -233,7 +229,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             color: isDirty ? 'var(--status-info)' : 'var(--text-dim)',
             transition: 'all var(--transition-fast)',
           }}
-          title={isDirty ? '点击立即将此校色方案应用至屏幕硬件 LUT 与 Windows 颜色管理' : trText('当前方案已生效')}
+          title={isDirty ? trText('点击立即将此校色方案应用至屏幕硬件 LUT 与 Windows 颜色管理') : trText('当前方案已生效')}
         >
           <Check size={12} />
           <span>{trText('应用')}</span>
@@ -277,7 +273,7 @@ export const DisplayColorCalibration: React.FC<DisplayColorCalibrationProps> = (
             cursor: isCustomProfileActive && !isCalibrating ? 'pointer' : 'not-allowed',
             padding: '4px 7px',
           }}
-          title={isCustomProfileActive ? '删除此自定义校色文件' : trText('出厂与系统内置方案不可删除')}
+          title={isCustomProfileActive ? trText('删除此自定义校色文件') : trText('出厂与系统内置方案不可删除')}
         >
           <Trash2 size={12} />
         </button>
