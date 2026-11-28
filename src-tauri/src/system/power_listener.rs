@@ -71,7 +71,6 @@ fn handle_wake_auto_office() {
 }
 
 fn handle_system_resume_pipeline(event_name: &str) {
-    crate::system::telemetry::set_screen_suspended(false);
     if crate::hal::platform_probe::is_ultrabook() {
         println!("[Power Guard] Ultrabook {}! Restoring power mode only.", event_name);
         handle_wake_auto_office();
@@ -207,7 +206,8 @@ unsafe extern "system" fn power_wnd_proc(
                         } else if prev != lid_state as i8 {
                             // 0 = Lid Closed, 1 = Lid Open
                             if lid_state == 0 {
-                                crate::system::telemetry::set_screen_suspended(true);
+                                // The lid can close while Windows stays awake on an external display.
+                                // Keep telemetry running until Windows reports a system suspend.
                                 if crate::hal::platform_probe::is_ultrabook() {
                                     println!("[Power Guard] Ultrabook lid closed! Adjusting power mode only.");
                                     handle_sleep_auto_office();
@@ -229,6 +229,7 @@ unsafe extern "system" fn power_wnd_proc(
                     }
                 }
             } else if pbt == PBT_APMRESUMEAUTOMATIC || pbt == PBT_APMRESUMESUSPEND {
+                crate::system::telemetry::set_screen_suspended(false);
                 handle_system_resume_pipeline("resumed from Sleep / Hibernate");
             }
             LRESULT(1)
