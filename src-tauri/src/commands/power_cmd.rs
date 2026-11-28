@@ -637,6 +637,165 @@ pub fn query_sleep_guard_registry_states(cfg: &crate::system::config::AppConfig)
     }
 }
 
+fn read_power_setting_dword(scheme_guid: &str, subgroup: &str, setting: &str, ac: bool) -> Option<u32> {
+    use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RegOpenKeyExW, RegQueryValueExW, RegCloseKey, KEY_READ, REG_DWORD};
+    use windows::core::PCWSTR;
+
+    let try_paths = if subgroup.is_empty()
+        || subgroup.eq_ignore_ascii_case("sub_none")
+        || subgroup.eq_ignore_ascii_case("fea3413e-7e05-4911-9a71-700331f1c294")
+    {
+        vec![
+            format!(
+                "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{}\\{}\0",
+                scheme_guid, setting
+            ),
+            format!(
+                "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{}\\fea3413e-7e05-4911-9a71-700331f1c294\\{}\0",
+                scheme_guid, setting
+            ),
+        ]
+    } else {
+        vec![
+            format!(
+                "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{}\\{}\\{}\0",
+                scheme_guid, subgroup, setting
+            ),
+            format!(
+                "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\{}\\{}\0",
+                scheme_guid, setting
+            ),
+        ]
+    };
+
+    let val_name: Vec<u16> = (if ac { "ACSettingIndex\0" } else { "DCSettingIndex\0" }).encode_utf16().collect();
+
+    for path_str in try_paths {
+        let path_w: Vec<u16> = path_str.encode_utf16().collect();
+        let mut h_key = windows::Win32::System::Registry::HKEY::default();
+
+        unsafe {
+            if RegOpenKeyExW(HKEY_LOCAL_MACHINE, PCWSTR(path_w.as_ptr()), 0, KEY_READ, &mut h_key).is_ok() {
+                let mut val: u32 = 0;
+                let mut val_len = std::mem::size_of::<u32>() as u32;
+                let mut val_type = REG_DWORD;
+                let res = RegQueryValueExW(
+                    h_key,
+                    PCWSTR(val_name.as_ptr()),
+                    None,
+                    Some(&mut val_type),
+                    Some(&mut val as *mut u32 as *mut u8),
+                    Some(&mut val_len),
+                );
+                let _ = RegCloseKey(h_key);
+                if res.is_ok() {
+                    return Some(val);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "windows")]
+
+/// 插电 / 离电两个来源的 SleepGuard 实际状态（从当前电源计划的注册表值回读）
+#[derive(Clone, Debug)]
+pub struct SleepGuardState {
+    pub ac: [bool; 6],
+    pub dc: [bool; 6],
+    pub ac_all: bool,
+    pub dc_all: bool,
+}
+
+impl SleepGuardState {
+    pub fn for_source(&self, ac: bool) -> &[bool; 6] {
+        if ac { &self.ac } else { &self.dc }
+    }
+
+    pub fn all_for(&self, ac: bool) -> bool {
+        if ac { self.ac_all } else { self.dc_all }
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub fn query_sleep_guard_state() -> SleepGuardState {
+    let cfg = crate::system::config::load_config();
+    let scheme = get_active_power_scheme_guid_top_level();
+
+    let read = |subgroup: &str, setting: &str, ac: bool| -> Option<u32> {
+        read_power_setting_dword(&scheme, subgroup, setting, ac)
+    };
+
+    let slot = |ac: bool| -> [bool; 6] {
+        let disconnect_net = read("SUB_NONE", "f15576e8-98b7-4186-b944-eafa664402d9", ac)
+            .map(|v| v == 0).unwrap_or(cfg.sleep_disconnect_net);
+        let block_away = read("238c9fa8-0aad-41ed-83f4-97be242c8f20", "25dfa149-5dd1-4736-b5ab-e8a37b5b8187", ac)
+            .map(|v| v == 0).unwrap_or(cfg.sleep_block_away);
+        let ignore_sysreq = read("238c9fa8-0aad-41ed-83f4-97be242c8f20", "a4b195f5-8225-47d8-8012-9d41369786e2", ac)
+            .map(|v| v == 0).unwrap_or(cfg.sleep_ignore_sysreq);
+        let disable_wake_timers = read("238c9fa8-0aad-41ed-83f4-97be242c8f20", "bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d", ac)
+            .map(|v| v == 0).unwrap_or(cfg.sleep_disable_wake_timers);
+        let deep_sleep = read("2e601130-5351-4d9d-8e04-252966bad054", "d502f7ee-1dc7-4efd-a55d-f04b6f5c0545", ac)
+            .map(|v| v == 1).unwrap_or(cfg.sleep_deep_sleep);
+        let hibernate_30m = read("238c9fa8-0aad-41ed-83f4-97be242c8f20", "9d7815a6-7ee4-497e-8888-515a05f02364", ac)
+            .map(|v| v > 0 && v <= 1800).unwrap_or(cfg.sleep_hibernate_30m);
+        [disconnect_net, block_away, ignore_sysreq, disable_wake_timers, deep_sleep, hibernate_30m]
+    };
+
+    let ac = slot(true);
+    let dc = slot(false);
+    SleepGuardState {
+        ac_all: ac.iter().all(|v| *v),
+        dc_all: dc.iter().all(|v| *v),
+        ac,
+        dc,
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn query_sleep_guard_state() -> SleepGuardState {
+    let cfg = crate::system::config::load_config();
+    let both = [
+        cfg.sleep_disconnect_net,
+        cfg.sleep_block_away,
+        cfg.sleep_ignore_sysreq,
+        cfg.sleep_disable_wake_timers,
+        cfg.sleep_deep_sleep,
+        cfg.sleep_hibernate_30m,
+    ];
+    SleepGuardState {
+        ac: both,
+        dc: both,
+        ac_all: cfg.sleep_guard_enabled,
+        dc_all: cfg.sleep_guard_enabled,
+    }
+}
+
+/// 只把某一项策略写到指定来源（插电 / 离电）
+pub fn apply_sleep_guard_powercfg_for(option: &str, enable: bool, ac: bool) {
+    let source = if ac {
+        crate::system::power::ppm::PowerSource::Ac
+    } else {
+        crate::system::power::ppm::PowerSource::Dc
+    };
+    if let Err(e) = crate::system::power::ppm::apply_sleep_guard_option_for(option, enable, source) {
+        crate::log_warn!("POWER_CMD", "Failed to apply sleep guard option {} ({}): {}", option, source.as_str(), e);
+    }
+}
+
+/// 六项策略一次性套用到指定来源
+pub fn apply_all_sleep_guard_for(enable: bool, ac: bool) {
+    let source = if ac {
+        crate::system::power::ppm::PowerSource::Ac
+    } else {
+        crate::system::power::ppm::PowerSource::Dc
+    };
+    crate::system::power::ppm::apply_all_sleep_guard_for(enable, source);
+}
+
+#[tauri::command]
+
 pub fn apply_sleep_guard_powercfg(option: &str, enable: bool) {
     if let Err(e) = crate::system::power::ppm::apply_sleep_guard_option(option, enable) {
         crate::log_warn!("POWER_CMD", "Failed to apply sleep guard option {}: {}", option, e);
@@ -1201,4 +1360,29 @@ pub fn set_turbo_oc_enabled(enabled: bool, app: AppHandle) -> Result<bool, Strin
     );
     crate::system::slint_window::sync::sync_slint_power_state();
     Ok(enabled)
+}
+
+/// 当前活动电源计划 GUID（模块级，供双源回读复用）。
+#[cfg(target_os = "windows")]
+fn get_active_power_scheme_guid_top_level() -> String {
+    use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RegOpenKeyExW, RegQueryValueExW, RegCloseKey, KEY_READ, REG_SZ};
+    use windows::core::PCWSTR;
+
+    let base_path: Vec<u16> = "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\0".encode_utf16().collect();
+    let val_name: Vec<u16> = "ActivePowerScheme\0".encode_utf16().collect();
+    let mut h_key = windows::Win32::System::Registry::HKEY::default();
+    unsafe {
+        if RegOpenKeyExW(HKEY_LOCAL_MACHINE, PCWSTR(base_path.as_ptr()), 0, KEY_READ, &mut h_key).is_ok() {
+            let mut buf = [0u16; 64];
+            let mut size = (buf.len() * 2) as u32;
+            let mut ty = REG_SZ;
+            let ok = RegQueryValueExW(h_key, PCWSTR(val_name.as_ptr()), None, Some(&mut ty), Some(buf.as_mut_ptr() as *mut u8), Some(&mut size)).is_ok();
+            let _ = RegCloseKey(h_key);
+            if ok {
+                let len = (size as usize / 2).saturating_sub(1).min(buf.len());
+                return String::from_utf16_lossy(&buf[..len]);
+            }
+        }
+    }
+    "SCHEME_CURRENT".to_string()
 }

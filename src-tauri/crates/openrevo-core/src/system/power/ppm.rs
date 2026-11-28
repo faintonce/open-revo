@@ -159,6 +159,95 @@ pub fn set_active_windows_power_scheme(guid: &str) -> Result<(), String> {
 }
 
 /// Applies a single SleepGuard policy via `powercfg`
+/// 供电来源：插电（AC）/ 离电（DC）
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PowerSource {
+    Ac,
+    Dc,
+}
+
+impl PowerSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PowerSource::Ac => "ac",
+            PowerSource::Dc => "dc",
+        }
+    }
+
+    pub fn from_str(value: &str) -> PowerSource {
+        if value.eq_ignore_ascii_case("ac") {
+            PowerSource::Ac
+        } else {
+            PowerSource::Dc
+        }
+    }
+
+    fn set_cmd(self) -> &'static str {
+        match self {
+            PowerSource::Ac => "/setacvalueindex",
+            PowerSource::Dc => "/setdcvalueindex",
+        }
+    }
+
+    fn hibernate_timeout(self) -> &'static str {
+        match self {
+            PowerSource::Ac => "hibernate-timeout-ac",
+            PowerSource::Dc => "hibernate-timeout-dc",
+        }
+    }
+}
+
+/// 只把某一条 SleepGuard 策略写到指定供电来源（插电 / 离电互不影响）
+pub fn apply_sleep_guard_option_for(option: &str, enable: bool, source: PowerSource) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let set = source.set_cmd();
+        match option {
+            "disconnect_net" => {
+                let val = if enable { "0" } else { "1" };
+                let _ = run_powercfg(&[set, "scheme_current", "SUB_NONE", "f15576e8-98b7-4186-b944-eafa664402d9", val]);
+            }
+            "block_away" => {
+                let val = if enable { "0" } else { "1" };
+                let _ = run_powercfg(&[set, "scheme_current", "238c9fa8-0aad-41ed-83f4-97be242c8f20", "25dfa149-5dd1-4736-b5ab-e8a37b5b8187", val]);
+            }
+            "ignore_sysreq" => {
+                let val = if enable { "0" } else { "1" };
+                let _ = run_powercfg(&[set, "scheme_current", "238c9fa8-0aad-41ed-83f4-97be242c8f20", "a4b195f5-8225-47d8-8012-9d41369786e2", val]);
+            }
+            "disable_wake_timers" => {
+                let val = if enable { "0" } else { "1" };
+                let _ = run_powercfg(&[set, "scheme_current", "238c9fa8-0aad-41ed-83f4-97be242c8f20", "bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d", val]);
+            }
+            "deep_sleep" => {
+                let val = if enable { "1" } else { "0" };
+                let _ = run_powercfg(&[set, "scheme_current", "2e601130-5351-4d9d-8e04-252966bad054", "d502f7ee-1dc7-4efd-a55d-f04b6f5c0545", val]);
+            }
+            "hibernate_30m" => {
+                let val = if enable { "30" } else { "0" };
+                let _ = run_powercfg(&["/change", source.hibernate_timeout(), val]);
+            }
+            _ => return Err(format!("Unknown SleepGuard option: {}", option)),
+        }
+        let _ = run_powercfg(&["/setactive", "scheme_current"]);
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (option, enable, source);
+        Ok(())
+    }
+}
+
+/// Applies a single SleepGuard policy via `powercfg`（两个来源都写，保留旧行为）
+
+/// 六项策略一次性套用到指定来源
+pub fn apply_all_sleep_guard_for(enable: bool, source: PowerSource) {
+    for option in ["disconnect_net", "block_away", "ignore_sysreq", "disable_wake_timers", "deep_sleep", "hibernate_30m"] {
+        let _ = apply_sleep_guard_option_for(option, enable, source);
+    }
+}
+
 pub fn apply_sleep_guard_option(option: &str, enable: bool) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {

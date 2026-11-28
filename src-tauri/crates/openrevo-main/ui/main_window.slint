@@ -54,6 +54,7 @@ export component MainWindow inherits Window {
     in-out property <bool> ac_recovery_enabled: false;
     in-out property <bool> high_perf_scheme: true;
     in-out property <bool> sleep_guard_enabled: false;
+    in-out property <string> sleep_guard_source: "ac";
     in-out property <bool> sleep_disconnect_net: false;
     in-out property <bool> sleep_block_away: false;
     in-out property <bool> sleep_ignore_sysreq: false;
@@ -603,8 +604,8 @@ export component MainWindow inherits Window {
     callback close_clicked();
 
     callback toggle_sleep_auto_office();
-    callback toggle_master_sleep_guard();
     callback toggle_sleep_guard_option(string);
+    callback select_sleep_guard_source(string);
     callback toggle_power_option(string);
     callback select_battery_mode(string);
 
@@ -867,11 +868,12 @@ export component MainWindow inherits Window {
         sleep_disable_wake_timers: root.sleep_disable_wake_timers;
         sleep_deep_sleep: root.sleep_deep_sleep;
         sleep_hibernate_30m: root.sleep_hibernate_30m;
+        sleep_guard_source: root.sleep_guard_source;
         sleep_auto_office: root.sleep_auto_office;
 
         toggle_sleep_auto_office => { root.toggle_sleep_auto_office(); }
-        toggle_master_sleep_guard => { root.toggle_master_sleep_guard(); }
         toggle_sleep_guard_option(opt) => { root.toggle_sleep_guard_option(opt); }
+        select_sleep_guard_source(src) => { root.select_sleep_guard_source(src); }
         toggle_power_option(opt) => { root.toggle_power_option(opt); }
         select_battery_mode(m) => { root.select_battery_mode(m); }
 
