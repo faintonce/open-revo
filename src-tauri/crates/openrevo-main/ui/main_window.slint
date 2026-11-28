@@ -45,6 +45,10 @@ export component MainWindow inherits Window {
     in-out property <string> kbd_color_name: "自定义";
     in-out property <color> kbd_color_preview: #f43f5e;
     in-out property <int> battery_limit: 60;    // 60, 80, 100
+    // 供电输入信息（后端算好的文案）
+    in-out property <string> adapter_text: "";
+    in-out property <string> charge_power_text: "";
+    in-out property <int> battery_cycle_count: 0;
     in-out property <bool> is_ac_online: true;
     in-out property <bool> is_dc_online: true;
     in-out property <bool> is_thin_and_light: false;
@@ -857,6 +861,9 @@ export component MainWindow inherits Window {
         is_ac_online: root.is_ac_online;
         battery_mode: root.battery_mode;
         battery_limit: root.battery_limit;
+        adapter_text: root.adapter_text;
+        charge_power_text: root.charge_power_text;
+        battery_cycle_count: root.battery_cycle_count;
         usb_charge_enabled: root.usb_charge_enabled;
         ac_recovery_enabled: root.ac_recovery_enabled;
         high_perf_scheme: root.high_perf_scheme;

@@ -12,6 +12,9 @@ export component DashboardPowerView inherits Rectangle {
     in-out property <bool> is_ac_online: true;
     in-out property <string> battery_mode: "station"; // "long_life" | "balance" | "station"
     in-out property <int> battery_limit: 60;          // 100 | 80 | 60
+    in-out property <string> adapter_text: "";
+    in-out property <string> charge_power_text: "";
+    in-out property <int> battery_cycle_count: 0;
 
     // Hardware Power Options
     in-out property <bool> usb_charge_enabled: false;
@@ -156,6 +159,9 @@ export component DashboardPowerView inherits Rectangle {
             is_ac_online: root.is_ac_online;
             battery_mode: root.battery_mode;
             battery_limit: root.battery_limit;
+            adapter_text: root.adapter_text;
+            charge_power_text: root.charge_power_text;
+            battery_cycle_count: root.battery_cycle_count;
             select_battery_mode(mode) => { root.select_battery_mode(mode); }
         }
     }
