@@ -6,6 +6,7 @@
 | 示例 | 引擎 | 清单入口 | 文档 |
 | :--- | :--- | :--- | :--- |
 | [cpu-guardian](webview2/cpu-guardian/) | WebView2 | 根 `entry`: `index.html`，另含 `service` 伴随提权服务 | [本地 README](webview2/cpu-guardian/README.md) |
+| [pbo-tuner](webview2/pbo-tuner/) | WebView2 | 根 `entry`: `index.html`，另含 `service` 伴随提权服务（PawnIO / SMU） | [本地 README](webview2/pbo-tuner/README.md) |
 | [eva01-core](webview2/eva01-core/) | WebView2 | 根 `entry`: `index.html`（`plugin_type: widget`） | [本地 README](webview2/eva01-core/README.md) |
 | [shortcut-fan-boost](webview2/shortcut-fan-boost/) | 无 GUI（`service`） | 无入口文件，纯声明式 `shortcuts` 无头服务 | [本地 README](webview2/shortcut-fan-boost/README.md) |
 | [shortcut-workshop](webview2/shortcut-workshop/) | WebView2 | 根 `entry`: `index.html` | [本地 README](webview2/shortcut-workshop/README.md) |
@@ -21,7 +22,7 @@
 
 ## 说明
 
-- 上表 12 个示例中包含丰富的设计形态，各示例附带的 README/SKILL 或清单均可作为二次开发模板。
+- 上表各示例包含丰富的设计形态，各示例附带的 README/SKILL 或清单均可作为二次开发模板。
 - `hybrid-battery` 的 `tab` 声明了 `dist/index.html`，但该构建产物当前不在仓库中；Slint 挂件部分可直接运行。
 - `battery-hardware-limit` 的清单未写 `entry`，由宿主回退到隐式 `index.html`。
 - `shortcut-fan-boost` 是无头服务示例，没有页面入口，只声明全局快捷键。
