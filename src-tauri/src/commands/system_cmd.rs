@@ -776,6 +776,7 @@ pub fn apply_locale_change(code: String, app: Option<&tauri::AppHandle>) -> Resu
 
     crate::system::slint_window::sync::sync_slint_i18n_tokens(None);
     crate::system::slint_window::sync::sync_slint_lighting_state();
+    crate::system::slint_window::sync::sync_slint_tuning_state();
     crate::system::slint_window::sync::sync_slint_power_targets(cfg.power_mode);
     crate::system::win32_tray::refresh_tray_tooltip();
     crate::system::tray::refresh_tauri_tray_locale();
